@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://dbw8hh2am6yoj"]
+
+[ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="UI" type="VBoxContainer" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="MapPanel" type="RichTextLabel" parent="UI"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+bbcode_enabled = true
+scroll_following = true
+
+[node name="LogPanel" type="RichTextLabel" parent="UI"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.0
+scroll_following = true
+
+[node name="Input" type="LineEdit" parent="UI"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+placeholder_text = "WASD 移动 | J 攻击 | L 查看 | Enter 打字"
