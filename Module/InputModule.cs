@@ -58,6 +58,7 @@ public partial class InputModule
 			Key.D     => "d",
 			Key.J     => "atk",
 			Key.L     => "look",
+			Key.R     => ":render",
 			Key.Enter => ":typing",
 			Key.T     => ":typing",
 			_         => null,
@@ -66,13 +67,14 @@ public partial class InputModule
 		if (cmd is null)
 			return false;
 
-		if (cmd == ":typing")
+		switch (cmd)
 		{
-			EnterTypingMode();
-		}
-		else
-		{
-			CommandReceived?.Invoke(cmd);
+			case ":typing":
+				EnterTypingMode();
+				break;
+			default:
+				CommandReceived?.Invoke(cmd);
+				break;
 		}
 
 		return true;

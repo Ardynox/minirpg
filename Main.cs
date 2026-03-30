@@ -8,6 +8,7 @@ namespace MiniRPG;
 public partial class Main : Node
 {
 	private const int MaxLogLines = 30;
+	private const double MapFps = 10.0;
 
 	private static readonly string[] MapRows =
 	{
@@ -22,8 +23,6 @@ public partial class Main : Node
 		"####################",
 	};
 
-	private const double MapFps = 10.0;
-
 	private readonly List<List<string>> _map = [];
 	private int _playerX;
 	private int _playerY;
@@ -34,6 +33,7 @@ public partial class Main : Node
 	private RichTextLabel _mapPanel = null!;
 	private RichTextLabel _logPanel = null!;
 	private InputModule _inputModule = null!;
+	private RenderModule _renderModule = null!;
 
 	public override void _Ready()
 	{
@@ -41,13 +41,14 @@ public partial class Main : Node
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
 		var lineEdit = GetNode<LineEdit>("UI/Input");
 
-		SetupMapFont();
+		_renderModule = new RenderModule();
+		_renderModule.ApplyFont(_mapPanel);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
 
 		InitMap();
-		AddLog("WASD 移动 | J 攻击 | L 查看 | Enter 打字输入");
+		AddLog("WASD 移动 | J 攻击 | L 查看 | R 切换渲染 | Enter 打字");
 		_mapDirty = true;
 	}
 
@@ -59,14 +60,6 @@ public partial class Main : Node
 		_renderTimer = 0;
 		_mapDirty = false;
 		FlushMap();
-	}
-
-	private void SetupMapFont()
-	{
-		var font = new SystemFont();
-		font.FontNames = ["Consolas", "Courier New", "Liberation Mono", "monospace"];
-		_mapPanel.AddThemeFontOverride("normal_font", font);
-		_mapPanel.AddThemeFontSizeOverride("normal_font_size", 22);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -85,8 +78,21 @@ public partial class Main : Node
 			case "d": Move(1, 0); break;
 			case "atk": Attack(); break;
 			case "look": Look(); break;
+			case ":render": ToggleRender(); break;
+			case "render": ToggleRender(); break;
 			default: AddLog("未知指令 ❓"); break;
 		}
+	}
+
+	// ── 渲染切换 ──────────────────────────────────────────
+
+	private void ToggleRender()
+	{
+		var mode = _renderModule.ToggleMode();
+		_renderModule.ApplyFont(_mapPanel);
+		_mapPanel.BbcodeEnabled = _renderModule.UsesBBCode;
+		AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
+		_mapDirty = true;
 	}
 
 	// ── 地图 ──────────────────────────────────────────────
@@ -117,34 +123,22 @@ public partial class Main : Node
 			GD.PushError("MAP_ROWS 中未找到 P（玩家起点）");
 	}
 
-	/// <summary>等宽字符 + BBCode 着色，彻底解决 emoji 宽度不一致导致的错位。</summary>
-	private static string CellBBCode(string c) => c switch
-	{
-		"#" => "[color=#555555]██[/color]",
-		"." => "[color=#333333]· [/color]",
-		"P" => "[color=#44ee44]@·[/color]",
-		"M" => "[color=#ee4444]M·[/color]",
-		_ => c + " ",
-	};
-
-	private string MapBBCode()
-	{
-		var sb = new StringBuilder();
-		foreach (var row in _map)
-		{
-			foreach (var c in row)
-				sb.Append(CellBBCode(c));
-			sb.Append('\n');
-		}
-		return sb.ToString();
-	}
-
 	private void RenderMap() => _mapDirty = true;
 
 	private void FlushMap()
 	{
+		var text = _renderModule.RenderMap(_map);
 		_mapPanel.Clear();
-		_mapPanel.AppendText(MapBBCode());
+		if (_renderModule.UsesBBCode)
+		{
+			_mapPanel.BbcodeEnabled = true;
+			_mapPanel.AppendText(text);
+		}
+		else
+		{
+			_mapPanel.BbcodeEnabled = false;
+			_mapPanel.Text = text;
+		}
 	}
 
 	// ── 移动 ──────────────────────────────────────────────
@@ -227,11 +221,6 @@ public partial class Main : Node
 		_logLines.Add(msg);
 		if (_logLines.Count > MaxLogLines)
 			_logLines.RemoveRange(0, _logLines.Count - MaxLogLines);
-		RefreshLog();
-	}
-
-	private void RefreshLog()
-	{
 		_logPanel.Text = string.Join("\n", _logLines);
 	}
 }
