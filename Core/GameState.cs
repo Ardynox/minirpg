@@ -10,13 +10,14 @@ public class GameState
 {
 	public int Turn { get; set; }
 	public int RngSeed { get; set; } = 42;
+	public int CurrentFloor { get; set; }
 
-	// ── 地图（四层分离） ──
+	// ── 当前楼层地图（四层分离） ──
 	public int MapWidth { get; set; }
 	public int MapHeight { get; set; }
 	/// <summary>第一层：地形 —— "#" 墙, "." 地面</summary>
 	public List<List<string>> Terrain { get; set; } = [];
-	/// <summary>第二层：设施（静态/半静态）—— "D" 门, "N" 巢穴, "I" 道具, "" 空</summary>
+	/// <summary>第二层：设施（静态/半静态）—— ">" 下行楼梯, "<" 上行楼梯, "N" 巢穴, "I" 道具, "" 空</summary>
 	public List<List<string>> Fixtures { get; set; } = [];
 	/// <summary>第三层：动态角色 —— "P" 玩家, "M" 怪物, "" 空</summary>
 	public List<List<string>> Objects { get; set; } = [];
@@ -27,6 +28,23 @@ public class GameState
 	public List<NestData> Nests { get; set; } = [];
 
 	// ── 玩家 ──
+	public int PlayerX { get; set; }
+	public int PlayerY { get; set; }
+
+	// ── 其他楼层缓存（当前楼层数据在上面的直属字段里，其余楼层在这里） ──
+	public Dictionary<int, FloorData> Floors { get; set; } = new();
+}
+
+/// <summary>一层楼的完整快照，用于楼层切换时的缓存。</summary>
+public class FloorData
+{
+	public int Width { get; set; }
+	public int Height { get; set; }
+	public List<List<string>> Terrain { get; set; } = [];
+	public List<List<string>> Fixtures { get; set; } = [];
+	public List<List<string>> Objects { get; set; } = [];
+	public List<List<Dictionary<string, string>?>> Meta { get; set; } = [];
+	public List<NestData> Nests { get; set; } = [];
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
 }

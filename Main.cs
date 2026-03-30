@@ -15,8 +15,12 @@ public partial class Main : Node
 	private const int ViewW = 21;
 	private const int ViewH = 11;
 
-	private static readonly string SavePath =
-		System.IO.Path.Combine(OS.GetUserDataDir(), "save", "map.json");
+	private static readonly string SaveDir =
+		System.IO.Path.Combine(OS.GetUserDataDir(), "save");
+	private static string QuickSavePath =>
+		System.IO.Path.Combine(SaveDir, "quicksave.json");
+	private static string ManualSavePath =>
+		System.IO.Path.Combine(SaveDir, "save.json");
 
 	private readonly GameState _state = new();
 	private readonly List<string> _logLines = [];
@@ -44,13 +48,19 @@ public partial class Main : Node
 		_inputModule.CommandReceived += OnCommand;
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
+		GetNode<Button>("SettingsPanel/VBox/SaveBtn").Pressed += () => DoSave(ManualSavePath);
+		GetNode<Button>("SettingsPanel/VBox/LoadBtn").Pressed += () => DoLoad(ManualSavePath);
 		GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += ToggleSettings;
 
-		if (!SaveModule.LoadMap(_state, SavePath))
+		if (SaveModule.LoadGame(_state, QuickSavePath))
+			AddLog("快速存档已加载 📂");
+		else if (SaveModule.LoadGame(_state, ManualSavePath))
+			AddLog("存档已加载 📂");
+		else
 			GenerateNewMap();
 
 		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		AddLog("空格 进门 | save load newmap");
+		AddLog("空格 上下楼 | F5 快存 | F9 快读");
 		FlushMap();
 	}
 
@@ -74,8 +84,14 @@ public partial class Main : Node
 
 	private void OnCommand(string cmd)
 	{
-		if (_settingsOpen && cmd != ":settings")
-			return;
+		switch (cmd)
+		{
+			case ":settings": ToggleSettings(); return;
+			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
+			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
+		}
+
+		if (_settingsOpen) return;
 
 		switch (cmd)
 		{
@@ -84,13 +100,18 @@ public partial class Main : Node
 			case "a": DoMove(-1, 0); break;
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
-			case "enter": DoEnterDoor(); break;
-			case "save": DoSave(); break;
-			case "load": DoLoad(); break;
-			case "newmap": GenerateNewMap(); AddLog("新地图已生成 🗺️"); FlushMap(); break;
+			case "enter": DoEnterStairs(); break;
+			case "save": DoSave(ManualSavePath); break;
+			case "load": DoLoad(ManualSavePath); break;
+			case "newmap":
+				_state.Floors.Clear();
+				_state.CurrentFloor = 0;
+				GenerateNewMap();
+				AddLog("新地图已生成 🗺️");
+				FlushMap();
+				break;
 			case ":render": ToggleRender(); break;
 			case "render": ToggleRender(); break;
-			case ":settings": ToggleSettings(); break;
 			case "settings": ToggleSettings(); break;
 			default: AddLog("未知指令 ❓"); break;
 		}
@@ -131,22 +152,72 @@ public partial class Main : Node
 		}
 	}
 
-	// ── 门（玩家脚下或相邻 Fixtures 层有 D 即可进入） ────
+	// ── 楼梯（上行 / 下行） ──────────────────────────────
 
-	private void DoEnterDoor()
+	private void DoEnterStairs()
 	{
+		var px = _state.PlayerX;
+		var py = _state.PlayerY;
 		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
+
 		foreach (var (dx, dy) in dirs)
 		{
-			if (MapModule.IsDoor(_state, _state.PlayerX + dx, _state.PlayerY + dy))
+			var fixture = MapModule.GetFixture(_state, px + dx, py + dy);
+			switch (fixture)
 			{
-				GenerateNewMap();
-				AddLog("你进入了下一层 🚪");
-				FlushMap();
+				case ">": GoDown(); return;
+				case "<": GoUp(); return;
+			}
+		}
+		AddLog("附近没有楼梯 🤷");
+	}
+
+	private void GoDown()
+	{
+		SaveModule.SaveFloorToDict(_state);
+		_state.CurrentFloor++;
+		if (SaveModule.LoadFloorFromDict(_state, _state.CurrentFloor))
+		{
+			PlacePlayerAtFixture("<");
+			AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬇️");
+		}
+		else
+		{
+			GenerateNewMap();
+			AddLog($"你进入了第 {_state.CurrentFloor} 层 ⬇️");
+		}
+		FlushMap();
+	}
+
+	private void GoUp()
+	{
+		if (_state.CurrentFloor <= 0)
+		{
+			AddLog("已经是最顶层 🚫");
+			return;
+		}
+		SaveModule.SaveFloorToDict(_state);
+		_state.CurrentFloor--;
+		SaveModule.LoadFloorFromDict(_state, _state.CurrentFloor);
+		PlacePlayerAtFixture(">");
+		AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬆️");
+		FlushMap();
+	}
+
+	private void PlacePlayerAtFixture(string fixtureType)
+	{
+		MapModule.SetObject(_state, _state.PlayerX, _state.PlayerY, "");
+		for (var y = 0; y < _state.MapHeight; y++)
+		for (var x = 0; x < _state.MapWidth; x++)
+		{
+			if (MapModule.GetFixture(_state, x, y) == fixtureType)
+			{
+				_state.PlayerX = x;
+				_state.PlayerY = y;
+				MapModule.SetObject(_state, x, y, "P");
 				return;
 			}
 		}
-		AddLog("附近没有门 🤷");
 	}
 
 	// ── 查看 ──────────────────────────────────────────────
@@ -154,7 +225,7 @@ public partial class Main : Node
 	private void DoLook()
 	{
 		var sb = new StringBuilder();
-		sb.Append($"📍 你在 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
 		var standingOn = MapModule.GetFixture(_state, _state.PlayerX, _state.PlayerY);
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
@@ -183,36 +254,37 @@ public partial class Main : Node
 
 	private static string FixtureLabel(string f) => f switch
 	{
-		"D" => "门 🚪",
+		">" => "下行楼梯 ⬇️",
+		"<" => "上行楼梯 ⬆️",
 		"N" => "巢穴 🕳️",
 		"I" => "道具 📦",
 		_ => f,
 	};
 
-	// ── 存档/读档 ────────────────────────────────────────
+	// ── 存档 / 读档 ──────────────────────────────────────
 
-	private void DoSave()
+	private void DoSave(string path, string label = "存档")
 	{
-		SaveModule.SaveMap(_state, SavePath);
-		AddLog("地图已保存 💾");
+		SaveModule.SaveGame(_state, path);
+		AddLog($"{label}已保存 💾");
 	}
 
-	private void DoLoad()
+	private void DoLoad(string path, string label = "存档")
 	{
-		if (SaveModule.LoadMap(_state, SavePath))
+		if (SaveModule.LoadGame(_state, path))
 		{
-			AddLog("存档已加载 📂");
+			AddLog($"{label}已加载 📂 (第 {_state.CurrentFloor} 层)");
 			FlushMap();
 		}
 		else
 		{
-			AddLog("未找到存档 ❌");
+			AddLog($"未找到{label} ❌");
 		}
 	}
 
 	private void GenerateNewMap()
 	{
-		MapGenModule.Generate(_state, GenWidth, GenHeight);
+		MapGenModule.Generate(_state, GenWidth, GenHeight, _state.CurrentFloor);
 	}
 
 	// ── 渲染 ──────────────────────────────────────────────

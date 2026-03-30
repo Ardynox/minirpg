@@ -15,7 +15,7 @@ public class Room
 }
 
 /// <summary>
-/// 地图生成模块：随机房间 + 走廊连接 + 放置玩家/巢穴/门。
+/// 地图生成模块：随机房间 + 走廊连接 + 放置玩家/巢穴/楼梯。
 /// 纯函数，不引用 Godot 节点。
 /// </summary>
 public static class MapGenModule
@@ -25,9 +25,10 @@ public static class MapGenModule
 	private const int MaxAttempts = 60;
 
 	/// <summary>
-	/// 生成一张新地图并写入 state。
+	/// 生成一张新地图并写入 state。floor 决定是否放置上行楼梯。
 	/// </summary>
-	public static List<Room> Generate(GameState state, int width, int height, int? seed = null)
+	public static List<Room> Generate(GameState state, int width, int height,
+		int floor = 0, int? seed = null)
 	{
 		var rng = new Random(seed ?? Environment.TickCount);
 		state.RngSeed = seed ?? rng.Next();
@@ -38,7 +39,7 @@ public static class MapGenModule
 		InitLayers(state, width, height);
 		var rooms = PlaceRooms(state, rng);
 		ConnectRooms(state, rooms, rng);
-		Populate(state, rooms, rng);
+		Populate(state, rooms, rng, floor);
 		NestModule.RegisterNests(state);
 
 		return rooms;
@@ -139,25 +140,31 @@ public static class MapGenModule
 			MapModule.SetTerrain(state, x, y, ".");
 	}
 
-	/// <summary>放置玩家（第一个房间）、巢穴（后续房间随机）、门（最后一个房间）。</summary>
-	private static void Populate(GameState state, List<Room> rooms, Random rng)
+	/// <summary>
+	/// 放置玩家（第一个房间）、楼梯、巢穴。
+	/// floor > 0 时在第一个房间放上行楼梯，最后一个房间放下行楼梯。
+	/// </summary>
+	private static void Populate(GameState state, List<Room> rooms, Random rng, int floor)
 	{
 		if (rooms.Count == 0) return;
 
-		// 玩家放在第一个房间中心
 		var first = rooms[0];
 		state.PlayerX = first.CenterX;
 		state.PlayerY = first.CenterY;
 		MapModule.SetObject(state, first.CenterX, first.CenterY, "P");
 
-		// 最后一个房间放门（Fixtures 层）
+		// 非底层 → 第一个房间放上行楼梯（玩家脚下）
+		if (floor > 0)
+			MapModule.SetFixture(state, first.CenterX, first.CenterY, "<");
+
+		// 最后一个房间放下行楼梯
 		if (rooms.Count > 1)
 		{
 			var last = rooms[^1];
-			MapModule.SetFixture(state, last.CenterX, last.CenterY, "D");
+			MapModule.SetFixture(state, last.CenterX, last.CenterY, ">");
 		}
 
-		// 中间房间随机放巢穴（Fixtures 层）
+		// 中间房间随机放巢穴
 		for (var i = 1; i < rooms.Count - 1; i++)
 		{
 			if (rng.Next(100) < 60)

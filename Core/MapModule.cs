@@ -69,6 +69,8 @@ public static class MapModule
 			case "D":
 			case "N":
 			case "I":
+			case ">":
+			case "<":
 				fixture = ch;
 				break;
 			default:
@@ -141,6 +143,12 @@ public static class MapModule
 	/// <summary>检查指定位置设施层是否有门。</summary>
 	public static bool IsDoor(GameState s, int x, int y) =>
 		GetFixture(s, x, y) == "D";
+
+	public static bool IsDownStair(GameState s, int x, int y) =>
+		GetFixture(s, x, y) == ">";
+
+	public static bool IsUpStair(GameState s, int x, int y) =>
+		GetFixture(s, x, y) == "<";
 
 	// ── 玩家移动 ──────────────────────────────────────────
 

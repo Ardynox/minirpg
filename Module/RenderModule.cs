@@ -71,6 +71,8 @@ public class RenderModule
 		"M" => "[color=#ee4444]M·[/color]",
 		"N" => "[color=#aa44ff]N·[/color]",
 		"D" => "[color=#ffaa00]D·[/color]",
+		">" => "[color=#00ccff]▼·[/color]",
+		"<" => "[color=#00ccff]▲·[/color]",
 		_ => c + " ",
 	};
 
@@ -82,6 +84,8 @@ public class RenderModule
 		"M" => "👾",
 		"N" => "🕳️",
 		"D" => "🚪",
+		">" => "⬇️",
+		"<" => "⬆️",
 		_ => c,
 	};
 }

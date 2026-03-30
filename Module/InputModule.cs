@@ -65,6 +65,8 @@ public partial class InputModule
 			Key.Escape => ":settings",
 			Key.Enter  => ":typing",
 			Key.T      => ":typing",
+			Key.F5     => ":quicksave",
+			Key.F9     => ":quickload",
 			_          => null,
 		};
 
