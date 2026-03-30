@@ -34,4 +34,36 @@ scroll_following = true
 [node name="Input" type="LineEdit" parent="UI"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 36)
-placeholder_text = "WASD 移动 | J 攻击 | L 查看 | Enter 打字"
+placeholder_text = "WASD 移动(遇敌自动攻击) | L 查看 | R 渲染 | ESC 设置"
+
+[node name="SettingsPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="SettingsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="SettingsPanel/VBox"]
+layout_mode = 2
+text = "⚙️ 设置"
+horizontal_alignment = 1
+
+[node name="RenderToggle" type="Button" parent="SettingsPanel/VBox"]
+layout_mode = 2
+text = "切换渲染模式 (Emoji / ASCII)"
+
+[node name="CloseBtn" type="Button" parent="SettingsPanel/VBox"]
+layout_mode = 2
+text = "关闭 (ESC)"

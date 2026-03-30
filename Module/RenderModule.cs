@@ -69,6 +69,8 @@ public class RenderModule
 		"." => "[color=#333333]· [/color]",
 		"P" => "[color=#44ee44]@·[/color]",
 		"M" => "[color=#ee4444]M·[/color]",
+		"N" => "[color=#aa44ff]N·[/color]",
+		"D" => "[color=#ffaa00]D·[/color]",
 		_ => c + " ",
 	};
 
@@ -78,6 +80,8 @@ public class RenderModule
 		"." => "⬜",
 		"P" => "🙂",
 		"M" => "👾",
+		"N" => "🕳️",
+		"D" => "🚪",
 		_ => c,
 	};
 }

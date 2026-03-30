@@ -14,6 +14,8 @@ public partial class InputModule
 	private readonly LineEdit _lineEdit;
 	private bool _typingMode;
 
+	public bool IsTypingMode => _typingMode;
+
 	public InputModule(LineEdit lineEdit)
 	{
 		_lineEdit = lineEdit;
@@ -50,18 +52,19 @@ public partial class InputModule
 			return false;
 		}
 
+		// 动作模式按键映射
 		var cmd = key.Keycode switch
 		{
-			Key.W     => "w",
-			Key.S     => "s",
-			Key.A     => "a",
-			Key.D     => "d",
-			Key.J     => "atk",
-			Key.L     => "look",
-			Key.R     => ":render",
-			Key.Enter => ":typing",
-			Key.T     => ":typing",
-			_         => null,
+			Key.W      => "w",
+			Key.S      => "s",
+			Key.A      => "a",
+			Key.D      => "d",
+			Key.L      => "look",
+			Key.R      => ":render",
+			Key.Escape => ":settings",
+			Key.Enter  => ":typing",
+			Key.T      => ":typing",
+			_          => null,
 		};
 
 		if (cmd is null)
