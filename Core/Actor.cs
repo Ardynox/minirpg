@@ -18,6 +18,13 @@ public class Actor
 	/// <summary>阵营：普通状态字段，随时可改，和种族无关。</summary>
 	public string Faction { get; set; } = "hostile";
 
+	// ── 经济 ─────────────────────────────────────────────
+
+	public int Gold { get; set; }
+
+	/// <summary>商人货架：非商人此列表为空。</summary>
+	public List<ShopSlot> ShopSlots { get; set; } = [];
+
 	// ── tag 来源 ─────────────────────────────────────────
 
 	/// <summary>肢体列表：单独存，方便增删改查。也会自动注册到 TagSources。</summary>

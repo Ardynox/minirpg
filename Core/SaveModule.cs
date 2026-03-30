@@ -210,11 +210,23 @@ public static class SaveModule
 		Id = a.Id, X = a.X, Y = a.Y,
 		Glyph = a.Glyph, DisplayName = a.DisplayName,
 		Faction = a.Faction,
+		Gold = a.Gold,
+		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
 		Limbs = a.Limbs.ConvertAll(CopyLimb),
 		Race = a.Race != null ? CopyRace(a.Race) : null,
 		Profession = a.Profession != null ? CopyProfession(a.Profession) : null,
 		Buffs = a.Buffs.ConvertAll(CopyBuff),
 		Experiences = a.Experiences.ConvertAll(CopyExperience),
+	};
+
+	private static ShopSlot CopyShopSlot(ShopSlot s) => new()
+	{
+		Stock = s.Stock,
+		Item = new Item
+		{
+			Id = s.Item.Id, Name = s.Item.Name, Price = s.Item.Price,
+			Tags = new Dictionary<string, int>(s.Item.Tags),
+		},
 	};
 
 	private static Limb CopyLimb(Limb l) => new()

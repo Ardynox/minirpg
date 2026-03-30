@@ -384,7 +384,7 @@ public partial class Main : Node
 				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
 				break;
 			case "trade":
-				AddLog($"{e.TargetActorName}: 「看看我的货物吧。」 (交易系统待实现)");
+				OpenTradeMenu(e);
 				break;
 			case "tame":
 				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
@@ -393,6 +393,63 @@ public partial class Main : Node
 				AddLog($"[{e.InteractionName}] {e.TargetActorName}");
 				break;
 		}
+	}
+
+	// ── 交易 ──────────────────────────────────────────────
+
+	private void OpenTradeMenu(GameEvent e)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		var merchant = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
+		if (player == null || merchant == null) return;
+
+		ShowTradeGoods(player, merchant);
+	}
+
+	private void ShowTradeGoods(Actor player, Actor merchant)
+	{
+		var goods = TradeModule.ListGoods(merchant);
+		if (goods.Count == 0)
+		{
+			AddLog($"{merchant.DisplayName}: 「我已经没有货物了。」");
+			return;
+		}
+
+		AddLog($"═══ {merchant.DisplayName}的商店 ═══  你的金币: {player.Gold}G");
+		for (var i = 0; i < goods.Count; i++)
+		{
+			var (_, slot) = goods[i];
+			var tagDesc = FormatItemTags(slot.Item);
+			AddLog($"  [{i + 1}] {slot.Item.Name}  {slot.Item.Price}G  库存:{slot.Stock}{tagDesc}");
+		}
+		AddLog($"  [0] 离开");
+
+		EnterSelection(n =>
+		{
+			if (n == 0)
+			{
+				AddLog("你离开了商店");
+				return;
+			}
+			if (n < 1 || n > goods.Count) { AddLog("无效选择"); return; }
+
+			var (slotIdx, _) = goods[n - 1];
+			var result = TradeModule.Buy(player, merchant, slotIdx);
+			AddLog(result.Message);
+			if (result.Ok)
+				AddLog($"  💰 剩余金币: {player.Gold}G");
+
+			ShowTradeGoods(player, merchant);
+		});
+	}
+
+	private static string FormatItemTags(Item item)
+	{
+		if (item.Tags.Count == 0) return "";
+		var parts = new List<string>();
+		foreach (var (key, val) in item.Tags)
+			parts.Add($"{key}+{val}");
+		return $"  ({string.Join(", ", parts)})";
 	}
 
 	// ── 楼梯（上行 / 下行） ──────────────────────────────
@@ -450,10 +507,12 @@ public partial class Main : Node
 	{
 		var sb = new StringBuilder();
 		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		var player = ActorModule.GetPlayer(_state);
 		var status = ActorModule.GetPlayerStatus(_state);
 		if (status != null)
 		{
 			sb.Append($"  HP:{status.Hp} ATK:{status.Atk} DEF:{status.Def}");
+			if (player != null) sb.Append($" 💰{player.Gold}G");
 			if (status.AvailableActions.Count > 0)
 				sb.Append($"  可用: {string.Join("/", status.AvailableActions.ConvertAll(a => a.Name))}");
 		}

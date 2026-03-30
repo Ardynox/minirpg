@@ -16,6 +16,7 @@ public static class ActorTemplates
 		Register("player", id => new Actor
 		{
 			Id = id, Glyph = "P", DisplayName = "你", Faction = "friendly",
+			Gold = 50,
 			Race = new Race
 			{
 				Id = "human", Name = "人类",
@@ -96,6 +97,7 @@ public static class ActorTemplates
 		Register("merchant", id => new Actor
 		{
 			Id = id, Glyph = "T", DisplayName = "流浪商人", Faction = "friendly",
+			Gold = 200,
 			Race = new Race
 			{
 				Id = "human", Name = "人类",
@@ -111,6 +113,34 @@ public static class ActorTemplates
 				new Limb { Id = "arms",  Name = "双臂", Tags = new() { ["近战"] = 1 } },
 				new Limb { Id = "legs",  Name = "双腿", Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
 				new Limb { Id = "eyes",  Name = "双眼", Tags = new() { ["视觉"] = 2 } },
+			],
+			ShopSlots =
+			[
+				new ShopSlot
+				{
+					Stock = 3,
+					Item = new Item { Id = "potion_hp", Name = "生命药水", Price = 10, Tags = new() { ["治疗"] = 5 } },
+				},
+				new ShopSlot
+				{
+					Stock = 2,
+					Item = new Item { Id = "potion_str", Name = "力量药水", Price = 15, Tags = new() { ["力量"] = 3 } },
+				},
+				new ShopSlot
+				{
+					Stock = 1,
+					Item = new Item { Id = "shield_iron", Name = "铁盾", Price = 30, Tags = new() { ["防御"] = 4, ["格挡"] = 2 } },
+				},
+				new ShopSlot
+				{
+					Stock = 1,
+					Item = new Item { Id = "sword_steel", Name = "钢剑", Price = 40, Tags = new() { ["近战"] = 5, ["力量"] = 3 } },
+				},
+				new ShopSlot
+				{
+					Stock = 5,
+					Item = new Item { Id = "torch", Name = "火把", Price = 5, Tags = new() { ["视觉"] = 2 } },
+				},
 			],
 		});
 
