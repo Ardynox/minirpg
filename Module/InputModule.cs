@@ -90,6 +90,7 @@ public partial class InputModule
 			Key.L      => "look",
 			Key.R      => ":render",
 			Key.F      => ":interact",
+			Key.I      => ":inventory",
 			Key.Space  => "enter",
 			Key.Escape => ":settings",
 			Key.Enter  => ":typing",

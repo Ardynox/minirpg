@@ -211,6 +211,7 @@ public static class SaveModule
 		Glyph = a.Glyph, DisplayName = a.DisplayName,
 		Faction = a.Faction,
 		Gold = a.Gold,
+		Inventory = a.Inventory.ConvertAll(CopyItem),
 		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
 		Limbs = a.Limbs.ConvertAll(CopyLimb),
 		Race = a.Race != null ? CopyRace(a.Race) : null,
@@ -219,14 +220,16 @@ public static class SaveModule
 		Experiences = a.Experiences.ConvertAll(CopyExperience),
 	};
 
+	private static Item CopyItem(Item i) => new()
+	{
+		Id = i.Id, Name = i.Name, Price = i.Price, Equipped = i.Equipped,
+		Tags = new Dictionary<string, int>(i.Tags),
+	};
+
 	private static ShopSlot CopyShopSlot(ShopSlot s) => new()
 	{
 		Stock = s.Stock,
-		Item = new Item
-		{
-			Id = s.Item.Id, Name = s.Item.Name, Price = s.Item.Price,
-			Tags = new Dictionary<string, int>(s.Item.Tags),
-		},
+		Item = CopyItem(s.Item),
 	};
 
 	private static Limb CopyLimb(Limb l) => new()

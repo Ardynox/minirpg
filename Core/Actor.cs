@@ -18,9 +18,12 @@ public class Actor
 	/// <summary>阵营：普通状态字段，随时可改，和种族无关。</summary>
 	public string Faction { get; set; } = "hostile";
 
-	// ── 经济 ─────────────────────────────────────────────
+	// ── 经济 / 背包 ─────────────────────────────────────
 
 	public int Gold { get; set; }
+
+	/// <summary>背包：玩家持有的物品列表。</summary>
+	public List<Item> Inventory { get; set; } = [];
 
 	/// <summary>商人货架：非商人此列表为空。</summary>
 	public List<ShopSlot> ShopSlots { get; set; } = [];
@@ -58,6 +61,7 @@ public class Actor
 		if (Profession != null) Merge(Profession);
 		foreach (var buff in Buffs) Merge(buff);
 		foreach (var exp in Experiences) Merge(exp);
+		foreach (var item in Inventory) if (item.Equipped) Merge(item);
 
 		return tags;
 	}

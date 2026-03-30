@@ -195,7 +195,7 @@ public partial class Main : Node
 	{
 		_gameStarted = true;
 		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		AddLog("空格 上下楼 | F 交互 | F5 快存 | F9 快读");
+		AddLog("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
 	}
 
 	// ── 选择模式 ─────────────────────────────────────────
@@ -242,6 +242,7 @@ public partial class Main : Node
 			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
 			case ":interact": DoInteract(); return;
+			case ":inventory": DoInventory(); return;
 		}
 
 		if (_settingsOpen) return;
@@ -409,28 +410,30 @@ public partial class Main : Node
 	private void ShowTradeGoods(Actor player, Actor merchant)
 	{
 		var goods = TradeModule.ListGoods(merchant);
-		if (goods.Count == 0)
-		{
-			AddLog($"{merchant.DisplayName}: 「我已经没有货物了。」");
-			return;
-		}
 
 		AddLog($"═══ {merchant.DisplayName}的商店 ═══  你的金币: {player.Gold}G");
+		if (goods.Count == 0)
+			AddLog("  (货架空空如也)");
 		for (var i = 0; i < goods.Count; i++)
 		{
 			var (_, slot) = goods[i];
 			var tagDesc = FormatItemTags(slot.Item);
-			AddLog($"  [{i + 1}] {slot.Item.Name}  {slot.Item.Price}G  库存:{slot.Stock}{tagDesc}");
+			AddLog($"  [{i + 1}] 购买 {slot.Item.Name}  {slot.Item.Price}G  库存:{slot.Stock}{tagDesc}");
 		}
+		var sellIdx = goods.Count + 1;
+		AddLog($"  [{sellIdx}] 出售物品给商人");
 		AddLog($"  [0] 离开");
 
 		EnterSelection(n =>
 		{
-			if (n == 0)
+			if (n == 0) { AddLog("你离开了商店"); return; }
+
+			if (n == sellIdx)
 			{
-				AddLog("你离开了商店");
+				ShowSellMenu(player, merchant);
 				return;
 			}
+
 			if (n < 1 || n > goods.Count) { AddLog("无效选择"); return; }
 
 			var (slotIdx, _) = goods[n - 1];
@@ -443,6 +446,41 @@ public partial class Main : Node
 		});
 	}
 
+	private void ShowSellMenu(Actor player, Actor merchant)
+	{
+		var items = InventoryModule.List(player);
+		if (items.Count == 0)
+		{
+			AddLog("背包里没有可出售的物品");
+			ShowTradeGoods(player, merchant);
+			return;
+		}
+
+		AddLog($"═══ 出售物品 ═══  💰{player.Gold}G  商人资金: {merchant.Gold}G");
+		for (var i = 0; i < items.Count; i++)
+		{
+			var (_, item) = items[i];
+			var sellPrice = item.Price / 2;
+			var eqMark = item.Equipped ? " [已装备]" : "";
+			AddLog($"  [{i + 1}] {item.Name}{eqMark}  售价:{sellPrice}G");
+		}
+		AddLog("  [0] 返回商店");
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { ShowTradeGoods(player, merchant); return; }
+			if (n < 1 || n > items.Count) { AddLog("无效选择"); return; }
+
+			var (invIdx, _) = items[n - 1];
+			var result = TradeModule.Sell(player, merchant, invIdx);
+			AddLog(result.Message);
+			if (result.Ok)
+				AddLog($"  💰 剩余金币: {player.Gold}G");
+
+			ShowSellMenu(player, merchant);
+		});
+	}
+
 	private static string FormatItemTags(Item item)
 	{
 		if (item.Tags.Count == 0) return "";
@@ -450,6 +488,84 @@ public partial class Main : Node
 		foreach (var (key, val) in item.Tags)
 			parts.Add($"{key}+{val}");
 		return $"  ({string.Join(", ", parts)})";
+	}
+
+	// ── 背包 ──────────────────────────────────────────────
+
+	private void DoInventory()
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+		ShowInventory(player);
+	}
+
+	private void ShowInventory(Actor player)
+	{
+		var items = InventoryModule.List(player);
+		if (items.Count == 0)
+		{
+			AddLog("背包是空的 🎒");
+			return;
+		}
+
+		AddLog($"═══ 背包 ═══  💰{player.Gold}G");
+		for (var i = 0; i < items.Count; i++)
+		{
+			var (_, item) = items[i];
+			var eqMark = item.Equipped ? " [已装备]" : "";
+			var tagDesc = FormatItemTags(item);
+			AddLog($"  [{i + 1}] {item.Name}{eqMark}  {item.Price}G{tagDesc}");
+		}
+		AddLog("  [0] 关闭");
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { AddLog("关闭背包"); return; }
+			if (n < 1 || n > items.Count) { AddLog("无效选择"); return; }
+
+			var (idx, item) = items[n - 1];
+			ShowItemActions(player, idx, item);
+		});
+	}
+
+	private void ShowItemActions(Actor player, int invIndex, Item item)
+	{
+		var eqLabel = item.Equipped ? "卸下" : "装备";
+		var hasUse = item.Tags.ContainsKey("治疗");
+
+		var sb = new StringBuilder($"{item.Name}：");
+		sb.Append($"  [1] {eqLabel}");
+		if (hasUse) sb.Append("  [2] 使用");
+		sb.Append($"  [{(hasUse ? 3 : 2)}] 丢弃");
+		sb.Append("  [0] 返回");
+		AddLog(sb.ToString());
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { ShowInventory(player); return; }
+
+			if (n == 1)
+			{
+				var r = InventoryModule.ToggleEquip(player, invIndex);
+				AddLog(r.Message);
+			}
+			else if (hasUse && n == 2)
+			{
+				var r = InventoryModule.Use(player, invIndex);
+				AddLog(r.Message);
+			}
+			else if ((!hasUse && n == 2) || (hasUse && n == 3))
+			{
+				var r = InventoryModule.Drop(player, invIndex);
+				AddLog(r.Message);
+			}
+			else
+			{
+				AddLog("无效选择");
+			}
+
+			ShowInventory(player);
+		});
 	}
 
 	// ── 楼梯（上行 / 下行） ──────────────────────────────

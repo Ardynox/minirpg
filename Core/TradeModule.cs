@@ -19,7 +19,7 @@ public class TradeResult
 public static class TradeModule
 {
 	/// <summary>
-	/// 玩家从商人处购买指定槽位的物品。
+	/// 玩家从商人处购买指定槽位的物品，放入买家背包。
 	/// </summary>
 	public static TradeResult Buy(Actor buyer, Actor merchant, int slotIndex)
 	{
@@ -37,20 +37,33 @@ public static class TradeModule
 		merchant.Gold += slot.Item.Price;
 		slot.Stock--;
 
-		ApplyItemTags(buyer, slot.Item);
+		var bought = new Item
+		{
+			Id = slot.Item.Id, Name = slot.Item.Name,
+			Price = slot.Item.Price,
+			Tags = new Dictionary<string, int>(slot.Item.Tags),
+		};
+		InventoryModule.Add(buyer, bought);
 
 		return new TradeResult
 		{
-			Ok = true, Item = slot.Item, Price = slot.Item.Price,
-			Message = $"购买了 {slot.Item.Name}（-{slot.Item.Price}G）",
+			Ok = true, Item = bought, Price = bought.Price,
+			Message = $"购买了 {bought.Name}（-{bought.Price}G）→ 已放入背包",
 		};
 	}
 
 	/// <summary>
-	/// 玩家向商人出售一个物品。售价 = 原价的一半（向下取整）。
+	/// 玩家向商人出售背包中指定下标的物品。售价 = 原价的一半（向下取整）。
 	/// </summary>
-	public static TradeResult Sell(Actor seller, Actor merchant, Item item)
+	public static TradeResult Sell(Actor seller, Actor merchant, int inventoryIndex)
 	{
+		if (inventoryIndex < 0 || inventoryIndex >= seller.Inventory.Count)
+			return new TradeResult { Message = "无效的物品编号" };
+
+		var item = seller.Inventory[inventoryIndex];
+		if (item.Equipped)
+			return new TradeResult { Message = $"请先卸下 {item.Name} 再出售" };
+
 		var sellPrice = item.Price / 2;
 		if (sellPrice <= 0)
 			return new TradeResult { Message = $"{item.Name} 不值钱，无法出售" };
@@ -60,8 +73,7 @@ public static class TradeModule
 
 		seller.Gold += sellPrice;
 		merchant.Gold -= sellPrice;
-
-		RemoveItemTags(seller, item);
+		seller.Inventory.RemoveAt(inventoryIndex);
 
 		var existing = merchant.ShopSlots.Find(s => s.Item.Id == item.Id);
 		if (existing != null)
@@ -86,21 +98,5 @@ public static class TradeModule
 				result.Add((i, merchant.ShopSlots[i]));
 		}
 		return result;
-	}
-
-	private static void ApplyItemTags(Actor actor, Item item)
-	{
-		actor.Experiences.Add(new Experience
-		{
-			Id = $"item_{item.Id}_{actor.Experiences.Count}",
-			Name = item.Name,
-			Tags = new Dictionary<string, int>(item.Tags),
-		});
-	}
-
-	private static void RemoveItemTags(Actor actor, Item item)
-	{
-		var idx = actor.Experiences.FindIndex(e => e.Name == item.Name);
-		if (idx >= 0) actor.Experiences.RemoveAt(idx);
 	}
 }

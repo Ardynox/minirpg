@@ -3,14 +3,18 @@ using System.Collections.Generic;
 namespace MiniRPG.Core;
 
 /// <summary>
-/// 物品：可交易、可持有。Tags 可为物品附加任意属性（如 "治疗"、"力量" 等）。
+/// 物品：可交易、可持有、可装备。
+/// 装备后作为 ITagSource 参与 Actor 的 Tag 聚合。
 /// </summary>
-public class Item
+public class Item : ITagSource
 {
 	public string Id { get; set; } = "";
 	public string Name { get; set; } = "";
 	public int Price { get; set; }
+	public bool Equipped { get; set; }
 	public Dictionary<string, int> Tags { get; set; } = new();
+
+	public Dictionary<string, int> GetTags() => Tags;
 }
 
 /// <summary>
