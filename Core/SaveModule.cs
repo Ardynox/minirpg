@@ -233,7 +233,8 @@ public static class SaveModule
 	};
 
 	private static Limb CopyLimb(Limb l) => new()
-		{ Id = l.Id, Name = l.Name, Tags = new Dictionary<string, int>(l.Tags) };
+		{ Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
+		  Tags = new Dictionary<string, int>(l.Tags) };
 	private static Race CopyRace(Race r) => new()
 		{ Id = r.Id, Name = r.Name, Tags = new Dictionary<string, int>(r.Tags) };
 	private static Profession CopyProfession(Profession p) => new()

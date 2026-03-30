@@ -207,15 +207,13 @@ public static class MapModule
 		var hostile = ActorModule.GetHostileAt(s, nx, ny);
 		if (hostile != null)
 		{
-			var evt = new GameEvent("attack_hit")
+			events.Add(new GameEvent("combat_bump")
 			{
 				TargetX = nx, TargetY = ny,
 				TargetActorName = hostile.DisplayName,
 				InitiatorId = s.PlayerId,
 				TargetId = hostile.Id,
-			};
-			ActorModule.Remove(s, hostile.Id);
-			events.Add(evt);
+			});
 			return events;
 		}
 

@@ -66,6 +66,8 @@ public static class InteractionModule
 					Tags = new() { ["驯服经验"] = 1 },
 				});
 				break;
+			case "combat":
+				break;
 		}
 
 		events.Add(evt);

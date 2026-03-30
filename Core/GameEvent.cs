@@ -17,6 +17,11 @@ public class GameEvent
 	public string? InteractionName { get; set; }
 	public string? EffectType { get; set; }
 
+	// ── 战斗事件专用 ──
+	public int Damage { get; set; }
+	public string? LimbName { get; set; }
+	public string? ActionName { get; set; }
+
 	public GameEvent(string type)
 	{
 		Type = type;

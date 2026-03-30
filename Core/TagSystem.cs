@@ -17,11 +17,13 @@ public interface ITagSource
 
 // ── 具体来源 ──────────────────────────────────────────
 
-/// <summary>肢体：可挂载/移除/替换，每个肢体贡献一组 tag。</summary>
+/// <summary>肢体：可挂载/移除/替换，每个肢体贡献一组 tag。耐久归零则断裂。</summary>
 public class Limb : ITagSource
 {
 	public string Id { get; set; } = "";
 	public string Name { get; set; } = "";
+	public int MaxDurability { get; set; } = 5;
+	public int Durability { get; set; } = 5;
 	public Dictionary<string, int> Tags { get; set; } = new();
 
 	public Dictionary<string, int> GetTags() => Tags;

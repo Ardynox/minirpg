@@ -30,6 +30,7 @@ public partial class Main : Node
 	private bool _settingsOpen;
 	private bool _inMenu = true;
 	private bool _gameStarted;
+	private bool _playerDead;
 	private Action<int>? _selectionCallback;
 
 	private VBoxContainer _ui = null!;
@@ -353,6 +354,12 @@ public partial class Main : Node
 
 	private void DoMove(int dx, int dy)
 	{
+		if (_playerDead)
+		{
+			_playerDead = false;
+			ShowMainMenu();
+			return;
+		}
 		var events = MapModule.TryMovePlayer(_state, dx, dy);
 		_state.Turn++;
 		var nestEvents = NestModule.Tick(_state);
@@ -372,9 +379,6 @@ public partial class Main : Node
 				case "hit_wall":
 					AddLog("撞墙了 🚧");
 					break;
-				case "attack_hit":
-					AddLog($"你发动攻击 ⚔️ — 击杀{e.TargetActorName ?? "目标"} 💥");
-					break;
 				case "actor_moved":
 					break;
 				case "monster_spawned":
@@ -382,6 +386,37 @@ public partial class Main : Node
 					break;
 				case "interaction":
 					DispatchInteraction(e);
+					break;
+				case "combat_bump":
+					HandleCombatBump(e);
+					break;
+				case "combat_attack":
+				{
+					AddLog($"⚔️ {e.ActionName} → {e.TargetActorName}的{e.LimbName}，造成{e.Damage}点伤害");
+					var hitTarget = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
+					if (hitTarget != null)
+					{
+						var hl = hitTarget.Limbs.Find(l => l.Name == e.LimbName);
+						if (hl != null)
+							AddLog($"   {e.LimbName} ({hl.Durability}/{hl.MaxDurability})");
+					}
+					break;
+				}
+				case "combat_block":
+					AddLog($"🛡️ {e.TargetActorName}使用了{e.ActionName}！防御+5 (1回合)");
+					break;
+				case "limb_destroyed":
+					AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
+					break;
+				case "actor_killed":
+					HandleActorKilled(e);
+					break;
+				case "player_limb_hit":
+					AddLog($"🩸 {e.TargetActorName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
+					break;
+				case "player_died":
+					AddLog("💀 你死了……");
+					AddLog("按任意方向键返回主菜单");
 					break;
 			}
 		}
@@ -396,6 +431,9 @@ public partial class Main : Node
 				break;
 			case "trade":
 				OpenTradeMenu(e);
+				break;
+			case "combat":
+				OpenCombatMenu(e);
 				break;
 			case "tame":
 				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
@@ -578,6 +616,175 @@ public partial class Main : Node
 		});
 	}
 
+	// ── 战斗 ──────────────────────────────────────────────
+
+	private void OpenCombatMenu(GameEvent e)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		var target = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
+		if (player == null || target == null) return;
+
+		ShowActionSelection(player, target);
+	}
+
+	private void HandleCombatBump(GameEvent e)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		var target = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
+		if (player == null || target == null) return;
+
+		var actions = CombatModule.GetAttackActions(player);
+		if (actions.Count == 0 || target.Limbs.Count == 0)
+		{
+			AddLog("你无法攻击！");
+			return;
+		}
+
+		var rng = new Random(_state.RngSeed + _state.Turn);
+		var action = actions[0];
+		var limb = target.Limbs[rng.Next(target.Limbs.Count)];
+
+		var combatEvents = CombatModule.Attack(_state, player, target, action, limb);
+		Dispatch(combatEvents);
+
+		if (!combatEvents.Exists(ev => ev.Type == "actor_killed"))
+			MonsterCounterAttack(player, target);
+
+		TickAllBuffs();
+		FlushMap();
+	}
+
+	private void ShowActionSelection(Actor player, Actor target)
+	{
+		var actions = CombatModule.GetAttackActions(player);
+		var allActions = ActionQuery.GetAvailable(player, ActionDefs.All);
+		var hasBlock = allActions.Exists(a => a.EffectType == "block");
+
+		AddLog($"═══ 攻击 {target.DisplayName} ═══");
+		for (var i = 0; i < actions.Count; i++)
+		{
+			var a = actions[i];
+			var estDmg = CombatModule.CalcDamage(player, a, target);
+			AddLog($"  [{i + 1}] {a.Name} (预估伤害:{estDmg})");
+		}
+		var blockIdx = actions.Count + 1;
+		if (hasBlock)
+			AddLog($"  [{blockIdx}] 格挡 (防御+5, 1回合)");
+		AddLog("  [0] 取消");
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { AddLog("取消攻击"); return; }
+
+			if (hasBlock && n == blockIdx)
+			{
+				var blockDef = allActions.Find(a => a.EffectType == "block")!;
+				var blockEvents = CombatModule.Attack(_state, player, target, blockDef, target.Limbs[0]);
+				Dispatch(blockEvents);
+				MonsterCounterAttack(player, target);
+				TickAllBuffs();
+				FlushMap();
+				return;
+			}
+
+			if (n < 1 || n > actions.Count) { AddLog("无效选择"); return; }
+
+			var chosen = actions[n - 1];
+			ShowLimbTargetSelection(player, target, chosen);
+		});
+	}
+
+	private void ShowLimbTargetSelection(Actor player, Actor target, ActionDef action)
+	{
+		var limbs = target.Limbs;
+		if (limbs.Count == 0)
+		{
+			AddLog($"{target.DisplayName}已经没有可攻击的肢体了");
+			return;
+		}
+
+		AddLog($"选择目标肢体 ({target.DisplayName})：");
+		for (var i = 0; i < limbs.Count; i++)
+		{
+			var l = limbs[i];
+			var vital = l.Tags.ContainsKey("要害") ? " [要害]" : "";
+			AddLog($"  [{i + 1}] {l.Name} ({l.Durability}/{l.MaxDurability}){vital}");
+		}
+		AddLog("  [0] 返回");
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { ShowActionSelection(player, target); return; }
+			if (n < 1 || n > limbs.Count) { AddLog("无效选择"); return; }
+
+			var targetLimb = limbs[n - 1];
+			var combatEvents = CombatModule.Attack(_state, player, target, action, targetLimb);
+			Dispatch(combatEvents);
+
+			var killed = combatEvents.Exists(ev => ev.Type == "actor_killed");
+			if (!killed)
+			{
+				var stillAlive = ActorModule.GetById(_state, target.Id);
+				if (stillAlive != null)
+					MonsterCounterAttack(player, stillAlive);
+			}
+
+			TickAllBuffs();
+			FlushMap();
+		});
+	}
+
+	private void MonsterCounterAttack(Actor player, Actor monster)
+	{
+		var choice = CombatModule.MonsterChooseAction(_state, monster, player);
+		if (choice == null) return;
+
+		var (mAction, mLimb) = choice.Value;
+		var mEvents = CombatModule.Attack(_state, monster, player, mAction, mLimb);
+
+		foreach (var ev in mEvents)
+		{
+			switch (ev.Type)
+			{
+				case "combat_attack":
+					AddLog($"🩸 {monster.DisplayName}用{ev.ActionName}攻击了你的{ev.LimbName}，造成{ev.Damage}点伤害");
+					var hitLimb = player.Limbs.Find(l => l.Name == ev.LimbName);
+					if (hitLimb != null)
+						AddLog($"   {ev.LimbName} ({hitLimb.Durability}/{hitLimb.MaxDurability})");
+					break;
+				case "limb_destroyed":
+					AddLog($"💥 你的{ev.LimbName}被摧毁了！");
+					break;
+				case "actor_killed":
+					AddLog("💀 你死了……");
+					AddLog("按任意方向键返回主菜单");
+					_playerDead = true;
+					break;
+				default:
+					Dispatch([ev]);
+					break;
+			}
+		}
+	}
+
+	private void TickAllBuffs()
+	{
+		var player = ActorModule.GetPlayer(_state);
+		player?.TickBuffs();
+	}
+
+	private void HandleActorKilled(GameEvent e)
+	{
+		AddLog($"💀 击杀了{e.TargetActorName}！");
+		var player = ActorModule.GetPlayer(_state);
+		if (player != null)
+		{
+			var goldDrop = e.Damage > 0 ? e.Damage : 5;
+			player.Gold += goldDrop;
+			AddLog($"  💰 获得 {goldDrop}G (总计: {player.Gold}G)");
+		}
+	}
+
 	// ── 楼梯（上行 / 下行） ──────────────────────────────
 
 	private void DoEnterStairs()
@@ -637,11 +844,22 @@ public partial class Main : Node
 		var status = ActorModule.GetPlayerStatus(_state);
 		if (status != null)
 		{
-			sb.Append($"  HP:{status.Hp} ATK:{status.Atk} DEF:{status.Def}");
+			sb.Append($"  ATK:{status.Atk} DEF:{status.Def}");
 			if (player != null) sb.Append($" 💰{player.Gold}G");
-			if (status.AvailableActions.Count > 0)
-				sb.Append($"  可用: {string.Join("/", status.AvailableActions.ConvertAll(a => a.Name))}");
 		}
+
+		if (player != null && player.Limbs.Count > 0)
+		{
+			sb.Append("\n  肢体: ");
+			var parts = new List<string>();
+			foreach (var l in player.Limbs)
+			{
+				var vital = l.Tags.ContainsKey("要害") ? "[要害]" : "";
+				parts.Add($"{l.Name}({l.Durability}/{l.MaxDurability}){vital}");
+			}
+			sb.Append(string.Join(" ", parts));
+		}
+
 		var standingOn = MapModule.GetFixture(_state, _state.PlayerX, _state.PlayerY);
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append($"  脚下: {FixtureLabel(standingOn)}");

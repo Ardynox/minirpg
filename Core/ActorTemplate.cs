@@ -20,62 +20,67 @@ public static class ActorTemplates
 			Race = new Race
 			{
 				Id = "human", Name = "人类",
-				Tags = new() { ["生命"] = 20, ["力量"] = 5, ["防御"] = 2 },
+				Tags = new() { ["力量"] = 5, ["防御"] = 2 },
 			},
 			Limbs =
 			[
-				new Limb { Id = "right_arm", Name = "右臂", Tags = new() { ["近战"] = 3, ["力量"] = 2 } },
-				new Limb { Id = "left_arm",  Name = "左臂", Tags = new() { ["近战"] = 1, ["格挡"] = 2 } },
-				new Limb { Id = "legs",      Name = "双腿", Tags = new() { ["移动"] = 1, ["速度"] = 2 } },
-				new Limb { Id = "eyes",      Name = "双眼", Tags = new() { ["视觉"] = 3 } },
+				new Limb { Id = "torso",     Name = "躯干", MaxDurability = 15, Durability = 15, Tags = new() { ["要害"] = 1, ["防御"] = 2 } },
+				new Limb { Id = "right_arm", Name = "右臂", MaxDurability = 8,  Durability = 8,  Tags = new() { ["近战"] = 3, ["力量"] = 2 } },
+				new Limb { Id = "left_arm",  Name = "左臂", MaxDurability = 8,  Durability = 8,  Tags = new() { ["近战"] = 1, ["格挡"] = 2 } },
+				new Limb { Id = "legs",      Name = "双腿", MaxDurability = 10, Durability = 10, Tags = new() { ["移动"] = 1, ["速度"] = 2 } },
+				new Limb { Id = "eyes",      Name = "双眼", MaxDurability = 3,  Durability = 3,  Tags = new() { ["视觉"] = 3 } },
 			],
 		});
 
 		Register("goblin", id => new Actor
 		{
 			Id = id, Glyph = "G", DisplayName = "哥布林", Faction = "hostile",
+			Gold = 5,
 			Race = new Race
 			{
 				Id = "goblin", Name = "哥布林",
-				Tags = new() { ["生命"] = 5, ["力量"] = 2, ["速度"] = 3 },
+				Tags = new() { ["力量"] = 2, ["速度"] = 3 },
 			},
 			Limbs =
 			[
-				new Limb { Id = "claws", Name = "利爪", Tags = new() { ["近战"] = 2, ["力量"] = 1 } },
-				new Limb { Id = "legs",  Name = "短腿", Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
-				new Limb { Id = "eyes",  Name = "夜眼", Tags = new() { ["视觉"] = 2, ["夜视"] = 1 } },
+				new Limb { Id = "body",  Name = "身体", MaxDurability = 6,  Durability = 6,  Tags = new() { ["要害"] = 1, ["防御"] = 1 } },
+				new Limb { Id = "claws", Name = "利爪", MaxDurability = 4,  Durability = 4,  Tags = new() { ["近战"] = 2, ["力量"] = 1 } },
+				new Limb { Id = "legs",  Name = "短腿", MaxDurability = 5,  Durability = 5,  Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
+				new Limb { Id = "eyes",  Name = "夜眼", MaxDurability = 2,  Durability = 2,  Tags = new() { ["视觉"] = 2, ["夜视"] = 1 } },
 			],
 		});
 
 		Register("slime", id => new Actor
 		{
 			Id = id, Glyph = "S", DisplayName = "史莱姆", Faction = "hostile",
+			Gold = 3,
 			Race = new Race
 			{
 				Id = "slime", Name = "史莱姆",
-				Tags = new() { ["生命"] = 8, ["防御"] = 3, ["毒性"] = 2 },
+				Tags = new() { ["防御"] = 3, ["毒性"] = 2 },
 			},
 			Limbs =
 			[
-				new Limb { Id = "body", Name = "弹性体", Tags = new() { ["近战"] = 1, ["防御"] = 2 } },
-				new Limb { Id = "core", Name = "核心", Tags = new() { ["移动"] = 1, ["毒性"] = 1 } },
+				new Limb { Id = "body", Name = "弹性体", MaxDurability = 8, Durability = 8, Tags = new() { ["近战"] = 1, ["防御"] = 2 } },
+				new Limb { Id = "core", Name = "核心",   MaxDurability = 5, Durability = 5, Tags = new() { ["要害"] = 1, ["移动"] = 1, ["毒性"] = 1 } },
 			],
 		});
 
 		Register("skeleton", id => new Actor
 		{
 			Id = id, Glyph = "K", DisplayName = "骷髅", Faction = "hostile",
+			Gold = 8,
 			Race = new Race
 			{
 				Id = "undead", Name = "亡灵",
-				Tags = new() { ["生命"] = 10, ["力量"] = 4, ["防御"] = 1, ["亡灵"] = 1 },
+				Tags = new() { ["力量"] = 4, ["防御"] = 1, ["亡灵"] = 1 },
 			},
 			Limbs =
 			[
-				new Limb { Id = "bone_arm_r", Name = "骨臂(右)", Tags = new() { ["近战"] = 3, ["力量"] = 2 } },
-				new Limb { Id = "bone_arm_l", Name = "骨臂(左)", Tags = new() { ["近战"] = 1, ["格挡"] = 1 } },
-				new Limb { Id = "bone_legs",  Name = "骨腿", Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
-				new Limb { Id = "skull",      Name = "头骨", Tags = new() { ["视觉"] = 1, ["亡灵"] = 1 } },
+				new Limb { Id = "skull",      Name = "头骨",   MaxDurability = 4, Durability = 4, Tags = new() { ["要害"] = 1, ["视觉"] = 1, ["亡灵"] = 1 } },
+				new Limb { Id = "bone_arm_r", Name = "骨臂(右)", MaxDurability = 5, Durability = 5, Tags = new() { ["近战"] = 3, ["力量"] = 2 } },
+				new Limb { Id = "bone_arm_l", Name = "骨臂(左)", MaxDurability = 5, Durability = 5, Tags = new() { ["近战"] = 1, ["格挡"] = 1 } },
+				new Limb { Id = "bone_legs",  Name = "骨腿",   MaxDurability = 5, Durability = 5, Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
 			],
 		});
 
@@ -110,9 +115,10 @@ public static class ActorTemplates
 			},
 			Limbs =
 			[
-				new Limb { Id = "arms",  Name = "双臂", Tags = new() { ["近战"] = 1 } },
-				new Limb { Id = "legs",  Name = "双腿", Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
-				new Limb { Id = "eyes",  Name = "双眼", Tags = new() { ["视觉"] = 2 } },
+				new Limb { Id = "torso", Name = "躯干", MaxDurability = 12, Durability = 12, Tags = new() { ["要害"] = 1 } },
+				new Limb { Id = "arms",  Name = "双臂", MaxDurability = 6,  Durability = 6,  Tags = new() { ["近战"] = 1 } },
+				new Limb { Id = "legs",  Name = "双腿", MaxDurability = 8,  Durability = 8,  Tags = new() { ["移动"] = 1, ["速度"] = 1 } },
+				new Limb { Id = "eyes",  Name = "双眼", MaxDurability = 3,  Durability = 3,  Tags = new() { ["视觉"] = 2 } },
 			],
 			ShopSlots =
 			[
@@ -150,7 +156,7 @@ public static class ActorTemplates
 			Race = new Race
 			{
 				Id = "human", Name = "人类",
-				Tags = new() { ["生命"] = 12, ["力量"] = 1, ["防御"] = 1 },
+				Tags = new() { ["力量"] = 1, ["防御"] = 1 },
 			},
 			Profession = new Profession
 			{
@@ -159,9 +165,10 @@ public static class ActorTemplates
 			},
 			Limbs =
 			[
-				new Limb { Id = "arms",  Name = "双臂", Tags = new() { ["近战"] = 1 } },
-				new Limb { Id = "legs",  Name = "双腿", Tags = new() { ["移动"] = 1 } },
-				new Limb { Id = "eyes",  Name = "双眼", Tags = new() { ["视觉"] = 2 } },
+				new Limb { Id = "torso", Name = "躯干", MaxDurability = 10, Durability = 10, Tags = new() { ["要害"] = 1 } },
+				new Limb { Id = "arms",  Name = "双臂", MaxDurability = 5,  Durability = 5,  Tags = new() { ["近战"] = 1 } },
+				new Limb { Id = "legs",  Name = "双腿", MaxDurability = 6,  Durability = 6,  Tags = new() { ["移动"] = 1 } },
+				new Limb { Id = "eyes",  Name = "双眼", MaxDurability = 3,  Durability = 3,  Tags = new() { ["视觉"] = 2 } },
 			],
 		});
 
@@ -171,13 +178,14 @@ public static class ActorTemplates
 			Race = new Race
 			{
 				Id = "human", Name = "人类",
-				Tags = new() { ["生命"] = 10, ["力量"] = 2 },
+				Tags = new() { ["力量"] = 2 },
 			},
 			Limbs =
 			[
-				new Limb { Id = "arms",  Name = "双臂", Tags = new() { ["近战"] = 1 } },
-				new Limb { Id = "legs",  Name = "双腿", Tags = new() { ["移动"] = 1 } },
-				new Limb { Id = "eyes",  Name = "双眼", Tags = new() { ["视觉"] = 2 } },
+				new Limb { Id = "torso", Name = "躯干", MaxDurability = 8, Durability = 8, Tags = new() { ["要害"] = 1 } },
+				new Limb { Id = "arms",  Name = "双臂", MaxDurability = 5, Durability = 5, Tags = new() { ["近战"] = 1 } },
+				new Limb { Id = "legs",  Name = "双腿", MaxDurability = 6, Durability = 6, Tags = new() { ["移动"] = 1 } },
+				new Limb { Id = "eyes",  Name = "双眼", MaxDurability = 3, Durability = 3, Tags = new() { ["视觉"] = 2 } },
 			],
 		});
 	}

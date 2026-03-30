@@ -25,6 +25,13 @@ public static class InteractionDefs
 		},
 		new InteractionDef
 		{
+			Id = "attack", Name = "攻击",
+			Required = new() { ["近战"] = 1 },
+			TargetRequired = new() { ["@faction:hostile"] = 1 },
+			EffectType = "combat",
+		},
+		new InteractionDef
+		{
 			Id = "tame", Name = "驯服",
 			Required = new() { ["驯服"] = 2 },
 			TargetRequired = new() { ["@max:野性:3"] = 1, ["@faction:hostile"] = 1 },
