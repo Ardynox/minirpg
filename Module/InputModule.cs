@@ -68,12 +68,13 @@ public partial class InputModule
 			}
 			var num = key.Keycode switch
 			{
+				Key.Key0 => 0,
 				Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 3,
 				Key.Key4 => 4, Key.Key5 => 5, Key.Key6 => 6,
 				Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
 				_ => -1,
 			};
-			if (num > 0)
+			if (num >= 0)
 			{
 				CommandReceived?.Invoke($":select_{num}");
 				return true;

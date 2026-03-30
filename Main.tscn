@@ -64,6 +64,21 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "切换渲染模式 (Emoji / ASCII)"
 
+[node name="KeyBindingsLabel" type="Label" parent="SettingsPanel/VBox"]
+layout_mode = 2
+text = "── 按键绑定 ──
+W/A/S/D — 移动
+L — 查看周围
+F — 交互（对话/交易/驯服）
+I — 打开背包
+R — 切换渲染模式
+空格 — 上下楼梯
+T / Enter — 打字输入
+F5 — 快速存档
+F9 — 快速读档
+ESC — 打开/关闭设置
+数字键 0-9 — 菜单选择"
+
 [node name="SaveBtn" type="Button" parent="SettingsPanel/VBox"]
 layout_mode = 2
 text = "保存游戏 💾"

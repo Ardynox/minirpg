@@ -38,6 +38,9 @@ public partial class Main : Node
 	private PanelContainer _settingsPanel = null!;
 	private PanelContainer _mainMenu = null!;
 	private Button _continueBtn = null!;
+	private Button _settingSaveBtn = null!;
+	private Button _settingLoadBtn = null!;
+	private Button _settingBackToMenuBtn = null!;
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
 
@@ -57,11 +60,15 @@ public partial class Main : Node
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
 
+		_settingSaveBtn = GetNode<Button>("SettingsPanel/VBox/SaveBtn");
+		_settingLoadBtn = GetNode<Button>("SettingsPanel/VBox/LoadBtn");
+		_settingBackToMenuBtn = GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn");
+
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
-		GetNode<Button>("SettingsPanel/VBox/SaveBtn").Pressed += () => DoSave(ManualSavePath);
-		GetNode<Button>("SettingsPanel/VBox/LoadBtn").Pressed += () => DoLoad(ManualSavePath);
-		GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn").Pressed += BackToMenu;
-		GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += ToggleSettings;
+		_settingSaveBtn.Pressed += () => DoSave(ManualSavePath);
+		_settingLoadBtn.Pressed += () => DoLoad(ManualSavePath);
+		_settingBackToMenuBtn.Pressed += BackToMenu;
+		GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += CloseSettings;
 
 		_continueBtn.Pressed += MenuContinue;
 		GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += MenuNewGame;
@@ -163,11 +170,14 @@ public partial class Main : Node
 		EnterGame();
 	}
 
+	private bool _settingsFromMenu;
+
 	private void MenuSettings()
 	{
-		_settingsOpen = true;
+		_settingsFromMenu = true;
 		_settingsPanel.Visible = true;
 		_mainMenu.Visible = false;
+		UpdateSettingsContext();
 	}
 
 	private void MenuQuit() => GetTree().Quit();
@@ -773,10 +783,34 @@ public partial class Main : Node
 
 	// ── 设置面板 ──────────────────────────────────────────
 
+	private void UpdateSettingsContext()
+	{
+		var inGame = _gameStarted && !_settingsFromMenu;
+		_settingSaveBtn.Visible = inGame;
+		_settingLoadBtn.Visible = inGame;
+		_settingBackToMenuBtn.Visible = inGame;
+	}
+
 	private void ToggleSettings()
 	{
+		_settingsFromMenu = false;
 		_settingsOpen = !_settingsOpen;
 		_settingsPanel.Visible = _settingsOpen;
+		if (_settingsOpen) UpdateSettingsContext();
+	}
+
+	private void CloseSettings()
+	{
+		if (_settingsFromMenu)
+		{
+			_settingsFromMenu = false;
+			_settingsPanel.Visible = false;
+			ShowMainMenu();
+		}
+		else
+		{
+			ToggleSettings();
+		}
 	}
 
 	// ── 日志 ──────────────────────────────────────────────
