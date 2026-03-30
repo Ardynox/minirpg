@@ -1,0 +1,51 @@
+[
+  {
+    "id": "melee_attack",
+    "name": "近战攻击",
+    "required": { "近战": 1, "力量": 1 },
+    "effectType": "melee_attack",
+    "power": 1
+  },
+  {
+    "id": "heavy_strike",
+    "name": "重击",
+    "required": { "近战": 3, "力量": 4 },
+    "effectType": "melee_attack",
+    "power": 3
+  },
+  {
+    "id": "block",
+    "name": "格挡",
+    "required": { "格挡": 1 },
+    "effectType": "block",
+    "power": 1
+  },
+  {
+    "id": "poison_spit",
+    "name": "毒液喷射",
+    "required": { "毒性": 2 },
+    "effectType": "poison_attack",
+    "power": 2
+  },
+  {
+    "id": "undead_drain",
+    "name": "亡灵吸取",
+    "required": { "亡灵": 1, "近战": 2 },
+    "effectType": "drain_attack",
+    "power": 2
+  },
+  {
+    "id": "move",
+    "name": "移动",
+    "required": { "移动": 1 },
+    "effectType": "move",
+    "power": 0
+  },
+  {
+    "id": "look",
+    "name": "观察",
+    "required": { "视觉": 1 },
+    "effectType": "look",
+    "power": 0
+  }
+]

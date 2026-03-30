@@ -54,6 +54,8 @@ public partial class Main : Node
 
 	public override void _Ready()
 	{
+		PresetDB.Load();
+
 		_ui = GetNode<VBoxContainer>("UI");
 		_mapPanel = GetNode<RichTextLabel>("UI/TopRow/MapPanel");
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "potion_hp",
+    "name": "生命药水",
+    "price": 10,
+    "tags": { "治疗": 5 }
+  },
+  {
+    "id": "potion_str",
+    "name": "力量药水",
+    "price": 15,
+    "tags": { "力量": 3 }
+  },
+  {
+    "id": "shield_iron",
+    "name": "铁盾",
+    "price": 30,
+    "tags": { "防御": 4, "格挡": 2 }
+  },
+  {
+    "id": "sword_steel",
+    "name": "钢剑",
+    "price": 40,
+    "tags": { "近战": 5, "力量": 3 }
+  },
+  {
+    "id": "torch",
+    "name": "火把",
+    "price": 5,
+    "tags": { "视觉": 2 }
+  }
+]

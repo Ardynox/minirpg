@@ -1,0 +1,78 @@
+[
+  {
+    "id": "player",
+    "glyph": "P",
+    "displayName": "你",
+    "faction": "friendly",
+    "gold": 50,
+    "raceId": "human",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "goblin",
+    "glyph": "G",
+    "displayName": "哥布林",
+    "faction": "hostile",
+    "gold": 5,
+    "raceId": "goblin",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "slime",
+    "glyph": "S",
+    "displayName": "史莱姆",
+    "faction": "hostile",
+    "gold": 3,
+    "raceId": "slime",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "skeleton",
+    "glyph": "K",
+    "displayName": "骷髅",
+    "faction": "hostile",
+    "gold": 8,
+    "raceId": "undead",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "merchant",
+    "glyph": "T",
+    "displayName": "流浪商人",
+    "faction": "friendly",
+    "gold": 200,
+    "raceId": "human",
+    "professionId": "merchant",
+    "shopSlots": [
+      { "itemId": "potion_hp", "stock": 3 },
+      { "itemId": "potion_str", "stock": 2 },
+      { "itemId": "shield_iron", "stock": 1 },
+      { "itemId": "sword_steel", "stock": 1 },
+      { "itemId": "torch", "stock": 5 }
+    ]
+  },
+  {
+    "id": "elder",
+    "glyph": "E",
+    "displayName": "村长",
+    "faction": "friendly",
+    "gold": 0,
+    "raceId": "human",
+    "professionId": "elder",
+    "shopSlots": []
+  },
+  {
+    "id": "villager",
+    "glyph": "V",
+    "displayName": "村民",
+    "faction": "friendly",
+    "gold": 0,
+    "raceId": "human",
+    "professionId": null,
+    "shopSlots": []
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "human_torso",
+    "name": "躯干",
+    "maxDurability": 15,
+    "tags": { "要害": 1, "防御": 2 }
+  },
+  {
+    "id": "human_right_arm",
+    "name": "右臂",
+    "maxDurability": 8,
+    "tags": { "近战": 3, "力量": 2 }
+  },
+  {
+    "id": "human_left_arm",
+    "name": "左臂",
+    "maxDurability": 8,
+    "tags": { "近战": 1, "格挡": 2 }
+  },
+  {
+    "id": "human_legs",
+    "name": "双腿",
+    "maxDurability": 10,
+    "tags": { "移动": 1, "速度": 2 }
+  },
+  {
+    "id": "human_eyes",
+    "name": "双眼",
+    "maxDurability": 3,
+    "tags": { "视觉": 3 }
+  },
+  {
+    "id": "goblin_body",
+    "name": "身体",
+    "maxDurability": 6,
+    "tags": { "要害": 1, "防御": 1 }
+  },
+  {
+    "id": "goblin_claws",
+    "name": "利爪",
+    "maxDurability": 4,
+    "tags": { "近战": 2, "力量": 1 }
+  },
+  {
+    "id": "goblin_legs",
+    "name": "短腿",
+    "maxDurability": 5,
+    "tags": { "移动": 1, "速度": 1 }
+  },
+  {
+    "id": "goblin_eyes",
+    "name": "夜眼",
+    "maxDurability": 2,
+    "tags": { "视觉": 2, "夜视": 1 }
+  },
+  {
+    "id": "slime_body",
+    "name": "弹性体",
+    "maxDurability": 8,
+    "tags": { "近战": 1, "防御": 2 }
+  },
+  {
+    "id": "slime_core",
+    "name": "核心",
+    "maxDurability": 5,
+    "tags": { "要害": 1, "移动": 1, "毒性": 1 }
+  },
+  {
+    "id": "undead_skull",
+    "name": "头骨",
+    "maxDurability": 4,
+    "tags": { "要害": 1, "视觉": 1, "亡灵": 1 }
+  },
+  {
+    "id": "undead_arm_r",
+    "name": "骨臂(右)",
+    "maxDurability": 5,
+    "tags": { "近战": 3, "力量": 2 }
+  },
+  {
+    "id": "undead_arm_l",
+    "name": "骨臂(左)",
+    "maxDurability": 5,
+    "tags": { "近战": 1, "格挡": 1 }
+  },
+  {
+    "id": "undead_legs",
+    "name": "骨腿",
+    "maxDurability": 5,
+    "tags": { "移动": 1, "速度": 1 }
+  }
+]
