@@ -2,7 +2,8 @@
   {
     "id": "talk",
     "name": "对话",
-    "required": { "视觉": 1 },
+    "required": {},
+    "capacityRequired": { "consciousness": 0.1 },
     "targetRequired": { "@faction:friendly": 1 },
     "effectType": "talk",
     "power": 0
@@ -10,7 +11,8 @@
   {
     "id": "trade",
     "name": "交易",
-    "required": { "视觉": 1 },
+    "required": {},
+    "capacityRequired": { "consciousness": 0.1 },
     "targetRequired": { "交易": 1 },
     "effectType": "trade",
     "power": 0
@@ -18,7 +20,8 @@
   {
     "id": "attack",
     "name": "攻击",
-    "required": { "近战": 1 },
+    "required": {},
+    "capacityRequired": { "manipulation": 0.1 },
     "targetRequired": { "@faction:hostile": 1 },
     "effectType": "combat",
     "power": 0
@@ -27,6 +30,7 @@
     "id": "tame",
     "name": "驯服",
     "required": { "驯服": 2 },
+    "capacityRequired": { "consciousness": 0.3 },
     "targetRequired": { "@max:野性:3": 1, "@faction:hostile": 1 },
     "effectType": "tame",
     "power": 0

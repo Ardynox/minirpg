@@ -63,7 +63,6 @@ public static class CombatModule
 
 		if (targetLimb.Durability <= 0)
 		{
-			var isVital = targetLimb.Tags.ContainsKey("要害");
 			events.Add(new GameEvent("limb_destroyed")
 			{
 				TargetId = target.Id,
@@ -72,7 +71,8 @@ public static class CombatModule
 			});
 			target.DetachLimb(targetLimb);
 
-			if (isVital || IsDead(target))
+			var vitalStatus = CheckVitalStatus(target);
+			if (vitalStatus == "death_instant" || IsDead(target))
 			{
 				var goldDrop = Math.Max(target.Gold, 5);
 				ActorModule.Remove(state, target.Id);
@@ -85,22 +85,40 @@ public static class CombatModule
 					Damage = goldDrop,
 				});
 			}
+			else if (vitalStatus == "incapacitate")
+			{
+				events.Add(new GameEvent("actor_incapacitated")
+				{
+					TargetId = target.Id,
+					TargetActorName = target.DisplayName,
+					TargetX = target.X,
+					TargetY = target.Y,
+				});
+			}
 		}
 
 		return events;
 	}
 
-	/// <summary>计算伤害值。</summary>
+	/// <summary>
+	/// 计算伤害值。基于操作能力(manipulation)缩放基础伤害。
+	/// </summary>
 	public static int CalcDamage(Actor attacker, ActionDef action, Actor target)
 	{
-		var aTags = attacker.ComputeTags();
+		var aCaps = attacker.ComputeCapacities();
 		var tTags = target.ComputeTags();
 
+		var manipFactor = aCaps.GetValueOrDefault("manipulation", 0.5f);
 		int baseDmg;
 		if (action.EffectType == "poison_attack")
-			baseDmg = aTags.GetValueOrDefault("毒性", 0) + action.Power * 2;
+		{
+			var poisonTag = attacker.ComputeTags().GetValueOrDefault("毒性", 0);
+			baseDmg = poisonTag + action.Power * 2;
+		}
 		else
-			baseDmg = aTags.GetValueOrDefault("力量", 0) + action.Power * 2;
+		{
+			baseDmg = (int)(action.Power * 2 * (0.5f + manipFactor));
+		}
 
 		var defense = action.EffectType == "poison_attack"
 			? 0
@@ -109,9 +127,36 @@ public static class CombatModule
 		return Math.Max(1, baseDmg - defense);
 	}
 
-	/// <summary>没有任何含"要害"tag 的肢体 -> 死亡。</summary>
-	public static bool IsDead(Actor actor) =>
-		!actor.Limbs.Any(l => l.Tags.ContainsKey("要害"));
+	/// <summary>
+	/// 检查 Actor 的致命能力状态。
+	/// 返回最严重的 vitalEffect，或 null 表示存活。
+	/// 优先级: death_instant > incapacitate > death_slow
+	/// </summary>
+	public static string? CheckVitalStatus(Actor actor)
+	{
+		var caps = actor.ComputeCapacities();
+		string? worst = null;
+		foreach (var def in PresetDB.Capacities.Values)
+		{
+			if (def.VitalEffect == null) continue;
+			var val = caps.GetValueOrDefault(def.Id);
+			if (val <= def.ZeroThreshold)
+			{
+				if (def.VitalEffect == "death_instant")
+					return "death_instant";
+				if (worst == null || def.VitalEffect == "incapacitate" && worst == "death_slow")
+					worst = def.VitalEffect;
+			}
+		}
+		return worst;
+	}
+
+	/// <summary>兼容旧接口：检查是否死亡（death_instant 或无要害肢体）。</summary>
+	public static bool IsDead(Actor actor)
+	{
+		var status = CheckVitalStatus(actor);
+		return status == "death_instant" || !actor.Limbs.Any(l => l.Tags.ContainsKey("要害"));
+	}
 
 	/// <summary>
 	/// 获取 Actor 可用的攻击动作（排除 move/look/block 等非攻击类型）。

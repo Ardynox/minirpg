@@ -17,13 +17,18 @@ public interface ITagSource
 
 // ── 具体来源 ──────────────────────────────────────────
 
-/// <summary>肢体：可挂载/移除/替换，每个肢体贡献一组 tag。耐久归零则断裂。</summary>
+/// <summary>肢体/器官：可挂载/移除/替换。耐久比例影响能力(Capacity)贡献。</summary>
 public class Limb : ITagSource
 {
 	public string Id { get; set; } = "";
 	public string Name { get; set; } = "";
 	public int MaxDurability { get; set; } = 5;
 	public int Durability { get; set; } = 5;
+
+	/// <summary>对各能力的权重贡献（0.0~1.0），实际贡献 = 权重 * 耐久比例。</summary>
+	public Dictionary<string, float> Capacities { get; set; } = new();
+
+	/// <summary>非能力类标记（要害、亡灵、毒性等布尔/枚举标记）。</summary>
 	public Dictionary<string, int> Tags { get; set; } = new();
 
 	public Dictionary<string, int> GetTags() => Tags;
@@ -82,6 +87,8 @@ public class ActionDef
 	public string Name { get; set; } = "";
 	/// <summary>前置 tag 要求：key = tag 名, value = 最低强度。</summary>
 	public Dictionary<string, int> Required { get; set; } = new();
+	/// <summary>前置能力要求：key = 能力 ID, value = 最低百分比 (0.0~1.0)。</summary>
+	public Dictionary<string, float> CapacityRequired { get; set; } = new();
 	/// <summary>效果类型，由事件系统消费（"melee_attack", "poison_spit"…）。</summary>
 	public string EffectType { get; set; } = "";
 	/// <summary>效果强度倍率，具体含义由 EffectType 决定。</summary>
@@ -92,12 +99,15 @@ public class ActionDef
 
 public static class ActionQuery
 {
-	/// <summary>根据 Actor 当前 tag 表过滤出所有满足条件的动作。</summary>
+	/// <summary>根据 Actor 当前 tag 表和能力值过滤出所有满足条件的动作。</summary>
 	public static List<ActionDef> GetAvailable(Actor actor, IReadOnlyList<ActionDef> allActions)
 	{
 		var tags = actor.ComputeTags();
+		var caps = actor.ComputeCapacities();
 		return allActions
-			.Where(a => a.Required.All(r => tags.GetValueOrDefault(r.Key, 0) >= r.Value))
+			.Where(a =>
+				a.Required.All(r => tags.GetValueOrDefault(r.Key, 0) >= r.Value) &&
+				a.CapacityRequired.All(r => caps.GetValueOrDefault(r.Key, 0f) >= r.Value))
 			.ToList();
 	}
 }

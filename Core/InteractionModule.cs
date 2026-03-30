@@ -28,16 +28,26 @@ public static class InteractionModule
 		return targets;
 	}
 
-	/// <summary>根据双方 tag 过滤出满足条件的交互列表。</summary>
+	/// <summary>根据双方 tag/能力过滤出满足条件的交互列表。</summary>
 	public static List<InteractionDef> GetInteractions(Actor initiator, Actor target,
 		IReadOnlyList<InteractionDef> allDefs)
 	{
 		var iTags = initiator.ComputeTags();
+		var iCaps = initiator.ComputeCapacities();
 		var tTags = target.ComputeTags();
 		return allDefs.Where(d =>
 			CheckTags(iTags, d.Required, initiator.Faction) &&
+			CheckCapacities(iCaps, d.CapacityRequired) &&
 			CheckTags(tTags, d.TargetRequired, target.Faction)
 		).ToList();
+	}
+
+	private static bool CheckCapacities(Dictionary<string, float> caps,
+		Dictionary<string, float> required)
+	{
+		foreach (var (key, val) in required)
+			if (caps.GetValueOrDefault(key, 0f) < val) return false;
+		return true;
 	}
 
 	/// <summary>执行交互，产出事件。具体效果由 Main.Dispatch 消费。</summary>

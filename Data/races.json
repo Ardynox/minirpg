@@ -2,25 +2,39 @@
   {
     "id": "human",
     "name": "人类",
-    "tags": { "力量": 3, "防御": 1 },
-    "defaultLimbs": ["human_torso", "human_right_arm", "human_left_arm", "human_legs", "human_eyes"]
+    "tags": {},
+    "defaultLimbs": [
+      "human_brain", "human_heart",
+      "human_left_lung", "human_right_lung",
+      "human_stomach", "human_mouth",
+      "human_right_arm", "human_left_arm",
+      "human_right_leg", "human_left_leg",
+      "human_right_eye", "human_left_eye"
+    ]
   },
   {
     "id": "goblin",
     "name": "哥布林",
-    "tags": { "力量": 2, "速度": 3 },
-    "defaultLimbs": ["goblin_body", "goblin_claws", "goblin_legs", "goblin_eyes"]
+    "tags": {},
+    "defaultLimbs": [
+      "goblin_brain", "goblin_heart",
+      "goblin_claws", "goblin_legs", "goblin_eyes"
+    ]
   },
   {
     "id": "slime",
     "name": "史莱姆",
-    "tags": { "防御": 3, "毒性": 2 },
+    "tags": { "毒性": 2 },
     "defaultLimbs": ["slime_body", "slime_core"]
   },
   {
     "id": "undead",
     "name": "亡灵",
-    "tags": { "力量": 4, "防御": 1, "亡灵": 1 },
-    "defaultLimbs": ["undead_skull", "undead_arm_r", "undead_arm_l", "undead_legs"]
+    "tags": { "亡灵": 1 },
+    "defaultLimbs": [
+      "undead_skull",
+      "undead_arm_r", "undead_arm_l",
+      "undead_legs"
+    ]
   }
 ]

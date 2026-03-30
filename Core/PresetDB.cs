@@ -31,6 +31,8 @@ public class LimbPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("maxDurability")]
 	public int MaxDurability { get; set; } = 5;
+	[JsonPropertyName("capacities")]
+	public Dictionary<string, float> Capacities { get; set; } = new();
 	[JsonPropertyName("tags")]
 	public Dictionary<string, int> Tags { get; set; } = new();
 }
@@ -93,6 +95,8 @@ public class ActionPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("required")]
 	public Dictionary<string, int> Required { get; set; } = new();
+	[JsonPropertyName("capacityRequired")]
+	public Dictionary<string, float> CapacityRequired { get; set; } = new();
 	[JsonPropertyName("effectType")]
 	public string EffectType { get; set; } = "";
 	[JsonPropertyName("power")]
@@ -107,6 +111,8 @@ public class InteractionPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("required")]
 	public Dictionary<string, int> Required { get; set; } = new();
+	[JsonPropertyName("capacityRequired")]
+	public Dictionary<string, float> CapacityRequired { get; set; } = new();
 	[JsonPropertyName("targetRequired")]
 	public Dictionary<string, int> TargetRequired { get; set; } = new();
 	[JsonPropertyName("effectType")]
@@ -125,6 +131,7 @@ public static class PresetDB
 	public static Dictionary<string, ProfessionPreset> Professions { get; private set; } = new();
 	public static Dictionary<string, ItemPreset> Items { get; private set; } = new();
 	public static Dictionary<string, ActorPreset> Actors { get; private set; } = new();
+	public static Dictionary<string, CapacityDef> Capacities { get; private set; } = new();
 	public static List<ActionDef> Actions { get; private set; } = [];
 	public static List<InteractionDef> Interactions { get; private set; } = [];
 
@@ -143,11 +150,13 @@ public static class PresetDB
 		Professions = LoadDict<ProfessionPreset>("res://Data/professions.json");
 		Items = LoadDict<ItemPreset>("res://Data/items.json");
 		Actors = LoadDict<ActorPreset>("res://Data/actors.json");
+		Capacities = LoadDict<CapacityDef>("res://Data/capacities.json");
 		Actions = LoadList<ActionPreset>("res://Data/actions.json")
 			.Select(a => new ActionDef
 			{
 				Id = a.Id, Name = a.Name,
 				Required = new(a.Required),
+				CapacityRequired = new(a.CapacityRequired),
 				EffectType = a.EffectType, Power = a.Power,
 			}).ToList();
 		Interactions = LoadList<InteractionPreset>("res://Data/interactions.json")
@@ -155,6 +164,7 @@ public static class PresetDB
 			{
 				Id = i.Id, Name = i.Name,
 				Required = new(i.Required),
+				CapacityRequired = new(i.CapacityRequired),
 				TargetRequired = new(i.TargetRequired),
 				EffectType = i.EffectType, Power = i.Power,
 			}).ToList();
@@ -228,9 +238,14 @@ public static class PresetDB
 			Name = preset.Name,
 			MaxDurability = preset.MaxDurability,
 			Durability = preset.MaxDurability,
+			Capacities = new(preset.Capacities),
 			Tags = new(preset.Tags),
 		};
 	}
+
+	/// <summary>按 ID 查询能力定义，不存在返回 null。</summary>
+	public static CapacityDef? GetCapacity(string capId) =>
+		Capacities.GetValueOrDefault(capId);
 
 	/// <summary>根据物品预设 ID 克隆一个新的 Item 实例。</summary>
 	public static Item CloneItem(string itemId)

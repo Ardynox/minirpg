@@ -1,0 +1,74 @@
+[
+  {
+    "id": "consciousness",
+    "name": "意识",
+    "vitalEffect": "incapacitate",
+    "zeroThreshold": 0.0,
+    "multipliers": ["blood_circulation"],
+    "description": "降至0时昏迷，无法行动"
+  },
+  {
+    "id": "blood_circulation",
+    "name": "血液循环",
+    "vitalEffect": "death_instant",
+    "zeroThreshold": 0.0,
+    "multipliers": [],
+    "description": "降至0时死亡"
+  },
+  {
+    "id": "manipulation",
+    "name": "操作能力",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "降至0时无法操作物品和攻击"
+  },
+  {
+    "id": "moving",
+    "name": "移动能力",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "降至0时无法移动"
+  },
+  {
+    "id": "sight",
+    "name": "视觉",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "降至0时失明"
+  },
+  {
+    "id": "metabolism",
+    "name": "新陈代谢",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["blood_circulation"],
+    "description": "影响恢复速度和毒素代谢"
+  },
+  {
+    "id": "talking",
+    "name": "语言能力",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "降至0时无法说话"
+  },
+  {
+    "id": "eating",
+    "name": "进食能力",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "降至0时无法进食"
+  },
+  {
+    "id": "breathing",
+    "name": "呼吸能力",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": [],
+    "description": "影响血液循环效率"
+  }
+]

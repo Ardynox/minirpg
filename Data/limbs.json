@@ -1,92 +1,166 @@
 [
   {
-    "id": "human_torso",
-    "name": "躯干",
-    "maxDurability": 15,
-    "tags": { "要害": 1, "防御": 2 }
+    "id": "human_brain",
+    "name": "大脑",
+    "maxDurability": 5,
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "human_heart",
+    "name": "心脏",
+    "maxDurability": 5,
+    "capacities": { "blood_circulation": 1.0, "consciousness": 0.1 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "human_left_lung",
+    "name": "左肺",
+    "maxDurability": 5,
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "human_right_lung",
+    "name": "右肺",
+    "maxDurability": 5,
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "human_stomach",
+    "name": "胃",
+    "maxDurability": 6,
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
   },
   {
     "id": "human_right_arm",
     "name": "右臂",
     "maxDurability": 8,
-    "tags": { "近战": 3, "力量": 2 }
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 1 }
   },
   {
     "id": "human_left_arm",
     "name": "左臂",
     "maxDurability": 8,
-    "tags": { "近战": 1, "格挡": 2 }
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 1 }
   },
   {
-    "id": "human_legs",
-    "name": "双腿",
+    "id": "human_right_leg",
+    "name": "右腿",
     "maxDurability": 10,
-    "tags": { "移动": 1, "速度": 2 }
+    "capacities": { "moving": 0.5 },
+    "tags": {}
   },
   {
-    "id": "human_eyes",
-    "name": "双眼",
+    "id": "human_left_leg",
+    "name": "左腿",
+    "maxDurability": 10,
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "human_right_eye",
+    "name": "右眼",
     "maxDurability": 3,
-    "tags": { "视觉": 3 }
+    "capacities": { "sight": 0.5 },
+    "tags": {}
   },
   {
-    "id": "goblin_body",
-    "name": "身体",
-    "maxDurability": 6,
-    "tags": { "要害": 1, "防御": 1 }
+    "id": "human_left_eye",
+    "name": "左眼",
+    "maxDurability": 3,
+    "capacities": { "sight": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "human_mouth",
+    "name": "嘴",
+    "maxDurability": 4,
+    "capacities": { "talking": 1.0, "eating": 1.0 },
+    "tags": {}
+  },
+
+  {
+    "id": "goblin_brain",
+    "name": "小脑",
+    "maxDurability": 3,
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "goblin_heart",
+    "name": "心脏",
+    "maxDurability": 3,
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
   },
   {
     "id": "goblin_claws",
     "name": "利爪",
     "maxDurability": 4,
-    "tags": { "近战": 2, "力量": 1 }
+    "capacities": { "manipulation": 1.0 },
+    "tags": {}
   },
   {
     "id": "goblin_legs",
     "name": "短腿",
     "maxDurability": 5,
-    "tags": { "移动": 1, "速度": 1 }
+    "capacities": { "moving": 1.0 },
+    "tags": {}
   },
   {
     "id": "goblin_eyes",
     "name": "夜眼",
     "maxDurability": 2,
-    "tags": { "视觉": 2, "夜视": 1 }
+    "capacities": { "sight": 1.0 },
+    "tags": { "夜视": 1 }
   },
+
   {
     "id": "slime_body",
     "name": "弹性体",
     "maxDurability": 8,
-    "tags": { "近战": 1, "防御": 2 }
+    "capacities": { "manipulation": 0.5, "moving": 0.5 },
+    "tags": {}
   },
   {
     "id": "slime_core",
     "name": "核心",
     "maxDurability": 5,
-    "tags": { "要害": 1, "移动": 1, "毒性": 1 }
+    "capacities": { "consciousness": 1.0, "blood_circulation": 1.0, "metabolism": 1.0 },
+    "tags": { "要害": 1, "毒性": 1 }
   },
+
   {
     "id": "undead_skull",
     "name": "头骨",
     "maxDurability": 4,
-    "tags": { "要害": 1, "视觉": 1, "亡灵": 1 }
+    "capacities": { "consciousness": 1.0, "sight": 1.0 },
+    "tags": { "要害": 1, "亡灵": 1 }
   },
   {
     "id": "undead_arm_r",
     "name": "骨臂(右)",
     "maxDurability": 5,
-    "tags": { "近战": 3, "力量": 2 }
+    "capacities": { "manipulation": 0.5 },
+    "tags": {}
   },
   {
     "id": "undead_arm_l",
     "name": "骨臂(左)",
     "maxDurability": 5,
-    "tags": { "近战": 1, "格挡": 1 }
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 1 }
   },
   {
     "id": "undead_legs",
     "name": "骨腿",
     "maxDurability": 5,
-    "tags": { "移动": 1, "速度": 1 }
+    "capacities": { "moving": 1.0 },
+    "tags": {}
   }
 ]

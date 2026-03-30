@@ -12,6 +12,8 @@ public class InteractionDef
 	public string Id { get; set; } = "";
 	public string Name { get; set; } = "";
 	public Dictionary<string, int> Required { get; set; } = new();
+	/// <summary>发起者能力要求：key = 能力 ID, value = 最低百分比。</summary>
+	public Dictionary<string, float> CapacityRequired { get; set; } = new();
 	public Dictionary<string, int> TargetRequired { get; set; } = new();
 	public string EffectType { get; set; } = "";
 	public int Power { get; set; }

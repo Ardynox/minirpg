@@ -48,6 +48,7 @@ public partial class Main : Node
 	private PanelContainer _statusPanel = null!;
 	private RichTextLabel _statusName = null!;
 	private RichTextLabel _statusLimb = null!;
+	private RichTextLabel _statusCap = null!;
 	private RichTextLabel _statusTag = null!;
 	private RichTextLabel _statusBuff = null!;
 	private RichTextLabel _statusEquip = null!;
@@ -68,6 +69,7 @@ public partial class Main : Node
 		var statusVBox = _statusPanel.GetNode("MarginContainer/ScrollContainer/VBox");
 		_statusName = statusVBox.GetNode<RichTextLabel>("NameInfo");
 		_statusLimb = statusVBox.GetNode<RichTextLabel>("LimbInfo");
+		_statusCap = statusVBox.GetNode<RichTextLabel>("CapInfo");
 		_statusTag = statusVBox.GetNode<RichTextLabel>("TagInfo");
 		_statusBuff = statusVBox.GetNode<RichTextLabel>("BuffInfo");
 		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
@@ -425,9 +427,12 @@ public partial class Main : Node
 				case "limb_destroyed":
 					AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
 					break;
-				case "actor_killed":
-					HandleActorKilled(e);
-					break;
+			case "actor_killed":
+				HandleActorKilled(e);
+				break;
+			case "actor_incapacitated":
+				AddLog($"😵 {e.TargetActorName}失去了意识！");
+				break;
 				case "player_limb_hit":
 					AddLog($"🩸 {e.TargetActorName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
 					break;
@@ -664,7 +669,7 @@ public partial class Main : Node
 		var combatEvents = CombatModule.Attack(_state, player, target, action, limb);
 		Dispatch(combatEvents);
 
-		if (!combatEvents.Exists(ev => ev.Type == "actor_killed"))
+		if (!combatEvents.Exists(ev => ev.Type is "actor_killed" or "actor_incapacitated"))
 			MonsterCounterAttack(player, target);
 
 		TickAllBuffs();
@@ -738,8 +743,8 @@ public partial class Main : Node
 			var combatEvents = CombatModule.Attack(_state, player, target, action, targetLimb);
 			Dispatch(combatEvents);
 
-			var killed = combatEvents.Exists(ev => ev.Type == "actor_killed");
-			if (!killed)
+			var eliminated = combatEvents.Exists(ev => ev.Type is "actor_killed" or "actor_incapacitated");
+			if (!eliminated)
 			{
 				var stillAlive = ActorModule.GetById(_state, target.Id);
 				if (stillAlive != null)
@@ -772,14 +777,19 @@ public partial class Main : Node
 				case "limb_destroyed":
 					AddLog($"💥 你的{ev.LimbName}被摧毁了！");
 					break;
-				case "actor_killed":
-					AddLog("💀 你死了……");
-					AddLog("按任意方向键返回主菜单");
-					_playerDead = true;
-					break;
-				default:
-					Dispatch([ev]);
-					break;
+			case "actor_killed":
+				AddLog("💀 你死了……");
+				AddLog("按任意方向键返回主菜单");
+				_playerDead = true;
+				break;
+			case "actor_incapacitated":
+				AddLog("😵 你失去了意识……");
+				AddLog("按任意方向键返回主菜单");
+				_playerDead = true;
+				break;
+			default:
+				Dispatch([ev]);
+				break;
 			}
 		}
 	}
@@ -995,6 +1005,7 @@ public partial class Main : Node
 		{
 			_statusName.Text = "";
 			_statusLimb.Text = "";
+			_statusCap.Text = "";
 			_statusTag.Text = "";
 			_statusBuff.Text = "";
 			_statusEquip.Text = "";
@@ -1005,6 +1016,8 @@ public partial class Main : Node
 		_statusName.AppendText(StatusModule.BuildNameInfo(player, _state.CurrentFloor, _state.Turn));
 		_statusLimb.Clear();
 		_statusLimb.AppendText(StatusModule.BuildLimbInfo(player));
+		_statusCap.Clear();
+		_statusCap.AppendText(StatusModule.BuildCapacityInfo(player));
 		_statusTag.Clear();
 		_statusTag.AppendText(StatusModule.BuildTagInfo(player));
 		_statusBuff.Clear();

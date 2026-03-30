@@ -5,7 +5,7 @@ using MiniRPG.Core;
 namespace MiniRPG.Module;
 
 /// <summary>
-/// 角色状态面板渲染：以肢体为核心，展示角色的身体状态、聚合能力、Buff 和装备。
+/// 角色状态面板渲染：以肢体为核心，展示角色的身体状态、能力百分比、Buff 和装备。
 /// </summary>
 public static class StatusModule
 {
@@ -39,14 +39,16 @@ public static class StatusModule
 			sb.Append($"[color={hpColor}]{limb.Name}{vital}[/color]");
 			sb.Append($"  {limb.Durability}/{limb.MaxDurability}");
 
-			var tagParts = new List<string>();
-			foreach (var (key, val) in limb.Tags)
+			var capParts = new List<string>();
+			foreach (var (capId, weight) in limb.Capacities)
 			{
-				if (key == "要害") continue;
-				tagParts.Add($"{key}+{val}");
+				var def = PresetDB.GetCapacity(capId);
+				var name = def?.Name ?? capId;
+				var pct = (int)(weight * ratio * 100);
+				capParts.Add($"{name}{pct}%");
 			}
-			if (tagParts.Count > 0)
-				sb.Append($"  [color=#888888]{string.Join(" ", tagParts)}[/color]");
+			if (capParts.Count > 0)
+				sb.Append($"  [color=#888888]{string.Join(" ", capParts)}[/color]");
 
 			sb.AppendLine();
 		}
@@ -55,7 +57,42 @@ public static class StatusModule
 	}
 
 	/// <summary>
-	/// 显示从所有来源聚合后的 tag 总值，让玩家了解当前综合能力。
+	/// 显示能力百分比总览，替代旧的 tag 聚合显示。
+	/// </summary>
+	public static string BuildCapacityInfo(Actor player)
+	{
+		var caps = player.ComputeCapacities();
+		if (caps.Count == 0)
+			return "[color=#888888]无[/color]";
+
+		var sb = new StringBuilder();
+		foreach (var (capId, val) in caps)
+		{
+			var def = PresetDB.GetCapacity(capId);
+			var name = def?.Name ?? capId;
+			var pct = (int)(val * 100);
+			var color = pct >= 80 ? "#44ee44" : pct >= 40 ? "#ffcc00" : "#ff4444";
+			sb.Append($"{name}: [color={color}]{pct}%[/color]");
+
+			if (def?.VitalEffect != null)
+			{
+				var effectLabel = def.VitalEffect switch
+				{
+					"death_instant" => "[color=#ff4444]致命[/color]",
+					"incapacitate" => "[color=#ff8844]昏迷[/color]",
+					"death_slow" => "[color=#ffaa44]缓死[/color]",
+					_ => "",
+				};
+				if (effectLabel.Length > 0)
+					sb.Append($" {effectLabel}");
+			}
+			sb.AppendLine();
+		}
+		return sb.ToString();
+	}
+
+	/// <summary>
+	/// 显示从所有来源聚合后的 tag 总值（仅保留非能力类标记）。
 	/// </summary>
 	public static string BuildTagInfo(Actor player)
 	{

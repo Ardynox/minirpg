@@ -69,6 +69,41 @@ public class Actor
 	/// <summary>查询单个 tag 的当前值，不存在返回 0。</summary>
 	public int GetTag(string key) => ComputeTags().GetValueOrDefault(key, 0);
 
+	// ── 能力(Capacity)计算 ──────────────────────────────
+
+	/// <summary>
+	/// 两轮计算能力值。
+	/// 第一轮：基础值 = Σ(肢体权重 × 耐久比例)。
+	/// 第二轮：最终值 = 基础值 × Π(依赖能力的基础值)。
+	/// 返回值域 0.0~1.0+，表示能力百分比。
+	/// </summary>
+	public Dictionary<string, float> ComputeCapacities()
+	{
+		var baseValues = new Dictionary<string, float>();
+		foreach (var limb in Limbs)
+		{
+			var ratio = limb.MaxDurability > 0
+				? (float)limb.Durability / limb.MaxDurability : 0f;
+			foreach (var (capId, weight) in limb.Capacities)
+				baseValues[capId] = baseValues.GetValueOrDefault(capId) + weight * ratio;
+		}
+
+		var final = new Dictionary<string, float>();
+		foreach (var (capId, baseVal) in baseValues)
+		{
+			var multiplier = 1.0f;
+			var def = PresetDB.GetCapacity(capId);
+			if (def != null)
+				foreach (var depId in def.Multipliers)
+					multiplier *= baseValues.GetValueOrDefault(depId, 1.0f);
+			final[capId] = baseVal * multiplier;
+		}
+		return final;
+	}
+
+	/// <summary>查询单个能力的当前值，不存在返回 0。</summary>
+	public float GetCapacity(string capId) => ComputeCapacities().GetValueOrDefault(capId);
+
 	// ── 肢体操作 ─────────────────────────────────────────
 
 	public void AttachLimb(Limb limb) => Limbs.Add(limb);
