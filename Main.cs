@@ -7,7 +7,7 @@ using MiniRPG.Module;
 
 namespace MiniRPG;
 
-public partial class Main : Node
+public partial class Main : Node, IGameUI
 {
 	private const int MaxLogLines = 30;
 	private const double MapFps = 10.0;
@@ -30,7 +30,6 @@ public partial class Main : Node
 	private bool _settingsOpen;
 	private bool _inMenu = true;
 	private bool _gameStarted;
-	private bool _playerDead;
 	private Action<int>? _selectionCallback;
 
 	private VBoxContainer _ui = null!;
@@ -52,6 +51,23 @@ public partial class Main : Node
 	private RichTextLabel _statusTag = null!;
 	private RichTextLabel _statusBuff = null!;
 	private RichTextLabel _statusEquip = null!;
+
+	private CombatUIModule _combatUI = null!;
+	private TradeUIModule _tradeUI = null!;
+	private InventoryUIModule _inventoryUI = null!;
+
+	// ── IGameUI ──────────────────────────────────────────
+
+	public GameState State => _state;
+	public bool PlayerDead { get; set; }
+
+	void IGameUI.AddLog(string msg) => AddLog(msg);
+	void IGameUI.EnterSelection(Action<int> callback) => EnterSelection(callback);
+	void IGameUI.CancelSelection() => CancelSelection();
+	void IGameUI.FlushMap() => FlushMap();
+	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
+
+	// ── Godot 生命周期 ───────────────────────────────────
 
 	public override void _Ready()
 	{
@@ -79,6 +95,10 @@ public partial class Main : Node
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
+
+		_combatUI = new CombatUIModule(this);
+		_tradeUI = new TradeUIModule(this);
+		_inventoryUI = new InventoryUIModule(this);
 
 		_settingSaveBtn = GetNode<Button>("SettingsPanel/VBox/SaveBtn");
 		_settingLoadBtn = GetNode<Button>("SettingsPanel/VBox/LoadBtn");
@@ -272,7 +292,7 @@ public partial class Main : Node
 			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
 			case ":interact": DoInteract(); return;
-			case ":inventory": DoInventory(); return;
+			case ":inventory": _inventoryUI.Open(); return;
 		}
 
 		if (_settingsOpen) return;
@@ -373,9 +393,9 @@ public partial class Main : Node
 
 	private void DoMove(int dx, int dy)
 	{
-		if (_playerDead)
+		if (PlayerDead)
 		{
-			_playerDead = false;
+			PlayerDead = false;
 			ShowMainMenu();
 			return;
 		}
@@ -407,7 +427,7 @@ public partial class Main : Node
 					DispatchInteraction(e);
 					break;
 				case "combat_bump":
-					HandleCombatBump(e);
+					_combatUI.HandleCombatBump(e);
 					break;
 				case "combat_attack":
 				{
@@ -427,12 +447,12 @@ public partial class Main : Node
 				case "limb_destroyed":
 					AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
 					break;
-			case "actor_killed":
-				HandleActorKilled(e);
-				break;
-			case "actor_incapacitated":
-				AddLog($"😵 {e.TargetActorName}失去了意识！");
-				break;
+				case "actor_killed":
+					_combatUI.HandleActorKilled(e);
+					break;
+				case "actor_incapacitated":
+					AddLog($"😵 {e.TargetActorName}失去了意识！");
+					break;
 				case "player_limb_hit":
 					AddLog($"🩸 {e.TargetActorName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
 					break;
@@ -452,10 +472,10 @@ public partial class Main : Node
 				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
 				break;
 			case "trade":
-				OpenTradeMenu(e);
+				_tradeUI.OpenTradeMenu(e);
 				break;
 			case "combat":
-				OpenCombatMenu(e);
+				_combatUI.OpenCombatMenu(e);
 				break;
 			case "tame":
 				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
@@ -463,352 +483,6 @@ public partial class Main : Node
 			default:
 				AddLog($"[{e.InteractionName}] {e.TargetActorName}");
 				break;
-		}
-	}
-
-	// ── 交易 ──────────────────────────────────────────────
-
-	private void OpenTradeMenu(GameEvent e)
-	{
-		var player = ActorModule.GetPlayer(_state);
-		var merchant = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
-		if (player == null || merchant == null) return;
-
-		ShowTradeGoods(player, merchant);
-	}
-
-	private void ShowTradeGoods(Actor player, Actor merchant)
-	{
-		var goods = TradeModule.ListGoods(merchant);
-
-		AddLog($"═══ {merchant.DisplayName}的商店 ═══  你的金币: {player.Gold}G");
-		if (goods.Count == 0)
-			AddLog("  (货架空空如也)");
-		for (var i = 0; i < goods.Count; i++)
-		{
-			var (_, slot) = goods[i];
-			var tagDesc = FormatItemTags(slot.Item);
-			AddLog($"  [{i + 1}] 购买 {slot.Item.Name}  {slot.Item.Price}G  库存:{slot.Stock}{tagDesc}");
-		}
-		var sellIdx = goods.Count + 1;
-		AddLog($"  [{sellIdx}] 出售物品给商人");
-		AddLog($"  [0] 离开");
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { AddLog("你离开了商店"); return; }
-
-			if (n == sellIdx)
-			{
-				ShowSellMenu(player, merchant);
-				return;
-			}
-
-			if (n < 1 || n > goods.Count) { AddLog("无效选择"); return; }
-
-			var (slotIdx, _) = goods[n - 1];
-			var result = TradeModule.Buy(player, merchant, slotIdx);
-			AddLog(result.Message);
-			if (result.Ok)
-				AddLog($"  💰 剩余金币: {player.Gold}G");
-
-			ShowTradeGoods(player, merchant);
-		});
-	}
-
-	private void ShowSellMenu(Actor player, Actor merchant)
-	{
-		var items = InventoryModule.List(player);
-		if (items.Count == 0)
-		{
-			AddLog("背包里没有可出售的物品");
-			ShowTradeGoods(player, merchant);
-			return;
-		}
-
-		AddLog($"═══ 出售物品 ═══  💰{player.Gold}G  商人资金: {merchant.Gold}G");
-		for (var i = 0; i < items.Count; i++)
-		{
-			var (_, item) = items[i];
-			var sellPrice = item.Price / 2;
-			var eqMark = item.Equipped ? " [已装备]" : "";
-			AddLog($"  [{i + 1}] {item.Name}{eqMark}  售价:{sellPrice}G");
-		}
-		AddLog("  [0] 返回商店");
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { ShowTradeGoods(player, merchant); return; }
-			if (n < 1 || n > items.Count) { AddLog("无效选择"); return; }
-
-			var (invIdx, _) = items[n - 1];
-			var result = TradeModule.Sell(player, merchant, invIdx);
-			AddLog(result.Message);
-			if (result.Ok)
-				AddLog($"  💰 剩余金币: {player.Gold}G");
-
-			ShowSellMenu(player, merchant);
-		});
-	}
-
-	private static string FormatItemTags(Item item)
-	{
-		if (item.Tags.Count == 0) return "";
-		var parts = new List<string>();
-		foreach (var (key, val) in item.Tags)
-			parts.Add($"{key}+{val}");
-		return $"  ({string.Join(", ", parts)})";
-	}
-
-	// ── 背包 ──────────────────────────────────────────────
-
-	private void DoInventory()
-	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null) return;
-		ShowInventory(player);
-	}
-
-	private void ShowInventory(Actor player)
-	{
-		var items = InventoryModule.List(player);
-		if (items.Count == 0)
-		{
-			AddLog("背包是空的 🎒");
-			return;
-		}
-
-		AddLog($"═══ 背包 ═══  💰{player.Gold}G");
-		for (var i = 0; i < items.Count; i++)
-		{
-			var (_, item) = items[i];
-			var eqMark = item.Equipped ? " [已装备]" : "";
-			var tagDesc = FormatItemTags(item);
-			AddLog($"  [{i + 1}] {item.Name}{eqMark}  {item.Price}G{tagDesc}");
-		}
-		AddLog("  [0] 关闭");
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { AddLog("关闭背包"); return; }
-			if (n < 1 || n > items.Count) { AddLog("无效选择"); return; }
-
-			var (idx, item) = items[n - 1];
-			ShowItemActions(player, idx, item);
-		});
-	}
-
-	private void ShowItemActions(Actor player, int invIndex, Item item)
-	{
-		var eqLabel = item.Equipped ? "卸下" : "装备";
-		var hasUse = item.Tags.ContainsKey("治疗");
-
-		var sb = new StringBuilder($"{item.Name}：");
-		sb.Append($"  [1] {eqLabel}");
-		if (hasUse) sb.Append("  [2] 使用");
-		sb.Append($"  [{(hasUse ? 3 : 2)}] 丢弃");
-		sb.Append("  [0] 返回");
-		AddLog(sb.ToString());
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { ShowInventory(player); return; }
-
-			if (n == 1)
-			{
-				var r = InventoryModule.ToggleEquip(player, invIndex);
-				AddLog(r.Message);
-			}
-			else if (hasUse && n == 2)
-			{
-				var r = InventoryModule.Use(player, invIndex);
-				AddLog(r.Message);
-			}
-			else if ((!hasUse && n == 2) || (hasUse && n == 3))
-			{
-				var r = InventoryModule.Drop(player, invIndex);
-				AddLog(r.Message);
-			}
-			else
-			{
-				AddLog("无效选择");
-			}
-
-			ShowInventory(player);
-		});
-	}
-
-	// ── 战斗 ──────────────────────────────────────────────
-
-	private void OpenCombatMenu(GameEvent e)
-	{
-		var player = ActorModule.GetPlayer(_state);
-		var target = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
-		if (player == null || target == null) return;
-
-		ShowActionSelection(player, target);
-	}
-
-	private void HandleCombatBump(GameEvent e)
-	{
-		var player = ActorModule.GetPlayer(_state);
-		var target = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
-		if (player == null || target == null) return;
-
-		var actions = CombatModule.GetAttackActions(player);
-		if (actions.Count == 0 || target.Limbs.Count == 0)
-		{
-			AddLog("你无法攻击！");
-			return;
-		}
-
-		var rng = new Random(_state.RngSeed + _state.Turn);
-		var action = actions[0];
-		var limb = target.Limbs[rng.Next(target.Limbs.Count)];
-
-		var combatEvents = CombatModule.Attack(_state, player, target, action, limb);
-		Dispatch(combatEvents);
-
-		if (!combatEvents.Exists(ev => ev.Type is "actor_killed" or "actor_incapacitated"))
-			MonsterCounterAttack(player, target);
-
-		TickAllBuffs();
-		FlushMap();
-	}
-
-	private void ShowActionSelection(Actor player, Actor target)
-	{
-		var actions = CombatModule.GetAttackActions(player);
-		var allActions = ActionQuery.GetAvailable(player, ActionDefs.All);
-		var hasBlock = allActions.Exists(a => a.EffectType == "block");
-
-		AddLog($"═══ 攻击 {target.DisplayName} ═══");
-		for (var i = 0; i < actions.Count; i++)
-		{
-			var a = actions[i];
-			var estDmg = CombatModule.CalcDamage(player, a, target);
-			AddLog($"  [{i + 1}] {a.Name} (预估伤害:{estDmg})");
-		}
-		var blockIdx = actions.Count + 1;
-		if (hasBlock)
-			AddLog($"  [{blockIdx}] 格挡 (防御+5, 1回合)");
-		AddLog("  [0] 取消");
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { AddLog("取消攻击"); return; }
-
-			if (hasBlock && n == blockIdx)
-			{
-				var blockDef = allActions.Find(a => a.EffectType == "block")!;
-				var blockEvents = CombatModule.Attack(_state, player, target, blockDef, target.Limbs[0]);
-				Dispatch(blockEvents);
-				MonsterCounterAttack(player, target);
-				TickAllBuffs();
-				FlushMap();
-				return;
-			}
-
-			if (n < 1 || n > actions.Count) { AddLog("无效选择"); return; }
-
-			var chosen = actions[n - 1];
-			ShowLimbTargetSelection(player, target, chosen);
-		});
-	}
-
-	private void ShowLimbTargetSelection(Actor player, Actor target, ActionDef action)
-	{
-		var limbs = target.Limbs;
-		if (limbs.Count == 0)
-		{
-			AddLog($"{target.DisplayName}已经没有可攻击的肢体了");
-			return;
-		}
-
-		AddLog($"选择目标肢体 ({target.DisplayName})：");
-		for (var i = 0; i < limbs.Count; i++)
-		{
-			var l = limbs[i];
-			var vital = l.Tags.ContainsKey("要害") ? " [要害]" : "";
-			AddLog($"  [{i + 1}] {l.Name} ({l.Durability}/{l.MaxDurability}){vital}");
-		}
-		AddLog("  [0] 返回");
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { ShowActionSelection(player, target); return; }
-			if (n < 1 || n > limbs.Count) { AddLog("无效选择"); return; }
-
-			var targetLimb = limbs[n - 1];
-			var combatEvents = CombatModule.Attack(_state, player, target, action, targetLimb);
-			Dispatch(combatEvents);
-
-			var eliminated = combatEvents.Exists(ev => ev.Type is "actor_killed" or "actor_incapacitated");
-			if (!eliminated)
-			{
-				var stillAlive = ActorModule.GetById(_state, target.Id);
-				if (stillAlive != null)
-					MonsterCounterAttack(player, stillAlive);
-			}
-
-			TickAllBuffs();
-			FlushMap();
-		});
-	}
-
-	private void MonsterCounterAttack(Actor player, Actor monster)
-	{
-		var choice = CombatModule.MonsterChooseAction(_state, monster, player);
-		if (choice == null) return;
-
-		var (mAction, mLimb) = choice.Value;
-		var mEvents = CombatModule.Attack(_state, monster, player, mAction, mLimb);
-
-		foreach (var ev in mEvents)
-		{
-			switch (ev.Type)
-			{
-				case "combat_attack":
-					AddLog($"🩸 {monster.DisplayName}用{ev.ActionName}攻击了你的{ev.LimbName}，造成{ev.Damage}点伤害");
-					var hitLimb = player.Limbs.Find(l => l.Name == ev.LimbName);
-					if (hitLimb != null)
-						AddLog($"   {ev.LimbName} ({hitLimb.Durability}/{hitLimb.MaxDurability})");
-					break;
-				case "limb_destroyed":
-					AddLog($"💥 你的{ev.LimbName}被摧毁了！");
-					break;
-			case "actor_killed":
-				AddLog("💀 你死了……");
-				AddLog("按任意方向键返回主菜单");
-				_playerDead = true;
-				break;
-			case "actor_incapacitated":
-				AddLog("😵 你失去了意识……");
-				AddLog("按任意方向键返回主菜单");
-				_playerDead = true;
-				break;
-			default:
-				Dispatch([ev]);
-				break;
-			}
-		}
-	}
-
-	private void TickAllBuffs()
-	{
-		var player = ActorModule.GetPlayer(_state);
-		player?.TickBuffs();
-	}
-
-	private void HandleActorKilled(GameEvent e)
-	{
-		AddLog($"💀 击杀了{e.TargetActorName}！");
-		var player = ActorModule.GetPlayer(_state);
-		if (player != null)
-		{
-			var goldDrop = e.Damage > 0 ? e.Damage : 5;
-			player.Gold += goldDrop;
-			AddLog($"  💰 获得 {goldDrop}G (总计: {player.Gold}G)");
 		}
 	}
 
