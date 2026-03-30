@@ -72,6 +72,56 @@ text = "保存游戏 💾"
 layout_mode = 2
 text = "读取存档 📂"
 
+[node name="BackToMenuBtn" type="Button" parent="SettingsPanel/VBox"]
+layout_mode = 2
+text = "返回主菜单"
+
 [node name="CloseBtn" type="Button" parent="SettingsPanel/VBox"]
 layout_mode = 2
 text = "关闭 (ESC)"
+
+[node name="MainMenu" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="MainMenu"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainMenu/Center"]
+layout_mode = 2
+custom_minimum_size = Vector2(320, 0)
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "⚔️  MiniRPG  ⚔️"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 16)
+
+[node name="ContinueBtn" type="Button" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "继续游戏"
+
+[node name="NewGameBtn" type="Button" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "新游戏"
+
+[node name="LoadGameBtn" type="Button" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "读取存档"
+
+[node name="SettingsBtn" type="Button" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "设置"
+
+[node name="QuitBtn" type="Button" parent="MainMenu/Center/VBox"]
+layout_mode = 2
+text = "退出游戏"

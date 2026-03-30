@@ -27,12 +27,35 @@ public class GameState
 	// ── 巢穴 ──
 	public List<NestData> Nests { get; set; } = [];
 
-	// ── 玩家 ──
+	// ── 生物（玩家 + 怪物共用同一结构） ──
+	public Dictionary<string, Actor> Actors { get; set; } = new();
+	public string PlayerId { get; set; } = "player";
+
+	// ── 玩家坐标快捷方式（与 Actors["player"] 同步） ──
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
 
 	// ── 其他楼层缓存（当前楼层数据在上面的直属字段里，其余楼层在这里） ──
 	public Dictionary<int, FloorData> Floors { get; set; } = new();
+
+	/// <summary>重置为初始状态，用于开始新游戏。</summary>
+	public void Reset()
+	{
+		Turn = 0;
+		RngSeed = 42;
+		CurrentFloor = 0;
+		MapWidth = 0;
+		MapHeight = 0;
+		Terrain.Clear();
+		Fixtures.Clear();
+		Objects.Clear();
+		Meta.Clear();
+		Nests.Clear();
+		Actors.Clear();
+		PlayerX = 0;
+		PlayerY = 0;
+		Floors.Clear();
+	}
 }
 
 /// <summary>一层楼的完整快照，用于楼层切换时的缓存。</summary>
@@ -45,6 +68,7 @@ public class FloorData
 	public List<List<string>> Objects { get; set; } = [];
 	public List<List<Dictionary<string, string>?>> Meta { get; set; } = [];
 	public List<NestData> Nests { get; set; } = [];
+	public Dictionary<string, Actor> Actors { get; set; } = new();
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
 }
@@ -57,4 +81,6 @@ public class NestData
 	public int SpawnInterval { get; set; } = 5;
 	public int TurnsSinceSpawn { get; set; }
 	public int MaxSpawned { get; set; } = 3;
+	/// <summary>指定刷出的模板 ID。空字符串 = 随机怪物。</summary>
+	public string TemplateId { get; set; } = "";
 }

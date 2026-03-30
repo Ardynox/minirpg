@@ -96,6 +96,7 @@ public static class SaveModule
 		Objects = CopyLayer(state.Objects),
 		Meta = CopyMeta(state.Meta),
 		Nests = CopyNests(state.Nests),
+		Actors = CopyActors(state.Actors),
 		PlayerX = state.PlayerX,
 		PlayerY = state.PlayerY,
 	};
@@ -109,6 +110,7 @@ public static class SaveModule
 		state.Objects = CopyLayer(data.Objects);
 		state.Meta = CopyMeta(data.Meta);
 		state.Nests = CopyNests(data.Nests);
+		state.Actors = CopyActors(data.Actors);
 		state.PlayerX = data.PlayerX;
 		state.PlayerY = data.PlayerY;
 	}
@@ -126,6 +128,7 @@ public static class SaveModule
 		PlayerX = s.PlayerX,
 		PlayerY = s.PlayerY,
 		Nests = s.Nests,
+		Actors = CopyActors(s.Actors),
 	};
 
 	private static MapSaveData FloorToSaveData(FloorData f) => new()
@@ -139,6 +142,7 @@ public static class SaveModule
 		PlayerX = f.PlayerX,
 		PlayerY = f.PlayerY,
 		Nests = new List<NestData>(f.Nests),
+		Actors = CopyActors(f.Actors),
 	};
 
 	private static FloorData SaveDataToFloor(MapSaveData d) => new()
@@ -150,6 +154,7 @@ public static class SaveModule
 		Objects = UnflattenLayer(d.Objects, d.Width, d.Height),
 		Meta = UnflattenMeta(d.Meta, d.Width, d.Height),
 		Nests = d.Nests ?? [],
+		Actors = d.Actors ?? new(),
 		PlayerX = d.PlayerX,
 		PlayerY = d.PlayerY,
 	};
@@ -191,6 +196,38 @@ public static class SaveModule
 			});
 		return copy;
 	}
+
+	private static Dictionary<string, Actor> CopyActors(Dictionary<string, Actor> src)
+	{
+		var copy = new Dictionary<string, Actor>();
+		foreach (var (id, a) in src)
+			copy[id] = CopyActor(a);
+		return copy;
+	}
+
+	private static Actor CopyActor(Actor a) => new()
+	{
+		Id = a.Id, X = a.X, Y = a.Y,
+		Glyph = a.Glyph, DisplayName = a.DisplayName,
+		Faction = a.Faction,
+		Limbs = a.Limbs.ConvertAll(CopyLimb),
+		Race = a.Race != null ? CopyRace(a.Race) : null,
+		Profession = a.Profession != null ? CopyProfession(a.Profession) : null,
+		Buffs = a.Buffs.ConvertAll(CopyBuff),
+		Experiences = a.Experiences.ConvertAll(CopyExperience),
+	};
+
+	private static Limb CopyLimb(Limb l) => new()
+		{ Id = l.Id, Name = l.Name, Tags = new Dictionary<string, int>(l.Tags) };
+	private static Race CopyRace(Race r) => new()
+		{ Id = r.Id, Name = r.Name, Tags = new Dictionary<string, int>(r.Tags) };
+	private static Profession CopyProfession(Profession p) => new()
+		{ Id = p.Id, Name = p.Name, Tags = new Dictionary<string, int>(p.Tags) };
+	private static Buff CopyBuff(Buff b) => new()
+		{ Id = b.Id, Name = b.Name, RemainingTurns = b.RemainingTurns,
+		  Tags = new Dictionary<string, int>(b.Tags) };
+	private static Experience CopyExperience(Experience e) => new()
+		{ Id = e.Id, Name = e.Name, Tags = new Dictionary<string, int>(e.Tags) };
 
 	// ── 平铺 / 还原 ─────────────────────────────────────
 
@@ -265,4 +302,5 @@ public class MapSaveData
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
 	public List<NestData>? Nests { get; set; }
+	public Dictionary<string, Actor>? Actors { get; set; }
 }

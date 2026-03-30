@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MiniRPG.Core;
 
@@ -35,10 +36,13 @@ public static class NestModule
 	/// 每回合调用一次。巢穴计时器 +1，到达间隔后尝试在相邻空格刷怪。
 	/// 返回产出的事件列表。
 	/// </summary>
+	private static int _nestSpawnCounter;
+
 	public static List<GameEvent> Tick(GameState state)
 	{
 		var events = new List<GameEvent>();
 		var rng = new Random(state.RngSeed + state.Turn);
+		var monsterTemplates = ActorTemplates.MonsterIds.ToArray();
 
 		foreach (var nest in state.Nests)
 		{
@@ -55,7 +59,13 @@ public static class NestModule
 				continue;
 
 			var (sx, sy) = slot.Value;
-			MapModule.SetObject(state, sx, sy, "M");
+			var templateId = !string.IsNullOrEmpty(nest.TemplateId)
+				? nest.TemplateId
+				: monsterTemplates[rng.Next(monsterTemplates.Length)];
+			var monster = ActorTemplates.Spawn(templateId, $"nest_{_nestSpawnCounter++}");
+			monster.X = sx;
+			monster.Y = sy;
+			ActorModule.Add(state, monster);
 			nest.TurnsSinceSpawn = 0;
 			events.Add(new GameEvent("monster_spawned") { TargetX = sx, TargetY = sy });
 		}
@@ -70,7 +80,7 @@ public static class NestModule
 		{
 			var nx = nest.X + dx;
 			var ny = nest.Y + dy;
-			if (MapModule.IsWalkable(state, nx, ny))
+			if (MapModule.IsWalkable(state, nx, ny) && ActorModule.GetAt(state, nx, ny) == null)
 				candidates.Add((nx, ny));
 		}
 		if (candidates.Count == 0)
@@ -81,10 +91,12 @@ public static class NestModule
 	private static int CountNearbyMonsters(GameState state, int cx, int cy, int radius)
 	{
 		var count = 0;
-		for (var dy = -radius; dy <= radius; dy++)
-		for (var dx = -radius; dx <= radius; dx++)
+		foreach (var actor in state.Actors.Values)
 		{
-			if (MapModule.GetObject(state, cx + dx, cy + dy) == "M")
+			if (actor.Faction != "hostile") continue;
+			var adx = actor.X - cx;
+			var ady = actor.Y - cy;
+			if (adx >= -radius && adx <= radius && ady >= -radius && ady <= radius)
 				count++;
 		}
 		return count;

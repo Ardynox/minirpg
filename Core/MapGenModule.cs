@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MiniRPG.Core;
 
@@ -36,11 +37,14 @@ public static class MapGenModule
 		state.MapHeight = height;
 		state.Turn = 0;
 
+		ActorModule.ClearAll(state);
+		state.Nests.Clear();
 		InitLayers(state, width, height);
 		var rooms = PlaceRooms(state, rng);
 		ConnectRooms(state, rooms, rng);
 		Populate(state, rooms, rng, floor);
-		NestModule.RegisterNests(state);
+		if (floor > 0)
+			NestModule.RegisterNests(state);
 
 		return rooms;
 	}
@@ -140,40 +144,104 @@ public static class MapGenModule
 			MapModule.SetTerrain(state, x, y, ".");
 	}
 
-	/// <summary>
-	/// 放置玩家（第一个房间）、楼梯、巢穴。
-	/// floor > 0 时在第一个房间放上行楼梯，最后一个房间放下行楼梯。
-	/// </summary>
+	private static int _monsterCounter;
+	private static int _npcCounter;
+
 	private static void Populate(GameState state, List<Room> rooms, Random rng, int floor)
 	{
 		if (rooms.Count == 0) return;
 
-		var first = rooms[0];
+		PlacePlayer(state, rooms[0], floor);
+
+		if (floor == 0)
+			PopulateSurface(state, rooms, rng);
+		else
+			PopulateDungeon(state, rooms, rng, floor);
+	}
+
+	private static void PlacePlayer(GameState state, Room first, int floor)
+	{
+		var player = ActorTemplates.Spawn("player", "player");
+		player.X = first.CenterX;
+		player.Y = first.CenterY;
+		ActorModule.Add(state, player);
 		state.PlayerX = first.CenterX;
 		state.PlayerY = first.CenterY;
-		MapModule.SetObject(state, first.CenterX, first.CenterY, "P");
 
-		// 非底层 → 第一个房间放上行楼梯（玩家脚下）
 		if (floor > 0)
 			MapModule.SetFixture(state, first.CenterX, first.CenterY, "<");
+	}
 
-		// 最后一个房间放下行楼梯
+	/// <summary>地表：安全村庄，无怪物无巢穴。有商人、村长、村民。</summary>
+	private static void PopulateSurface(GameState state, List<Room> rooms, Random rng)
+	{
 		if (rooms.Count > 1)
 		{
 			var last = rooms[^1];
 			MapModule.SetFixture(state, last.CenterX, last.CenterY, ">");
 		}
 
-		// 中间房间随机放巢穴
+		var npcAssignments = new (string Template, string Label)[]
+		{
+			("merchant", "商人小屋"),
+			("elder",    "村长小屋"),
+			("villager", "村民房"),
+		};
+
+		for (var i = 1; i < rooms.Count - 1 && i - 1 < npcAssignments.Length; i++)
+		{
+			var r = rooms[i];
+			var (template, _) = npcAssignments[i - 1];
+			var npc = ActorTemplates.Spawn(template, $"npc_{_npcCounter++}");
+			npc.X = r.CenterX;
+			npc.Y = r.CenterY;
+			ActorModule.Add(state, npc);
+
+			MapModule.SetFixture(state, r.CenterX, r.CenterY, "H");
+			state.Nests.Add(new NestData
+			{
+				X = r.CenterX, Y = r.CenterY,
+				TemplateId = template,
+				SpawnInterval = 1, MaxSpawned = 1,
+			});
+		}
+	}
+
+	/// <summary>地下城：巢穴 + 怪物 + 楼梯。</summary>
+	private static void PopulateDungeon(GameState state, List<Room> rooms, Random rng, int floor)
+	{
+		var monsterTemplates = ActorTemplates.MonsterIds.ToArray();
+
+		if (rooms.Count > 1)
+		{
+			var last = rooms[^1];
+			MapModule.SetFixture(state, last.CenterX, last.CenterY, ">");
+		}
+
 		for (var i = 1; i < rooms.Count - 1; i++)
 		{
+			var r = rooms[i];
+
 			if (rng.Next(100) < 60)
 			{
-				var r = rooms[i];
 				var nx = r.X + rng.Next(1, r.W - 1);
 				var ny = r.Y + rng.Next(1, r.H - 1);
-				if (MapModule.IsWalkable(state, nx, ny))
+				if (MapModule.IsWalkable(state, nx, ny) && ActorModule.GetAt(state, nx, ny) == null)
 					MapModule.SetFixture(state, nx, ny, "N");
+			}
+
+			if (rng.Next(100) < 40)
+			{
+				var mx = r.X + rng.Next(1, r.W - 1);
+				var my = r.Y + rng.Next(1, r.H - 1);
+				if (MapModule.IsWalkable(state, mx, my) && ActorModule.GetAt(state, mx, my) == null)
+				{
+					var templateId = monsterTemplates[rng.Next(monsterTemplates.Length)];
+					var monster = ActorTemplates.Spawn(templateId, $"mon_{_monsterCounter++}");
+					monster.X = mx;
+					monster.Y = my;
+					ActorModule.Add(state, monster);
+				}
 			}
 		}
 	}

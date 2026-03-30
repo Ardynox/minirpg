@@ -69,6 +69,7 @@ public static class MapModule
 			case "D":
 			case "N":
 			case "I":
+			case "H":
 			case ">":
 			case "<":
 				fixture = ch;
@@ -133,12 +134,12 @@ public static class MapModule
 	public static bool IsWall(GameState s, int x, int y) =>
 		GetTerrain(s, x, y) == "#";
 
-	/// <summary>是否可通行：非墙 + Objects 层无阻挡。Fixtures 层不阻挡移动。</summary>
+	/// <summary>是否可通行：非墙即可。角色重叠由上层逻辑处理。</summary>
 	public static bool IsWalkable(GameState s, int x, int y) =>
-		!IsWall(s, x, y) && string.IsNullOrEmpty(GetObject(s, x, y));
+		!IsWall(s, x, y);
 
 	public static bool IsHostile(GameState s, int x, int y) =>
-		GetObject(s, x, y) == "M";
+		ActorModule.GetHostileAt(s, x, y) != null;
 
 	/// <summary>检查指定位置设施层是否有门。</summary>
 	public static bool IsDoor(GameState s, int x, int y) =>
@@ -150,11 +151,46 @@ public static class MapModule
 	public static bool IsUpStair(GameState s, int x, int y) =>
 		GetFixture(s, x, y) == "<";
 
+	// ── 楼层切换 ──────────────────────────────────────────
+
+	/// <summary>保存当前楼层快照，切换到下一层。返回 true = 已有缓存，false = 需要生成新地图。</summary>
+	public static bool GoDownFloor(GameState s)
+	{
+		SaveModule.SaveFloorToDict(s);
+		s.CurrentFloor++;
+		return SaveModule.LoadFloorFromDict(s, s.CurrentFloor);
+	}
+
+	/// <summary>保存当前楼层快照，切换到上一层。返回 false = 已经是最顶层。</summary>
+	public static bool GoUpFloor(GameState s)
+	{
+		if (s.CurrentFloor <= 0) return false;
+		SaveModule.SaveFloorToDict(s);
+		s.CurrentFloor--;
+		SaveModule.LoadFloorFromDict(s, s.CurrentFloor);
+		return true;
+	}
+
+	/// <summary>在地图上找到指定 Fixture 并将玩家移到那里。</summary>
+	public static void PlacePlayerAtFixture(GameState s, string fixtureType)
+	{
+		for (var y = 0; y < s.MapHeight; y++)
+		for (var x = 0; x < s.MapWidth; x++)
+		{
+			if (GetFixture(s, x, y) == fixtureType)
+			{
+				ActorModule.MoveActor(s, s.PlayerId, x, y);
+				return;
+			}
+		}
+	}
+
 	// ── 玩家移动 ──────────────────────────────────────────
 
 	/// <summary>
-	/// 尝试移动玩家。Objects 层只存角色，Fixtures 层不受影响。
-	/// 目标是墙 → hit_wall；目标有敌人 → attack_hit；否则 → actor_moved。
+	/// 尝试移动玩家。通过 ActorModule 同步 Objects 层。
+	/// 目标是墙 → hit_wall；目标有敌人 → attack_hit（击杀通过 ActorModule.Remove）；
+	/// 否则 → actor_moved。
 	/// </summary>
 	public static List<GameEvent> TryMovePlayer(GameState s, int dx, int dy)
 	{
@@ -168,36 +204,23 @@ public static class MapModule
 			return events;
 		}
 
-		if (IsHostile(s, nx, ny))
+		var hostile = ActorModule.GetHostileAt(s, nx, ny);
+		if (hostile != null)
 		{
-			events.Add(new GameEvent("attack_hit") { TargetX = nx, TargetY = ny });
-			SetObject(s, nx, ny, "");
+			var evt = new GameEvent("attack_hit")
+			{
+				TargetX = nx, TargetY = ny,
+				TargetActorName = hostile.DisplayName,
+				InitiatorId = s.PlayerId,
+				TargetId = hostile.Id,
+			};
+			ActorModule.Remove(s, hostile.Id);
+			events.Add(evt);
 			return events;
 		}
 
-		if (!IsWalkable(s, nx, ny))
-		{
-			events.Add(new GameEvent("hit_wall"));
-			return events;
-		}
-
-		SetObject(s, s.PlayerX, s.PlayerY, "");
-		s.PlayerX = nx;
-		s.PlayerY = ny;
-		SetObject(s, nx, ny, "P");
-		events.Add(new GameEvent("actor_moved") { TargetX = nx, TargetY = ny });
+		ActorModule.MoveActor(s, s.PlayerId, nx, ny);
+		events.Add(new GameEvent("actor_moved") { TargetX = nx, TargetY = ny, InitiatorId = s.PlayerId });
 		return events;
-	}
-
-	/// <summary>检查玩家四周是否有敌人。</summary>
-	public static (int Dx, int Dy)? FindAdjacentHostile(GameState s)
-	{
-		var dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
-		foreach (var (dx, dy) in dirs)
-		{
-			if (IsHostile(s, s.PlayerX + dx, s.PlayerY + dy))
-				return (dx, dy);
-		}
-		return null;
 	}
 }

@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MiniRPG.Core;
@@ -27,18 +28,27 @@ public partial class Main : Node
 	private bool _mapDirty;
 	private double _renderTimer;
 	private bool _settingsOpen;
+	private bool _inMenu = true;
+	private bool _gameStarted;
+	private Action<int>? _selectionCallback;
 
+	private VBoxContainer _ui = null!;
 	private RichTextLabel _mapPanel = null!;
 	private RichTextLabel _logPanel = null!;
 	private PanelContainer _settingsPanel = null!;
+	private PanelContainer _mainMenu = null!;
+	private Button _continueBtn = null!;
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
 
 	public override void _Ready()
 	{
+		_ui = GetNode<VBoxContainer>("UI");
 		_mapPanel = GetNode<RichTextLabel>("UI/MapPanel");
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
 		_settingsPanel = GetNode<PanelContainer>("SettingsPanel");
+		_mainMenu = GetNode<PanelContainer>("MainMenu");
+		_continueBtn = GetNode<Button>("MainMenu/Center/VBox/ContinueBtn");
 		var lineEdit = GetNode<LineEdit>("UI/Input");
 
 		_renderModule = new RenderModule();
@@ -50,22 +60,21 @@ public partial class Main : Node
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
 		GetNode<Button>("SettingsPanel/VBox/SaveBtn").Pressed += () => DoSave(ManualSavePath);
 		GetNode<Button>("SettingsPanel/VBox/LoadBtn").Pressed += () => DoLoad(ManualSavePath);
+		GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn").Pressed += BackToMenu;
 		GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += ToggleSettings;
 
-		if (SaveModule.LoadGame(_state, QuickSavePath))
-			AddLog("快速存档已加载 📂");
-		else if (SaveModule.LoadGame(_state, ManualSavePath))
-			AddLog("存档已加载 📂");
-		else
-			GenerateNewMap();
+		_continueBtn.Pressed += MenuContinue;
+		GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += MenuNewGame;
+		GetNode<Button>("MainMenu/Center/VBox/LoadGameBtn").Pressed += MenuLoadGame;
+		GetNode<Button>("MainMenu/Center/VBox/SettingsBtn").Pressed += MenuSettings;
+		GetNode<Button>("MainMenu/Center/VBox/QuitBtn").Pressed += MenuQuit;
 
-		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		AddLog("空格 上下楼 | F5 快存 | F9 快读");
-		FlushMap();
+		ShowMainMenu();
 	}
 
 	public override void _Process(double delta)
 	{
+		if (_inMenu) return;
 		_renderTimer += delta;
 		if (!_mapDirty || _renderTimer < 1.0 / MapFps)
 			return;
@@ -76,19 +85,163 @@ public partial class Main : Node
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (_inMenu) return;
 		if (@event is InputEventKey key && _inputModule.HandleKeyInput(key))
 			GetViewport().SetInputAsHandled();
+	}
+
+	// ── 主菜单 ───────────────────────────────────────────
+
+	private void ShowMainMenu()
+	{
+		_inMenu = true;
+		_mainMenu.Visible = true;
+		_ui.Visible = false;
+		_settingsPanel.Visible = false;
+		_settingsOpen = false;
+		CancelSelection();
+
+		var hasSave = System.IO.File.Exists(QuickSavePath)
+			|| System.IO.File.Exists(ManualSavePath);
+		_continueBtn.Visible = hasSave;
+	}
+
+	private void EnterGame()
+	{
+		_inMenu = false;
+		_mainMenu.Visible = false;
+		_ui.Visible = true;
+		_inputModule.EnterActionMode();
+		FlushMap();
+	}
+
+	private void MenuContinue()
+	{
+		if (SaveModule.LoadGame(_state, QuickSavePath)
+			|| SaveModule.LoadGame(_state, ManualSavePath))
+		{
+			EnsurePlayerActor();
+			_logLines.Clear();
+			AddLog("存档已加载 📂");
+		}
+		else
+		{
+			StartNewGame();
+		}
+		ShowGameHints();
+		EnterGame();
+	}
+
+	private void MenuNewGame()
+	{
+		StartNewGame();
+		ShowGameHints();
+		EnterGame();
+	}
+
+	private void MenuLoadGame()
+	{
+		if (SaveModule.LoadGame(_state, ManualSavePath))
+		{
+			EnsurePlayerActor();
+			_logLines.Clear();
+			AddLog("存档已加载 📂");
+		}
+		else if (SaveModule.LoadGame(_state, QuickSavePath))
+		{
+			EnsurePlayerActor();
+			_logLines.Clear();
+			AddLog("快速存档已加载 📂");
+		}
+		else
+		{
+			_logLines.Clear();
+			AddLog("未找到存档，已创建新游戏");
+			StartNewGame();
+		}
+		ShowGameHints();
+		EnterGame();
+	}
+
+	private void MenuSettings()
+	{
+		_settingsOpen = true;
+		_settingsPanel.Visible = true;
+		_mainMenu.Visible = false;
+	}
+
+	private void MenuQuit() => GetTree().Quit();
+
+	private void BackToMenu()
+	{
+		_settingsOpen = false;
+		_settingsPanel.Visible = false;
+		if (!_gameStarted) { ShowMainMenu(); return; }
+		DoSave(QuickSavePath, "快速存档");
+		ShowMainMenu();
+	}
+
+	private void StartNewGame()
+	{
+		_state.Reset();
+		_logLines.Clear();
+		GenerateNewMap();
+		EnsurePlayerActor();
+		_gameStarted = true;
+		AddLog("新游戏开始 🗺️");
+	}
+
+	private void ShowGameHints()
+	{
+		_gameStarted = true;
+		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
+		AddLog("空格 上下楼 | F 交互 | F5 快存 | F9 快读");
+	}
+
+	// ── 选择模式 ─────────────────────────────────────────
+
+	private void EnterSelection(Action<int> callback)
+	{
+		_selectionCallback = callback;
+		_inputModule.EnterSelectionMode();
+	}
+
+	private void CancelSelection()
+	{
+		_selectionCallback = null;
+		if (_inputModule != null)
+			_inputModule.EnterActionMode();
 	}
 
 	// ── 命令分发 ──────────────────────────────────────────
 
 	private void OnCommand(string cmd)
 	{
+		if (cmd == ":select_cancel")
+		{
+			CancelSelection();
+			AddLog("已取消");
+			return;
+		}
+
+		if (cmd.StartsWith(":select_") && _selectionCallback != null)
+		{
+			if (int.TryParse(cmd[":select_".Length..], out var n))
+			{
+				var cb = _selectionCallback;
+				_selectionCallback = null;
+				_inputModule.EnterActionMode();
+				cb(n);
+			}
+			return;
+		}
+
 		switch (cmd)
 		{
 			case ":settings": ToggleSettings(); return;
 			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
+			case ":interact": DoInteract(); return;
 		}
 
 		if (_settingsOpen) return;
@@ -101,12 +254,13 @@ public partial class Main : Node
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
+			case "interact": DoInteract(); break;
 			case "save": DoSave(ManualSavePath); break;
 			case "load": DoLoad(ManualSavePath); break;
 			case "newmap":
-				_state.Floors.Clear();
-				_state.CurrentFloor = 0;
+				_state.Reset();
 				GenerateNewMap();
+				EnsurePlayerActor();
 				AddLog("新地图已生成 🗺️");
 				FlushMap();
 				break;
@@ -115,6 +269,73 @@ public partial class Main : Node
 			case "settings": ToggleSettings(); break;
 			default: AddLog("未知指令 ❓"); break;
 		}
+	}
+
+	// ── 交互 ──────────────────────────────────────────────
+
+	private void DoInteract()
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+
+		var targets = InteractionModule.GetAvailableTargets(_state);
+		if (targets.Count == 0)
+		{
+			AddLog("附近没有可交互的对象 🤷");
+			return;
+		}
+
+		if (targets.Count == 1)
+		{
+			ShowInteractionsFor(player, targets[0]);
+			return;
+		}
+
+		var sb = new StringBuilder("选择目标：");
+		for (var i = 0; i < targets.Count; i++)
+			sb.Append($"  [{i + 1}] {targets[i].DisplayName}");
+		AddLog(sb.ToString());
+
+		EnterSelection(n =>
+		{
+			if (n < 1 || n > targets.Count) { AddLog("无效选择"); return; }
+			ShowInteractionsFor(player, targets[n - 1]);
+		});
+	}
+
+	private void ShowInteractionsFor(Actor player, Actor target)
+	{
+		var interactions = InteractionModule.GetInteractions(player, target, InteractionDefs.All);
+
+		var options = new List<(string Name, Action Execute)>();
+		foreach (var def in interactions)
+		{
+			var d = def;
+			options.Add((d.Name, () =>
+			{
+				var events = InteractionModule.Execute(_state, player, target, d);
+				Dispatch(events);
+				FlushMap();
+			}));
+		}
+		options.Add(("没什么", () => AddLog("你转身离开")));
+
+		if (options.Count == 1)
+		{
+			options[0].Execute();
+			return;
+		}
+
+		var sb = new StringBuilder($"{target.DisplayName}：");
+		for (var i = 0; i < options.Count; i++)
+			sb.Append($"  [{i + 1}] {options[i].Name}");
+		AddLog(sb.ToString());
+
+		EnterSelection(n =>
+		{
+			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
+			options[n - 1].Execute();
+		});
 	}
 
 	// ── 移动 ──────────────────────────────────────────────
@@ -141,14 +362,36 @@ public partial class Main : Node
 					AddLog("撞墙了 🚧");
 					break;
 				case "attack_hit":
-					AddLog("你发动攻击 ⚔️ — 命中目标 💥");
+					AddLog($"你发动攻击 ⚔️ — 击杀{e.TargetActorName ?? "目标"} 💥");
 					break;
 				case "actor_moved":
 					break;
 				case "monster_spawned":
 					AddLog($"巢穴刷出怪物 👾 ({e.TargetX},{e.TargetY})");
 					break;
+				case "interaction":
+					DispatchInteraction(e);
+					break;
 			}
+		}
+	}
+
+	private void DispatchInteraction(GameEvent e)
+	{
+		switch (e.EffectType)
+		{
+			case "talk":
+				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
+				break;
+			case "trade":
+				AddLog($"{e.TargetActorName}: 「看看我的货物吧。」 (交易系统待实现)");
+				break;
+			case "tame":
+				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
+				break;
+			default:
+				AddLog($"[{e.InteractionName}] {e.TargetActorName}");
+				break;
 		}
 	}
 
@@ -174,11 +417,10 @@ public partial class Main : Node
 
 	private void GoDown()
 	{
-		SaveModule.SaveFloorToDict(_state);
-		_state.CurrentFloor++;
-		if (SaveModule.LoadFloorFromDict(_state, _state.CurrentFloor))
+		if (MapModule.GoDownFloor(_state))
 		{
-			PlacePlayerAtFixture("<");
+			EnsurePlayerActor();
+			MapModule.PlacePlayerAtFixture(_state, "<");
 			AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬇️");
 		}
 		else
@@ -191,33 +433,15 @@ public partial class Main : Node
 
 	private void GoUp()
 	{
-		if (_state.CurrentFloor <= 0)
+		if (!MapModule.GoUpFloor(_state))
 		{
 			AddLog("已经是最顶层 🚫");
 			return;
 		}
-		SaveModule.SaveFloorToDict(_state);
-		_state.CurrentFloor--;
-		SaveModule.LoadFloorFromDict(_state, _state.CurrentFloor);
-		PlacePlayerAtFixture(">");
+		EnsurePlayerActor();
+		MapModule.PlacePlayerAtFixture(_state, ">");
 		AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬆️");
 		FlushMap();
-	}
-
-	private void PlacePlayerAtFixture(string fixtureType)
-	{
-		MapModule.SetObject(_state, _state.PlayerX, _state.PlayerY, "");
-		for (var y = 0; y < _state.MapHeight; y++)
-		for (var x = 0; x < _state.MapWidth; x++)
-		{
-			if (MapModule.GetFixture(_state, x, y) == fixtureType)
-			{
-				_state.PlayerX = x;
-				_state.PlayerY = y;
-				MapModule.SetObject(_state, x, y, "P");
-				return;
-			}
-		}
 	}
 
 	// ── 查看 ──────────────────────────────────────────────
@@ -226,9 +450,23 @@ public partial class Main : Node
 	{
 		var sb = new StringBuilder();
 		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		var status = ActorModule.GetPlayerStatus(_state);
+		if (status != null)
+		{
+			sb.Append($"  HP:{status.Hp} ATK:{status.Atk} DEF:{status.Def}");
+			if (status.AvailableActions.Count > 0)
+				sb.Append($"  可用: {string.Join("/", status.AvailableActions.ConvertAll(a => a.Name))}");
+		}
 		var standingOn = MapModule.GetFixture(_state, _state.PlayerX, _state.PlayerY);
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
+
+		var coActors = ActorModule.GetAllAt(_state, _state.PlayerX, _state.PlayerY);
+		foreach (var a in coActors)
+		{
+			if (a.Id == _state.PlayerId) continue;
+			sb.Append($"  同格: {a.DisplayName}");
+		}
 
 		var dirs = new (string Name, int Dx, int Dy)[]
 		{
@@ -246,7 +484,12 @@ public partial class Main : Node
 	private string CellLabel(int x, int y)
 	{
 		if (MapModule.IsWall(_state, x, y)) return "墙 🚧";
-		if (MapModule.IsHostile(_state, x, y)) return "怪物 👾";
+		var actors = ActorModule.GetAllAt(_state, x, y);
+		if (actors.Count > 0)
+		{
+			var names = actors.ConvertAll(a => a.DisplayName);
+			return string.Join("+", names);
+		}
 		var f = MapModule.GetFixture(_state, x, y);
 		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
 		return "空地";
@@ -257,6 +500,7 @@ public partial class Main : Node
 		">" => "下行楼梯 ⬇️",
 		"<" => "上行楼梯 ⬆️",
 		"N" => "巢穴 🕳️",
+		"H" => "房屋 🏠",
 		"I" => "道具 📦",
 		_ => f,
 	};
@@ -273,6 +517,7 @@ public partial class Main : Node
 	{
 		if (SaveModule.LoadGame(_state, path))
 		{
+			EnsurePlayerActor();
 			AddLog($"{label}已加载 📂 (第 {_state.CurrentFloor} 层)");
 			FlushMap();
 		}
@@ -287,14 +532,26 @@ public partial class Main : Node
 		MapGenModule.Generate(_state, GenWidth, GenHeight, _state.CurrentFloor);
 	}
 
+	private void EnsurePlayerActor()
+	{
+		if (_state.Actors.ContainsKey(_state.PlayerId))
+			return;
+		var player = ActorTemplates.Spawn("player", _state.PlayerId);
+		player.X = _state.PlayerX;
+		player.Y = _state.PlayerY;
+		_state.Actors[player.Id] = player;
+		ActorModule.RefreshObjectsCell(_state, player.X, player.Y);
+	}
+
 	// ── 渲染 ──────────────────────────────────────────────
 
 	private void ToggleRender()
 	{
 		var mode = _renderModule.ToggleMode();
 		_renderModule.ApplyFont(_mapPanel);
-		AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
-		FlushMap();
+		if (_gameStarted && !_inMenu)
+			AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
+		if (!_inMenu) FlushMap();
 	}
 
 	private void FlushMap()

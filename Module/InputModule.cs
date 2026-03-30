@@ -3,18 +3,16 @@ using Godot;
 
 namespace MiniRPG.Module;
 
-/// <summary>
-/// 输入模块：管理动作模式（键盘直接操作）与打字模式（LineEdit 文本输入）的切换，
-/// 将所有输入统一转化为 CommandReceived 事件交给外部处理。
-/// </summary>
 public partial class InputModule
 {
 	public event Action<string>? CommandReceived;
 
 	private readonly LineEdit _lineEdit;
 	private bool _typingMode;
+	private bool _selectionMode;
 
 	public bool IsTypingMode => _typingMode;
+	public bool IsSelectionMode => _selectionMode;
 
 	public InputModule(LineEdit lineEdit)
 	{
@@ -27,16 +25,24 @@ public partial class InputModule
 	public void EnterActionMode()
 	{
 		_typingMode = false;
+		_selectionMode = false;
 		_lineEdit.ReleaseFocus();
 	}
 
 	public void EnterTypingMode()
 	{
 		_typingMode = true;
+		_selectionMode = false;
 		_lineEdit.GrabFocus();
 	}
 
-	/// <summary>由 Main._UnhandledInput 调用，返回 true 表示事件已消费。</summary>
+	public void EnterSelectionMode()
+	{
+		_selectionMode = true;
+		_typingMode = false;
+		_lineEdit.ReleaseFocus();
+	}
+
 	public bool HandleKeyInput(InputEventKey key)
 	{
 		if (!key.Pressed)
@@ -52,7 +58,29 @@ public partial class InputModule
 			return false;
 		}
 
-		// 动作模式按键映射
+		if (_selectionMode)
+		{
+			if (key.Keycode == Key.Escape)
+			{
+				EnterActionMode();
+				CommandReceived?.Invoke(":select_cancel");
+				return true;
+			}
+			var num = key.Keycode switch
+			{
+				Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 3,
+				Key.Key4 => 4, Key.Key5 => 5, Key.Key6 => 6,
+				Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
+				_ => -1,
+			};
+			if (num > 0)
+			{
+				CommandReceived?.Invoke($":select_{num}");
+				return true;
+			}
+			return false;
+		}
+
 		var cmd = key.Keycode switch
 		{
 			Key.W      => "w",
@@ -61,6 +89,7 @@ public partial class InputModule
 			Key.D      => "d",
 			Key.L      => "look",
 			Key.R      => ":render",
+			Key.F      => ":interact",
 			Key.Space  => "enter",
 			Key.Escape => ":settings",
 			Key.Enter  => ":typing",
