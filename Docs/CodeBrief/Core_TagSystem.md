@@ -12,7 +12,7 @@
 
 ### 具体 tag 来源（均实现 `ITagSource`）
 
-- `Limb`：肢体（可挂载/移除）
+- `Limb`：肢体（可挂载/移除，含耐久度）
 - `Race`：种族（固定）
 - `Profession`：职业（可变）
 - `Buff`：Buff/Debuff（可计时到期）
@@ -24,6 +24,10 @@
 - `Name`
 - `Tags: Dictionary<string,int>`
 - `GetTags()` 返回 `Tags`
+
+### Limb 特有字段
+
+- `MaxDurability/Durability`：耐久度，战斗会消耗，归零肢体断裂
 
 ## 动作系统
 
@@ -48,5 +52,5 @@
 ## 评估关注点
 
 - **接口使用一致性**：当前 `Actor` 直接持有具体类型列表（`List<Limb>` 等），未直接用 `ITagSourcePolymorphic`；多态标注是否真正覆盖到存档路径取决于 `SaveModule` 的序列化对象图
-- **动作解释缺位**：`EffectType/Power` 暂时只是数据；没有“执行动作”的模块（当前玩法只实现了移动与秒杀攻击）
-
+- **动作解释缺位**：`EffectType/Power` 暂时只是数据；`CombatModule` 解释部分动作类型
+- **耐久系统**：`Limb` 的耐久度字段用于战斗系统，需要在存档中正确保存

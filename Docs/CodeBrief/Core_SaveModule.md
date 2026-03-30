@@ -16,7 +16,7 @@
 - `LoadGame(GameState state, string filePath) -> bool`
   - 读文件 → `FullSaveData`
   - `state.Floors` 填满所有楼层（`floor -> FloorData`）
-  - 若存在当前楼层：把它恢复到 `GameState` 的“直属字段”，并从 `Floors` 移除该楼层缓存
+  - 若存在当前楼层：把它恢复到 `GameState` 的"直属字段"，并从 `Floors` 移除该楼层缓存
 
 ### 2) 楼层切换内存快照（不落盘）
 
@@ -44,7 +44,7 @@
   - 地图层：逐行复制
   - Meta：逐格复制字典
   - Nests：逐项复制
-  - Actors：逐 actor 复制；并复制 tag 来源（Limbs/Race/Profession/Buffs/Experiences）
+  - Actors：逐 actor 复制；并复制 tag 来源（Limbs/Race/Profession/Buffs/Experiences/Inventory/ShopSlots）
 - 平铺/还原：
   - `FlattenLayer` / `UnflattenLayer`
   - `FlattenMeta` / `UnflattenMeta`
@@ -58,4 +58,4 @@
 
 - **一致性**：Load 后 `Main.EnsurePlayerActor` 会补玩家；但如果 JSON 里 Actors/Objects 与 PlayerX/Y 不一致，恢复路径是否能自愈
 - **扩展成本**：新增 `GameState` 字段需要同步更新快照/序列化结构（否则会丢数据）
-
+- **Inventory 保存**：Actor 的 Inventory 和 ShopSlots 也会被完整深拷贝

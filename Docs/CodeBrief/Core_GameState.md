@@ -12,7 +12,7 @@
 - **楼层**：`CurrentFloor`
 - **地图（四层分离）**
   - `Terrain`：`"#"`墙、 `"."`地面
-  - `Fixtures`：静态设施（`">"` `<` `"N"` `"I"` 等）
+  - `Fixtures`：静态设施（`">"` `<` `"N"` `"I"` `"H"` `"D"` 等）
   - `Objects`：动态实体 glyph（玩家/怪物等）
   - `Meta`：每格可选的 `Dictionary<string,string>`（触发器/标记扩展位）
 - **巢穴**：`Nests: List<NestData>`
@@ -26,7 +26,7 @@
 
 ### `NestData`
 
-巢穴数据：坐标、刷新间隔、距上次刷新回合数、最大附近怪物数量限制（`MaxSpawned`）。
+巢穴数据：坐标、刷新间隔、距上次刷新回合数、最大附近怪物数量限制（`MaxSpawned`）、模板 ID。
 
 ## 关键方法
 
@@ -36,4 +36,4 @@
 
 - **一致性约束**：`PlayerX/Y` 与 `Actors[PlayerId].X/Y` 与 `Objects` 层应该始终一致；目前靠调用点约束而非集中校验
 - **序列化边界**：`Meta` 用字典；`Actors` 内部含多态 tag 来源（见 `TagSystem` 的多态 JSON 标注）
-
+- **图层设计**：四层分离支持灵活的显示优先级和扩展

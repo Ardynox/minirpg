@@ -99,23 +99,20 @@ public static class ActorModule
 	{
 		var player = GetPlayer(state);
 		if (player == null) return null;
-		var tags = player.ComputeTags();
 		return new PlayerStatus
 		{
-			Tags = tags,
-			Hp = tags.GetValueOrDefault("生命", 0),
-			Atk = tags.GetValueOrDefault("力量", 0),
-			Def = tags.GetValueOrDefault("防御", 0),
+			Tags = player.ComputeTags(),
 			AvailableActions = ActionQuery.GetAvailable(player, ActionDefs.All),
 		};
 	}
 }
 
+/// <summary>
+/// 玩家状态快照：聚合 tag 表 + 可用动作。
+/// 没有独立的 HP/ATK/DEF —— 生存状态由肢体耐久决定，能力由 tag 聚合得出。
+/// </summary>
 public class PlayerStatus
 {
 	public Dictionary<string, int> Tags { get; set; } = new();
-	public int Hp { get; set; }
-	public int Atk { get; set; }
-	public int Def { get; set; }
 	public List<ActionDef> AvailableActions { get; set; } = [];
 }

@@ -15,8 +15,8 @@
 ### 初始化/导入
 
 - `LoadFromStrings(GameState, string[] rows)`
-  - `"#" "."` → Terrain
-  - `"D" "N" "I" ">" "<"` → Fixtures
+  - `"#"` `"."` → Terrain
+  - `"D"` `"N"` `"I"` `"H"` `">"` `"<"` → Fixtures
   - 其他字符 → Objects
   - 遇到 `"P"` 会设置 `state.PlayerX/Y`
 
@@ -50,8 +50,8 @@
 
 - `TryMovePlayer(GameState, dx, dy) -> List<GameEvent>`
   - 目标是墙：`hit_wall`
-  - 目标有敌对 Actor：创建 `attack_hit`（携带名字），并直接 `ActorModule.Remove`（当前语义等同“攻击并击杀”）
-  - 目标不可走（例如 `Objects` 非空）：`hit_wall`
+  - 目标有敌对 Actor：创建 `combat_bump`（携带名字）
+  - 目标不可走（例如 `Objects` 非空但非敌对）：`hit_wall`
   - 否则：`ActorModule.MoveActor` + `actor_moved`
 
 ## 与其他模块耦合点
@@ -61,6 +61,6 @@
 
 ## 评估关注点
 
-- **战斗语义**：`attack_hit` 事件触发时已经把目标移除（只有“秒杀”效果）；若要引入 HP/伤害，需要拆分为伤害计算与死亡处理
+- **战斗语义**：`combat_bump` 事件触发后由 Main 处理战斗流程；不同于之前的直接击杀设计
 - **地图与存档耦合**：`GoUp/GoDown` 直接依赖 `SaveModule`，会影响模块可测试性/可替换性
-
+- **设施层设计**：Fixtures 层存储静态设施不阻挡移动，适合扩展门、陷阱等

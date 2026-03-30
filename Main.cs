@@ -46,8 +46,9 @@ public partial class Main : Node
 	private RenderModule _renderModule = null!;
 
 	private PanelContainer _statusPanel = null!;
-	private RichTextLabel _statusBasic = null!;
+	private RichTextLabel _statusName = null!;
 	private RichTextLabel _statusLimb = null!;
+	private RichTextLabel _statusTag = null!;
 	private RichTextLabel _statusBuff = null!;
 	private RichTextLabel _statusEquip = null!;
 
@@ -62,9 +63,10 @@ public partial class Main : Node
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
 		_statusPanel = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
-		var statusVBox = _statusPanel.GetNode("MarginContainer/VBox");
-		_statusBasic = statusVBox.GetNode<RichTextLabel>("BasicInfo");
+		var statusVBox = _statusPanel.GetNode("MarginContainer/ScrollContainer/VBox");
+		_statusName = statusVBox.GetNode<RichTextLabel>("NameInfo");
 		_statusLimb = statusVBox.GetNode<RichTextLabel>("LimbInfo");
+		_statusTag = statusVBox.GetNode<RichTextLabel>("TagInfo");
 		_statusBuff = statusVBox.GetNode<RichTextLabel>("BuffInfo");
 		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
 
@@ -852,14 +854,9 @@ public partial class Main : Node
 	private void DoLook()
 	{
 		var sb = new StringBuilder();
-		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
 		var player = ActorModule.GetPlayer(_state);
-		var status = ActorModule.GetPlayerStatus(_state);
-		if (status != null)
-		{
-			sb.Append($"  ATK:{status.Atk} DEF:{status.Def}");
-			if (player != null) sb.Append($" 💰{player.Gold}G");
-		}
+		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		if (player != null) sb.Append($"  💰{player.Gold}G");
 
 		if (player != null && player.Limbs.Count > 0)
 		{
@@ -867,8 +864,8 @@ public partial class Main : Node
 			var parts = new List<string>();
 			foreach (var l in player.Limbs)
 			{
-				var vital = l.Tags.ContainsKey("要害") ? "[要害]" : "";
-				parts.Add($"{l.Name}({l.Durability}/{l.MaxDurability}){vital}");
+				var vital = l.Tags.ContainsKey("要害") ? "*" : "";
+				parts.Add($"{l.Name}{vital}({l.Durability}/{l.MaxDurability})");
 			}
 			sb.Append(string.Join(" ", parts));
 		}
@@ -994,17 +991,20 @@ public partial class Main : Node
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null)
 		{
-			_statusBasic.Text = "";
+			_statusName.Text = "";
 			_statusLimb.Text = "";
+			_statusTag.Text = "";
 			_statusBuff.Text = "";
 			_statusEquip.Text = "";
 			return;
 		}
 
-		_statusBasic.Clear();
-		_statusBasic.AppendText(StatusModule.BuildBasicInfo(player, _state.CurrentFloor, _state.Turn));
+		_statusName.Clear();
+		_statusName.AppendText(StatusModule.BuildNameInfo(player, _state.CurrentFloor, _state.Turn));
 		_statusLimb.Clear();
 		_statusLimb.AppendText(StatusModule.BuildLimbInfo(player));
+		_statusTag.Clear();
+		_statusTag.AppendText(StatusModule.BuildTagInfo(player));
 		_statusBuff.Clear();
 		_statusBuff.AppendText(StatusModule.BuildBuffInfo(player));
 		_statusEquip.Clear();
