@@ -45,15 +45,28 @@ public partial class Main : Node
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
 
+	private PanelContainer _statusPanel = null!;
+	private RichTextLabel _statusBasic = null!;
+	private RichTextLabel _statusLimb = null!;
+	private RichTextLabel _statusBuff = null!;
+	private RichTextLabel _statusEquip = null!;
+
 	public override void _Ready()
 	{
 		_ui = GetNode<VBoxContainer>("UI");
-		_mapPanel = GetNode<RichTextLabel>("UI/MapPanel");
+		_mapPanel = GetNode<RichTextLabel>("UI/TopRow/MapPanel");
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
 		_settingsPanel = GetNode<PanelContainer>("SettingsPanel");
 		_mainMenu = GetNode<PanelContainer>("MainMenu");
 		_continueBtn = GetNode<Button>("MainMenu/Center/VBox/ContinueBtn");
-		var lineEdit = GetNode<LineEdit>("UI/Input");
+		var lineEdit = GetNode<LineEdit>("UI/InputBar");
+
+		_statusPanel = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
+		var statusVBox = _statusPanel.GetNode("MarginContainer/VBox");
+		_statusBasic = statusVBox.GetNode<RichTextLabel>("BasicInfo");
+		_statusLimb = statusVBox.GetNode<RichTextLabel>("LimbInfo");
+		_statusBuff = statusVBox.GetNode<RichTextLabel>("BuffInfo");
+		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
 
 		_renderModule = new RenderModule();
 		_renderModule.ApplyFont(_mapPanel);
@@ -973,6 +986,29 @@ public partial class Main : Node
 			_mapPanel.BbcodeEnabled = false;
 			_mapPanel.Text = text;
 		}
+		RefreshStatus();
+	}
+
+	private void RefreshStatus()
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+		{
+			_statusBasic.Text = "";
+			_statusLimb.Text = "";
+			_statusBuff.Text = "";
+			_statusEquip.Text = "";
+			return;
+		}
+
+		_statusBasic.Clear();
+		_statusBasic.AppendText(StatusModule.BuildBasicInfo(player, _state.CurrentFloor, _state.Turn));
+		_statusLimb.Clear();
+		_statusLimb.AppendText(StatusModule.BuildLimbInfo(player));
+		_statusBuff.Clear();
+		_statusBuff.AppendText(StatusModule.BuildBuffInfo(player));
+		_statusEquip.Clear();
+		_statusEquip.AppendText(StatusModule.BuildEquipInfo(player));
 	}
 
 	private List<List<string>> BuildDisplayMap()

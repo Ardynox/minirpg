@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="MapPanel" type="RichTextLabel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+bbcode_enabled = true
+scroll_following = true

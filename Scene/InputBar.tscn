@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="InputBar" type="LineEdit"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+placeholder_text = "WASD 移动 | L 查看 | R 渲染 | ESC 设置 | F5存 F9读"
