@@ -61,6 +61,7 @@ public partial class InputModule
 			Key.D      => "d",
 			Key.L      => "look",
 			Key.R      => ":render",
+			Key.Space  => "enter",
 			Key.Escape => ":settings",
 			Key.Enter  => ":typing",
 			Key.T      => ":typing",

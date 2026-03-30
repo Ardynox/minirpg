@@ -47,20 +47,24 @@ public static class MapGenModule
 	private static void InitLayers(GameState state, int w, int h)
 	{
 		state.Terrain.Clear();
+		state.Fixtures.Clear();
 		state.Objects.Clear();
 		state.Meta.Clear();
 		for (var y = 0; y < h; y++)
 		{
 			var tRow = new List<string>();
+			var fRow = new List<string>();
 			var oRow = new List<string>();
 			var mRow = new List<Dictionary<string, string>?>();
 			for (var x = 0; x < w; x++)
 			{
 				tRow.Add("#");
+				fRow.Add("");
 				oRow.Add("");
 				mRow.Add(null);
 			}
 			state.Terrain.Add(tRow);
+			state.Fixtures.Add(fRow);
 			state.Objects.Add(oRow);
 			state.Meta.Add(mRow);
 		}
@@ -146,14 +150,14 @@ public static class MapGenModule
 		state.PlayerY = first.CenterY;
 		MapModule.SetObject(state, first.CenterX, first.CenterY, "P");
 
-		// 最后一个房间放门（通往下一层）
+		// 最后一个房间放门（Fixtures 层）
 		if (rooms.Count > 1)
 		{
 			var last = rooms[^1];
-			MapModule.SetObject(state, last.CenterX, last.CenterY, "D");
+			MapModule.SetFixture(state, last.CenterX, last.CenterY, "D");
 		}
 
-		// 中间房间随机放巢穴
+		// 中间房间随机放巢穴（Fixtures 层）
 		for (var i = 1; i < rooms.Count - 1; i++)
 		{
 			if (rng.Next(100) < 60)
@@ -162,7 +166,7 @@ public static class MapGenModule
 				var nx = r.X + rng.Next(1, r.W - 1);
 				var ny = r.Y + rng.Next(1, r.H - 1);
 				if (MapModule.IsWalkable(state, nx, ny))
-					MapModule.SetObject(state, nx, ny, "N");
+					MapModule.SetFixture(state, nx, ny, "N");
 			}
 		}
 	}

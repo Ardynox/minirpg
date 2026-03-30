@@ -12,6 +12,8 @@ public partial class Main : Node
 	private const double MapFps = 10.0;
 	private const int GenWidth = 40;
 	private const int GenHeight = 24;
+	private const int ViewW = 21;
+	private const int ViewH = 11;
 
 	private static readonly string SavePath =
 		System.IO.Path.Combine(OS.GetUserDataDir(), "save", "map.json");
@@ -48,8 +50,8 @@ public partial class Main : Node
 			GenerateNewMap();
 
 		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		AddLog("输入: save / load / newmap / enter(进门)");
-		_mapDirty = true;
+		AddLog("空格 进门 | save load newmap");
+		FlushMap();
 	}
 
 	public override void _Process(double delta)
@@ -85,7 +87,7 @@ public partial class Main : Node
 			case "enter": DoEnterDoor(); break;
 			case "save": DoSave(); break;
 			case "load": DoLoad(); break;
-			case "newmap": GenerateNewMap(); AddLog("新地图已生成 🗺️"); _mapDirty = true; break;
+			case "newmap": GenerateNewMap(); AddLog("新地图已生成 🗺️"); FlushMap(); break;
 			case ":render": ToggleRender(); break;
 			case "render": ToggleRender(); break;
 			case ":settings": ToggleSettings(); break;
@@ -94,7 +96,7 @@ public partial class Main : Node
 		}
 	}
 
-	// ── 移动（方向键遇敌自动攻击） ───────────────────────
+	// ── 移动 ──────────────────────────────────────────────
 
 	private void DoMove(int dx, int dy)
 	{
@@ -103,7 +105,7 @@ public partial class Main : Node
 		var nestEvents = NestModule.Tick(_state);
 		events.AddRange(nestEvents);
 		Dispatch(events);
-		_mapDirty = true;
+		FlushMap();
 	}
 
 	// ── 事件分发 ──────────────────────────────────────────
@@ -129,18 +131,18 @@ public partial class Main : Node
 		}
 	}
 
-	// ── 门（进入下一层） ─────────────────────────────────
+	// ── 门（玩家脚下或相邻 Fixtures 层有 D 即可进入） ────
 
 	private void DoEnterDoor()
 	{
 		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
 		foreach (var (dx, dy) in dirs)
 		{
-			if (MapModule.GetObject(_state, _state.PlayerX + dx, _state.PlayerY + dy) == "D")
+			if (MapModule.IsDoor(_state, _state.PlayerX + dx, _state.PlayerY + dy))
 			{
 				GenerateNewMap();
 				AddLog("你进入了下一层 🚪");
-				_mapDirty = true;
+				FlushMap();
 				return;
 			}
 		}
@@ -153,6 +155,10 @@ public partial class Main : Node
 	{
 		var sb = new StringBuilder();
 		sb.Append($"📍 你在 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		var standingOn = MapModule.GetFixture(_state, _state.PlayerX, _state.PlayerY);
+		if (!string.IsNullOrEmpty(standingOn))
+			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
+
 		var dirs = new (string Name, int Dx, int Dy)[]
 		{
 			("上", 0, -1), ("下", 0, 1), ("左", -1, 0), ("右", 1, 0),
@@ -161,23 +167,34 @@ public partial class Main : Node
 		{
 			var tx = _state.PlayerX + dx;
 			var ty = _state.PlayerY + dy;
-			string label;
-			if (MapModule.IsWall(_state, tx, ty)) label = "墙 🚧";
-			else if (MapModule.IsHostile(_state, tx, ty)) label = "怪物 👾";
-			else if (MapModule.GetObject(_state, tx, ty) == "N") label = "巢穴 🕳️";
-			else if (MapModule.GetObject(_state, tx, ty) == "D") label = "门 🚪";
-			else label = "空地";
-			sb.Append($"  {name}: {label}");
+			sb.Append($"  {name}: {CellLabel(tx, ty)}");
 		}
 		AddLog(sb.ToString());
 	}
+
+	private string CellLabel(int x, int y)
+	{
+		if (MapModule.IsWall(_state, x, y)) return "墙 🚧";
+		if (MapModule.IsHostile(_state, x, y)) return "怪物 👾";
+		var f = MapModule.GetFixture(_state, x, y);
+		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
+		return "空地";
+	}
+
+	private static string FixtureLabel(string f) => f switch
+	{
+		"D" => "门 🚪",
+		"N" => "巢穴 🕳️",
+		"I" => "道具 📦",
+		_ => f,
+	};
 
 	// ── 存档/读档 ────────────────────────────────────────
 
 	private void DoSave()
 	{
 		SaveModule.SaveMap(_state, SavePath);
-		AddLog($"地图已保存 💾");
+		AddLog("地图已保存 💾");
 	}
 
 	private void DoLoad()
@@ -185,15 +202,13 @@ public partial class Main : Node
 		if (SaveModule.LoadMap(_state, SavePath))
 		{
 			AddLog("存档已加载 📂");
-			_mapDirty = true;
+			FlushMap();
 		}
 		else
 		{
 			AddLog("未找到存档 ❌");
 		}
 	}
-
-	// ── 地图生成 ──────────────────────────────────────────
 
 	private void GenerateNewMap()
 	{
@@ -206,19 +221,19 @@ public partial class Main : Node
 	{
 		var mode = _renderModule.ToggleMode();
 		_renderModule.ApplyFont(_mapPanel);
-		_mapPanel.BbcodeEnabled = _renderModule.UsesBBCode;
 		AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
-		_mapDirty = true;
+		FlushMap();
 	}
 
 	private void FlushMap()
 	{
+		_mapDirty = false;
 		var displayMap = BuildDisplayMap();
 		var text = _renderModule.RenderMap(displayMap);
-		_mapPanel.Clear();
 		if (_renderModule.UsesBBCode)
 		{
 			_mapPanel.BbcodeEnabled = true;
+			_mapPanel.Clear();
 			_mapPanel.AppendText(text);
 		}
 		else
@@ -230,12 +245,23 @@ public partial class Main : Node
 
 	private List<List<string>> BuildDisplayMap()
 	{
+		var cx = _state.PlayerX;
+		var cy = _state.PlayerY;
+		var halfW = ViewW / 2;
+		var halfH = ViewH / 2;
+
 		var result = new List<List<string>>();
-		for (var y = 0; y < _state.MapHeight; y++)
+		for (var vy = 0; vy < ViewH; vy++)
 		{
 			var row = new List<string>();
-			for (var x = 0; x < _state.MapWidth; x++)
-				row.Add(MapModule.GetDisplayCell(_state, x, y));
+			var my = cy - halfH + vy;
+			for (var vx = 0; vx < ViewW; vx++)
+			{
+				var mx = cx - halfW + vx;
+				row.Add(MapModule.InBounds(_state, mx, my)
+					? MapModule.GetDisplayCell(_state, mx, my)
+					: "#");
+			}
 			result.Add(row);
 		}
 		return result;

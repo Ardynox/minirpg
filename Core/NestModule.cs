@@ -18,7 +18,7 @@ public static class NestModule
 		for (var y = 0; y < state.MapHeight; y++)
 		for (var x = 0; x < state.MapWidth; x++)
 		{
-			if (MapModule.GetObject(state, x, y) != "N")
+			if (MapModule.GetFixture(state, x, y) != "N")
 				continue;
 			state.Nests.Add(new NestData
 			{

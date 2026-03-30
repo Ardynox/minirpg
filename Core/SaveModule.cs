@@ -6,8 +6,7 @@ using System.Text.Json.Serialization;
 namespace MiniRPG.Core;
 
 /// <summary>
-/// 存档模块：将地图三层数据 + 玩家坐标 + 巢穴列表序列化为 JSON 文件。
-/// 纯 IO，不引用 Godot 节点。
+/// 存档模块：将地图四层数据 + 玩家坐标 + 巢穴列表序列化为 JSON 文件。
 /// </summary>
 public static class SaveModule
 {
@@ -17,8 +16,6 @@ public static class SaveModule
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 	};
 
-	// ── 存档 ──────────────────────────────────────────────
-
 	public static void SaveMap(GameState state, string filePath)
 	{
 		var data = new MapSaveData
@@ -26,6 +23,7 @@ public static class SaveModule
 			Width = state.MapWidth,
 			Height = state.MapHeight,
 			Terrain = FlattenLayer(state.Terrain),
+			Fixtures = FlattenLayer(state.Fixtures),
 			Objects = FlattenLayer(state.Objects),
 			Meta = FlattenMeta(state.Meta),
 			PlayerX = state.PlayerX,
@@ -41,8 +39,6 @@ public static class SaveModule
 		File.WriteAllText(filePath, json);
 	}
 
-	// ── 读档 ──────────────────────────────────────────────
-
 	public static bool LoadMap(GameState state, string filePath)
 	{
 		if (!File.Exists(filePath))
@@ -56,6 +52,7 @@ public static class SaveModule
 		state.MapWidth = data.Width;
 		state.MapHeight = data.Height;
 		state.Terrain = UnflattenLayer(data.Terrain, data.Width, data.Height);
+		state.Fixtures = UnflattenLayer(data.Fixtures ?? [], data.Width, data.Height);
 		state.Objects = UnflattenLayer(data.Objects, data.Width, data.Height);
 		state.Meta = UnflattenMeta(data.Meta, data.Width, data.Height);
 		state.PlayerX = data.PlayerX;
@@ -65,8 +62,6 @@ public static class SaveModule
 		state.RngSeed = data.RngSeed;
 		return true;
 	}
-
-	// ── 内部：二维 ↔ 一维 转换 ───────────────────────────
 
 	private static List<string> FlattenLayer(List<List<string>> layer)
 	{
@@ -83,7 +78,7 @@ public static class SaveModule
 		{
 			var row = new List<string>();
 			for (var x = 0; x < w; x++)
-				row.Add(flat[y * w + x]);
+				row.Add(y * w + x < flat.Count ? flat[y * w + x] : "");
 			layer.Add(row);
 		}
 		return layer;
@@ -106,19 +101,19 @@ public static class SaveModule
 		{
 			var row = new List<Dictionary<string, string>?>();
 			for (var x = 0; x < w; x++)
-				row.Add(flat != null ? flat[y * w + x] : null);
+				row.Add(flat != null && y * w + x < flat.Count ? flat[y * w + x] : null);
 			meta.Add(row);
 		}
 		return meta;
 	}
 }
 
-/// <summary>JSON 序列化用的平面数据结构。</summary>
 public class MapSaveData
 {
 	public int Width { get; set; }
 	public int Height { get; set; }
 	public List<string> Terrain { get; set; } = [];
+	public List<string>? Fixtures { get; set; }
 	public List<string> Objects { get; set; } = [];
 	public List<Dictionary<string, string>?>? Meta { get; set; }
 	public int PlayerX { get; set; }

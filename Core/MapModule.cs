@@ -3,8 +3,9 @@ using System.Collections.Generic;
 namespace MiniRPG.Core;
 
 /// <summary>
-/// 地图模块：纯函数操作 GameState 的三层地图数据。
-/// 不引用任何 Godot 节点。
+/// 地图模块：纯函数操作 GameState 的四层地图数据。
+/// 层序：Terrain → Fixtures → Objects → Meta
+/// 渲染优先级：Objects > Fixtures > Terrain
 /// </summary>
 public static class MapModule
 {
@@ -12,12 +13,12 @@ public static class MapModule
 
 	/// <summary>
 	/// 从字符串行数组加载地图。
-	/// 字符串中 '#' '.' 写入 Terrain 层；'P' 'M' 等写入 Objects 层（地形填 '.'）。
-	/// Meta 层初始化为 null。
+	/// '#' '.' → Terrain；'D' 'N' 'I' → Fixtures；'P' 'M' → Objects。
 	/// </summary>
 	public static void LoadFromStrings(GameState state, string[] rows)
 	{
 		state.Terrain.Clear();
+		state.Fixtures.Clear();
 		state.Objects.Clear();
 		state.Meta.Clear();
 		state.MapHeight = rows.Length;
@@ -27,128 +28,166 @@ public static class MapModule
 
 		for (var y = 0; y < rows.Length; y++)
 		{
-			var terrainRow = new List<string>();
-			var objectRow = new List<string>();
-			var metaRow = new List<Dictionary<string, string>?>();
+			var tRow = new List<string>();
+			var fRow = new List<string>();
+			var oRow = new List<string>();
+			var mRow = new List<Dictionary<string, string>?>();
 
 			for (var x = 0; x < rows[y].Length; x++)
 			{
 				var ch = rows[y][x].ToString();
-				switch (ch)
+				ClassifyCell(ch, out var terrain, out var fixture, out var obj);
+				tRow.Add(terrain);
+				fRow.Add(fixture);
+				oRow.Add(obj);
+				mRow.Add(null);
+				if (ch == "P")
 				{
-					case "#":
-					case ".":
-						terrainRow.Add(ch);
-						objectRow.Add("");
-						break;
-					default:
-						terrainRow.Add(".");
-						objectRow.Add(ch);
-						if (ch == "P")
-						{
-							state.PlayerX = x;
-							state.PlayerY = y;
-						}
-						break;
+					state.PlayerX = x;
+					state.PlayerY = y;
 				}
-				metaRow.Add(null);
 			}
 
-			state.Terrain.Add(terrainRow);
-			state.Objects.Add(objectRow);
-			state.Meta.Add(metaRow);
+			state.Terrain.Add(tRow);
+			state.Fixtures.Add(fRow);
+			state.Objects.Add(oRow);
+			state.Meta.Add(mRow);
+		}
+	}
+
+	private static void ClassifyCell(string ch, out string terrain, out string fixture, out string obj)
+	{
+		terrain = ".";
+		fixture = "";
+		obj = "";
+		switch (ch)
+		{
+			case "#":
+			case ".":
+				terrain = ch;
+				break;
+			case "D":
+			case "N":
+			case "I":
+				fixture = ch;
+				break;
+			default:
+				obj = ch;
+				break;
 		}
 	}
 
 	// ── 读取 ──────────────────────────────────────────────
 
-	public static string GetTerrain(GameState state, int x, int y) =>
-		InBounds(state, x, y) ? state.Terrain[y][x] : "#";
+	public static string GetTerrain(GameState s, int x, int y) =>
+		InBounds(s, x, y) ? s.Terrain[y][x] : "#";
 
-	public static string GetObject(GameState state, int x, int y) =>
-		InBounds(state, x, y) ? state.Objects[y][x] : "";
+	public static string GetFixture(GameState s, int x, int y) =>
+		InBounds(s, x, y) ? s.Fixtures[y][x] : "";
 
-	public static Dictionary<string, string>? GetMeta(GameState state, int x, int y) =>
-		InBounds(state, x, y) ? state.Meta[y][x] : null;
+	public static string GetObject(GameState s, int x, int y) =>
+		InBounds(s, x, y) ? s.Objects[y][x] : "";
 
-	/// <summary>返回用于渲染的合成字符：Objects 层优先，空则取 Terrain 层。</summary>
-	public static string GetDisplayCell(GameState state, int x, int y)
+	public static Dictionary<string, string>? GetMeta(GameState s, int x, int y) =>
+		InBounds(s, x, y) ? s.Meta[y][x] : null;
+
+	/// <summary>渲染用：Objects > Fixtures > Terrain。</summary>
+	public static string GetDisplayCell(GameState s, int x, int y)
 	{
-		var obj = GetObject(state, x, y);
-		return string.IsNullOrEmpty(obj) ? GetTerrain(state, x, y) : obj;
+		var o = GetObject(s, x, y);
+		if (!string.IsNullOrEmpty(o)) return o;
+		var f = GetFixture(s, x, y);
+		if (!string.IsNullOrEmpty(f)) return f;
+		return GetTerrain(s, x, y);
 	}
 
 	// ── 写入 ──────────────────────────────────────────────
 
-	public static void SetTerrain(GameState state, int x, int y, string value)
+	public static void SetTerrain(GameState s, int x, int y, string v)
 	{
-		if (InBounds(state, x, y)) state.Terrain[y][x] = value;
+		if (InBounds(s, x, y)) s.Terrain[y][x] = v;
 	}
 
-	public static void SetObject(GameState state, int x, int y, string value)
+	public static void SetFixture(GameState s, int x, int y, string v)
 	{
-		if (InBounds(state, x, y)) state.Objects[y][x] = value;
+		if (InBounds(s, x, y)) s.Fixtures[y][x] = v;
 	}
 
-	public static void SetMeta(GameState state, int x, int y, Dictionary<string, string>? value)
+	public static void SetObject(GameState s, int x, int y, string v)
 	{
-		if (InBounds(state, x, y)) state.Meta[y][x] = value;
+		if (InBounds(s, x, y)) s.Objects[y][x] = v;
+	}
+
+	public static void SetMeta(GameState s, int x, int y, Dictionary<string, string>? v)
+	{
+		if (InBounds(s, x, y)) s.Meta[y][x] = v;
 	}
 
 	// ── 查询 ──────────────────────────────────────────────
 
-	public static bool InBounds(GameState state, int x, int y) =>
-		x >= 0 && y >= 0 && y < state.MapHeight && x < state.MapWidth;
+	public static bool InBounds(GameState s, int x, int y) =>
+		x >= 0 && y >= 0 && y < s.MapHeight && x < s.MapWidth;
 
-	public static bool IsWall(GameState state, int x, int y) =>
-		GetTerrain(state, x, y) == "#";
+	public static bool IsWall(GameState s, int x, int y) =>
+		GetTerrain(s, x, y) == "#";
 
-	public static bool IsWalkable(GameState state, int x, int y) =>
-		!IsWall(state, x, y) && string.IsNullOrEmpty(GetObject(state, x, y));
+	/// <summary>是否可通行：非墙 + Objects 层无阻挡。Fixtures 层不阻挡移动。</summary>
+	public static bool IsWalkable(GameState s, int x, int y) =>
+		!IsWall(s, x, y) && string.IsNullOrEmpty(GetObject(s, x, y));
 
-	public static bool IsHostile(GameState state, int x, int y) =>
-		GetObject(state, x, y) == "M";
+	public static bool IsHostile(GameState s, int x, int y) =>
+		GetObject(s, x, y) == "M";
 
-	// ── 玩家移动（修改 Objects 层 + PlayerX/Y） ──────────
+	/// <summary>检查指定位置设施层是否有门。</summary>
+	public static bool IsDoor(GameState s, int x, int y) =>
+		GetFixture(s, x, y) == "D";
+
+	// ── 玩家移动 ──────────────────────────────────────────
 
 	/// <summary>
-	/// 尝试移动玩家。返回事件列表。
-	/// 目标是墙 → hit_wall；目标有敌人 → attack；目标可通行 → actor_moved。
+	/// 尝试移动玩家。Objects 层只存角色，Fixtures 层不受影响。
+	/// 目标是墙 → hit_wall；目标有敌人 → attack_hit；否则 → actor_moved。
 	/// </summary>
-	public static List<GameEvent> TryMovePlayer(GameState state, int dx, int dy)
+	public static List<GameEvent> TryMovePlayer(GameState s, int dx, int dy)
 	{
 		var events = new List<GameEvent>();
-		var nx = state.PlayerX + dx;
-		var ny = state.PlayerY + dy;
+		var nx = s.PlayerX + dx;
+		var ny = s.PlayerY + dy;
 
-		if (IsWall(state, nx, ny))
+		if (IsWall(s, nx, ny))
 		{
 			events.Add(new GameEvent("hit_wall"));
 			return events;
 		}
 
-		if (IsHostile(state, nx, ny))
+		if (IsHostile(s, nx, ny))
 		{
 			events.Add(new GameEvent("attack_hit") { TargetX = nx, TargetY = ny });
-			SetObject(state, nx, ny, "");
+			SetObject(s, nx, ny, "");
 			return events;
 		}
 
-		SetObject(state, state.PlayerX, state.PlayerY, "");
-		state.PlayerX = nx;
-		state.PlayerY = ny;
-		SetObject(state, nx, ny, "P");
+		if (!IsWalkable(s, nx, ny))
+		{
+			events.Add(new GameEvent("hit_wall"));
+			return events;
+		}
+
+		SetObject(s, s.PlayerX, s.PlayerY, "");
+		s.PlayerX = nx;
+		s.PlayerY = ny;
+		SetObject(s, nx, ny, "P");
 		events.Add(new GameEvent("actor_moved") { TargetX = nx, TargetY = ny });
 		return events;
 	}
 
-	/// <summary>检查玩家四周是否有敌人，返回方向或 null。</summary>
-	public static (int Dx, int Dy)? FindAdjacentHostile(GameState state)
+	/// <summary>检查玩家四周是否有敌人。</summary>
+	public static (int Dx, int Dy)? FindAdjacentHostile(GameState s)
 	{
 		var dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
 		foreach (var (dx, dy) in dirs)
 		{
-			if (IsHostile(state, state.PlayerX + dx, state.PlayerY + dy))
+			if (IsHostile(s, s.PlayerX + dx, s.PlayerY + dy))
 				return (dx, dy);
 		}
 		return null;

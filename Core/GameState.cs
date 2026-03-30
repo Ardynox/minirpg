@@ -4,21 +4,23 @@ namespace MiniRPG.Core;
 
 /// <summary>
 /// 唯一数据源：所有游戏状态存在这里，可序列化为 JSON。
-/// Core 层的模块只读写这个对象，不碰任何 Godot 节点。
+/// 地图四层：Terrain → Fixtures → Objects → Meta。
 /// </summary>
 public class GameState
 {
 	public int Turn { get; set; }
 	public int RngSeed { get; set; } = 42;
 
-	// ── 地图（三层分离） ──
+	// ── 地图（四层分离） ──
 	public int MapWidth { get; set; }
 	public int MapHeight { get; set; }
-	/// <summary>第一层：地形（不可变地貌）—— "#" 墙, "." 地面</summary>
+	/// <summary>第一层：地形 —— "#" 墙, "." 地面</summary>
 	public List<List<string>> Terrain { get; set; } = [];
-	/// <summary>第二层：对象（动态实体）—— "P" 玩家, "M" 怪物, "N" 巢穴, "D" 门, "" 空</summary>
+	/// <summary>第二层：设施（静态/半静态）—— "D" 门, "N" 巢穴, "I" 道具, "" 空</summary>
+	public List<List<string>> Fixtures { get; set; } = [];
+	/// <summary>第三层：动态角色 —— "P" 玩家, "M" 怪物, "" 空</summary>
 	public List<List<string>> Objects { get; set; } = [];
-	/// <summary>第三层：元数据（标记/触发器）—— 每格一个字典，null 表示无</summary>
+	/// <summary>第四层：元数据（标记/触发器）—— 每格一个字典，null 表示无</summary>
 	public List<List<Dictionary<string, string>?>> Meta { get; set; } = [];
 
 	// ── 巢穴 ──
