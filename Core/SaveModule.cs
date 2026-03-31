@@ -274,8 +274,10 @@ public static class SaveModule
 		Item = CopyItem(s.Item),
 	};
 
+	// BUG-FIX: 原代码遗漏了 Capacities 字段，导致存档/换层后肢体的能力权重全部丢失。
 	private static Limb CopyLimb(Limb l) => new()
 		{ Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
+		  Capacities = new Dictionary<string, float>(l.Capacities),
 		  Tags = new Dictionary<string, int>(l.Tags) };
 	private static Race CopyRace(Race r) => new()
 		{ Id = r.Id, Name = r.Name, Tags = new Dictionary<string, int>(r.Tags) };
