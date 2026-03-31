@@ -14,13 +14,6 @@ public class StatusPanelModule
 
 	private static readonly string[] TabLabels = ["肢体", "能力", "标记", "Buff", "装备"];
 
-	private static readonly Color ColorRowBg = new(0.12f, 0.12f, 0.15f);
-	private static readonly Color ColorHoverBg = new(0.18f, 0.18f, 0.22f);
-	private static readonly Color ColorSelectedBg = new(0.15f, 0.22f, 0.18f);
-	private static readonly Color ColorNormal = new(0.85f, 0.85f, 0.85f);
-	private static readonly Color ColorSelected = new(0.6f, 1f, 0.7f);
-	private static readonly Color ColorFocusBorder = new(0.3f, 0.8f, 0.4f);
-
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _nameInfo;
 	private readonly HBoxContainer _filterBar;
@@ -88,11 +81,13 @@ public class StatusPanelModule
 		if (_rows.Count == 0) return;
 		_cursor = Math.Clamp(_cursor + delta, 0, _rows.Count - 1);
 		UpdateRowVisuals();
-		EnsureCursorVisible();
+		if (_cursor >= 0 && _cursor < _rows.Count)
+			RowStyleHelper.EnsureVisible(_contentScroll, _rows[_cursor]);
 	}
 
 	public void Refresh(Actor? player, int floor, int turn)
 	{
+		_cachedPlayer = player;
 		if (player == null)
 		{
 			_nameInfo.Clear();
@@ -103,30 +98,23 @@ public class StatusPanelModule
 		_nameInfo.Clear();
 		_nameInfo.AppendText(BuildNameInfo(player, floor, turn));
 		UpdateTabHighlight();
-		RefreshContent(player);
-	}
-
-	public void Refresh(Actor? player, int floor, int turn, bool _)
-	{
-		_cachedPlayer = player;
-		Refresh(player, floor, turn);
+		RefreshContent();
 	}
 
 	// ── Content building ─────────────────────────────────
 
-	private void RefreshContent(Actor? player = null)
+	private void RefreshContent()
 	{
-		player ??= _cachedPlayer;
-		if (player == null) return;
+		if (_cachedPlayer == null) return;
 
 		ClearRows();
 		switch (_currentTab)
 		{
-			case StatusTab.Limb: BuildLimbRows(player); break;
-			case StatusTab.Capacity: BuildCapacityRows(player); break;
-			case StatusTab.Tag: BuildTagRows(player); break;
-			case StatusTab.Buff: BuildBuffRows(player); break;
-			case StatusTab.Equip: BuildEquipRows(player); break;
+			case StatusTab.Limb: BuildLimbRows(_cachedPlayer); break;
+			case StatusTab.Capacity: BuildCapacityRows(_cachedPlayer); break;
+			case StatusTab.Tag: BuildTagRows(_cachedPlayer); break;
+			case StatusTab.Buff: BuildBuffRows(_cachedPlayer); break;
+			case StatusTab.Equip: BuildEquipRows(_cachedPlayer); break;
 		}
 
 		if (_cursor >= _rows.Count)
@@ -155,7 +143,7 @@ public class StatusPanelModule
 			Alignment = HorizontalAlignment.Left,
 			ClipText = true,
 		};
-		ApplyRowStyle(row, false, false);
+		RowStyleHelper.Apply(row, false, false);
 		row.MouseEntered += () => { _hoverIndex = idx; UpdateRowVisuals(); };
 		row.MouseExited += () => { if (_hoverIndex == idx) _hoverIndex = -1; UpdateRowVisuals(); };
 		row.Pressed += () => { _cursor = idx; UpdateRowVisuals(); };
@@ -296,50 +284,7 @@ public class StatusPanelModule
 	private void UpdateRowVisuals()
 	{
 		for (var i = 0; i < _rows.Count; i++)
-			ApplyRowStyle(_rows[i], i == _cursor, i == _hoverIndex);
-	}
-
-	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
-	{
-		Color bg;
-		if (selected) bg = ColorSelectedBg;
-		else if (hovered) bg = ColorHoverBg;
-		else bg = ColorRowBg;
-
-		var sb = new StyleBoxFlat
-		{
-			BgColor = bg,
-			ContentMarginLeft = 4,
-			ContentMarginRight = 4,
-		};
-
-		if (selected)
-		{
-			sb.BorderWidthLeft = 3;
-			sb.BorderColor = ColorFocusBorder;
-			sb.ContentMarginLeft = 6;
-		}
-
-		row.AddThemeStyleboxOverride("normal", sb);
-		row.AddThemeStyleboxOverride("hover", sb);
-		row.AddThemeStyleboxOverride("pressed", sb);
-		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
-		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
-	}
-
-	private void EnsureCursorVisible()
-	{
-		if (_cursor < 0 || _cursor >= _rows.Count) return;
-		var row = _rows[_cursor];
-		var rowTop = row.Position.Y;
-		var rowBot = rowTop + row.Size.Y;
-		var scrollTop = _contentScroll.ScrollVertical;
-		var scrollBot = scrollTop + _contentScroll.Size.Y;
-
-		if (rowTop < scrollTop)
-			_contentScroll.ScrollVertical = (int)rowTop;
-		else if (rowBot > scrollBot)
-			_contentScroll.ScrollVertical = (int)(rowBot - _contentScroll.Size.Y);
+			RowStyleHelper.Apply(_rows[i], i == _cursor, i == _hoverIndex);
 	}
 
 	// ── Name info (header) ───────────────────────────────

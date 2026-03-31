@@ -29,15 +29,9 @@ public class GroundPanelModule
 	private List<Item> _groundItems = [];
 	private int _cursor;
 	private int _hoverIndex = -1;
-
-	private static readonly Color ColorNormal = new(0.8f, 0.8f, 0.8f);
-	private static readonly Color ColorSelected = new(1f, 1f, 1f);
-	private static readonly Color ColorContainer = new(0.6f, 0.9f, 1f);
-	private static readonly Color ColorDim = new(0.5f, 0.5f, 0.5f);
-	private static readonly Color ColorRowBg = new(0, 0, 0, 0);
-	private static readonly Color ColorHoverBg = new(0.25f, 0.28f, 0.35f);
-	private static readonly Color ColorSelectedBg = new(0.18f, 0.3f, 0.25f);
-	private static readonly Color ColorAccent = new(0.3f, 0.65f, 0.4f);
+	private ulong _lastClickTime;
+	private int _lastClickIndex = -1;
+	private const ulong DoubleClickMs = 400;
 
 	public bool Visible
 	{
@@ -81,6 +75,8 @@ public class GroundPanelModule
 		_cursor = Math.Clamp(_cursor + delta, 0, _groundItems.Count - 1);
 		UpdateRowVisuals();
 		UpdateActionButtons();
+		if (_cursor >= 0 && _cursor < _itemRows.Count)
+			RowStyleHelper.EnsureVisible(_itemScroll, _itemRows[_cursor]);
 	}
 
 	public void DoPickupSelected()
@@ -148,7 +144,7 @@ public class GroundPanelModule
 				Disabled = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
 			};
-			empty.AddThemeColorOverride("font_disabled_color", ColorDim);
+			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
 			_itemList.AddChild(empty);
 			_itemRows.Add(empty);
 		}
@@ -173,7 +169,8 @@ public class GroundPanelModule
 			ClipText = true,
 		};
 
-		ApplyRowStyle(row, false, false, item.IsContainer);
+		RowStyleHelper.Apply(row, false, false,
+			textOverride: item.IsContainer ? UIColors.TextContainer : null, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);
@@ -183,52 +180,27 @@ public class GroundPanelModule
 		return row;
 	}
 
-	private static void ApplyRowStyle(Button row, bool selected, bool hovered, bool isContainer = false)
-	{
-		Color bg;
-		if (selected) bg = ColorSelectedBg;
-		else if (hovered) bg = ColorHoverBg;
-		else bg = ColorRowBg;
-
-		var sb = new StyleBoxFlat
-		{
-			BgColor = bg,
-			ContentMarginLeft = 4,
-			ContentMarginRight = 4,
-		};
-
-		if (selected)
-		{
-			sb.BorderWidthLeft = 3;
-			sb.BorderColor = ColorAccent;
-			sb.ContentMarginLeft = 6;
-		}
-
-		row.AddThemeStyleboxOverride("normal", sb);
-		row.AddThemeStyleboxOverride("hover", sb);
-		row.AddThemeStyleboxOverride("pressed", sb);
-
-		Color fg;
-		if (selected) fg = ColorSelected;
-		else if (isContainer) fg = ColorContainer;
-		else fg = ColorNormal;
-
-		row.AddThemeColorOverride("font_color", fg);
-		row.AddThemeColorOverride("font_hover_color", fg);
-	}
-
 	private void OnRowInput(InputEvent ev, int index)
 	{
 		if (ev is not InputEventMouseButton mb || !mb.Pressed) return;
 
 		if (mb.ButtonIndex == MouseButton.Left)
 		{
-			_cursor = index;
-			var item = _groundItems[index];
-			if (item.IsContainer)
-				_host.OpenChestPanel(item);
+			var now = Time.GetTicksMsec();
+			if (index == _lastClickIndex && now - _lastClickTime < DoubleClickMs)
+			{
+				_cursor = index;
+				DoInteractSelected();
+				_lastClickIndex = -1;
+			}
 			else
-				DoPickupSelected();
+			{
+				_cursor = index;
+				UpdateRowVisuals();
+				UpdateActionButtons();
+				_lastClickIndex = index;
+				_lastClickTime = now;
+			}
 		}
 	}
 
@@ -247,7 +219,12 @@ public class GroundPanelModule
 	private void UpdateRowVisuals()
 	{
 		for (var i = 0; i < _itemRows.Count && i < _groundItems.Count; i++)
-			ApplyRowStyle(_itemRows[i], i == _cursor, i == _hoverIndex, _groundItems[i].IsContainer);
+		{
+			var selected = i == _cursor;
+			var isContainer = _groundItems[i].IsContainer;
+			RowStyleHelper.Apply(_itemRows[i], selected, i == _hoverIndex,
+				textOverride: isContainer && !selected ? UIColors.TextContainer : null, transparentBg: true);
+		}
 	}
 
 	private void UpdateActionButtons()

@@ -33,6 +33,7 @@ public class GameState
 	// ── 设置 ──
 	public bool BumpAttack { get; set; } = true;
 	public bool WatchMode { get; set; }
+	public int KillCount { get; set; }
 
 	/// <summary>当前地图生成器 ID（"room_corridor" / "perlin" / "cellular_automata" / "drunkard_walk" / "bsp"）。</summary>
 	public string GeneratorId { get; set; } = "room_corridor";
@@ -50,6 +51,7 @@ public class GameState
 		Actors.Clear();
 		BumpAttack = true;
 		WatchMode = false;
+		KillCount = 0;
 		World = null;
 	}
 }

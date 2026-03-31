@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Godot;
 using MiniRPG.Core;
 
@@ -33,14 +32,6 @@ public class ChestPanelModule
 	private Item? _chestItem;
 	private int _cursor;
 	private int _hoverIndex = -1;
-
-	private static readonly Color ColorNormal = new(0.8f, 0.8f, 0.8f);
-	private static readonly Color ColorSelected = new(1f, 1f, 1f);
-	private static readonly Color ColorDim = new(0.5f, 0.5f, 0.5f);
-	private static readonly Color ColorRowBg = new(0, 0, 0, 0);
-	private static readonly Color ColorHoverBg = new(0.25f, 0.28f, 0.35f);
-	private static readonly Color ColorSelectedBg = new(0.18f, 0.3f, 0.25f);
-	private static readonly Color ColorAccent = new(0.3f, 0.65f, 0.4f);
 
 	public bool Visible
 	{
@@ -115,6 +106,8 @@ public class ChestPanelModule
 		UpdateRowVisuals();
 		RenderDetail();
 		UpdateActionButtons();
+		if (_cursor >= 0 && _cursor < _itemRows.Count)
+			RowStyleHelper.EnsureVisible(_itemScroll, _itemRows[_cursor]);
 	}
 
 	public void TryTake()
@@ -155,7 +148,6 @@ public class ChestPanelModule
 		_host.OpenPutIntoChestSelection(_chestItem);
 	}
 
-
 	private void RenderHeader()
 	{
 		_header.Clear();
@@ -181,7 +173,7 @@ public class ChestPanelModule
 				Disabled = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
 			};
-			empty.AddThemeColorOverride("font_disabled_color", ColorDim);
+			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
 			_itemList.AddChild(empty);
 			_itemRows.Add(empty);
 			return;
@@ -197,7 +189,7 @@ public class ChestPanelModule
 
 	private Button CreateItemRow(int index, Item item)
 	{
-		var stats = FormatInlineStats(item);
+		var stats = ItemFormatHelper.InlineStats(item);
 		var weight = $" {item.EffectiveWeight:F1}kg";
 		var text = $"{item.Name}  {stats}{weight}";
 
@@ -212,7 +204,7 @@ public class ChestPanelModule
 			ClipText = true,
 		};
 
-		ApplyRowStyle(row, false, false);
+		RowStyleHelper.Apply(row, false, false, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);
@@ -220,34 +212,6 @@ public class ChestPanelModule
 		row.MouseExited += () => OnRowHoverExit(idx);
 
 		return row;
-	}
-
-	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
-	{
-		Color bg;
-		if (selected) bg = ColorSelectedBg;
-		else if (hovered) bg = ColorHoverBg;
-		else bg = ColorRowBg;
-
-		var sb = new StyleBoxFlat
-		{
-			BgColor = bg,
-			ContentMarginLeft = 4,
-			ContentMarginRight = 4,
-		};
-
-		if (selected)
-		{
-			sb.BorderWidthLeft = 3;
-			sb.BorderColor = ColorAccent;
-			sb.ContentMarginLeft = 6;
-		}
-
-		row.AddThemeStyleboxOverride("normal", sb);
-		row.AddThemeStyleboxOverride("hover", sb);
-		row.AddThemeStyleboxOverride("pressed", sb);
-		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
-		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
 	}
 
 	private void OnRowInput(InputEvent ev, int index)
@@ -278,7 +242,7 @@ public class ChestPanelModule
 		if (contents == null) return;
 
 		for (var i = 0; i < _itemRows.Count && i < contents.Count; i++)
-			ApplyRowStyle(_itemRows[i], i == _cursor, i == _hoverIndex);
+			RowStyleHelper.Apply(_itemRows[i], i == _cursor, i == _hoverIndex, transparentBg: true);
 	}
 
 	private void UpdateActionButtons()
@@ -297,40 +261,6 @@ public class ChestPanelModule
 			_detailBox.AppendText("[color=#888888]选择物品查看详情[/color]");
 			return;
 		}
-
-		var item = contents[_cursor];
-		var detail = new StringBuilder();
-		detail.Append($"[color=#ffffff]{item.Name}[/color]");
-		var catDef = ItemCategoryDef.Get(item.Category);
-		detail.AppendLine($"  [color=#888888][{catDef?.Name ?? item.Category}][/color]");
-
-		if (item.SharpDamage > 0 || item.BluntDamage > 0)
-		{
-			detail.Append("[color=#ff6666]伤害:[/color] ");
-			if (item.SharpDamage > 0) detail.Append($"锐{item.SharpDamage:F0} ");
-			if (item.BluntDamage > 0) detail.Append($"钝{item.BluntDamage:F0} ");
-			detail.AppendLine();
-		}
-
-		if (item.SharpArmor > 0 || item.BluntArmor > 0)
-		{
-			detail.Append("[color=#6699ff]护甲:[/color] ");
-			if (item.SharpArmor > 0) detail.Append($"锐防{item.SharpArmor:F0} ");
-			if (item.BluntArmor > 0) detail.Append($"钝防{item.BluntArmor:F0} ");
-			detail.AppendLine();
-		}
-
-		detail.Append($"[color=#888888]重量: {item.EffectiveWeight:F1}kg  价格: {item.Price}G[/color]");
-		_detailBox.AppendText(detail.ToString());
-	}
-
-	private static string FormatInlineStats(Item item)
-	{
-		var parts = new List<string>();
-		if (item.SharpDamage > 0) parts.Add($"锐{item.SharpDamage:F0}");
-		if (item.BluntDamage > 0) parts.Add($"钝{item.BluntDamage:F0}");
-		if (item.SharpArmor > 0) parts.Add($"锐防{item.SharpArmor:F0}");
-		if (item.BluntArmor > 0) parts.Add($"钝防{item.BluntArmor:F0}");
-		return string.Join(" ", parts);
+		_detailBox.AppendText(ItemFormatHelper.BuildDetail(contents[_cursor]));
 	}
 }

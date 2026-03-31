@@ -38,6 +38,7 @@ public static class SaveModule
 			PlayerZ = state.PlayerZ,
 			BumpAttack = state.BumpAttack,
 			WatchMode = state.WatchMode,
+			KillCount = state.KillCount,
 			GeneratorId = state.GeneratorId,
 			ViewModeId = state.ViewModeId,
 			Actors = CopyActors(state.Actors),
@@ -72,6 +73,7 @@ public static class SaveModule
 		state.PlayerZ = data.PlayerZ;
 		state.BumpAttack = data.BumpAttack;
 		state.WatchMode = data.WatchMode;
+		state.KillCount = data.KillCount;
 		state.GeneratorId = data.GeneratorId ?? "room_corridor";
 		state.ViewModeId = data.ViewModeId ?? "single_layer";
 		state.Actors = data.Actors ?? new();
@@ -266,6 +268,7 @@ public class WorldSaveData
 	public int PlayerZ { get; set; }
 	public bool BumpAttack { get; set; } = true;
 	public bool WatchMode { get; set; }
+	public int KillCount { get; set; }
 	public string? GeneratorId { get; set; }
 	public string? ViewModeId { get; set; }
 	public Dictionary<string, Actor>? Actors { get; set; }

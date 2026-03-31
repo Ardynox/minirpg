@@ -79,6 +79,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PanelContainer _skillPanelNode = null!;
 	private PanelContainer _groundPanelNode = null!;
 	private PanelContainer? _focusedPanelNode;
+	private Dictionary<InputFocus, PanelContainer>? _focusMap;
 	private (int x, int y)? _openChestPos;
 
 	private bool StatusOpen => _inputModule?.Focus == InputFocus.Status;
@@ -95,7 +96,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	public GameState State => _state;
 	public bool PlayerDead { get; set; }
-	private int _killCount;
 
 	void IGameUI.AddLog(string msg) => AddLog(msg);
 	void IGameUI.EnterSelection(Action<int> callback) => EnterSelection(callback);
@@ -147,7 +147,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			: "══════ 💀 你死了 ══════");
 		AddLog($"  回合: {_state.Turn}");
 		AddLog($"  到达: 第 {_state.PlayerZ} 层");
-		AddLog($"  击杀: {_killCount}");
+		AddLog($"  击杀: {_state.KillCount}");
 		var player2 = ActorModule.GetPlayer(_state);
 		if (player2 != null) AddLog($"  金币: {player2.Gold}G");
 		AddLog("════════════════════════════");
@@ -189,6 +189,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_chestPanelNode = GetNode<PanelContainer>("UI/TopRow/ChestPanel");
 		_chestPanel = new ChestPanelModule(_chestPanelNode, this);
 
+		_focusMap = new Dictionary<InputFocus, PanelContainer>
+		{
+			[InputFocus.Status] = _statusPanelNode,
+			[InputFocus.Inventory] = _invPanelNode,
+			[InputFocus.Chest] = _chestPanelNode,
+		};
 
 		_renderModule = new RenderModule();
 		_renderModule.ApplyFont(_mapText);
@@ -257,6 +263,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (hit == null) return;
 
 		var cur = _inputModule.Focus;
+		_focusedPanelNode = hit;
 
 		if (hit == _invPanelNode)
 		{
@@ -272,32 +279,24 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_inputModule.EnterInventoryMode();
 				_inventoryPanel.Refresh();
 			}
-			_focusedPanelNode = _invPanelNode;
 		}
 		else if (hit == _chestPanelNode)
 		{
-			if (cur == InputFocus.Chest) return;
-			if (_chestPanel.Visible)
+			if (cur != InputFocus.Chest && _chestPanel.Visible)
 			{
 				_inputModule.EnterChestMode();
 				_chestPanel.Refresh();
 			}
-			_focusedPanelNode = _chestPanelNode;
 		}
 		else if (hit == _statusPanelNode)
 		{
 			if (cur != InputFocus.Status)
 				_inputModule.EnterStatusMode();
-			_focusedPanelNode = _statusPanelNode;
 		}
-		else
+		else if (cur != InputFocus.Action)
 		{
-			_focusedPanelNode = hit;
-			if (cur != InputFocus.Action)
-			{
-				_inputModule.EnterActionMode();
-				FlushMap();
-			}
+			_inputModule.EnterActionMode();
+			FlushMap();
 		}
 		RefreshAllBorders();
 	}
@@ -430,7 +429,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_state.Reset();
 		_state.WorldSeed = System.Environment.TickCount;
 		_logLines.Clear();
-		_killCount = 0;
 		PlayerDead = false;
 		_fogTracker.Clear();
 		_fogMapModule.Visible = false;
@@ -484,7 +482,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (PlayerDead)
 		{
 			PlayerDead = false;
-			_killCount = 0;
 			ShowMainMenu();
 			return;
 		}
@@ -994,146 +991,58 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  事件分发（GameEvent → 日志 / UI 动作）
+	//  事件分发（薄路由层：日志翻译 + 流程触发）
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>
-	/// 遍历事件列表，按 Type 分发到对应的处理方法。
-	/// 这是 Core 层事件到 UI 层副作用的唯一翻译层。
+	/// Core 层事件到 UI 层副作用的唯一入口。
+	/// 日志翻译委托给 EventLogModule（纯函数），
+	/// 流程触发路由到对应的 UI Module。
 	/// </summary>
-	// REVIEW: 事件 Type 使用字符串匹配，编译器无法检查完整性。
-	//         新增事件类型时容易遗漏 case 而静默忽略。
-	//         建议改为枚举或至少增加 default 日志警告。
 	private void Dispatch(List<GameEvent> events)
 	{
 		foreach (var e in events)
 		{
+			var logLines = EventLogModule.ToLogLines(e, _state);
+			if (logLines != null)
+				foreach (var line in logLines)
+					AddLog(line);
+
 			switch (e.Type)
 			{
-				case "hit_wall":
-					AddLog("撞墙了 🚧");
-					break;
-				case "actor_moved":
-					break;
-				case "monster_spawned":
-					AddLog($"巢穴刷出怪物 👾 ({e.TargetX},{e.TargetY})");
-					break;
-				case "interaction":
-					DispatchInteraction(e);
-					break;
 				case "combat_bump":
 					_combatUI.HandleCombatBump(e);
 					break;
-				case "combat_attack":
-					DispatchCombatAttack(e);
-					break;
-				case "combat_block":
-					AddLog($"🛡️ {e.TargetActorName}使用了{e.ActionName}！防御+5 (1回合)");
-					break;
-				case "limb_destroyed":
-					DispatchLimbDestroyed(e);
+				case "actor_killed" when e.TargetId == _state.PlayerId:
+					HandlePlayerDeath("killed");
 					break;
 				case "actor_killed":
-					DispatchActorKilled(e);
+					_state.KillCount++;
+					_combatUI.HandleActorKilled(e);
 					break;
-				case "actor_incapacitated":
-					DispatchIncapacitated(e);
+				case "actor_incapacitated" when e.TargetId == _state.PlayerId:
+					HandlePlayerDeath("incapacitated");
 					break;
-				case "item_picked_up":
-					AddLog($"📦 拾取了 {e.ItemName}");
-					break;
-				case "item_dropped":
-					AddLog($"📦 丢弃了 {e.ItemName}");
-					break;
-				case "drop_failed":
-					AddLog($"⚠️ 请先卸下 {e.ItemName} 再丢弃");
-					break;
-				case "pickup_failed":
-					AddLog("物品已经不在了");
-					break;
-				case "dig_success":
-					AddLog($"{e.ActionName ?? "挖掘"}成功！地形被破坏了 ⛏️");
-					break;
-				case "dig_progress":
-					AddLog($"{e.ActionName ?? "挖掘"}中... 造成 {e.Damage} 点破坏 ⛏️");
-					break;
-				case "dig_failed":
-					AddLog($"无法执行：{e.ItemName}");
+				case "interaction":
+					DispatchInteraction(e);
 					break;
 			}
 		}
 	}
 
-	/// <summary>处理攻击事件：区分「被攻击」和「攻击他人」的日志格式。</summary>
-	private void DispatchCombatAttack(GameEvent e)
-	{
-		if (e.TargetId == _state.PlayerId)
-		{
-			var attackerName = e.InitiatorId != null
-				? ActorModule.GetById(_state, e.InitiatorId)?.DisplayName ?? "???"
-				: "???";
-			AddLog($"🩸 {attackerName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
-		}
-		else
-		{
-			AddLog($"⚔️ {e.ActionName} → {e.TargetActorName}的{e.LimbName}，造成{e.Damage}点伤害");
-		}
-
-		var hitTarget = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
-		if (hitTarget != null)
-		{
-			var hl = hitTarget.Limbs.Find(l => l.Name == e.LimbName);
-			if (hl != null)
-				AddLog($"   {e.LimbName} ({hl.Durability}/{hl.MaxDurability})");
-		}
-	}
-
-	private void DispatchLimbDestroyed(GameEvent e)
-	{
-		if (e.TargetId == _state.PlayerId)
-			AddLog($"💥 你的{e.LimbName}被摧毁了！");
-		else
-			AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
-	}
-
-	private void DispatchActorKilled(GameEvent e)
-	{
-		if (e.TargetId == _state.PlayerId)
-		{
-			HandlePlayerDeath("killed");
-		}
-		else
-		{
-			_killCount++;
-			_combatUI.HandleActorKilled(e);
-		}
-	}
-
-	private void DispatchIncapacitated(GameEvent e)
-	{
-		if (e.TargetId == _state.PlayerId)
-		{
-			HandlePlayerDeath("incapacitated");
-		}
-		else
-		{
-			AddLog($"😵 {e.TargetActorName}失去了意识！");
-		}
-	}
-
-	/// <summary>处理交互事件：根据 EffectType 分派到对话/交易/战斗/驯服。</summary>
+	/// <summary>交互事件路由：流程类（trade/combat）转发到 UI Module，日志类由 EventLogModule 处理。</summary>
 	private void DispatchInteraction(GameEvent e)
 	{
 		switch (e.EffectType)
 		{
-			case "talk":
-				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
-				break;
 			case "trade":
 				_tradeUI.OpenTradeMenu(e);
 				break;
 			case "combat":
 				_combatUI.OpenCombatMenu(e);
+				break;
+			case "talk":
+				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
 				break;
 			case "tame":
 				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
@@ -1393,7 +1302,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void RefreshStatus()
 	{
 		var player = ActorModule.GetPlayer(_state);
-		_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn, true);
+		_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
 
 		if (player != null)
 			_skillPanel.Refresh(player);
@@ -1626,12 +1535,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void RefreshAllBorders()
 	{
 		var focus = _inputModule?.Focus ?? InputFocus.Action;
-		if (focus == InputFocus.Status)
-			_focusedPanelNode = _statusPanelNode;
-		else if (focus == InputFocus.Inventory)
-			_focusedPanelNode = _invPanelNode;
-		else if (focus == InputFocus.Chest)
-			_focusedPanelNode = _chestPanelNode;
+		if (_focusMap != null && _focusMap.TryGetValue(focus, out var mapped))
+			_focusedPanelNode = mapped;
 		else if (_focusedPanelNode != null && !_focusedPanelNode.Visible)
 			_focusedPanelNode = null;
 

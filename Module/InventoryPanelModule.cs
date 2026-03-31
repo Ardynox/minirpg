@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Godot;
 using MiniRPG.Core;
 
@@ -58,15 +57,6 @@ public class InventoryPanelModule
 	private ulong _lastClickTime;
 	private int _lastClickIndex = -1;
 	private const ulong DoubleClickMs = 400;
-
-	private static readonly Color ColorNormal = new(0.8f, 0.8f, 0.8f);
-	private static readonly Color ColorDim = new(0.5f, 0.5f, 0.5f);
-	private static readonly Color ColorSelected = new(1f, 1f, 1f);
-	private static readonly Color ColorEquipped = new(1f, 0.8f, 0f);
-	private static readonly Color ColorRowBg = new(0, 0, 0, 0);
-	private static readonly Color ColorHoverBg = new(0.25f, 0.28f, 0.35f);
-	private static readonly Color ColorSelectedBg = new(0.18f, 0.3f, 0.25f);
-	private static readonly Color ColorFocusBorder = new(0.3f, 0.65f, 0.4f);
 
 	public bool Visible
 	{
@@ -169,7 +159,8 @@ public class InventoryPanelModule
 		UpdateRowVisuals();
 		RenderDetail();
 		UpdateActionButtons();
-		EnsureCursorVisible();
+		if (_cursor >= 0 && _cursor < _itemRows.Count)
+			RowStyleHelper.EnsureVisible(_itemScroll, _itemRows[_cursor]);
 	}
 
 	public void SetFilter(int index)
@@ -298,7 +289,7 @@ public class InventoryPanelModule
 				Disabled = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
 			};
-			empty.AddThemeColorOverride("font_disabled_color", ColorDim);
+			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
 			_itemList.AddChild(empty);
 			_itemRows.Add(empty);
 		}
@@ -307,7 +298,7 @@ public class InventoryPanelModule
 	private Button CreateItemRow(int index, Item item)
 	{
 		var eqTag = item.Equipped ? "[E] " : "    ";
-		var stats = FormatInlineStats(item);
+		var stats = ItemFormatHelper.InlineStats(item);
 		var weight = $" {item.EffectiveWeight:F1}kg";
 		var text = $"{eqTag}{item.Name}  {stats}{weight}";
 
@@ -322,7 +313,7 @@ public class InventoryPanelModule
 			ClipText = true,
 		};
 
-		ApplyRowStyle(row, false, false);
+		RowStyleHelper.Apply(row, false, false, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);
@@ -330,34 +321,6 @@ public class InventoryPanelModule
 		row.MouseExited += () => OnRowHoverExit(idx);
 
 		return row;
-	}
-
-	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
-	{
-		Color bg;
-		if (selected) bg = ColorSelectedBg;
-		else if (hovered) bg = ColorHoverBg;
-		else bg = ColorRowBg;
-
-		var sb = new StyleBoxFlat
-		{
-			BgColor = bg,
-			ContentMarginLeft = 4,
-			ContentMarginRight = 4,
-		};
-
-		if (selected)
-		{
-			sb.BorderWidthLeft = 3;
-			sb.BorderColor = ColorFocusBorder;
-			sb.ContentMarginLeft = 6;
-		}
-
-		row.AddThemeStyleboxOverride("normal", sb);
-		row.AddThemeStyleboxOverride("hover", sb);
-		row.AddThemeStyleboxOverride("pressed", sb);
-		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
-		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
 	}
 
 	// ── Mouse events ─────────────────────────────────────
@@ -434,7 +397,7 @@ public class InventoryPanelModule
 	private void UpdateRowVisuals()
 	{
 		for (var i = 0; i < _itemRows.Count && i < _displayItems.Count; i++)
-			ApplyRowStyle(_itemRows[i], i == _cursor, i == _hoverIndex);
+			RowStyleHelper.Apply(_itemRows[i], i == _cursor, i == _hoverIndex, transparentBg: true);
 	}
 
 	private void UpdateFilterHighlight()
@@ -462,7 +425,6 @@ public class InventoryPanelModule
 		}
 	}
 
-
 	private void RenderHeader(Actor player)
 	{
 		var wt = player.CarryWeight;
@@ -489,97 +451,12 @@ public class InventoryPanelModule
 	private void RenderDetail()
 	{
 		_detailBox.Clear();
-
 		if (_cursor < 0 || _cursor >= _displayItems.Count)
 		{
 			_detailBox.AppendText("[color=#888888]选择物品查看详情[/color]");
 			return;
 		}
-
 		var (_, item) = _displayItems[_cursor];
-		var sb = new StringBuilder();
-
-		sb.Append($"[color=#ffffff]{item.Name}[/color]");
-		var catDef = ItemCategoryDef.Get(item.Category);
-		var catName = catDef?.Name ?? item.Category;
-		sb.AppendLine($"  [color=#888888][{catName}][/color]");
-
-		if (item.SharpDamage > 0 || item.BluntDamage > 0)
-		{
-			sb.Append("[color=#ff6666]伤害:[/color] ");
-			if (item.SharpDamage > 0) sb.Append($"锐{item.SharpDamage:F0} ");
-			if (item.BluntDamage > 0) sb.Append($"钝{item.BluntDamage:F0} ");
-			sb.AppendLine();
-		}
-
-		if (item.SharpArmor > 0 || item.BluntArmor > 0)
-		{
-			sb.Append("[color=#6699ff]护甲:[/color] ");
-			if (item.SharpArmor > 0) sb.Append($"锐防{item.SharpArmor:F0} ");
-			if (item.BluntArmor > 0) sb.Append($"钝防{item.BluntArmor:F0} ");
-			sb.AppendLine();
-		}
-
-		if (item.IsEquippable)
-		{
-			var layerName = item.Layer switch
-			{
-				EquipLayer.Skin => "贴身",
-				EquipLayer.Middle => "中层",
-				EquipLayer.Shell => "外壳",
-				EquipLayer.Overhead => "最外",
-				_ => item.Layer.ToString(),
-			};
-			sb.AppendLine($"[color=#66cc99]位置:[/color] {item.BodyPart} / {layerName}");
-
-			if (item.CoveredParts.Count > 0)
-				sb.AppendLine($"[color=#66cc99]覆盖:[/color] {string.Join(", ", item.CoveredParts)}");
-		}
-
-		if (item.GrantedSkills.Count > 0)
-		{
-			var skillNames = new List<string>();
-			foreach (var sid in item.GrantedSkills)
-			{
-				var def = InteractionDefs.Get(sid);
-				skillNames.Add(def?.Name ?? sid);
-			}
-			sb.AppendLine($"[color=#cc99ff]技能:[/color] {string.Join(", ", skillNames)}");
-		}
-
-		if (item.IsContainer)
-		{
-			var count = item.Contents?.Count ?? 0;
-			sb.AppendLine($"[color=#66ccff]容器:[/color] {count}件物品");
-		}
-
-		sb.Append($"[color=#888888]重量: {item.EffectiveWeight:F1}kg  价格: {item.Price}G[/color]");
-
-		_detailBox.AppendText(sb.ToString());
-	}
-
-	private void EnsureCursorVisible()
-	{
-		if (_cursor < 0 || _cursor >= _itemRows.Count) return;
-		var row = _itemRows[_cursor];
-		var rowY = row.Position.Y;
-		var rowH = row.Size.Y;
-		var scrollH = _itemScroll.Size.Y;
-		var currentScroll = _itemScroll.ScrollVertical;
-
-		if (rowY < currentScroll)
-			_itemScroll.ScrollVertical = (int)rowY;
-		else if (rowY + rowH > currentScroll + scrollH)
-			_itemScroll.ScrollVertical = (int)(rowY + rowH - scrollH);
-	}
-
-	private static string FormatInlineStats(Item item)
-	{
-		var parts = new List<string>();
-		if (item.SharpDamage > 0) parts.Add($"锐{item.SharpDamage:F0}");
-		if (item.BluntDamage > 0) parts.Add($"钝{item.BluntDamage:F0}");
-		if (item.SharpArmor > 0) parts.Add($"锐防{item.SharpArmor:F0}");
-		if (item.BluntArmor > 0) parts.Add($"钝防{item.BluntArmor:F0}");
-		return string.Join(" ", parts);
+		_detailBox.AppendText(ItemFormatHelper.BuildDetail(item));
 	}
 }

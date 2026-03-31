@@ -35,7 +35,7 @@ public class CombatUIModule
 		_ui.Dispatch(combatEvents);
 
 		if (!combatEvents.Exists(ev => ev.Type is "actor_killed" or "actor_incapacitated"))
-			MonsterCounterAttack(player, target);
+			MonsterCounterAttack(target);
 
 		TickAllBuffs();
 		_ui.FlushMap();
@@ -113,7 +113,7 @@ public class CombatUIModule
 				var blockDef = allSkills.Find(a => a.EffectType == "block")!;
 				var blockEvents = CombatModule.Attack(_ui.State, player, target, blockDef, target.Limbs[0]);
 				_ui.Dispatch(blockEvents);
-				MonsterCounterAttack(player, target);
+				MonsterCounterAttack(target);
 				TickAllBuffs();
 				_ui.FlushMap();
 				return;
@@ -158,7 +158,7 @@ public class CombatUIModule
 			{
 				var stillAlive = ActorModule.GetById(_ui.State, target.Id);
 				if (stillAlive != null)
-					MonsterCounterAttack(player, stillAlive);
+					MonsterCounterAttack(stillAlive);
 			}
 
 			TickAllBuffs();
@@ -166,38 +166,10 @@ public class CombatUIModule
 		});
 	}
 
-	public void MonsterCounterAttack(Actor player, Actor monster)
+	public void MonsterCounterAttack(Actor monster)
 	{
 		var mEvents = AIDispatcher.DecideAndExecuteOne(_ui.State, monster);
-		DispatchCounterAttack(player, monster, mEvents);
-	}
-
-	private void DispatchCounterAttack(Actor player, Actor monster, List<GameEvent> mEvents)
-	{
-		foreach (var ev in mEvents)
-		{
-			switch (ev.Type)
-			{
-				case "combat_attack":
-					_ui.AddLog($"🩸 {monster.DisplayName}用{ev.ActionName}攻击了你的{ev.LimbName}，造成{ev.Damage}点伤害");
-					var hitLimb = player.Limbs.Find(l => l.Name == ev.LimbName);
-					if (hitLimb != null)
-						_ui.AddLog($"   {ev.LimbName} ({hitLimb.Durability}/{hitLimb.MaxDurability})");
-					break;
-				case "limb_destroyed":
-					_ui.AddLog($"💥 你的{ev.LimbName}被摧毁了！");
-					break;
-				case "actor_killed":
-					_ui.HandlePlayerDeath("killed");
-					break;
-				case "actor_incapacitated":
-					_ui.HandlePlayerDeath("incapacitated");
-					break;
-				default:
-					_ui.Dispatch([ev]);
-					break;
-			}
-		}
+		_ui.Dispatch(mEvents);
 	}
 
 	private void TickAllBuffs()
