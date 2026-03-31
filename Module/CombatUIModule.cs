@@ -82,8 +82,8 @@ public class CombatUIModule
 	private void ShowActionSelection(Actor player, Actor target)
 	{
 		var actions = CombatModule.GetAttackActions(player);
-		var allActions = ActionQuery.GetAvailable(player, ActionDefs.All);
-		var hasBlock = allActions.Exists(a => a.EffectType == "block");
+		var allSkills = SkillQuery.GetAll(player);
+		var hasBlock = allSkills.Exists(a => a.EffectType == "block");
 
 		_ui.AddLog($"═══ 攻击 {target.DisplayName} ═══");
 		for (var i = 0; i < actions.Count; i++)
@@ -103,7 +103,7 @@ public class CombatUIModule
 
 			if (hasBlock && n == blockIdx)
 			{
-				var blockDef = allActions.Find(a => a.EffectType == "block")!;
+				var blockDef = allSkills.Find(a => a.EffectType == "block")!;
 				var blockEvents = CombatModule.Attack(_ui.State, player, target, blockDef, target.Limbs[0]);
 				_ui.Dispatch(blockEvents);
 				MonsterCounterAttack(player, target);
@@ -119,7 +119,7 @@ public class CombatUIModule
 		});
 	}
 
-	private void ShowLimbTargetSelection(Actor player, Actor target, ActionDef action)
+	private void ShowLimbTargetSelection(Actor player, Actor target, InteractionDef action)
 	{
 		var limbs = target.Limbs;
 		if (limbs.Count == 0)

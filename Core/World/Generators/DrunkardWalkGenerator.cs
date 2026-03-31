@@ -22,7 +22,7 @@ public class DrunkardWalkGenerator : IMapGenerator
 	{
 		if (chunk.Coord.Cz == 0)
 		{
-			GenerateSurface(chunk, worldSeed);
+			SurfaceGenerator.Generate(chunk, worldSeed);
 			return;
 		}
 
@@ -130,26 +130,6 @@ public class DrunkardWalkGenerator : IMapGenerator
 		var px = fixX ? fixedCoord : pos;
 		var py = fixX ? pos : fixedCoord;
 		chunk.SetTerrain(px, py, floorId);
-	}
-
-	private void GenerateSurface(ChunkData chunk, int worldSeed)
-	{
-		var noise = new Noise.PerlinNoise(worldSeed);
-		for (var ly = 0; ly < ChunkData.Size; ly++)
-		for (var lx = 0; lx < ChunkData.Size; lx++)
-		{
-			var wx = chunk.Coord.Cx * ChunkData.Size + lx;
-			var wy = chunk.Coord.Cy * ChunkData.Size + ly;
-			var h = noise.FBM2D(wx * 0.03, wy * 0.03, 4, 0.5);
-
-			ushort id;
-			if (h < -0.3) id = TerrainRegistry.GetId("water");
-			else if (h > 0.4) id = TerrainRegistry.GetId("mountain");
-			else if (h > 0.15) id = TerrainRegistry.GetId("tree");
-			else id = TerrainRegistry.GetId("grass");
-
-			chunk.SetTerrain(lx, ly, id);
-		}
 	}
 
 	private static ushort GetWallForDepth(int z)

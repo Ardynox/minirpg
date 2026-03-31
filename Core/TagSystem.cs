@@ -25,6 +25,9 @@ public class Limb : ITagSource
 	public int MaxDurability { get; set; } = 5;
 	public int Durability { get; set; } = 5;
 
+	/// <summary>材质 ID，对应 MaterialRegistry 中的定义。影响硬度、可燃性等物理属性。</summary>
+	public string Material { get; set; } = "flesh";
+
 	/// <summary>对各能力的权重贡献（0.0~1.0），实际贡献 = 权重 * 耐久比例。</summary>
 	public Dictionary<string, float> Capacities { get; set; } = new();
 
@@ -73,43 +76,6 @@ public class Experience : ITagSource
 	public Dictionary<string, int> Tags { get; set; } = new();
 
 	public Dictionary<string, int> GetTags() => Tags;
-}
-
-// ── 动作定义 ──────────────────────────────────────────
-
-/// <summary>
-/// 动作定义：数据驱动。一组前置 tag 要求 + 效果描述。
-/// 新增动作只需注册新定义，不改任何生物代码。
-/// </summary>
-public class ActionDef
-{
-	public string Id { get; set; } = "";
-	public string Name { get; set; } = "";
-	/// <summary>前置 tag 要求：key = tag 名, value = 最低强度。</summary>
-	public Dictionary<string, int> Required { get; set; } = new();
-	/// <summary>前置能力要求：key = 能力 ID, value = 最低百分比 (0.0~1.0)。</summary>
-	public Dictionary<string, float> CapacityRequired { get; set; } = new();
-	/// <summary>效果类型，由事件系统消费（"melee_attack", "poison_spit"…）。</summary>
-	public string EffectType { get; set; } = "";
-	/// <summary>效果强度倍率，具体含义由 EffectType 决定。</summary>
-	public int Power { get; set; }
-}
-
-// ── 动作查询 ──────────────────────────────────────────
-
-public static class ActionQuery
-{
-	/// <summary>根据 Actor 当前 tag 表和能力值过滤出所有满足条件的动作。</summary>
-	public static List<ActionDef> GetAvailable(Actor actor, IReadOnlyList<ActionDef> allActions)
-	{
-		var tags = actor.ComputeTags();
-		var caps = actor.ComputeCapacities();
-		return allActions
-			.Where(a =>
-				a.Required.All(r => tags.GetValueOrDefault(r.Key, 0) >= r.Value) &&
-				a.CapacityRequired.All(r => caps.GetValueOrDefault(r.Key, 0f) >= r.Value))
-			.ToList();
-	}
 }
 
 // ── JSON 多态支持 ─────────────────────────────────────

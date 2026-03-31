@@ -23,7 +23,7 @@ public class CellularAutomataGenerator : IMapGenerator
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
 		if (chunk.Coord.Cz == 0)
-			GenerateSurface(chunk, worldSeed);
+			SurfaceGenerator.Generate(chunk, worldSeed);
 		else if (chunk.Coord.Cz > 0)
 			GenerateCaves(chunk, worldSeed);
 		else
@@ -34,26 +34,6 @@ public class CellularAutomataGenerator : IMapGenerator
 	{
 		if (chunk.Coord.Cz <= 0) return;
 		PlaceFixtures(chunk, worldSeed);
-	}
-
-	private void GenerateSurface(ChunkData chunk, int worldSeed)
-	{
-		var noise = new PerlinNoise(worldSeed);
-		for (var ly = 0; ly < ChunkData.Size; ly++)
-		for (var lx = 0; lx < ChunkData.Size; lx++)
-		{
-			var wx = chunk.Coord.Cx * ChunkData.Size + lx;
-			var wy = chunk.Coord.Cy * ChunkData.Size + ly;
-			var h = noise.FBM2D(wx * 0.03, wy * 0.03, 4, 0.5);
-
-			ushort id;
-			if (h < -0.3) id = TerrainRegistry.GetId("water");
-			else if (h > 0.4) id = TerrainRegistry.GetId("mountain");
-			else if (h > 0.2) id = TerrainRegistry.GetId("tree");
-			else id = TerrainRegistry.GetId("grass");
-
-			chunk.SetTerrain(lx, ly, id);
-		}
 	}
 
 	private void GenerateCaves(ChunkData chunk, int worldSeed)

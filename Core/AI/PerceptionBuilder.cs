@@ -54,6 +54,7 @@ public static class PerceptionBuilder
 			NearbyFixtures = nearbyFixtures,
 			Turn = state.Turn,
 			Floor = self.Z,
+			State = state,
 		};
 	}
 }

@@ -38,6 +38,9 @@ public class Perception
 	public Dictionary<(int X, int Y), string> NearbyFixtures { get; init; } = [];
 	public int Turn { get; init; }
 	public int Floor { get; init; }
+
+	/// <summary>GameState 引用，供寻路等需要全局地图信息的功能使用。</summary>
+	public GameState? State { get; init; }
 }
 
 /// <summary>

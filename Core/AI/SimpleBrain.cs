@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI;
 
@@ -101,9 +102,20 @@ public class SimpleBrain : IBrainModule
 			: new Decision { Type = DecisionType.Wander, TargetPos = candidates[rng.Next(candidates.Count)] };
 	}
 
-	/// <summary>贪心寻路：在四邻中选曼哈顿距离最小的可行走格。</summary>
+	/// <summary>
+	/// 寻路：优先用 A*/JPS 全局寻路，失败时回退到贪心四邻。
+	/// </summary>
 	private static (int, int)? StepToward(int sx, int sy, int tx, int ty, Perception p)
 	{
+		if (p.State != null)
+		{
+			var z = p.Floor;
+			var state = p.State;
+			var step = Pathfinding.NextStep(sx, sy, tx, ty,
+				(x, y) => state.World?.IsWalkable(x, y, z) ?? false);
+			if (step != null) return step;
+		}
+
 		(int, int)? best = null;
 		var bestDist = Math.Abs(tx - sx) + Math.Abs(ty - sy);
 		foreach (var (dx, dy) in Dirs)

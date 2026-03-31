@@ -143,7 +143,28 @@ public static class InteractionModule
 	//  Actor→Cell 交互（挖掘等）
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>扫描 Actor 相邻四方向的可交互地形格（实心且可破坏）。</summary>
+	/// <summary>扫描 Actor 相邻四方向中指定技能可作用的地形格。</summary>
+	public static List<(int X, int Y, int Z, string TerrainName)> GetBreakableNeighbors(
+		GameState state, Actor actor, InteractionDef skill)
+	{
+		var results = new List<(int, int, int, string)>();
+		if (state.World == null) return results;
+
+		var adjacentDirs = new (int Dx, int Dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
+		foreach (var (dx, dy) in adjacentDirs)
+		{
+			var tx = actor.X + dx;
+			var ty = actor.Y + dy;
+			var tz = actor.Z;
+			var terrain = state.World.GetTerrain(tx, ty, tz);
+			var hardness = state.World.GetHardness(tx, ty, tz);
+			if (DigModule.CanApply(skill, terrain, hardness))
+				results.Add((tx, ty, tz, terrain.StringId));
+		}
+		return results;
+	}
+
+	/// <summary>扫描 Actor 相邻四方向的所有可破坏地形格（不限材质）。</summary>
 	public static List<(int X, int Y, int Z, string TerrainName)> GetDiggableNeighbors(
 		GameState state, Actor actor)
 	{
@@ -163,9 +184,10 @@ public static class InteractionModule
 		return results;
 	}
 
-	/// <summary>执行 Actor→Cell 的挖掘交互。</summary>
-	public static List<GameEvent> ExecuteDig(GameState state, Actor actor, int tx, int ty, int tz) =>
-		DigModule.TryDig(state, actor, tx, ty, tz);
+	/// <summary>执行 Actor→Cell 的地形破坏交互（挖掘/伐木/采矿等）。</summary>
+	public static List<GameEvent> ExecuteDig(GameState state, Actor actor, int tx, int ty, int tz,
+		InteractionDef? skill = null) =>
+		DigModule.TryDig(state, actor, tx, ty, tz, skill);
 
 	// ══════════════════════════════════════════════════════
 	//  内部工具

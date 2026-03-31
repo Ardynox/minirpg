@@ -193,6 +193,7 @@ public static class SaveModule
 		Id = a.Id, X = a.X, Y = a.Y, Z = a.Z,
 		Glyph = a.Glyph, DisplayName = a.DisplayName,
 		Faction = a.Faction, BrainId = a.BrainId,
+		FacingX = a.FacingX, FacingY = a.FacingY,
 		Gold = a.Gold,
 		Inventory = a.Inventory.ConvertAll(CopyItem),
 		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
@@ -215,6 +216,7 @@ public static class SaveModule
 	private static Limb CopyLimb(Limb l) => new()
 	{
 		Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
+		Material = l.Material,
 		Capacities = new Dictionary<string, float>(l.Capacities),
 		Tags = new Dictionary<string, int>(l.Tags),
 	};

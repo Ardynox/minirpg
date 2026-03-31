@@ -27,6 +27,12 @@ public static class ActionModule
 	/// </summary>
 	public static List<GameEvent> TryMove(GameState state, Actor actor, int dx, int dy)
 	{
+		if (dx != 0 || dy != 0)
+		{
+			actor.FacingX = dx;
+			actor.FacingY = dy;
+		}
+
 		var events = new List<GameEvent>();
 		var nx = actor.X + dx;
 		var ny = actor.Y + dy;
@@ -72,7 +78,7 @@ public static class ActionModule
 	/// 实际伤害计算委托给 CombatModule.Attack。
 	/// </summary>
 	public static List<GameEvent> TryAttack(GameState state, Actor attacker, Actor target,
-		ActionDef? actionDef = null, Limb? targetLimb = null)
+		InteractionDef? actionDef = null, Limb? targetLimb = null)
 	{
 		if (actionDef == null || targetLimb == null)
 		{
@@ -128,7 +134,7 @@ public static class ActionModule
 	// REVIEW: 随机种子为 RngSeed + Turn + attacker.Id.GetHashCode()。
 	//         同一回合内同一 Actor 多次调用 PickAttack 会得到相同结果（种子一致）。
 	//         目前流程中不会重复调用，但若未来需要则应引入递增计数器。
-	private static (ActionDef Action, Limb Limb)? PickAttack(
+	private static (InteractionDef Action, Limb Limb)? PickAttack(
 		GameState state, Actor attacker, Actor target)
 	{
 		var actions = CombatModule.GetAttackActions(attacker);

@@ -19,6 +19,13 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
+		if (chunk.Coord.Cz == 0)
+		{
+			SurfaceGenerator.Generate(chunk, worldSeed);
+			return;
+		}
+		if (chunk.Coord.Cz < 0) { chunk.Fill(TerrainRegistry.GetId("floor")); return; }
+
 		var seed = HashSeed(worldSeed, chunk.Coord);
 		var rng = new Random(seed);
 		var wallId = GetWallTerrain(chunk.Coord.Cz);

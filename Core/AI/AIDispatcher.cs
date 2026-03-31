@@ -125,7 +125,7 @@ public static class AIDispatcher
 		if (target == null) return;
 
 		var action = d.ActionDefId != null
-			? ActionDefs.All.FirstOrDefault(a => a.Id == d.ActionDefId)
+			? InteractionDefs.All.FirstOrDefault(a => a.Id == d.ActionDefId)
 			: null;
 		var limb = d.TargetLimbId != null
 			? target.Limbs.FirstOrDefault(l => l.Id == d.TargetLimbId)

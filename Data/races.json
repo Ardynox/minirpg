@@ -2,7 +2,7 @@
   {
     "id": "human",
     "name": "人类",
-    "tags": {},
+    "tags": { "挖掘": 1, "伐木": 1 },
     "defaultLimbs": [
       "human_brain", "human_heart",
       "human_left_lung", "human_right_lung",
@@ -15,7 +15,7 @@
   {
     "id": "goblin",
     "name": "哥布林",
-    "tags": {},
+    "tags": { "挖掘": 2, "采矿": 1 },
     "defaultLimbs": [
       "goblin_brain", "goblin_heart",
       "goblin_claws", "goblin_legs", "goblin_eyes"
@@ -30,7 +30,7 @@
   {
     "id": "undead",
     "name": "亡灵",
-    "tags": { "亡灵": 1 },
+    "tags": { "亡灵": 1, "挖掘": 1, "采矿": 1 },
     "defaultLimbs": [
       "undead_skull",
       "undead_arm_r", "undead_arm_l",

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "flesh",
+    "name": "血肉",
+    "hardness": 1,
+    "flammability": 0.3,
+    "corrosionResist": 0.1,
+    "density": 1.0
+  },
+  {
+    "id": "bone",
+    "name": "骨骼",
+    "hardness": 3,
+    "flammability": 0.05,
+    "corrosionResist": 0.3,
+    "density": 1.8
+  },
+  {
+    "id": "chitin",
+    "name": "甲壳",
+    "hardness": 4,
+    "flammability": 0.1,
+    "corrosionResist": 0.5,
+    "density": 1.3
+  },
+  {
+    "id": "slime",
+    "name": "粘液体",
+    "hardness": 0,
+    "flammability": 0.0,
+    "corrosionResist": 0.9,
+    "density": 1.1
+  },
+  {
+    "id": "wood",
+    "name": "木材",
+    "hardness": 2,
+    "flammability": 0.8,
+    "corrosionResist": 0.1,
+    "density": 0.6
+  },
+  {
+    "id": "stone",
+    "name": "石头",
+    "hardness": 5,
+    "flammability": 0.0,
+    "corrosionResist": 0.7,
+    "density": 2.5
+  },
+  {
+    "id": "iron",
+    "name": "铁",
+    "hardness": 7,
+    "flammability": 0.0,
+    "corrosionResist": 0.3,
+    "density": 7.8
+  },
+  {
+    "id": "steel",
+    "name": "钢",
+    "hardness": 8,
+    "flammability": 0.0,
+    "corrosionResist": 0.5,
+    "density": 7.9
+  },
+  {
+    "id": "soil",
+    "name": "泥土",
+    "hardness": 1,
+    "flammability": 0.0,
+    "corrosionResist": 0.2,
+    "density": 1.5
+  },
+  {
+    "id": "granite",
+    "name": "花岗岩",
+    "hardness": 8,
+    "flammability": 0.0,
+    "corrosionResist": 0.9,
+    "density": 2.7
+  },
+  {
+    "id": "obsidian",
+    "name": "黑曜石",
+    "hardness": 10,
+    "flammability": 0.0,
+    "corrosionResist": 1.0,
+    "density": 2.4
+  },
+  {
+    "id": "crystal",
+    "name": "水晶",
+    "hardness": 7,
+    "flammability": 0.0,
+    "corrosionResist": 0.8,
+    "density": 2.6
+  }
+]

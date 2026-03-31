@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://dbw8hh2am6yoj"]
+[gd_scene load_steps=9 format=3 uid="uid://dbw8hh2am6yoj"]
 
 [ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
 [ext_resource type="PackedScene" path="res://Scene/MapPanel.tscn" id="2_map"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://Scene/InputBar.tscn" id="5_input"]
 [ext_resource type="PackedScene" path="res://Scene/SettingsPanel.tscn" id="6_settings"]
 [ext_resource type="PackedScene" path="res://Scene/MainMenu.tscn" id="7_menu"]
+[ext_resource type="PackedScene" path="res://Scene/SkillPanel.tscn" id="8_skill"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -33,6 +34,8 @@ theme_override_constants/separation = 6
 [node name="MapPanel" parent="UI/TopRow" instance=ExtResource("2_map")]
 
 [node name="StatusPanel" parent="UI/TopRow" instance=ExtResource("3_status")]
+
+[node name="SkillPanel" parent="UI/TopRow" instance=ExtResource("8_skill")]
 
 [node name="LogPanel" parent="UI" instance=ExtResource("4_log")]
 

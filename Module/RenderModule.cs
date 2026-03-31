@@ -59,14 +59,41 @@ public class RenderModule
 
 	private string CellText(string c)
 	{
+		if (c.StartsWith("fog:"))
+			return Mode == RenderMode.Ascii ? "[color=#111111]░░[/color]" : "⬛";
+
+		if (c.StartsWith("per:"))
+		{
+			var raw = c[4..];
+			if (raw.StartsWith("dim:")) raw = raw[4..];
+			return Mode switch
+			{
+				RenderMode.Ascii => AsciiPerCell(raw),
+				RenderMode.Emoji => EmojiPerCell(raw),
+				_ => raw,
+			};
+		}
+
+		if (c.StartsWith("mem:"))
+		{
+			var raw = c[4..];
+			if (raw.StartsWith("dim:")) raw = raw[4..];
+			return Mode switch
+			{
+				RenderMode.Ascii => AsciiMemCell(raw),
+				RenderMode.Emoji => EmojiMemCell(raw),
+				_ => raw,
+			};
+		}
+
 		var dim = c.StartsWith("dim:");
-		var raw = dim ? c[4..] : c;
+		var glyph = dim ? c[4..] : c;
 
 		return Mode switch
 		{
-			RenderMode.Ascii => dim ? AsciiDimCell(raw) : AsciiCell(raw),
-			RenderMode.Emoji => dim ? EmojiDimCell(raw) : EmojiCell(raw),
-			_ => raw,
+			RenderMode.Ascii => dim ? AsciiDimCell(glyph) : AsciiCell(glyph),
+			RenderMode.Emoji => dim ? EmojiDimCell(glyph) : EmojiCell(glyph),
+			_ => glyph,
 		};
 	}
 
@@ -112,7 +139,7 @@ public class RenderModule
 		"~" => "🟦",
 		"^" => "🔺",
 		"T" => "🌲",
-		" " => "  ",
+		" " => "　",
 		"P" => "🙂",
 		"M" => "👾",
 		"G" => "👺",
@@ -121,20 +148,98 @@ public class RenderModule
 		"N" => "🕳️",
 		"H" => "🏠",
 		"D" => "🚪",
-		">" => "⬇️",
-		"<" => "⬆️",
+		">" => "⏬",
+		"<" => "⏫",
 		"!" => "📦",
 		"E" => "👴",
 		"V" => "😐",
 		_ => c,
 	};
 
-	/// <summary>暗色 Emoji 版本：用半透明方块或暗色符号表示下层。</summary>
+	/// <summary>暗色 Emoji 版本：用于多层预览中下层内容的渲染。</summary>
 	private static string EmojiDimCell(string c) => c switch
 	{
-		"#" => "◾",
-		"." => "◽",
+		"#" => "⬛",
+		"." => "⬜",
+		"~" => "⬛",
+		_ => "⬛",
+	};
+
+	/// <summary>记忆态 ASCII：已探索但当前不可见，极暗色只显示地形轮廓。</summary>
+	private static string AsciiMemCell(string c) => c switch
+	{
+		"#" => "[color=#222222]██[/color]",
+		"." => "[color=#1a1a1a]· [/color]",
+		"~" => "[color=#112233]~~[/color]",
+		"^" => "[color=#333333]^^[/color]",
+		"T" => "[color=#112211]♣ [/color]",
+		">" => "[color=#113344]▼·[/color]",
+		"<" => "[color=#113344]▲·[/color]",
+		" " => "  ",
+		_ => "[color=#1a1a1a]" + c + " [/color]",
+	};
+
+	/// <summary>记忆态 Emoji：已探索但当前不可见，用暗色全尺寸方块区分地形。</summary>
+	private static string EmojiMemCell(string c) => c switch
+	{
+		"#" => "⬛",
+		"." => "🟫",
+		"~" => "⬛",
+		"^" => "⬛",
+		"T" => "⬛",
+		">" => "🟫",
+		"<" => "🟫",
+		" " => "⬛",
+		_ => "⬛",
+	};
+
+	/// <summary>周边感知态 ASCII：在全向视野内但不在朝向锥内，灰色显示实时内容。</summary>
+	private static string AsciiPerCell(string c) => c switch
+	{
+		"#" => "[color=#444444]██[/color]",
+		"." => "[color=#2a2a2a]· [/color]",
+		"~" => "[color=#1a4466]~~[/color]",
+		"^" => "[color=#666666]^^[/color]",
+		"T" => "[color=#1a6633]♣ [/color]",
+		" " => "  ",
+		"P" => "[color=#338833]@·[/color]",
+		"M" => "[color=#993333]M·[/color]",
+		"G" => "[color=#338833]G·[/color]",
+		"S" => "[color=#339977]S·[/color]",
+		"K" => "[color=#888888]K·[/color]",
+		"E" => "[color=#336688]E·[/color]",
+		"V" => "[color=#668866]V·[/color]",
+		"N" => "[color=#773399]N·[/color]",
+		"H" => "[color=#776633]H·[/color]",
+		"D" => "[color=#997700]D·[/color]",
+		">" => "[color=#006688]▼·[/color]",
+		"<" => "[color=#006688]▲·[/color]",
+		"!" => "[color=#998833]!·[/color]",
+		_ => "[color=#444444]" + c + " [/color]",
+	};
+
+	/// <summary>周边感知态 Emoji：灰色调但保留实时内容（含怪物）。</summary>
+	private static string EmojiPerCell(string c) => c switch
+	{
+		"#" => "⬛",
+		"." => "🔲",
 		"~" => "🔵",
-		_ => "◾",
+		"^" => "⬛",
+		"T" => "🌑",
+		" " => "⬛",
+		"P" => "🙂",
+		"M" => "👾",
+		"G" => "👺",
+		"S" => "🟢",
+		"K" => "💀",
+		"N" => "🕳️",
+		"H" => "🏠",
+		"D" => "🚪",
+		">" => "⏬",
+		"<" => "⏫",
+		"!" => "📦",
+		"E" => "👴",
+		"V" => "😐",
+		_ => "⬛",
 	};
 }

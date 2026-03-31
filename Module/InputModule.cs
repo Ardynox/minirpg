@@ -10,9 +10,12 @@ public partial class InputModule
 	private readonly LineEdit _lineEdit;
 	private bool _typingMode;
 	private bool _selectionMode;
+	private bool _directionMode;
+	private string _directionPrefix = "";
 
 	public bool IsTypingMode => _typingMode;
 	public bool IsSelectionMode => _selectionMode;
+	public bool IsDirectionMode => _directionMode;
 
 	public InputModule(LineEdit lineEdit)
 	{
@@ -26,6 +29,8 @@ public partial class InputModule
 	{
 		_typingMode = false;
 		_selectionMode = false;
+		_directionMode = false;
+		_directionPrefix = "";
 		_lineEdit.ReleaseFocus();
 	}
 
@@ -40,6 +45,17 @@ public partial class InputModule
 	{
 		_selectionMode = true;
 		_typingMode = false;
+		_directionMode = false;
+		_lineEdit.ReleaseFocus();
+	}
+
+	/// <summary>进入方向选择模式：下一个方向键输入会发出 "{prefix}_{dir}" 命令。</summary>
+	public void EnterDirectionMode(string prefix)
+	{
+		_directionMode = true;
+		_directionPrefix = prefix;
+		_typingMode = false;
+		_selectionMode = false;
 		_lineEdit.ReleaseFocus();
 	}
 
@@ -82,6 +98,32 @@ public partial class InputModule
 			return false;
 		}
 
+		if (_directionMode)
+		{
+			if (key.Keycode == Key.Escape)
+			{
+				EnterActionMode();
+				CommandReceived?.Invoke(":dir_cancel");
+				return true;
+			}
+			var dir = key.Keycode switch
+			{
+				Key.W or Key.Up    => "n",
+				Key.S or Key.Down  => "s",
+				Key.A or Key.Left  => "w",
+				Key.D or Key.Right => "e",
+				_ => (string?)null,
+			};
+			if (dir != null)
+			{
+				var prefix = _directionPrefix;
+				EnterActionMode();
+				CommandReceived?.Invoke($":{prefix}_{dir}");
+				return true;
+			}
+			return false;
+		}
+
 		var cmd = key.Keycode switch
 		{
 			Key.W      => "w",
@@ -92,6 +134,11 @@ public partial class InputModule
 			Key.R      => ":render",
 			Key.F      => ":interact",
 			Key.I      => ":inventory",
+			Key.G      => ":dig",
+			Key.K      => ":skills",
+			Key.Tab    => ":minimap",
+			Key.M      => ":fogmap",
+			Key.C      => ":fogmap_center",
 			Key.Space  => "enter",
 			Key.Escape => ":settings",
 			Key.Enter  => ":typing",

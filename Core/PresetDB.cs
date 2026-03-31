@@ -31,6 +31,8 @@ public class LimbPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("maxDurability")]
 	public int MaxDurability { get; set; } = 5;
+	[JsonPropertyName("material")]
+	public string Material { get; set; } = "flesh";
 	[JsonPropertyName("capacities")]
 	public Dictionary<string, float> Capacities { get; set; } = new();
 	[JsonPropertyName("tags")]
@@ -87,28 +89,16 @@ public class ActorPreset
 	public List<ShopSlotPreset> ShopSlots { get; set; } = [];
 }
 
-public class ActionPreset
-{
-	[JsonPropertyName("id")]
-	public string Id { get; set; } = "";
-	[JsonPropertyName("name")]
-	public string Name { get; set; } = "";
-	[JsonPropertyName("required")]
-	public Dictionary<string, int> Required { get; set; } = new();
-	[JsonPropertyName("capacityRequired")]
-	public Dictionary<string, float> CapacityRequired { get; set; } = new();
-	[JsonPropertyName("effectType")]
-	public string EffectType { get; set; } = "";
-	[JsonPropertyName("power")]
-	public int Power { get; set; }
-}
-
 public class InteractionPreset
 {
 	[JsonPropertyName("id")]
 	public string Id { get; set; } = "";
 	[JsonPropertyName("name")]
 	public string Name { get; set; } = "";
+	[JsonPropertyName("description")]
+	public string Description { get; set; } = "";
+	[JsonPropertyName("category")]
+	public string Category { get; set; } = "combat";
 	[JsonPropertyName("required")]
 	public Dictionary<string, int> Required { get; set; } = new();
 	[JsonPropertyName("capacityRequired")]
@@ -119,6 +109,14 @@ public class InteractionPreset
 	public string EffectType { get; set; } = "";
 	[JsonPropertyName("power")]
 	public int Power { get; set; }
+	[JsonPropertyName("cooldown")]
+	public int Cooldown { get; set; }
+	[JsonPropertyName("range")]
+	public int Range { get; set; } = 1;
+	[JsonPropertyName("hidden")]
+	public bool Hidden { get; set; }
+	[JsonPropertyName("terrainMaterial")]
+	public string TerrainMaterial { get; set; } = "";
 }
 
 /// <summary>
@@ -132,7 +130,6 @@ public static class PresetDB
 	public static Dictionary<string, ItemPreset> Items { get; private set; } = new();
 	public static Dictionary<string, ActorPreset> Actors { get; private set; } = new();
 	public static Dictionary<string, CapacityDef> Capacities { get; private set; } = new();
-	public static List<ActionDef> Actions { get; private set; } = [];
 	public static List<InteractionDef> Interactions { get; private set; } = [];
 
 	/// <summary>hostile faction 的 actor 模板 ID 列表，用于怪物刷新。</summary>
@@ -145,28 +142,28 @@ public static class PresetDB
 		if (_loaded) return;
 		_loaded = true;
 
+		var materials = LoadList<MaterialDef>("res://Data/materials.json");
+		foreach (var m in materials)
+			MaterialRegistry.Register(m);
+
 		Races = LoadDict<RacePreset>("res://Data/races.json");
 		Limbs = LoadDict<LimbPreset>("res://Data/limbs.json");
 		Professions = LoadDict<ProfessionPreset>("res://Data/professions.json");
 		Items = LoadDict<ItemPreset>("res://Data/items.json");
 		Actors = LoadDict<ActorPreset>("res://Data/actors.json");
 		Capacities = LoadDict<CapacityDef>("res://Data/capacities.json");
-		Actions = LoadList<ActionPreset>("res://Data/actions.json")
-			.Select(a => new ActionDef
-			{
-				Id = a.Id, Name = a.Name,
-				Required = new(a.Required),
-				CapacityRequired = new(a.CapacityRequired),
-				EffectType = a.EffectType, Power = a.Power,
-			}).ToList();
 		Interactions = LoadList<InteractionPreset>("res://Data/interactions.json")
 			.Select(i => new InteractionDef
 			{
-				Id = i.Id, Name = i.Name,
+				Id = i.Id, Name = i.Name, Description = i.Description,
+				Category = i.Category,
 				Required = new(i.Required),
 				CapacityRequired = new(i.CapacityRequired),
 				TargetRequired = new(i.TargetRequired),
 				EffectType = i.EffectType, Power = i.Power,
+				Cooldown = i.Cooldown, Range = i.Range,
+				Hidden = i.Hidden,
+				TerrainMaterial = i.TerrainMaterial,
 			}).ToList();
 
 		MonsterIds = Actors.Values
@@ -241,6 +238,7 @@ public static class PresetDB
 			Name = preset.Name,
 			MaxDurability = preset.MaxDurability,
 			Durability = preset.MaxDurability,
+			Material = preset.Material,
 			Capacities = new(preset.Capacities),
 			Tags = new(preset.Tags),
 		};

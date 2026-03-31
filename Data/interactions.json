@@ -1,7 +1,98 @@
 [
   {
+    "id": "melee_attack",
+    "name": "近战攻击",
+    "description": "用肢体或武器进行近距离打击",
+    "category": "combat",
+    "required": {},
+    "capacityRequired": { "manipulation": 0.1 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "melee_attack",
+    "power": 1,
+    "cooldown": 0,
+    "range": 1
+  },
+  {
+    "id": "heavy_strike",
+    "name": "重击",
+    "description": "积蓄力量的强力一击",
+    "category": "combat",
+    "required": {},
+    "capacityRequired": { "manipulation": 0.5 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "melee_attack",
+    "power": 3,
+    "cooldown": 2,
+    "range": 1
+  },
+  {
+    "id": "block",
+    "name": "格挡",
+    "description": "防御姿态，下一回合减伤",
+    "category": "combat",
+    "required": { "格挡": 1 },
+    "capacityRequired": {},
+    "targetRequired": {},
+    "effectType": "block",
+    "power": 1,
+    "cooldown": 1,
+    "range": 0
+  },
+  {
+    "id": "poison_spit",
+    "name": "毒液喷射",
+    "description": "喷射腐蚀性毒液，无视防御",
+    "category": "combat",
+    "required": { "毒性": 2 },
+    "capacityRequired": {},
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "poison_attack",
+    "power": 2,
+    "cooldown": 3,
+    "range": 1
+  },
+  {
+    "id": "undead_drain",
+    "name": "亡灵吸取",
+    "description": "吸取生命力治疗自身",
+    "category": "combat",
+    "required": { "亡灵": 1 },
+    "capacityRequired": { "manipulation": 0.3 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "drain_attack",
+    "power": 2,
+    "cooldown": 2,
+    "range": 1
+  },
+  {
+    "id": "move",
+    "name": "移动",
+    "description": "移动到相邻格子",
+    "category": "utility",
+    "required": {},
+    "capacityRequired": { "moving": 0.01 },
+    "targetRequired": {},
+    "effectType": "move",
+    "power": 0,
+    "hidden": true
+  },
+  {
+    "id": "look",
+    "name": "观察",
+    "description": "观察周围环境",
+    "category": "utility",
+    "required": {},
+    "capacityRequired": { "sight": 0.01 },
+    "targetRequired": {},
+    "effectType": "look",
+    "power": 0,
+    "hidden": true
+  },
+  {
     "id": "talk",
     "name": "对话",
+    "description": "与友好生物交谈",
+    "category": "social",
     "required": {},
     "capacityRequired": { "consciousness": 0.1 },
     "targetRequired": { "@faction:friendly": 1 },
@@ -11,6 +102,8 @@
   {
     "id": "trade",
     "name": "交易",
+    "description": "与商人进行物品买卖",
+    "category": "social",
     "required": {},
     "capacityRequired": { "consciousness": 0.1 },
     "targetRequired": { "交易": 1 },
@@ -18,30 +111,51 @@
     "power": 0
   },
   {
-    "id": "attack",
-    "name": "攻击",
-    "required": {},
-    "capacityRequired": { "manipulation": 0.1 },
-    "targetRequired": { "@faction:hostile": 1 },
-    "effectType": "combat",
-    "power": 0
-  },
-  {
     "id": "tame",
     "name": "驯服",
+    "description": "尝试驯服一只野性不高的生物",
+    "category": "social",
     "required": { "驯服": 2 },
     "capacityRequired": { "consciousness": 0.3 },
     "targetRequired": { "@max:野性:3": 1, "@faction:hostile": 1 },
     "effectType": "tame",
-    "power": 0
+    "power": 0,
+    "cooldown": 5
   },
   {
     "id": "dig",
     "name": "挖掘",
-    "required": { "挖掘": 1 },
-    "capacityRequired": { "manipulation": 0.3 },
+    "description": "挖掘相邻的土墙或岩石，有手就能做",
+    "category": "utility",
+    "required": {},
+    "capacityRequired": { "manipulation": 0.01 },
     "targetRequired": {},
     "effectType": "dig",
-    "power": 0
+    "power": 0,
+    "terrainMaterial": ""
+  },
+  {
+    "id": "chop",
+    "name": "伐木",
+    "description": "砍伐相邻的树木，有手就能做",
+    "category": "utility",
+    "required": {},
+    "capacityRequired": { "manipulation": 0.01 },
+    "targetRequired": {},
+    "effectType": "dig",
+    "power": 0,
+    "terrainMaterial": "wood"
+  },
+  {
+    "id": "mine",
+    "name": "采矿",
+    "description": "开采相邻的矿石和坚硬岩壁，有手就能做",
+    "category": "utility",
+    "required": {},
+    "capacityRequired": { "manipulation": 0.01 },
+    "targetRequired": {},
+    "effectType": "dig",
+    "power": 0,
+    "terrainMaterial": "stone"
   }
 ]

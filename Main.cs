@@ -61,6 +61,10 @@ public partial class Main : Node, IGameUI
 	private IViewMode _viewMode = null!;
 	private double _watchTimer;
 
+	private FogOfWarTracker _fogTracker = null!;
+	private MinimapModule _minimapModule = null!;
+	private FogMapModule _fogMapModule = null!;
+
 	private PanelContainer _statusPanel = null!;
 	private RichTextLabel _statusName = null!;
 	private RichTextLabel _statusLimb = null!;
@@ -68,6 +72,8 @@ public partial class Main : Node, IGameUI
 	private RichTextLabel _statusTag = null!;
 	private RichTextLabel _statusBuff = null!;
 	private RichTextLabel _statusEquip = null!;
+
+	private SkillPanelModule _skillPanel = null!;
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule _tradeUI = null!;
@@ -128,6 +134,9 @@ public partial class Main : Node, IGameUI
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
 		_viewMode = new SingleLayerViewMode();
+		_fogTracker = new FogOfWarTracker();
+		_minimapModule = new MinimapModule(_fogTracker);
+		_fogMapModule = new FogMapModule(_fogTracker);
 
 		_ui = GetNode<VBoxContainer>("UI");
 		_mapPanel = GetNode<RichTextLabel>("UI/TopRow/MapPanel");
@@ -145,6 +154,8 @@ public partial class Main : Node, IGameUI
 		_statusTag = statusVBox.GetNode<RichTextLabel>("TagInfo");
 		_statusBuff = statusVBox.GetNode<RichTextLabel>("BuffInfo");
 		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
+
+		_skillPanel = new SkillPanelModule(GetNode<PanelContainer>("UI/TopRow/SkillPanel"));
 
 		_renderModule = new RenderModule();
 		_renderModule.ApplyFont(_mapPanel);
@@ -318,6 +329,10 @@ public partial class Main : Node, IGameUI
 		_logLines.Clear();
 		_killCount = 0;
 		PlayerDead = false;
+		_fogTracker.Clear();
+		_fogMapModule.Visible = false;
+		_minimapModule.Visible = false;
+		_skillPanel.Visible = false;
 		InitializeWorld();
 		_gameStarted = true;
 		AddLog("新游戏开始 🗺️");
@@ -387,17 +402,47 @@ public partial class Main : Node, IGameUI
 			return;
 		}
 
+		if (cmd.StartsWith(":dig_") && cmd != ":dig")
+		{
+			HandleDigDirection(cmd[":dig_".Length..]);
+			return;
+		}
+		if (cmd == ":dir_cancel")
+		{
+			AddLog("已取消");
+			return;
+		}
+
 		switch (cmd)
 		{
-			case ":settings" or "settings": ToggleSettings(); return;
+			case ":settings" or "settings":
+				if (_fogMapModule.Visible) { _fogMapModule.Visible = false; AddLog("大地图: 关闭"); FlushMap(); return; }
+				ToggleSettings(); return;
 			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
 			case ":interact" or "interact": DoInteract(); return;
+			case ":dig": StartDig(); return;
 			case ":inventory": _inventoryUI.Open(); return;
+			case ":skills": ToggleSkillPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
+			case ":minimap": ToggleMinimap(); return;
+			case ":fogmap": ToggleFogMap(); return;
+			case ":fogmap_center": CenterFogMap(); return;
 		}
 
 		if (_settingsOpen) return;
+
+		if (_fogMapModule.Visible)
+		{
+			switch (cmd)
+			{
+				case "w": _fogMapModule.Scroll(0, -1); FlushMap(); break;
+				case "s": _fogMapModule.Scroll(0, 1); FlushMap(); break;
+				case "a": _fogMapModule.Scroll(-1, 0); FlushMap(); break;
+				case "d": _fogMapModule.Scroll(1, 0); FlushMap(); break;
+			}
+			return;
+		}
 
 		switch (cmd)
 		{
@@ -470,6 +515,104 @@ public partial class Main : Node, IGameUI
 			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
 			options[n - 1].Execute();
 		});
+	}
+
+	/// <summary>G 键：进入地形破坏方向选择。</summary>
+	private void StartDig()
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+
+		var cellSkills = SkillQuery.GetCellSkills(player);
+		if (cellSkills.Count == 0)
+		{
+			AddLog("你没有任何地形破坏技能");
+			return;
+		}
+
+		var hasTargets = false;
+		foreach (var skill in cellSkills)
+		{
+			if (InteractionModule.GetBreakableNeighbors(_state, player, skill).Count > 0)
+			{ hasTargets = true; break; }
+		}
+
+		if (!hasTargets)
+		{
+			AddLog("周围没有可破坏的地形");
+			return;
+		}
+
+		AddLog("选择方向 (WASD/方向键)...");
+		_inputModule.EnterDirectionMode("dig");
+	}
+
+	/// <summary>收到方向后，自动匹配最合适的地形破坏技能并执行。</summary>
+	private void HandleDigDirection(string dir)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+
+		var (dx, dy) = dir switch
+		{
+			"n" => (0, -1),
+			"s" => (0, 1),
+			"w" => (-1, 0),
+			"e" => (1, 0),
+			_ => (0, 0),
+		};
+		if (dx == 0 && dy == 0) return;
+
+		var tx = player.X + dx;
+		var ty = player.Y + dy;
+		var tz = player.Z;
+
+		if (_state.World == null) return;
+		var terrain = _state.World.GetTerrain(tx, ty, tz);
+		var hardness = _state.World.GetHardness(tx, ty, tz);
+
+		if (!terrain.Solid || hardness == 0)
+		{
+			AddLog("那个方向没有可破坏的地形");
+			return;
+		}
+
+		var cellSkills = SkillQuery.GetCellSkills(player);
+		InteractionDef? bestSkill = null;
+		foreach (var skill in cellSkills)
+		{
+			if (MiniRPG.Core.World.DigModule.CanApply(skill, terrain, hardness))
+			{
+				if (bestSkill == null || skill.TerrainMaterial.Length > 0)
+					bestSkill = skill;
+			}
+		}
+
+		if (bestSkill == null)
+		{
+			AddLog($"你没有能破坏 {terrain.StringId} 的技能");
+			return;
+		}
+
+		var events = InteractionModule.ExecuteDig(_state, player, tx, ty, tz, bestSkill);
+		Dispatch(events);
+		var turnEvents = TurnModule.Tick(_state);
+		Dispatch(turnEvents);
+		FlushMap();
+	}
+
+	private static string GetDirectionName(int fx, int fy, int tx, int ty)
+	{
+		var dx = tx - fx;
+		var dy = ty - fy;
+		return (dx, dy) switch
+		{
+			(0, -1) => "北",
+			(0, 1) => "南",
+			(-1, 0) => "西",
+			(1, 0) => "东",
+			_ => $"{dx},{dy}",
+		};
 	}
 
 	/// <summary>显示脚下掉落物拾取选项。</summary>
@@ -661,13 +804,13 @@ public partial class Main : Node, IGameUI
 					AddLog("物品已经不在了");
 					break;
 				case "dig_success":
-					AddLog($"挖掘成功！墙壁被破坏了 ⛏️");
+					AddLog($"{e.ActionName ?? "挖掘"}成功！地形被破坏了 ⛏️");
 					break;
 				case "dig_progress":
-					AddLog($"挖掘中... 造成 {e.Damage} 点破坏 ⛏️");
+					AddLog($"{e.ActionName ?? "挖掘"}中... 造成 {e.Damage} 点破坏 ⛏️");
 					break;
 				case "dig_failed":
-					AddLog($"无法挖掘：{e.ItemName}");
+					AddLog($"无法执行：{e.ItemName}");
 					break;
 			}
 		}
@@ -951,9 +1094,25 @@ public partial class Main : Node, IGameUI
 	/// <summary>立即刷新地图面板和状态面板。</summary>
 	private void FlushMap()
 	{
+		_fogTracker.Update(_state);
+
+		if (_fogMapModule.Visible)
+		{
+			_mapPanel.BbcodeEnabled = true;
+			_mapPanel.Clear();
+			_mapPanel.AppendText(_fogMapModule.Render(_state));
+			RefreshStatus();
+			return;
+		}
+
 		var displayMap = BuildDisplayMap();
+		ApplyFOV(displayMap);
 		var text = _renderModule.RenderMap(displayMap);
-		if (_renderModule.UsesBBCode)
+
+		if (_minimapModule.Visible)
+			text += "\n" + _minimapModule.Render(_state);
+
+		if (_renderModule.UsesBBCode || _minimapModule.Visible)
 		{
 			_mapPanel.BbcodeEnabled = true;
 			_mapPanel.Clear();
@@ -994,11 +1153,58 @@ public partial class Main : Node, IGameUI
 		_statusBuff.AppendText(StatusModule.BuildBuffInfo(player));
 		_statusEquip.Clear();
 		_statusEquip.AppendText(StatusModule.BuildEquipInfo(player));
+
+		_skillPanel.Refresh(player);
 	}
 
 	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
 	private List<List<string>> BuildDisplayMap() =>
 		_viewMode.BuildDisplayMap(_state, ViewW, ViewH);
+
+	/// <summary>
+	/// 根据 FOV 四态给 displayMap 中的格子加前缀：
+	/// 1. 朝向可见 → 原样（正常亮色）
+	/// 2. 周边感知 → "per:" + 原始glyph（灰色但显示实时内容含怪物）
+	/// 3. 已探索 → "mem:" + 地形glyph（暗色只显示地形）
+	/// 4. 未探索 → "fog:"（黑色迷雾）
+	/// </summary>
+	private void ApplyFOV(List<List<string>> displayMap)
+	{
+		var cx = _state.PlayerX;
+		var cy = _state.PlayerY;
+		var cz = _state.PlayerZ;
+		var halfW = ViewW / 2;
+		var halfH = ViewH / 2;
+
+		for (var vy = 0; vy < displayMap.Count; vy++)
+		{
+			var row = displayMap[vy];
+			var wy = cy - halfH + vy;
+			for (var vx = 0; vx < row.Count; vx++)
+			{
+				var wx = cx - halfW + vx;
+
+				if (_fogTracker.IsVisible(wx, wy, cz))
+					continue;
+
+				if (_fogTracker.IsPeripheral(wx, wy, cz))
+				{
+					row[vx] = "per:" + row[vx];
+					continue;
+				}
+
+				if (_fogTracker.HasSeen(wx, wy, cz))
+				{
+					var terrain = _state.World?.GetTerrain(wx, wy, cz);
+					row[vx] = "mem:" + (terrain?.Glyph ?? " ");
+				}
+				else
+				{
+					row[vx] = "fog:";
+				}
+			}
+		}
+	}
 
 	/// <summary>根据 GameState.ViewModeId 同步视图模式实例。</summary>
 	private void SyncViewMode()
@@ -1008,6 +1214,51 @@ public partial class Main : Node, IGameUI
 			"multi_layer" => new MultiLayerViewMode(),
 			_ => new SingleLayerViewMode(),
 		};
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  技能面板
+	// ══════════════════════════════════════════════════════
+
+	private void ToggleSkillPanel()
+	{
+		_skillPanel.Visible = !_skillPanel.Visible;
+		AddLog(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
+		FlushMap();
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  小地图 / 大地图
+	// ══════════════════════════════════════════════════════
+
+	private void ToggleMinimap()
+	{
+		if (_fogMapModule.Visible) return;
+		_minimapModule.Visible = !_minimapModule.Visible;
+		AddLog(_minimapModule.Visible ? "小地图: 开启 (Tab 关闭)" : "小地图: 关闭");
+		FlushMap();
+	}
+
+	private void ToggleFogMap()
+	{
+		_fogMapModule.Visible = !_fogMapModule.Visible;
+		if (_fogMapModule.Visible)
+		{
+			_fogMapModule.CenterOnPlayer(_state);
+			AddLog("大地图: 开启 (WASD 滚动 / C 回中心 / M 关闭)");
+		}
+		else
+		{
+			AddLog("大地图: 关闭");
+		}
+		FlushMap();
+	}
+
+	private void CenterFogMap()
+	{
+		if (!_fogMapModule.Visible) return;
+		_fogMapModule.CenterOnPlayer(_state);
+		FlushMap();
 	}
 
 	// ══════════════════════════════════════════════════════

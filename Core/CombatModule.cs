@@ -13,7 +13,7 @@ public static class CombatModule
 	/// 对目标的指定肢体发动攻击，返回产出的事件列表。
 	/// </summary>
 	public static List<GameEvent> Attack(GameState state,
-		Actor attacker, Actor target, ActionDef action, Limb targetLimb)
+		Actor attacker, Actor target, InteractionDef action, Limb targetLimb)
 	{
 		var events = new List<GameEvent>();
 
@@ -103,7 +103,7 @@ public static class CombatModule
 	/// <summary>
 	/// 计算伤害值。基于操作能力(manipulation)缩放基础伤害。
 	/// </summary>
-	public static int CalcDamage(Actor attacker, ActionDef action, Actor target)
+	public static int CalcDamage(Actor attacker, InteractionDef action, Actor target)
 	{
 		var aCaps = attacker.ComputeCapacities();
 		var tTags = target.ComputeTags();
@@ -159,19 +159,15 @@ public static class CombatModule
 	}
 
 	/// <summary>
-	/// 获取 Actor 可用的攻击动作（排除 move/look/block 等非攻击类型）。
+	/// 获取 Actor 可用的攻击技能（排除 move/look/block 等非攻击类型）。
 	/// </summary>
-	public static List<ActionDef> GetAttackActions(Actor actor)
-	{
-		return ActionQuery.GetAvailable(actor, ActionDefs.All)
-			.Where(a => a.EffectType is "melee_attack" or "poison_attack" or "drain_attack")
-			.ToList();
-	}
+	public static List<InteractionDef> GetAttackActions(Actor actor) =>
+		SkillQuery.GetAttackSkills(actor);
 
 	/// <summary>
 	/// 简单怪物 AI：随机选可用攻击动作 + 随机选玩家肢体。
 	/// </summary>
-	public static (ActionDef Action, Limb TargetLimb)? MonsterChooseAction(
+	public static (InteractionDef Action, Limb TargetLimb)? MonsterChooseAction(
 		GameState state, Actor monster, Actor player)
 	{
 		var actions = GetAttackActions(monster);

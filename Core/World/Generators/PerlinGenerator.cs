@@ -14,16 +14,13 @@ public class PerlinGenerator : IMapGenerator
 	public string Id => "perlin";
 	public string Name => "自然地形";
 
-	private const double SurfaceScale = 0.03;
-	private const double MoistureScale = 0.025;
 	private const double CaveScale = 0.08;
 	private const double CaveDensityThreshold = 0.1;
-	private const double OreScale = 0.15;
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
 		if (chunk.Coord.Cz == 0)
-			GenerateSurface(chunk, worldSeed);
+			SurfaceGenerator.Generate(chunk, worldSeed);
 		else if (chunk.Coord.Cz > 0)
 			GenerateUnderground(chunk, worldSeed);
 		else
@@ -70,36 +67,6 @@ public class PerlinGenerator : IMapGenerator
 				});
 			}
 		}
-	}
-
-	private void GenerateSurface(ChunkData chunk, int worldSeed)
-	{
-		var heightNoise = new PerlinNoise(worldSeed);
-		var moistureNoise = new PerlinNoise(worldSeed ^ 0x12345678);
-
-		for (var ly = 0; ly < ChunkData.Size; ly++)
-		for (var lx = 0; lx < ChunkData.Size; lx++)
-		{
-			var wx = chunk.Coord.Cx * ChunkData.Size + lx;
-			var wy = chunk.Coord.Cy * ChunkData.Size + ly;
-
-			var height = heightNoise.FBM2D(wx * SurfaceScale, wy * SurfaceScale, 5, 0.5);
-			var moisture = moistureNoise.FBM2D(wx * MoistureScale, wy * MoistureScale, 3, 0.6);
-
-			var terrainId = ClassifySurfaceTerrain(height, moisture);
-			chunk.SetTerrain(lx, ly, terrainId);
-		}
-	}
-
-	private static ushort ClassifySurfaceTerrain(double height, double moisture)
-	{
-		if (height < -0.3) return TerrainRegistry.GetId("water");
-		if (height < -0.15) return TerrainRegistry.GetId("sand");
-		if (height > 0.5) return TerrainRegistry.GetId("mountain");
-		if (height > 0.3) return TerrainRegistry.GetId("wall_stone");
-
-		if (moisture > 0.2) return TerrainRegistry.GetId("tree");
-		return TerrainRegistry.GetId("grass");
 	}
 
 	private void GenerateUnderground(ChunkData chunk, int worldSeed)

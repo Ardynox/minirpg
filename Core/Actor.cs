@@ -16,6 +16,10 @@ public class Actor
 	public string Glyph { get; set; } = "?";
 	public string DisplayName { get; set; } = "";
 
+	/// <summary>朝向 (dx, dy)：最近一次移动的方向。默认朝南。</summary>
+	public int FacingX { get; set; }
+	public int FacingY { get; set; } = 1;
+
 	/// <summary>阵营：普通状态字段，随时可改，和种族无关。</summary>
 	public string Faction { get; set; } = Factions.Hostile;
 
@@ -107,6 +111,27 @@ public class Actor
 
 	/// <summary>查询单个能力的当前值，不存在返回 0。</summary>
 	public float GetCapacity(string capId) => ComputeCapacities().GetValueOrDefault(capId);
+
+	/// <summary>
+	/// 计算贡献指定能力的肢体的加权平均材质硬度。
+	/// 权重 = 肢体对该能力的贡献 × 耐久比例。
+	/// </summary>
+	public float GetLimbHardness(string capacityId)
+	{
+		float totalWeight = 0f;
+		float totalHardness = 0f;
+		foreach (var limb in Limbs)
+		{
+			if (!limb.Capacities.TryGetValue(capacityId, out var weight) || weight <= 0f)
+				continue;
+			var ratio = limb.MaxDurability > 0 ? (float)limb.Durability / limb.MaxDurability : 0f;
+			var w = weight * ratio;
+			var mat = MaterialRegistry.Get(limb.Material);
+			totalHardness += mat.Hardness * w;
+			totalWeight += w;
+		}
+		return totalWeight > 0f ? totalHardness / totalWeight : 0f;
+	}
 
 	// ── 肢体操作 ─────────────────────────────────────────
 
