@@ -9,59 +9,32 @@ using MiniRPG.Module;
 namespace MiniRPG;
 
 /// <summary>
-/// 游戏入口节点，实现 IGameUI 接口，同时承担以下职责：
-///   1. 输入路由：接收键盘事件 → 转换为命令字符串 → 分派到对应逻辑
-///   2. 事件分发：Core 层产出 GameEvent 列表 → 翻译为日志/UI 动作
-///   3. 渲染调度：以 MapFps 帧率定时刷新地图 + 状态面板
-///   4. 菜单管理：主菜单、设置面板、选择模式的状态切换
-///   5. 楼层切换：上下楼梯的流程编排
-///   6. 看海模式：定时驱动 TurnModule.TickWatchMode
-///
-/// 设计约束：
-///   - Main 只做「胶水」和「副作用」，不包含游戏核心逻辑。
-///   - 核心逻辑在 Core/ 层的各 Module 中，Main 通过调用 Module 静态方法驱动。
-///   - Main 持有唯一的 GameState 实例，所有 Module 共享同一数据源。
+/// 游戏入口节点（Godot 胶水层），实现 IGameUI 接口。
+/// 职责：Godot 生命周期、输入路由、事件分发路由、渲染调度。
+/// 菜单 UI → MenuModule，会话生命周期 → GameSessionModule，
+/// 事件日志翻译 → EventLogModule，战斗/交易 UI → CombatUIModule/TradeUIModule。
 /// </summary>
-// REVIEW: Main 类承担了太多职责（约 850 行），违反单一职责原则。
-//         输入路由、事件分发、楼层切换、菜单管理、渲染等可以进一步拆分。
-//         虽然作为 Godot 入口节点有一定集中的必要性，但内部逻辑可以委托给更多子模块。
 public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	GroundPanelModule.IHost, ChestPanelModule.IHost
 {
 	private const int MaxLogLines = 30;
-	private const double MapFps = 10.0;
 	private const int ViewW = 21;
 	private const int ViewH = 11;
 
-	private static readonly string SaveDir =
-		System.IO.Path.Combine(OS.GetUserDataDir(), "save");
-	private static string QuickSavePath =>
-		System.IO.Path.Combine(SaveDir, "quicksave.json");
-	private static string ManualSavePath =>
-		System.IO.Path.Combine(SaveDir, "save.json");
-
 	private readonly GameState _state = new();
 	private readonly List<string> _logLines = [];
-	private bool _settingsOpen;
-	private bool _inMenu = true;
-	private bool _gameStarted;
 	private Action<int>? _selectionCallback;
 
-	private VBoxContainer _ui = null!;
 	private PanelContainer _mapPanelNode = null!;
 	private RichTextLabel _mapText = null!;
 	private RichTextLabel _logPanel = null!;
-	private PanelContainer _settingsPanel = null!;
-	private PanelContainer _mainMenu = null!;
-	private Button _continueBtn = null!;
-	private Button _settingSaveBtn = null!;
-	private Button _settingLoadBtn = null!;
-	private Button _settingBackToMenuBtn = null!;
 	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
-	private IViewMode _viewMode = null!;
 	private double _watchTimer;
+
+	private GameSessionModule _session = null!;
+	private MenuModule _menu = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
 	private MinimapModule _minimapModule = null!;
@@ -158,23 +131,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	//  Godot 生命周期
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>节点就绪：加载预设数据、获取 UI 节点引用、注册信号、显示主菜单。</summary>
+	/// <summary>节点就绪：加载预设数据、创建模块、注册信号、显示主菜单。</summary>
 	public override void _Ready()
 	{
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
-		_viewMode = new SingleLayerViewMode();
 		_fogTracker = new FogOfWarTracker();
 		_minimapModule = new MinimapModule(_fogTracker);
 		_fogMapModule = new FogMapModule(_fogTracker);
 
-		_ui = GetNode<VBoxContainer>("UI");
+		_session = new GameSessionModule(_state, _fogTracker);
+		_menu = new MenuModule(this);
+
 		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
 		_mapText = GetNode<RichTextLabel>("UI/TopRow/MapPanel/MarginContainer/MapText");
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
-		_settingsPanel = GetNode<PanelContainer>("SettingsPanel");
-		_mainMenu = GetNode<PanelContainer>("MainMenu");
-		_continueBtn = GetNode<Button>("MainMenu/Center/VBox/ContinueBtn");
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
 		_statusPanelNode = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
@@ -206,31 +177,25 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_tradeUI = new TradeUIModule(this);
 		_inventoryUI = new InventoryUIModule(this);
 
-		_settingSaveBtn = GetNode<Button>("SettingsPanel/VBox/SaveBtn");
-		_settingLoadBtn = GetNode<Button>("SettingsPanel/VBox/LoadBtn");
-		_settingBackToMenuBtn = GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn");
-
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
 		_watchModeBtn = GetNode<Button>("SettingsPanel/VBox/WatchModeToggle");
 		_watchModeBtn.Pressed += ToggleWatchMode;
-		_settingSaveBtn.Pressed += () => DoSave(ManualSavePath);
-		_settingLoadBtn.Pressed += () => DoLoad(ManualSavePath);
-		_settingBackToMenuBtn.Pressed += BackToMenu;
-		GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += CloseSettings;
+		GetNode<Button>("SettingsPanel/VBox/SaveBtn").Pressed += () => DoSave(GameSessionModule.ManualSavePath);
+		GetNode<Button>("SettingsPanel/VBox/LoadBtn").Pressed += () => DoLoad(GameSessionModule.ManualSavePath);
 
-		_continueBtn.Pressed += MenuContinue;
-		GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += MenuNewGame;
-		GetNode<Button>("MainMenu/Center/VBox/LoadGameBtn").Pressed += MenuLoadGame;
-		GetNode<Button>("MainMenu/Center/VBox/SettingsBtn").Pressed += MenuSettings;
-		GetNode<Button>("MainMenu/Center/VBox/QuitBtn").Pressed += MenuQuit;
+		_menu.OnContinue += HandleMenuContinue;
+		_menu.OnNewGame += HandleMenuNewGame;
+		_menu.OnLoadGame += HandleMenuLoadGame;
+		_menu.OnQuit += () => GetTree().Quit();
+		_menu.OnBackToMenu += HandleBackToMenu;
 
-		ShowMainMenu();
+		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
 	/// <summary>每帧更新：驱动看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
-		if (_inMenu) return;
+		if (_menu.InMenu) return;
 
 		if (_state.WatchMode && !PlayerDead)
 		{
@@ -246,7 +211,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>拦截未处理的键盘事件，转发给 InputModule 处理。</summary>
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (_inMenu) return;
+		if (_menu.InMenu) return;
 		if (@event is InputEventKey key && _inputModule.HandleKeyInput(key))
 			GetViewport().SetInputAsHandled();
 	}
@@ -254,7 +219,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>全局输入：检测鼠标点击落在哪个面板内，切换焦点。</summary>
 	public override void _Input(InputEvent @event)
 	{
-		if (_inMenu || !_gameStarted) return;
+		if (_menu.InMenu || !_session.GameStarted) return;
 		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
 		if (mb.ButtonIndex != MouseButton.Left) return;
 
@@ -315,137 +280,79 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  主菜单
+	//  菜单事件处理（MenuModule 回调）
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>显示主菜单，隐藏游戏 UI。检查是否存在存档来决定「继续」按钮可见性。</summary>
-	private void ShowMainMenu()
+	private void HandleMenuContinue()
 	{
-		_inMenu = true;
-		_mainMenu.Visible = true;
-		_ui.Visible = false;
-		_settingsPanel.Visible = false;
-		_settingsOpen = false;
-		CancelSelection();
-
-		var hasSave = System.IO.File.Exists(QuickSavePath)
-			|| System.IO.File.Exists(ManualSavePath);
-		_continueBtn.Visible = hasSave;
-	}
-
-	/// <summary>从主菜单切换到游戏界面。</summary>
-	private void EnterGame()
-	{
-		_inMenu = false;
-		_mainMenu.Visible = false;
-		_ui.Visible = true;
-		_inputModule.EnterActionMode();
-		FlushMap();
-	}
-
-	/// <summary>「继续」按钮：优先加载快速存档，其次手动存档，都失败则新建游戏。</summary>
-	private void MenuContinue()
-	{
-		if (SaveModule.LoadGame(_state, QuickSavePath)
-			|| SaveModule.LoadGame(_state, ManualSavePath))
+		if (!_session.TryContinue())
 		{
-			MapGenModule.InitializeWorld(_state);
-			EnsurePlayerActor();
-			SyncViewMode();
-			_logLines.Clear();
-			AddLog("存档已加载 📂");
+			DoStartNewGame();
 		}
 		else
 		{
-			StartNewGame();
-		}
-		ShowGameHints();
-		EnterGame();
-	}
-
-	/// <summary>「新游戏」按钮。</summary>
-	private void MenuNewGame()
-	{
-		StartNewGame();
-		ShowGameHints();
-		EnterGame();
-	}
-
-	/// <summary>「加载游戏」按钮：优先手动存档，其次快速存档，都失败则新建游戏。</summary>
-	private void MenuLoadGame()
-	{
-		if (SaveModule.LoadGame(_state, ManualSavePath))
-		{
-			MapGenModule.InitializeWorld(_state);
-			EnsurePlayerActor();
-			SyncViewMode();
 			_logLines.Clear();
 			AddLog("存档已加载 📂");
 		}
-		else if (SaveModule.LoadGame(_state, QuickSavePath))
+		ShowGameHints();
+		DoEnterGame();
+	}
+
+	private void HandleMenuNewGame()
+	{
+		DoStartNewGame();
+		ShowGameHints();
+		DoEnterGame();
+	}
+
+	private void HandleMenuLoadGame()
+	{
+		if (_session.TryLoadGame())
 		{
-			MapGenModule.InitializeWorld(_state);
-			EnsurePlayerActor();
-			SyncViewMode();
 			_logLines.Clear();
-			AddLog("快速存档已加载 📂");
+			AddLog("存档已加载 📂");
 		}
 		else
 		{
 			_logLines.Clear();
 			AddLog("未找到存档，已创建新游戏");
-			StartNewGame();
+			DoStartNewGame();
 		}
 		ShowGameHints();
-		EnterGame();
+		DoEnterGame();
 	}
 
-	private bool _settingsFromMenu;
-
-	/// <summary>从主菜单打开设置面板。</summary>
-	private void MenuSettings()
+	private void HandleBackToMenu()
 	{
-		_settingsFromMenu = true;
-		_settingsPanel.Visible = true;
-		_mainMenu.Visible = false;
-		UpdateSettingsContext();
+		if (_session.GameStarted)
+			DoSave(GameSessionModule.QuickSavePath, "快速存档");
+		CancelSelection();
+		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
-	private void MenuQuit() => GetTree().Quit();
-
-	/// <summary>「返回主菜单」按钮：自动快速存档后返回主菜单。</summary>
-	private void BackToMenu()
+	private void DoStartNewGame()
 	{
-		_settingsOpen = false;
-		_settingsPanel.Visible = false;
-		if (!_gameStarted) { ShowMainMenu(); return; }
-		DoSave(QuickSavePath, "快速存档");
-		ShowMainMenu();
-	}
-
-	/// <summary>重置状态并初始化无限世界。</summary>
-	private void StartNewGame()
-	{
-		_state.Reset();
-		_state.WorldSeed = System.Environment.TickCount;
 		_logLines.Clear();
 		PlayerDead = false;
-		_fogTracker.Clear();
+		_session.NewGame();
 		_fogMapModule.Visible = false;
 		_minimapModule.Visible = false;
 		_skillPanel.Visible = false;
 		_inventoryPanel.Visible = false;
 		_chestPanel.Visible = false;
-		InitializeWorld();
-		_gameStarted = true;
 		RefreshAllBorders();
 		AddLog("新游戏开始 🗺️");
 	}
 
-	/// <summary>在日志中显示操作提示。</summary>
+	private void DoEnterGame()
+	{
+		_menu.EnterGame();
+		_inputModule.EnterActionMode();
+		FlushMap();
+	}
+
 	private void ShowGameHints()
 	{
-		_gameStarted = true;
 		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
 		AddLog("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
 	}
@@ -482,7 +389,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (PlayerDead)
 		{
 			PlayerDead = false;
-			ShowMainMenu();
+			_menu.ShowMainMenu(_session.HasAnySave());
 			return;
 		}
 
@@ -538,9 +445,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		{
 			case ":settings" or "settings":
 				if (_fogMapModule.Visible) { _fogMapModule.Visible = false; AddLog("大地图: 关闭"); FlushMap(); return; }
-				ToggleSettings(); return;
-			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
-			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
+				_menu.ToggleSettings(_session.GameStarted); return;
+			case ":quicksave": DoSave(GameSessionModule.QuickSavePath, "快速存档"); return;
+			case ":quickload": DoLoad(GameSessionModule.QuickSavePath, "快速存档"); return;
 			case ":interact" or "interact": DoInteract(); return;
 			case ":dig": StartDig(); return;
 			case ":inventory": ToggleInventory(); return;
@@ -553,7 +460,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":fogmap_center": CenterFogMap(); return;
 		}
 
-		if (_settingsOpen) return;
+		if (_menu.SettingsOpen) return;
 
 		if (_fogMapModule.Visible)
 		{
@@ -575,12 +482,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
-			case "save": DoSave(ManualSavePath); break;
-			case "load": DoLoad(ManualSavePath); break;
+			case "save": DoSave(GameSessionModule.ManualSavePath); break;
+			case "load": DoLoad(GameSessionModule.ManualSavePath); break;
 			case "newmap":
-				_state.Reset();
-				_state.WorldSeed = System.Environment.TickCount;
-				InitializeWorld();
+				_session.NewGame();
 				AddLog("新地图已生成 🗺️");
 				FlushMap();
 				break;
@@ -1189,18 +1094,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>保存游戏到指定路径。</summary>
 	private void DoSave(string path, string label = "存档")
 	{
-		SaveModule.SaveGame(_state, path);
+		_session.SaveGame(path);
 		AddLog($"{label}已保存 💾");
 	}
 
 	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
 	private void DoLoad(string path, string label = "存档")
 	{
-		if (SaveModule.LoadGame(_state, path))
+		if (_session.LoadGame(path))
 		{
-			MapGenModule.InitializeWorld(_state);
-			EnsurePlayerActor();
-			SyncViewMode();
 			AddLog($"{label}已加载 📂 (Z{_state.PlayerZ})");
 			FlushMap();
 		}
@@ -1208,45 +1110,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		{
 			AddLog($"未找到{label} ❌");
 		}
-	}
-
-	/// <summary>初始化无限世界：创建 WorldMap、找出生点、生成玩家。</summary>
-	private void InitializeWorld()
-	{
-		MapGenModule.InitializeWorld(_state);
-		MapGenModule.FindSpawnPoint(_state);
-		MapGenModule.SpawnPlayer(_state);
-		SyncViewMode();
-	}
-
-	/// <summary>
-	/// 防御性保障：确保玩家 Actor 存在于 Actors 字典中。
-	/// 1. PlayerId 已在 Actors 中 → 直接返回
-	/// 2. PlayerId 不在，但 Actors 中有 Player 阵营的 Actor → 修正 PlayerId 指向它
-	/// 3. 完全找不到 → 创建最小 fallback（仅保证不崩溃）
-	/// </summary>
-	private void EnsurePlayerActor()
-	{
-		if (_state.Actors.ContainsKey(_state.PlayerId))
-			return;
-
-		foreach (var a in _state.Actors.Values)
-		{
-			if (a.Faction != Factions.Player) continue;
-			GD.PushWarning($"EnsurePlayerActor: PlayerId '{_state.PlayerId}' missing, recovered existing player Actor '{a.Id}'");
-			_state.PlayerId = a.Id;
-			_state.PlayerX = a.X;
-			_state.PlayerY = a.Y;
-			_state.PlayerZ = a.Z;
-			return;
-		}
-
-		GD.PushWarning($"EnsurePlayerActor: no player Actor found at all, creating minimal fallback");
-		var player = ActorTemplates.Spawn("player", _state.PlayerId);
-		player.X = _state.PlayerX;
-		player.Y = _state.PlayerY;
-		player.Z = _state.PlayerZ;
-		_state.Actors[player.Id] = player;
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1258,9 +1121,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		var mode = _renderModule.ToggleMode();
 		_renderModule.ApplyFont(_mapText);
-		if (_gameStarted && !_inMenu)
+		if (_session.GameStarted && !_menu.InMenu)
 			AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
-		if (!_inMenu) FlushMap();
+		if (!_menu.InMenu) FlushMap();
 	}
 
 	/// <summary>立即刷新地图面板和状态面板。</summary>
@@ -1313,7 +1176,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
 	private List<List<string>> BuildDisplayMap() =>
-		_viewMode.BuildDisplayMap(_state, ViewW, ViewH);
+		_session.ViewMode.BuildDisplayMap(_state, ViewW, ViewH);
 
 	/// <summary>
 	/// 根据 FOV 四态给 displayMap 中的格子加前缀：
@@ -1358,16 +1221,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				}
 			}
 		}
-	}
-
-	/// <summary>根据 GameState.ViewModeId 同步视图模式实例。</summary>
-	private void SyncViewMode()
-	{
-		_viewMode = _state.ViewModeId switch
-		{
-			"multi_layer" => new MultiLayerViewMode(),
-			_ => new SingleLayerViewMode(),
-		};
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1480,43 +1333,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (!_fogMapModule.Visible) return;
 		_fogMapModule.CenterOnPlayer(_state);
 		FlushMap();
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  设置面板
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>根据进入来源（主菜单/游戏中）决定设置面板中哪些按钮可见。</summary>
-	private void UpdateSettingsContext()
-	{
-		var inGame = _gameStarted && !_settingsFromMenu;
-		_settingSaveBtn.Visible = inGame;
-		_settingLoadBtn.Visible = inGame;
-		_settingBackToMenuBtn.Visible = inGame;
-	}
-
-	/// <summary>切换设置面板的显示/隐藏。</summary>
-	private void ToggleSettings()
-	{
-		_settingsFromMenu = false;
-		_settingsOpen = !_settingsOpen;
-		_settingsPanel.Visible = _settingsOpen;
-		if (_settingsOpen) UpdateSettingsContext();
-	}
-
-	/// <summary>关闭设置面板。如果从主菜单进入则返回主菜单。</summary>
-	private void CloseSettings()
-	{
-		if (_settingsFromMenu)
-		{
-			_settingsFromMenu = false;
-			_settingsPanel.Visible = false;
-			ShowMainMenu();
-		}
-		else
-		{
-			ToggleSettings();
-		}
 	}
 
 	// ══════════════════════════════════════════════════════
