@@ -28,6 +28,10 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "切换渲染模式 (Emoji / ASCII)"
 
+[node name="WatchModeToggle" type="Button" parent="VBox"]
+layout_mode = 2
+text = "看海模式：关闭"
+
 [node name="KeyBindingsLabel" type="Label" parent="VBox"]
 layout_mode = 2
 text = "── 按键绑定 ──

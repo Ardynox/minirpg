@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^d.*\\\\.$\")",
+      "Bash(wc -l /d/Godot/mini-rpg/Core/*.cs /d/Godot/mini-rpg/Module/*.cs)",
+      "Bash(grep -n \"PlayerId\\\\|GetPlayer\" /d/Godot/mini-rpg/Core/*.cs)"
+    ]
+  }
+}

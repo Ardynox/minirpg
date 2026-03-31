@@ -185,40 +185,4 @@ public static class MapModule
 		}
 	}
 
-	// ── 玩家移动 ──────────────────────────────────────────
-
-	/// <summary>
-	/// 尝试移动玩家。通过 ActorModule 同步 Objects 层。
-	/// 目标是墙 → hit_wall；目标有敌人 → attack_hit（击杀通过 ActorModule.Remove）；
-	/// 否则 → actor_moved。
-	/// </summary>
-	public static List<GameEvent> TryMovePlayer(GameState s, int dx, int dy)
-	{
-		var events = new List<GameEvent>();
-		var nx = s.PlayerX + dx;
-		var ny = s.PlayerY + dy;
-
-		if (IsWall(s, nx, ny))
-		{
-			events.Add(new GameEvent("hit_wall"));
-			return events;
-		}
-
-		var hostile = ActorModule.GetHostileAt(s, nx, ny);
-		if (hostile != null)
-		{
-			events.Add(new GameEvent("combat_bump")
-			{
-				TargetX = nx, TargetY = ny,
-				TargetActorName = hostile.DisplayName,
-				InitiatorId = s.PlayerId,
-				TargetId = hostile.Id,
-			});
-			return events;
-		}
-
-		ActorModule.MoveActor(s, s.PlayerId, nx, ny);
-		events.Add(new GameEvent("actor_moved") { TargetX = nx, TargetY = ny, InitiatorId = s.PlayerId });
-		return events;
-	}
 }

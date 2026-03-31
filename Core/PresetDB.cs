@@ -224,6 +224,9 @@ public static class PresetDB
 			});
 		}
 
+		if (preset.Faction != "player")
+			actor.BrainId = "simple";
+
 		return actor;
 	}
 

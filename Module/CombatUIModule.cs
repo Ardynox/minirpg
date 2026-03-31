@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MiniRPG.Core;
+using MiniRPG.Core.AI;
 
 namespace MiniRPG.Module;
 
@@ -143,12 +144,12 @@ public class CombatUIModule
 
 	public void MonsterCounterAttack(Actor player, Actor monster)
 	{
-		var choice = CombatModule.MonsterChooseAction(_ui.State, monster, player);
-		if (choice == null) return;
+		var mEvents = AIDispatcher.DecideAndExecuteOne(_ui.State, monster);
+		DispatchCounterAttack(player, monster, mEvents);
+	}
 
-		var (mAction, mLimb) = choice.Value;
-		var mEvents = CombatModule.Attack(_ui.State, monster, player, mAction, mLimb);
-
+	private void DispatchCounterAttack(Actor player, Actor monster, List<GameEvent> mEvents)
+	{
 		foreach (var ev in mEvents)
 		{
 			switch (ev.Type)

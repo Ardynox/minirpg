@@ -41,8 +41,10 @@ public partial class Main : Node, IGameUI
 	private Button _settingSaveBtn = null!;
 	private Button _settingLoadBtn = null!;
 	private Button _settingBackToMenuBtn = null!;
+	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
+	private double _watchTimer;
 
 	private PanelContainer _statusPanel = null!;
 	private RichTextLabel _statusName = null!;
@@ -105,6 +107,8 @@ public partial class Main : Node, IGameUI
 		_settingBackToMenuBtn = GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn");
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
+		_watchModeBtn = GetNode<Button>("SettingsPanel/VBox/WatchModeToggle");
+		_watchModeBtn.Pressed += ToggleWatchMode;
 		_settingSaveBtn.Pressed += () => DoSave(ManualSavePath);
 		_settingLoadBtn.Pressed += () => DoLoad(ManualSavePath);
 		_settingBackToMenuBtn.Pressed += BackToMenu;
@@ -122,6 +126,17 @@ public partial class Main : Node, IGameUI
 	public override void _Process(double delta)
 	{
 		if (_inMenu) return;
+
+		if (_state.WatchMode && !PlayerDead)
+		{
+			_watchTimer += delta;
+			if (_watchTimer >= 0.15)
+			{
+				_watchTimer = 0;
+				WatchModeTick();
+			}
+		}
+
 		_renderTimer += delta;
 		if (!_mapDirty || _renderTimer < 1.0 / MapFps)
 			return;
@@ -389,6 +404,28 @@ public partial class Main : Node, IGameUI
 		});
 	}
 
+	// ── 看海模式 ────────────────────────────────────────────
+
+	private void ToggleWatchMode()
+	{
+		_state.WatchMode = !_state.WatchMode;
+		_watchTimer = 0;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player != null)
+			player.BrainId = _state.WatchMode ? "simple" : null;
+
+		_watchModeBtn.Text = _state.WatchMode ? "看海模式：开启 🌊" : "看海模式：关闭";
+		AddLog(_state.WatchMode ? "看海模式已开启 🌊 世界将自动推进" : "看海模式已关闭 🎮 恢复手动控制");
+	}
+
+	private void WatchModeTick()
+	{
+		var events = TurnModule.TickWatchMode(_state);
+		Dispatch(events);
+		FlushMap();
+	}
+
 	// ── 移动 ──────────────────────────────────────────────
 
 	private void DoMove(int dx, int dy)
@@ -399,10 +436,11 @@ public partial class Main : Node, IGameUI
 			ShowMainMenu();
 			return;
 		}
-		var events = MapModule.TryMovePlayer(_state, dx, dy);
-		_state.Turn++;
-		var nestEvents = NestModule.Tick(_state);
-		events.AddRange(nestEvents);
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+
+		var events = ActionModule.TryMove(_state, player, dx, dy);
+		events.AddRange(TurnModule.Tick(_state));
 		Dispatch(events);
 		FlushMap();
 	}
@@ -430,37 +468,80 @@ public partial class Main : Node, IGameUI
 					_combatUI.HandleCombatBump(e);
 					break;
 				case "combat_attack":
-				{
-					AddLog($"⚔️ {e.ActionName} → {e.TargetActorName}的{e.LimbName}，造成{e.Damage}点伤害");
-					var hitTarget = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
-					if (hitTarget != null)
-					{
-						var hl = hitTarget.Limbs.Find(l => l.Name == e.LimbName);
-						if (hl != null)
-							AddLog($"   {e.LimbName} ({hl.Durability}/{hl.MaxDurability})");
-					}
+					DispatchCombatAttack(e);
 					break;
-				}
 				case "combat_block":
 					AddLog($"🛡️ {e.TargetActorName}使用了{e.ActionName}！防御+5 (1回合)");
 					break;
 				case "limb_destroyed":
-					AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
+					DispatchLimbDestroyed(e);
 					break;
 				case "actor_killed":
-					_combatUI.HandleActorKilled(e);
+					DispatchActorKilled(e);
 					break;
 				case "actor_incapacitated":
-					AddLog($"😵 {e.TargetActorName}失去了意识！");
-					break;
-				case "player_limb_hit":
-					AddLog($"🩸 {e.TargetActorName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
-					break;
-				case "player_died":
-					AddLog("💀 你死了……");
-					AddLog("按任意方向键返回主菜单");
+					DispatchIncapacitated(e);
 					break;
 			}
+		}
+	}
+
+	private void DispatchCombatAttack(GameEvent e)
+	{
+		if (e.TargetId == _state.PlayerId)
+		{
+			var attackerName = e.InitiatorId != null
+				? ActorModule.GetById(_state, e.InitiatorId)?.DisplayName ?? "???"
+				: "???";
+			AddLog($"🩸 {attackerName}攻击了你的{e.LimbName}，造成{e.Damage}点伤害");
+		}
+		else
+		{
+			AddLog($"⚔️ {e.ActionName} → {e.TargetActorName}的{e.LimbName}，造成{e.Damage}点伤害");
+		}
+
+		var hitTarget = e.TargetId != null ? ActorModule.GetById(_state, e.TargetId) : null;
+		if (hitTarget != null)
+		{
+			var hl = hitTarget.Limbs.Find(l => l.Name == e.LimbName);
+			if (hl != null)
+				AddLog($"   {e.LimbName} ({hl.Durability}/{hl.MaxDurability})");
+		}
+	}
+
+	private void DispatchLimbDestroyed(GameEvent e)
+	{
+		if (e.TargetId == _state.PlayerId)
+			AddLog($"💥 你的{e.LimbName}被摧毁了！");
+		else
+			AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
+	}
+
+	private void DispatchActorKilled(GameEvent e)
+	{
+		if (e.TargetId == _state.PlayerId)
+		{
+			AddLog("💀 你死了……");
+			AddLog("按任意方向键返回主菜单");
+			PlayerDead = true;
+		}
+		else
+		{
+			_combatUI.HandleActorKilled(e);
+		}
+	}
+
+	private void DispatchIncapacitated(GameEvent e)
+	{
+		if (e.TargetId == _state.PlayerId)
+		{
+			AddLog("😵 你失去了意识……");
+			AddLog("按任意方向键返回主菜单");
+			PlayerDead = true;
+		}
+		else
+		{
+			AddLog($"😵 {e.TargetActorName}失去了意识！");
 		}
 	}
 

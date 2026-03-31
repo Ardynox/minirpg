@@ -35,6 +35,13 @@ public class GameState
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
 
+	// ── 设置 ──
+	/// <summary>向敌对目标移动时视为攻击（默认开启）。</summary>
+	public bool BumpAttack { get; set; } = true;
+
+	/// <summary>看海模式：玩家由 AI 自动控制，世界自动推进。</summary>
+	public bool WatchMode { get; set; }
+
 	// ── 其他楼层缓存（当前楼层数据在上面的直属字段里，其余楼层在这里） ──
 	public Dictionary<int, FloorData> Floors { get; set; } = new();
 

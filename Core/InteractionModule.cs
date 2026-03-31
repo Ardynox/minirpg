@@ -11,21 +11,28 @@ public static class InteractionModule
 {
 	private static readonly (int Dx, int Dy)[] Dirs = [(0, -1), (0, 1), (-1, 0), (1, 0), (0, 0)];
 
-	/// <summary>扫描玩家相邻 + 脚下的所有非玩家 Actor。</summary>
-	public static List<Actor> GetAvailableTargets(GameState state)
+	/// <summary>扫描指定 Actor 相邻 + 脚下的所有其他 Actor。</summary>
+	public static List<Actor> GetAvailableTargets(GameState state, Actor initiator)
 	{
 		var targets = new List<Actor>();
 		foreach (var (dx, dy) in Dirs)
 		{
-			var x = state.PlayerX + dx;
-			var y = state.PlayerY + dy;
+			var x = initiator.X + dx;
+			var y = initiator.Y + dy;
 			foreach (var actor in ActorModule.GetAllAt(state, x, y))
 			{
-				if (actor.Id != state.PlayerId)
+				if (actor.Id != initiator.Id)
 					targets.Add(actor);
 			}
 		}
 		return targets;
+	}
+
+	/// <summary>兼容旧调用：扫描玩家附近目标。</summary>
+	public static List<Actor> GetAvailableTargets(GameState state)
+	{
+		var player = ActorModule.GetPlayer(state);
+		return player != null ? GetAvailableTargets(state, player) : [];
 	}
 
 	/// <summary>根据双方 tag/能力过滤出满足条件的交互列表。</summary>
