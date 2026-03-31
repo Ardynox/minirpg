@@ -42,8 +42,6 @@ public partial class Main : Node, IGameUI
 
 	private readonly GameState _state = new();
 	private readonly List<string> _logLines = [];
-	private bool _mapDirty;
-	private double _renderTimer;
 	private bool _settingsOpen;
 	private bool _inMenu = true;
 	private bool _gameStarted;
@@ -145,11 +143,7 @@ public partial class Main : Node, IGameUI
 		ShowMainMenu();
 	}
 
-	/// <summary>每帧更新：驱动看海模式自动推进 + 脏标记渲染节流。</summary>
-	// REVIEW: _mapDirty 字段在 FlushMap 中被清零，但只在 _Process 中检查。
-	//         DoMove / GoDown 等方法直接调用 FlushMap()，此时 _mapDirty 不会被设为 true。
-	//         _mapDirty 实际上从未被设为 true（没有赋值为 true 的地方），
-	//         因此 _Process 中的脏标记渲染分支永远不会触发，是死代码。
+	/// <summary>每帧更新：驱动看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
 		if (_inMenu) return;
@@ -163,13 +157,6 @@ public partial class Main : Node, IGameUI
 				WatchModeTick();
 			}
 		}
-
-		_renderTimer += delta;
-		if (!_mapDirty || _renderTimer < 1.0 / MapFps)
-			return;
-		_renderTimer = 0;
-		_mapDirty = false;
-		FlushMap();
 	}
 
 	/// <summary>拦截未处理的键盘事件，转发给 InputModule 处理。</summary>
@@ -329,10 +316,6 @@ public partial class Main : Node, IGameUI
 	/// 核心命令路由。命令来源：InputModule 的键盘映射或文本输入。
 	/// 前缀 ":" 的是快捷键命令，无前缀的是文本命令。
 	/// </summary>
-	// REVIEW: 命令路由使用两层 switch：先处理全局命令（:settings 等），
-	//         再在 _settingsOpen 守卫后处理游戏内命令。
-	//         但 "interact" 同时出现在两处（":interact" 和 "interact"），有重复路径。
-	//         "render" 和 ":render" 也重复。建议统一命令命名约定。
 	private void OnCommand(string cmd)
 	{
 		if (cmd == ":select_cancel")
@@ -356,11 +339,12 @@ public partial class Main : Node, IGameUI
 
 		switch (cmd)
 		{
-			case ":settings": ToggleSettings(); return;
+			case ":settings" or "settings": ToggleSettings(); return;
 			case ":quicksave": DoSave(QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
-			case ":interact": DoInteract(); return;
+			case ":interact" or "interact": DoInteract(); return;
 			case ":inventory": _inventoryUI.Open(); return;
+			case ":render" or "render": ToggleRender(); return;
 		}
 
 		if (_settingsOpen) return;
@@ -373,7 +357,6 @@ public partial class Main : Node, IGameUI
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
-			case "interact": DoInteract(); break;
 			case "save": DoSave(ManualSavePath); break;
 			case "load": DoLoad(ManualSavePath); break;
 			case "newmap":
@@ -383,9 +366,6 @@ public partial class Main : Node, IGameUI
 				AddLog("新地图已生成 🗺️");
 				FlushMap();
 				break;
-			case ":render": ToggleRender(); break;
-			case "render": ToggleRender(); break;
-			case "settings": ToggleSettings(); break;
 			default: AddLog("未知指令 ❓"); break;
 		}
 	}
@@ -659,9 +639,6 @@ public partial class Main : Node, IGameUI
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>尝试使用楼梯：扫描脚下 + 四方向是否有楼梯 Fixture。</summary>
-	// REVIEW: DoEnterStairs 使用 GetFixture 返回 Glyph（">" / "<"）做匹配。
-	//         格子栈模型下应使用 HasFixture(s, x, y, "stair_down") 做语义判断，
-	//         而非依赖 Glyph 字符。如果 Glyph 在 Emoji 模式下改变，此逻辑会失效。
 	private void DoEnterStairs()
 	{
 		var px = _state.PlayerX;
@@ -670,12 +647,10 @@ public partial class Main : Node, IGameUI
 
 		foreach (var (dx, dy) in dirs)
 		{
-			var fixture = MapModule.GetFixture(_state, px + dx, py + dy);
-			switch (fixture)
-			{
-				case ">": GoDown(); return;
-				case "<": GoUp(); return;
-			}
+			var nx = px + dx;
+			var ny = py + dy;
+			if (MapModule.HasFixture(_state, nx, ny, Entities.StairDown)) { GoDown(); return; }
+			if (MapModule.HasFixture(_state, nx, ny, Entities.StairUp)) { GoUp(); return; }
 		}
 		AddLog("附近没有楼梯 🤷");
 	}
@@ -686,7 +661,7 @@ public partial class Main : Node, IGameUI
 		if (MapModule.GoDownFloor(_state))
 		{
 			EnsurePlayerActor();
-			MapModule.PlacePlayerAtFixture(_state, "stair_up");
+			MapModule.PlacePlayerAtFixture(_state, Entities.StairUp);
 			AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬇️");
 		}
 		else
@@ -706,7 +681,7 @@ public partial class Main : Node, IGameUI
 			return;
 		}
 		EnsurePlayerActor();
-		MapModule.PlacePlayerAtFixture(_state, "stair_down");
+		MapModule.PlacePlayerAtFixture(_state, Entities.StairDown);
 		AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬆️");
 		FlushMap();
 	}
@@ -735,7 +710,7 @@ public partial class Main : Node, IGameUI
 			sb.Append(string.Join(" ", parts));
 		}
 
-		var standingOn = MapModule.GetFixture(_state, _state.PlayerX, _state.PlayerY);
+		var standingOn = MapModule.GetFixtureId(_state, _state.PlayerX, _state.PlayerY);
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
 
@@ -769,22 +744,21 @@ public partial class Main : Node, IGameUI
 			var names = actors.ConvertAll(a => a.DisplayName);
 			return string.Join("+", names);
 		}
-		var f = MapModule.GetFixture(_state, x, y);
+		var f = MapModule.GetFixtureId(_state, x, y);
 		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
 		return "空地";
 	}
 
-	/// <summary>Fixture Glyph → 中文标签。</summary>
-	// REVIEW: 使用 Glyph 做映射（">" → "下行楼梯"），应改为使用 EntityId。
-	//         与 DoEnterStairs 存在同样的 Glyph 依赖问题。
-	private static string FixtureLabel(string f) => f switch
+	/// <summary>Fixture EntityId → 中文标签。</summary>
+	private static string FixtureLabel(string id) => id switch
 	{
-		">" => "下行楼梯 ⬇️",
-		"<" => "上行楼梯 ⬆️",
-		"N" => "巢穴 🕳️",
-		"H" => "房屋 🏠",
-		"I" => "道具 📦",
-		_ => f,
+		Entities.StairDown => "下行楼梯 ⬇️",
+		Entities.StairUp => "上行楼梯 ⬆️",
+		Entities.Nest => "巢穴 🕳️",
+		Entities.House => "房屋 🏠",
+		Entities.Item => "道具 📦",
+		Entities.Door => "门 🚪",
+		_ => id,
 	};
 
 	// ══════════════════════════════════════════════════════
@@ -855,7 +829,6 @@ public partial class Main : Node, IGameUI
 	/// <summary>立即刷新地图面板和状态面板。</summary>
 	private void FlushMap()
 	{
-		_mapDirty = false;
 		var displayMap = BuildDisplayMap();
 		var text = _renderModule.RenderMap(displayMap);
 		if (_renderModule.UsesBBCode)

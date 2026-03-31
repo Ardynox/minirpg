@@ -17,9 +17,8 @@ namespace MiniRPG.Core;
 /// </summary>
 public static class ActionModule
 {
-	// REVIEW: CardinalDirs 声明了但从未使用。GetInteractTargets 里重复定义了局部数组。
-	//         应统一使用此常量或删除。
-	private static readonly (int Dx, int Dy)[] CardinalDirs = [(0, -1), (0, 1), (-1, 0), (1, 0)];
+	private static readonly (int Dx, int Dy)[] SurroundDirs =
+		[(0, 0), (0, -1), (0, 1), (-1, 0), (1, 0)];
 
 	/// <summary>
 	/// 尝试移动 Actor 到 (actor.X+dx, actor.Y+dy)。
@@ -89,13 +88,10 @@ public static class ActionModule
 	/// <summary>
 	/// 扫描 actor 脚下 + 四方向相邻格子中的所有非自身 Actor，作为可交互目标。
 	/// </summary>
-	// REVIEW: 局部定义了与类级 CardinalDirs 重复的方向数组（多了 (0,0) 脚下）。
-	//         建议抽取为包含 (0,0) 的共享常量 SurroundDirs。
 	public static List<Actor> GetInteractTargets(GameState state, Actor actor)
 	{
 		var targets = new List<Actor>();
-		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
-		foreach (var (dx, dy) in dirs)
+		foreach (var (dx, dy) in SurroundDirs)
 		{
 			foreach (var other in ActorModule.GetAllAt(state, actor.X + dx, actor.Y + dy))
 			{

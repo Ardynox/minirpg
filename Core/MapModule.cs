@@ -27,29 +27,36 @@ public static class MapModule
 	/// 'P' → floor + 记录玩家坐标；其他未识别字符 → 默认为 floor。
 	/// Actor 不在此创建，由调用方单独处理。
 	/// </summary>
-	// REVIEW: LoadFromStrings 假设每行等长（MapWidth = rows[0].Length），
-	//         但如果 rows 各行长度不同会导致越界。应加校验或用 Max。
 	public static void LoadFromStrings(GameState state, string[] rows)
 	{
 		state.Cells.Clear();
 		state.MapHeight = rows.Length;
-		state.MapWidth = rows.Length > 0 ? rows[0].Length : 0;
+		state.MapWidth = 0;
+		foreach (var r in rows)
+			if (r.Length > state.MapWidth) state.MapWidth = r.Length;
 		state.PlayerX = -1;
 		state.PlayerY = -1;
 
 		for (var y = 0; y < rows.Length; y++)
 		{
 			var row = new List<List<CellEntity>>();
-			for (var x = 0; x < rows[y].Length; x++)
+			for (var x = 0; x < state.MapWidth; x++)
 			{
-				var ch = rows[y][x].ToString();
-				var stack = new List<CellEntity>();
-				ClassifyCell(ch, stack);
-				row.Add(stack);
-				if (ch == "P")
+				if (x < rows[y].Length)
 				{
-					state.PlayerX = x;
-					state.PlayerY = y;
+					var ch = rows[y][x].ToString();
+					var stack = new List<CellEntity>();
+					ClassifyCell(ch, stack);
+					row.Add(stack);
+					if (ch == "P")
+					{
+						state.PlayerX = x;
+						state.PlayerY = y;
+					}
+				}
+				else
+				{
+					row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = Entities.Wall }]);
 				}
 			}
 			state.Cells.Add(row);
@@ -62,37 +69,37 @@ public static class MapModule
 		switch (ch)
 		{
 			case "#":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = "wall" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = Entities.Wall });
 				break;
 			case ".":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
 				break;
 			case "D":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "D", EntityId = "door" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "D", EntityId = Entities.Door });
 				break;
 			case "N":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "N", EntityId = "nest" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
 				break;
 			case "I":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "I", EntityId = "item" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "I", EntityId = Entities.Item });
 				break;
 			case "H":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "H", EntityId = "house" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "H", EntityId = Entities.House });
 				break;
 			case ">":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = ">", EntityId = "stair_down" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				break;
 			case "<":
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
-				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "<", EntityId = "stair_up" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
+				stack.Add(new CellEntity { Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
 				break;
 			default:
-				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = "floor" });
+				stack.Add(new CellEntity { Type = CellEntityType.Terrain, Glyph = ".", EntityId = Entities.Floor });
 				break;
 		}
 	}
@@ -140,7 +147,7 @@ public static class MapModule
 		foreach (var a in actors)
 		{
 			if (a.Id == s.PlayerId) { best = a; break; }
-			if (a.Faction == "hostile" && best.Faction != "hostile") best = a;
+			if (a.Faction == Factions.Hostile && best.Faction != Factions.Hostile) best = a;
 		}
 		return best;
 	}
@@ -208,7 +215,7 @@ public static class MapModule
 	{
 		if (!InBounds(s, x, y)) return;
 		RemoveByType(s, x, y, CellEntityType.Terrain);
-		var id = glyph == "#" ? "wall" : "floor";
+		var id = glyph == "#" ? Entities.Wall : Entities.Floor;
 		s.Cells[y][x].Insert(0, new CellEntity { Type = CellEntityType.Terrain, Glyph = glyph, EntityId = id });
 	}
 
@@ -225,14 +232,18 @@ public static class MapModule
 		Push(s, x, y, new CellEntity { Type = CellEntityType.Fixture, Glyph = glyph, EntityId = id });
 	}
 
-	/// <summary>读取设施 Glyph。兼容旧代码，新代码应使用 GetFirst + HasFixture。</summary>
-	// REVIEW: 只返回第一个 Fixture 的 Glyph，多 Fixture 时会丢失信息。
-	//         Main.cs 中 FixtureLabel() 用 Glyph 字符串做 switch，
-	//         但格子栈模型下应使用 EntityId 而非 Glyph 来判断语义。
+	/// <summary>读取设施 Glyph（兼容旧代码）。新代码应使用 GetFixtureId 或 HasFixture。</summary>
 	public static string GetFixture(GameState s, int x, int y)
 	{
 		var f = GetFirst(s, x, y, CellEntityType.Fixture);
 		return f?.Glyph ?? "";
+	}
+
+	/// <summary>读取设施 EntityId。无设施时返回空字符串。</summary>
+	public static string GetFixtureId(GameState s, int x, int y)
+	{
+		var f = GetFirst(s, x, y, CellEntityType.Fixture);
+		return f?.EntityId ?? "";
 	}
 
 	/// <summary>读取地形 Glyph。越界返回 "#"（墙）。</summary>
@@ -251,12 +262,9 @@ public static class MapModule
 	public static bool InBounds(GameState s, int x, int y) =>
 		x >= 0 && y >= 0 && y < s.MapHeight && x < s.MapWidth;
 
-	/// <summary>该格是否是墙（Terrain Glyph == "#"）。</summary>
-	// REVIEW: 通过 Glyph 字符串 "#" 判断而非 EntityId "wall"。
-	//         如果未来有非 "#" 显示的墙（如 Emoji 模式下），逻辑会失效。
-	//         应改为 GetFirst(s, x, y, Terrain)?.EntityId == "wall"。
+	/// <summary>该格是否是墙（Terrain EntityId == "wall"）。</summary>
 	public static bool IsWall(GameState s, int x, int y) =>
-		GetTerrain(s, x, y) == "#";
+		GetFirst(s, x, y, CellEntityType.Terrain)?.EntityId == Entities.Wall;
 
 	/// <summary>是否可通行：非墙即可。不考虑门是否关闭、Actor 占位等。</summary>
 	public static bool IsWalkable(GameState s, int x, int y) =>
@@ -270,19 +278,17 @@ public static class MapModule
 
 	/// <summary>检查指定位置是否有门。</summary>
 	public static bool IsDoor(GameState s, int x, int y) =>
-		HasFixture(s, x, y, "door");
+		HasFixture(s, x, y, Entities.Door);
 
 	public static bool IsDownStair(GameState s, int x, int y) =>
-		HasFixture(s, x, y, "stair_down");
+		HasFixture(s, x, y, Entities.StairDown);
 
 	public static bool IsUpStair(GameState s, int x, int y) =>
-		HasFixture(s, x, y, "stair_up");
+		HasFixture(s, x, y, Entities.StairUp);
 
 	/// <summary>检查格子上是否有指定 EntityId 的 Fixture。</summary>
-	// REVIEW: 内部调用 GetByType 创建临时 List 再 Any，
-	//         可改为 GetStack().Any(e => e.Type == type && e.EntityId == id) 避免分配。
 	public static bool HasFixture(GameState s, int x, int y, string fixtureId) =>
-		GetByType(s, x, y, CellEntityType.Fixture).Any(e => e.EntityId == fixtureId);
+		GetStack(s, x, y).Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId);
 
 	// ══════════════════════════════════════════════════════
 	//  楼层切换
@@ -331,12 +337,12 @@ public static class MapModule
 	/// <summary>Glyph 字符 → Fixture EntityId 的映射表。</summary>
 	private static string GlyphToFixtureId(string glyph) => glyph switch
 	{
-		">" => "stair_down",
-		"<" => "stair_up",
-		"N" => "nest",
-		"D" => "door",
-		"H" => "house",
-		"I" => "item",
+		">" => Entities.StairDown,
+		"<" => Entities.StairUp,
+		"N" => Entities.Nest,
+		"D" => Entities.Door,
+		"H" => Entities.House,
+		"I" => Entities.Item,
 		_ => glyph,
 	};
 
@@ -349,7 +355,7 @@ public static class MapModule
 			var row = new List<List<CellEntity>>();
 			for (var x = 0; x < w; x++)
 			{
-				row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = "wall" }]);
+				row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = Entities.Wall }]);
 			}
 			state.Cells.Add(row);
 		}

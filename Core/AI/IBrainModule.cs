@@ -63,8 +63,8 @@ public static class FactionRelation
 		if (a == b) return false;
 		return (a, b) switch
 		{
-			("hostile", "player") or ("player", "hostile") => true,
-			("hostile", "friendly") or ("friendly", "hostile") => true,
+			(Factions.Hostile, Factions.Player) or (Factions.Player, Factions.Hostile) => true,
+			(Factions.Hostile, Factions.Friendly) or (Factions.Friendly, Factions.Hostile) => true,
 			_ => false,
 		};
 	}

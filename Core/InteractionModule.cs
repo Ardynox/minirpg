@@ -75,7 +75,7 @@ public static class InteractionModule
 		switch (def.EffectType)
 		{
 			case "tame":
-				target.Faction = "friendly";
+				target.Faction = Factions.Friendly;
 				initiator.Experiences.Add(new Experience
 				{
 					Id = $"tamed_{target.Id}",

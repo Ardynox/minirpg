@@ -31,10 +31,11 @@ public static class NestModule
 	public static void RegisterNests(GameState state, int spawnInterval = 5, int maxSpawned = 3)
 	{
 		state.Nests.Clear();
+		_nestSpawnCounter = 0;
 		for (var y = 0; y < state.MapHeight; y++)
 		for (var x = 0; x < state.MapWidth; x++)
 		{
-			if (!MapModule.HasFixture(state, x, y, "nest"))
+			if (!MapModule.HasFixture(state, x, y, Entities.Nest))
 				continue;
 			state.Nests.Add(new NestData
 			{
@@ -47,8 +48,6 @@ public static class NestModule
 		}
 	}
 
-	// REVIEW: _nestSpawnCounter 是 static 字段，进程生命周期内递增不归零，
-	//         与 MapGenModule._monsterCounter 存在同样的问题。
 	private static int _nestSpawnCounter;
 
 	/// <summary>
@@ -115,7 +114,7 @@ public static class NestModule
 		var count = 0;
 		foreach (var actor in state.Actors.Values)
 		{
-			if (actor.Faction != "hostile") continue;
+			if (actor.Faction != Factions.Hostile) continue;
 			var adx = actor.X - cx;
 			var ady = actor.Y - cy;
 			if (adx >= -radius && adx <= radius && ady >= -radius && ady <= radius)

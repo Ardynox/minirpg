@@ -312,7 +312,7 @@ public static class SaveModule
 				}
 				else
 				{
-					row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = "wall" }]);
+					row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = Entities.Wall }]);
 				}
 			}
 			cells.Add(row);

@@ -53,6 +53,8 @@ public static class MapGenModule
 
 		ActorModule.ClearAll(state);
 		state.Nests.Clear();
+		_monsterCounter = 0;
+		_npcCounter = 0;
 		MapModule.InitCells(state, width, height);
 		var rooms = PlaceRooms(state, rng);
 		ConnectRooms(state, rooms, rng);
@@ -141,11 +143,6 @@ public static class MapGenModule
 			MapModule.SetTerrain(state, x, y, ".");
 	}
 
-	// REVIEW: _monsterCounter / _npcCounter 是 static 字段，
-	//         在整个进程生命周期内递增，不会随 Reset() 或新游戏归零。
-	//         这意味着多次新建游戏后 Id 会越来越大（"mon_47" "npc_12"），
-	//         虽然功能上不影响正确性，但不利于调试。
-	//         考虑在 Generate() 入口处重置。
 	private static int _monsterCounter;
 	private static int _npcCounter;
 
@@ -165,7 +162,7 @@ public static class MapGenModule
 	/// <summary>在第一个房间中心放置玩家。地下城层还会在该位置放上行楼梯。</summary>
 	private static void PlacePlayer(GameState state, Room first, int floor)
 	{
-		var player = ActorTemplates.Spawn("player", "player");
+		var player = ActorTemplates.Spawn(Factions.Player, Factions.Player);
 		player.X = first.CenterX;
 		player.Y = first.CenterY;
 		ActorModule.Add(state, player);

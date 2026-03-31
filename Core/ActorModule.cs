@@ -42,10 +42,9 @@ public static class ActorModule
 		state.Actors.Values.Where(a => a.X == x && a.Y == y).ToList();
 
 	/// <summary>返回指定坐标上的第一个敌对 Actor。</summary>
-	// REVIEW: Faction 使用魔术字符串 "hostile"，建议抽为常量。
 	public static Actor? GetHostileAt(GameState state, int x, int y) =>
 		state.Actors.Values.FirstOrDefault(a =>
-			a.X == x && a.Y == y && a.Faction == "hostile");
+			a.X == x && a.Y == y && a.Faction == Factions.Hostile);
 
 	/// <summary>移动 Actor 到新坐标，同时同步 GameState.PlayerX/Y（如果是玩家）。</summary>
 	public static void MoveActor(GameState state, string id, int nx, int ny)
@@ -86,29 +85,6 @@ public static class ActorModule
 
 	/// <summary>获取所有敌对阵营的 Actor。</summary>
 	public static List<Actor> GetAllHostile(GameState state) =>
-		state.Actors.Values.Where(a => a.Faction == "hostile").ToList();
+		state.Actors.Values.Where(a => a.Faction == Factions.Hostile).ToList();
 
-	/// <summary>构建玩家状态快照（tag 表 + 可用动作列表），供 UI 展示。</summary>
-	public static PlayerStatus? GetPlayerStatus(GameState state)
-	{
-		var player = GetPlayer(state);
-		if (player == null) return null;
-		return new PlayerStatus
-		{
-			Tags = player.ComputeTags(),
-			AvailableActions = ActionQuery.GetAvailable(player, ActionDefs.All),
-		};
-	}
-}
-
-/// <summary>
-/// 玩家状态快照：聚合 tag 表 + 可用动作。
-/// 没有独立的 HP/ATK/DEF —— 生存状态由肢体耐久决定，能力由 tag 聚合得出。
-/// </summary>
-// REVIEW: PlayerStatus 目前只在 GetPlayerStatus 中构建，
-//         但该方法在代码中从未被调用。如已废弃应清理。
-public class PlayerStatus
-{
-	public Dictionary<string, int> Tags { get; set; } = new();
-	public List<ActionDef> AvailableActions { get; set; } = [];
 }

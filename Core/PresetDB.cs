@@ -76,7 +76,7 @@ public class ActorPreset
 	[JsonPropertyName("displayName")]
 	public string DisplayName { get; set; } = "";
 	[JsonPropertyName("faction")]
-	public string Faction { get; set; } = "hostile";
+	public string Faction { get; set; } = Factions.Hostile;
 	[JsonPropertyName("gold")]
 	public int Gold { get; set; }
 	[JsonPropertyName("raceId")]
@@ -170,7 +170,7 @@ public static class PresetDB
 			}).ToList();
 
 		MonsterIds = Actors.Values
-			.Where(a => a.Faction == "hostile")
+			.Where(a => a.Faction == Factions.Hostile)
 			.Select(a => a.Id)
 			.ToArray();
 	}
@@ -224,7 +224,7 @@ public static class PresetDB
 			});
 		}
 
-		if (preset.Faction != "player")
+		if (preset.Faction != Factions.Player)
 			actor.BrainId = "simple";
 
 		return actor;

@@ -16,7 +16,7 @@ public class Actor
 	public string DisplayName { get; set; } = "";
 
 	/// <summary>阵营：普通状态字段，随时可改，和种族无关。</summary>
-	public string Faction { get; set; } = "hostile";
+	public string Faction { get; set; } = Factions.Hostile;
 
 	/// <summary>AI 大脑类型 ID。null = 无 AI（玩家）。"simple" = SimpleBrain。</summary>
 	public string? BrainId { get; set; }
