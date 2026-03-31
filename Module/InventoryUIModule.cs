@@ -28,13 +28,17 @@ public class InventoryUIModule
 			return;
 		}
 
-		_ui.AddLog($"═══ 背包 ═══  💰{player.Gold}G");
+		var weightInfo = $"负重: {player.CarryWeight:F1}/{player.MaxCarryWeight:F1}kg";
+		if (player.IsOverweight) weightInfo = $"[color=#ff4444]{weightInfo} 超重！[/color]";
+		_ui.AddLog($"═══ 背包 ═══  💰{player.Gold}G  {weightInfo}");
 		for (var i = 0; i < items.Count; i++)
 		{
 			var (_, item) = items[i];
 			var eqMark = item.Equipped ? " [已装备]" : "";
+			var wt = $"{item.EffectiveWeight:F1}kg";
 			var tagDesc = TradeUIModule.FormatItemTags(item);
-			_ui.AddLog($"  [{i + 1}] {item.Name}{eqMark}  {item.Price}G{tagDesc}");
+			var extra = FormatItemStats(item);
+			_ui.AddLog($"  [{i + 1}] {item.Name}{eqMark}  {item.Price}G  {wt}{extra}{tagDesc}");
 		}
 		_ui.AddLog("  [0] 关闭");
 
@@ -46,6 +50,17 @@ public class InventoryUIModule
 			var (idx, item) = items[n - 1];
 			ShowItemActions(player, idx, item);
 		});
+	}
+
+	private static string FormatItemStats(Item item)
+	{
+		var parts = new System.Collections.Generic.List<string>();
+		if (item.SharpDamage > 0) parts.Add($"锐{item.SharpDamage:F0}");
+		if (item.BluntDamage > 0) parts.Add($"钝{item.BluntDamage:F0}");
+		if (item.SharpArmor > 0) parts.Add($"锐防{item.SharpArmor:F0}");
+		if (item.BluntArmor > 0) parts.Add($"钝防{item.BluntArmor:F0}");
+		if (item.IsEquippable) parts.Add($"{item.BodyPart}/{item.Layer}");
+		return parts.Count > 0 ? $"  [{string.Join(" ", parts)}]" : "";
 	}
 
 	private void ShowItemActions(Actor player, int invIndex, Item item)

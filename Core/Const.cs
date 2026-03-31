@@ -55,3 +55,41 @@ public static class SkillTags
 	public const string Chop = "伐木";
 	public const string Mine = "采矿";
 }
+
+/// <summary>身体部位常量。肢体和装备共用。</summary>
+public static class BodyParts
+{
+	public const string Head = "head";
+	public const string Torso = "torso";
+	public const string Arm = "arm";
+	public const string Hand = "hand";
+	public const string Leg = "leg";
+	public const string Foot = "foot";
+}
+
+/// <summary>
+/// 装备层级（环世界四层）。数值越大越外层。
+/// Skin=贴身层, Middle=中间层, Shell=外壳层, Overhead=最外层（头盔/腰带/手持武器）。
+/// </summary>
+public enum EquipLayer { Skin = 0, Middle = 1, Shell = 2, Overhead = 3 }
+
+/// <summary>伤害类型常量。</summary>
+public static class DamageTypes
+{
+	public const string Sharp = "sharp";
+	public const string Blunt = "blunt";
+	public const string Poison = "poison";
+}
+
+/// <summary>物品大类常量。</summary>
+public static class ItemCategories
+{
+	public const string Weapon = "weapon";
+	public const string Armor = "armor";
+	public const string Clothing = "clothing";
+	public const string Consumable = "consumable";
+	public const string Tool = "tool";
+	public const string Material = "material";
+	public const string Food = "food";
+	public const string Misc = "misc";
+}

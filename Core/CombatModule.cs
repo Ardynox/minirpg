@@ -24,7 +24,7 @@ public static class CombatModule
 				Id = $"block_{state.Turn}",
 				Name = "格挡",
 				RemainingTurns = 1,
-				Tags = new() { ["防御"] = 5 },
+				Tags = new() { ["格挡中"] = 1 },
 			});
 			events.Add(new GameEvent("combat_block")
 			{
@@ -35,7 +35,7 @@ public static class CombatModule
 			return events;
 		}
 
-		var damage = CalcDamage(attacker, action, target);
+		var damage = CalcDamage(attacker, action, target, targetLimb);
 		targetLimb.Durability = Math.Max(0, targetLimb.Durability - damage);
 
 		events.Add(new GameEvent("combat_attack")
@@ -63,12 +63,24 @@ public static class CombatModule
 
 		if (targetLimb.Durability <= 0)
 		{
+			var droppedItems = InventoryModule.OnLimbDestroyed(target, targetLimb);
 			events.Add(new GameEvent("limb_destroyed")
 			{
 				TargetId = target.Id,
 				TargetActorName = target.DisplayName,
 				LimbName = targetLimb.Name,
 			});
+			foreach (var dropped in droppedItems)
+			{
+				events.Add(new GameEvent("item_dropped")
+				{
+					TargetId = target.Id,
+					TargetActorName = target.DisplayName,
+					ActionName = dropped.Name,
+					TargetX = target.X,
+					TargetY = target.Y,
+				});
+			}
 			target.DetachLimb(targetLimb);
 
 			var vitalStatus = CheckVitalStatus(target);
@@ -101,30 +113,57 @@ public static class CombatModule
 	}
 
 	/// <summary>
-	/// 计算伤害值。基于操作能力(manipulation)缩放基础伤害。
+	/// 计算伤害值。支持 sharp/blunt/poison 伤害类型和护甲覆盖。
 	/// </summary>
-	public static int CalcDamage(Actor attacker, InteractionDef action, Actor target)
+	public static int CalcDamage(Actor attacker, InteractionDef action, Actor target, Limb? targetLimb = null)
 	{
-		var aCaps = attacker.ComputeCapacities();
-		var tTags = target.ComputeTags();
+		if (target.Buffs.Exists(b => b.Id == "debug_godmode"))
+			return 0;
 
-		var manipFactor = aCaps.GetValueOrDefault(Caps.Manipulation, 0.5f);
-		int baseDmg;
-		if (action.EffectType == "poison_attack")
+		var aCaps = attacker.ComputeCapacities();
+		var dmgType = ResolveDamageType(attacker, action);
+
+		float baseDmg;
+		if (dmgType == DamageTypes.Poison)
 		{
 			var poisonTag = attacker.ComputeTags().GetValueOrDefault("毒性", 0);
 			baseDmg = poisonTag + action.Power * 2;
 		}
 		else
 		{
-			baseDmg = (int)(action.Power * 2 * (0.5f + manipFactor));
+			var manipFactor = aCaps.GetValueOrDefault(Caps.Manipulation, 0.5f);
+			baseDmg = action.Power * 2 * (0.5f + manipFactor);
+
+			var weapon = attacker.Inventory.FirstOrDefault(i => i.Equipped && i.Category == ItemCategories.Weapon);
+			if (weapon != null)
+			{
+				baseDmg += dmgType == DamageTypes.Sharp ? weapon.SharpDamage : weapon.BluntDamage;
+			}
 		}
 
-		var defense = action.EffectType == "poison_attack"
-			? 0
-			: tTags.GetValueOrDefault("防御", 0);
+		float armor = 0f;
+		if (dmgType != DamageTypes.Poison && targetLimb != null)
+		{
+			armor = dmgType == DamageTypes.Sharp
+				? target.GetSharpArmorFor(targetLimb.BodyPart)
+				: target.GetBluntArmorFor(targetLimb.BodyPart);
+		}
 
-		return Math.Max(1, baseDmg - defense);
+		if (dmgType != DamageTypes.Poison && target.ComputeTags().GetValueOrDefault("格挡中", 0) > 0)
+			armor += 5f;
+
+		return Math.Max(1, (int)(baseDmg - armor));
+	}
+
+	/// <summary>确定实际伤害类型：优先用 action 定义，否则默认 blunt（徒手）。</summary>
+	private static string ResolveDamageType(Actor attacker, InteractionDef action)
+	{
+		if (!string.IsNullOrEmpty(action.DamageType))
+			return action.DamageType;
+		var weapon = attacker.Inventory.FirstOrDefault(i => i.Equipped && i.Category == ItemCategories.Weapon);
+		if (weapon != null && weapon.SharpDamage > weapon.BluntDamage)
+			return DamageTypes.Sharp;
+		return DamageTypes.Blunt;
 	}
 
 	/// <summary>

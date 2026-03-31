@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace MiniRPG.Core;
@@ -132,6 +133,47 @@ public class Actor
 		}
 		return totalWeight > 0f ? totalHardness / totalWeight : 0f;
 	}
+
+	// ── 负重 ────────────────────────────────────────────
+
+	/// <summary>当前携带总重量。</summary>
+	[JsonIgnore]
+	public float CarryWeight => Inventory.Sum(i => i.EffectiveWeight);
+
+	/// <summary>最大负重 = manipulation × 40。</summary>
+	[JsonIgnore]
+	public float MaxCarryWeight => GetCapacity(Caps.Manipulation) * 40f;
+
+	/// <summary>是否超重。</summary>
+	[JsonIgnore]
+	public bool IsOverweight => CarryWeight > MaxCarryWeight;
+
+	// ── 装备槽查询 ──────────────────────────────────────
+
+	/// <summary>获取所有肢体上的装备槽（扁平列表）。</summary>
+	[JsonIgnore]
+	public IEnumerable<EquipSlot> AllEquipSlots => Limbs.SelectMany(l => l.EquipSlots);
+
+	/// <summary>查找匹配 bodyPart + layer 的空闲装备槽。</summary>
+	public EquipSlot? FindFreeSlot(string bodyPart, EquipLayer layer)
+		=> AllEquipSlots.FirstOrDefault(s =>
+			s.BodyPart == bodyPart && s.Layer == layer && s.ItemId == null);
+
+	/// <summary>查找装备了指定物品 ID 的装备槽。</summary>
+	public EquipSlot? FindSlotByItemId(string itemId)
+		=> AllEquipSlots.FirstOrDefault(s => s.ItemId == itemId);
+
+	/// <summary>获取指定身体部位上所有已装备物品。</summary>
+	public IEnumerable<Item> GetEquippedItemsCovering(string bodyPart)
+		=> Inventory.Where(i => i.Equipped && i.CoveredParts.Contains(bodyPart));
+
+	/// <summary>计算指定身体部位的总锐伤抗性。</summary>
+	public float GetSharpArmorFor(string bodyPart)
+		=> GetEquippedItemsCovering(bodyPart).Sum(i => i.SharpArmor);
+
+	/// <summary>计算指定身体部位的总钝伤抗性。</summary>
+	public float GetBluntArmorFor(string bodyPart)
+		=> GetEquippedItemsCovering(bodyPart).Sum(i => i.BluntArmor);
 
 	// ── 肢体操作 ─────────────────────────────────────────
 

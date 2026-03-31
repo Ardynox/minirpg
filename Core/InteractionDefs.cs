@@ -8,4 +8,7 @@ namespace MiniRPG.Core;
 public static class InteractionDefs
 {
 	public static List<InteractionDef> All => PresetDB.Interactions;
+
+	public static InteractionDef? Get(string id) =>
+		All.Find(d => d.Id == id);
 }

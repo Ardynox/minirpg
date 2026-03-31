@@ -90,7 +90,14 @@ public class CombatUIModule
 		{
 			var a = actions[i];
 			var estDmg = CombatModule.CalcDamage(player, a, target);
-			_ui.AddLog($"  [{i + 1}] {a.Name} (预估伤害:{estDmg})");
+			var dmgLabel = a.DamageType switch
+			{
+				DamageTypes.Sharp => "锐",
+				DamageTypes.Blunt => "钝",
+				DamageTypes.Poison => "毒",
+				_ => "",
+			};
+			_ui.AddLog($"  [{i + 1}] {a.Name} ({dmgLabel}伤害:{estDmg})");
 		}
 		var blockIdx = actions.Count + 1;
 		if (hasBlock)

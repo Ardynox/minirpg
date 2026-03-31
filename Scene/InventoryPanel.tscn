@@ -1,0 +1,87 @@
+[gd_scene format=3]
+
+[node name="InventoryPanel" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.0
+custom_minimum_size = Vector2(300, 0)
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Header" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "── 背包 ──"
+
+[node name="FilterBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Sep1" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="ItemScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ItemList" type="VBoxContainer" parent="MarginContainer/VBox/ItemScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="Sep2" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="DetailBox" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+custom_minimum_size = Vector2(0, 80)
+
+[node name="ActionBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EquipBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "装备 [E]"
+
+[node name="UseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "使用 [U]"
+
+[node name="DropBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "丢弃 [Q]"
+
+[node name="SortBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "排序 [R]"
+
+[node name="HintBar" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="ContextMenu" type="PopupMenu" parent="."]

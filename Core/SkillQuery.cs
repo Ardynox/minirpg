@@ -5,19 +5,18 @@ namespace MiniRPG.Core;
 
 /// <summary>
 /// 技能查询：从统一的 InteractionDef 列表中筛选 Actor 可用的技能。
-/// 技能 = Actor 满足 Required 条件的交互定义。
+/// 技能来源：(1) Actor 自身满足 Required 条件的交互，(2) 装备的 GrantedSkills。
 /// </summary>
 public static class SkillQuery
 {
-	/// <summary>
-	/// 获取 Actor 满足发起者条件的所有非隐藏交互（= 技能列表）。
-	/// </summary>
+	/// <summary>获取 Actor 可用的所有非隐藏交互（= 技能列表）。</summary>
 	public static List<InteractionDef> GetSkills(Actor actor)
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
+		var granted = GetGrantedSkillIds(actor);
 		return InteractionDefs.All
-			.Where(d => !d.Hidden && CheckRequired(tags, caps, d))
+			.Where(d => !d.Hidden && (CheckRequired(tags, caps, d) || granted.Contains(d.Id)))
 			.ToList();
 	}
 
@@ -26,37 +25,36 @@ public static class SkillQuery
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
+		var granted = GetGrantedSkillIds(actor);
 		return InteractionDefs.All
-			.Where(d => !d.Hidden && d.Category == category && CheckRequired(tags, caps, d))
+			.Where(d => !d.Hidden && d.Category == category
+				&& (CheckRequired(tags, caps, d) || granted.Contains(d.Id)))
 			.ToList();
 	}
 
-	/// <summary>
-	/// 获取 Actor 满足发起者条件的所有交互（含隐藏，如 move/look）。
-	/// 用于 AI 和内部逻辑。
-	/// </summary>
+	/// <summary>获取所有可用交互（含隐藏），用于 AI 和内部逻辑。</summary>
 	public static List<InteractionDef> GetAll(Actor actor)
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
+		var granted = GetGrantedSkillIds(actor);
 		return InteractionDefs.All
-			.Where(d => CheckRequired(tags, caps, d))
+			.Where(d => CheckRequired(tags, caps, d) || granted.Contains(d.Id))
 			.ToList();
 	}
 
-	/// <summary>
-	/// 获取可对某个 Actor 目标使用的技能（满足发起者 + 目标条件）。
-	/// </summary>
+	/// <summary>获取可对某个 Actor 目标使用的技能。</summary>
 	public static List<InteractionDef> GetUsableAgainst(Actor actor, Actor target)
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
 		var tTags = target.ComputeTags();
+		var granted = GetGrantedSkillIds(actor);
 
 		return InteractionDefs.All
 			.Where(d =>
 				!d.Hidden &&
-				CheckRequired(tags, caps, d) &&
+				(CheckRequired(tags, caps, d) || granted.Contains(d.Id)) &&
 				CheckTargetRequired(tTags, d.TargetRequired, target.Faction))
 			.ToList();
 	}
@@ -66,27 +64,40 @@ public static class SkillQuery
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
+		var granted = GetGrantedSkillIds(actor);
 		return InteractionDefs.All
-			.Where(d => !d.Hidden && d.EffectType == "dig" && CheckRequired(tags, caps, d))
+			.Where(d => !d.Hidden && d.EffectType == "dig"
+				&& (CheckRequired(tags, caps, d) || granted.Contains(d.Id)))
 			.ToList();
 	}
 
-	/// <summary>
-	/// 获取攻击类技能（combat 分类中 EffectType 为攻击/毒/吸取的）。
-	/// 替代原 CombatModule.GetAttackActions。
-	/// </summary>
+	/// <summary>获取攻击类技能（melee/poison/drain/heavy_attack）。</summary>
 	public static List<InteractionDef> GetAttackSkills(Actor actor)
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
+		var granted = GetGrantedSkillIds(actor);
 		return InteractionDefs.All
 			.Where(d =>
-				d.EffectType is "melee_attack" or "poison_attack" or "drain_attack" &&
-				CheckRequired(tags, caps, d))
+				d.EffectType is "melee_attack" or "poison_attack" or "drain_attack" or "heavy_attack" &&
+				(CheckRequired(tags, caps, d) || granted.Contains(d.Id)))
 			.ToList();
 	}
 
 	// ── 内部工具 ─────────────────────────────────────────
+
+	/// <summary>收集 Actor 所有已装备物品的 GrantedSkills。</summary>
+	private static HashSet<string> GetGrantedSkillIds(Actor actor)
+	{
+		var ids = new HashSet<string>();
+		foreach (var item in actor.Inventory)
+		{
+			if (!item.Equipped || item.GrantedSkills.Count == 0) continue;
+			foreach (var skillId in item.GrantedSkills)
+				ids.Add(skillId);
+		}
+		return ids;
+	}
 
 	private static bool CheckRequired(Dictionary<string, int> tags,
 		Dictionary<string, float> caps, InteractionDef def)

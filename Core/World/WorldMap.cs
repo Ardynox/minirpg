@@ -174,17 +174,26 @@ public class WorldMap
 
 	public void PlaceItem(int x, int y, int z, Item item)
 	{
+		var meta = new Dictionary<string, string>
+		{
+			["name"] = item.Name,
+			["price"] = item.Price.ToString(),
+			["tags"] = SerializeItemTags(item.Tags),
+		};
+
+		if (item.IsContainer && item.Contents != null)
+		{
+			var json = System.Text.Json.JsonSerializer.Serialize(
+				item.Contents.Select(c => c.Id).ToList());
+			meta["contents"] = json;
+		}
+
 		PushEntity(x, y, z, new CellEntity
 		{
 			Type = CellEntityType.Item,
-			Glyph = "!",
+			Glyph = item.IsContainer ? "C" : "!",
 			EntityId = item.Id,
-			Meta = new Dictionary<string, string>
-			{
-				["name"] = item.Name,
-				["price"] = item.Price.ToString(),
-				["tags"] = SerializeItemTags(item.Tags),
-			},
+			Meta = meta,
 		});
 	}
 
@@ -216,14 +225,29 @@ public class WorldMap
 
 	private static Item RestoreItemFromEntity(CellEntity entity)
 	{
-		var meta = entity.Meta ?? new Dictionary<string, string>();
-		return new Item
+		var item = PresetDB.Items.ContainsKey(entity.EntityId)
+			? PresetDB.CloneItem(entity.EntityId)
+			: new Item
+			{
+				Id = entity.EntityId,
+				Name = (entity.Meta ?? new()).GetValueOrDefault("name", entity.EntityId),
+				Price = int.TryParse((entity.Meta ?? new()).GetValueOrDefault("price", "0"), out var p) ? p : 0,
+				Tags = DeserializeItemTags((entity.Meta ?? new()).GetValueOrDefault("tags", "")),
+			};
+
+		if (entity.Meta != null && entity.Meta.TryGetValue("contents", out var contentsJson))
 		{
-			Id = entity.EntityId,
-			Name = meta.GetValueOrDefault("name", entity.EntityId),
-			Price = int.TryParse(meta.GetValueOrDefault("price", "0"), out var p) ? p : 0,
-			Tags = DeserializeItemTags(meta.GetValueOrDefault("tags", "")),
-		};
+			var ids = System.Text.Json.JsonSerializer.Deserialize<List<string>>(contentsJson) ?? [];
+			item.Contents ??= [];
+			item.Contents.Clear();
+			foreach (var cid in ids)
+			{
+				if (PresetDB.Items.ContainsKey(cid))
+					item.Contents.Add(PresetDB.CloneItem(cid));
+			}
+		}
+
+		return item;
 	}
 
 	private static string SerializeItemTags(Dictionary<string, int> tags)

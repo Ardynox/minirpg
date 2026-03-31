@@ -118,6 +118,7 @@ public class RenderModule
 		">" => "[color=#00ccff]▼·[/color]",
 		"<" => "[color=#00ccff]▲·[/color]",
 		"!" => "[color=#ffee44]!·[/color]",
+		"C" => "[color=#cc8844]C·[/color]",
 		_ => c + " ",
 	};
 
@@ -151,6 +152,7 @@ public class RenderModule
 		">" => "⏬",
 		"<" => "⏫",
 		"!" => "📦",
+		"C" => "🗃️",
 		"E" => "👴",
 		"V" => "😐",
 		_ => c,
@@ -215,6 +217,7 @@ public class RenderModule
 		">" => "[color=#006688]▼·[/color]",
 		"<" => "[color=#006688]▲·[/color]",
 		"!" => "[color=#998833]!·[/color]",
+		"C" => "[color=#886633]C·[/color]",
 		_ => "[color=#444444]" + c + " [/color]",
 	};
 
@@ -238,6 +241,7 @@ public class RenderModule
 		">" => "⏬",
 		"<" => "⏫",
 		"!" => "📦",
+		"C" => "🗃️",
 		"E" => "👴",
 		"V" => "😐",
 		_ => "⬛",

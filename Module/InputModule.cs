@@ -3,127 +3,176 @@ using Godot;
 
 namespace MiniRPG.Module;
 
+public enum InputFocus
+{
+	Action,
+	Typing,
+	Selection,
+	Direction,
+	Inventory,
+	Chest,
+}
+
 public partial class InputModule
 {
 	public event Action<string>? CommandReceived;
 
 	private readonly LineEdit _lineEdit;
-	private bool _typingMode;
-	private bool _selectionMode;
-	private bool _directionMode;
+	private InputFocus _focus = InputFocus.Action;
 	private string _directionPrefix = "";
 
-	public bool IsTypingMode => _typingMode;
-	public bool IsSelectionMode => _selectionMode;
-	public bool IsDirectionMode => _directionMode;
+	public InputFocus Focus => _focus;
 
 	public InputModule(LineEdit lineEdit)
 	{
 		_lineEdit = lineEdit;
 		_lineEdit.TextSubmitted += OnTextSubmitted;
-		_lineEdit.FocusExited += () => _typingMode = false;
-		EnterActionMode();
+		_lineEdit.FocusExited += () =>
+		{
+			if (_focus == InputFocus.Typing) _focus = InputFocus.Action;
+		};
+		SetFocus(InputFocus.Action);
 	}
 
-	public void EnterActionMode()
+	public void SetFocus(InputFocus focus, string directionPrefix = "")
 	{
-		_typingMode = false;
-		_selectionMode = false;
-		_directionMode = false;
-		_directionPrefix = "";
-		_lineEdit.ReleaseFocus();
+		_focus = focus;
+		_directionPrefix = focus == InputFocus.Direction ? directionPrefix : "";
+
+		if (focus == InputFocus.Typing)
+			_lineEdit.GrabFocus();
+		else
+			_lineEdit.ReleaseFocus();
 	}
 
-	public void EnterTypingMode()
-	{
-		_typingMode = true;
-		_selectionMode = false;
-		_lineEdit.GrabFocus();
-	}
-
-	public void EnterSelectionMode()
-	{
-		_selectionMode = true;
-		_typingMode = false;
-		_directionMode = false;
-		_lineEdit.ReleaseFocus();
-	}
-
-	/// <summary>进入方向选择模式：下一个方向键输入会发出 "{prefix}_{dir}" 命令。</summary>
-	public void EnterDirectionMode(string prefix)
-	{
-		_directionMode = true;
-		_directionPrefix = prefix;
-		_typingMode = false;
-		_selectionMode = false;
-		_lineEdit.ReleaseFocus();
-	}
+	public void EnterActionMode() => SetFocus(InputFocus.Action);
+	public void EnterTypingMode() => SetFocus(InputFocus.Typing);
+	public void EnterSelectionMode() => SetFocus(InputFocus.Selection);
+	public void EnterInventoryMode() => SetFocus(InputFocus.Inventory);
+	public void EnterChestMode() => SetFocus(InputFocus.Chest);
+	public void EnterDirectionMode(string prefix) => SetFocus(InputFocus.Direction, prefix);
 
 	public bool HandleKeyInput(InputEventKey key)
 	{
 		if (!key.Pressed)
 			return false;
 
-		if (_typingMode)
+		return _focus switch
 		{
-			if (key.Keycode == Key.Escape)
-			{
-				EnterActionMode();
-				return true;
-			}
-			return false;
-		}
+			InputFocus.Typing => HandleTypingKey(key),
+			InputFocus.Selection => HandleSelectionKey(key),
+			InputFocus.Direction => HandleDirectionKey(key),
+			InputFocus.Inventory => HandleInventoryKey(key),
+			InputFocus.Chest => HandleChestKey(key),
+			_ => HandleActionKey(key),
+		};
+	}
 
-		if (_selectionMode)
+	private bool HandleTypingKey(InputEventKey key)
+	{
+		if (key.Keycode == Key.Escape)
 		{
-			if (key.Keycode == Key.Escape)
-			{
-				EnterActionMode();
-				CommandReceived?.Invoke(":select_cancel");
-				return true;
-			}
-			var num = key.Keycode switch
-			{
-				Key.Key0 => 0,
-				Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 3,
-				Key.Key4 => 4, Key.Key5 => 5, Key.Key6 => 6,
-				Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
-				_ => -1,
-			};
-			if (num >= 0)
-			{
-				CommandReceived?.Invoke($":select_{num}");
-				return true;
-			}
-			return false;
+			SetFocus(InputFocus.Action);
+			return true;
 		}
+		return false;
+	}
 
-		if (_directionMode)
+	private bool HandleSelectionKey(InputEventKey key)
+	{
+		if (key.Keycode == Key.Escape)
 		{
-			if (key.Keycode == Key.Escape)
-			{
-				EnterActionMode();
-				CommandReceived?.Invoke(":dir_cancel");
-				return true;
-			}
-			var dir = key.Keycode switch
-			{
-				Key.W or Key.Up    => "n",
-				Key.S or Key.Down  => "s",
-				Key.A or Key.Left  => "w",
-				Key.D or Key.Right => "e",
-				_ => (string?)null,
-			};
-			if (dir != null)
-			{
-				var prefix = _directionPrefix;
-				EnterActionMode();
-				CommandReceived?.Invoke($":{prefix}_{dir}");
-				return true;
-			}
-			return false;
+			SetFocus(InputFocus.Action);
+			CommandReceived?.Invoke(":select_cancel");
+			return true;
 		}
+		var num = key.Keycode switch
+		{
+			Key.Key0 => 0,
+			Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 3,
+			Key.Key4 => 4, Key.Key5 => 5, Key.Key6 => 6,
+			Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
+			_ => -1,
+		};
+		if (num >= 0)
+		{
+			CommandReceived?.Invoke($":select_{num}");
+			return true;
+		}
+		return false;
+	}
 
+	private bool HandleDirectionKey(InputEventKey key)
+	{
+		if (key.Keycode == Key.Escape)
+		{
+			SetFocus(InputFocus.Action);
+			CommandReceived?.Invoke(":dir_cancel");
+			return true;
+		}
+		var dir = key.Keycode switch
+		{
+			Key.W or Key.Up    => "n",
+			Key.S or Key.Down  => "s",
+			Key.A or Key.Left  => "w",
+			Key.D or Key.Right => "e",
+			_ => (string?)null,
+		};
+		if (dir != null)
+		{
+			var prefix = _directionPrefix;
+			SetFocus(InputFocus.Action);
+			CommandReceived?.Invoke($":{prefix}_{dir}");
+			return true;
+		}
+		return false;
+	}
+
+	private bool HandleInventoryKey(InputEventKey key)
+	{
+		var invCmd = key.Keycode switch
+		{
+			Key.W or Key.Up    => ":inv_up",
+			Key.S or Key.Down  => ":inv_down",
+			Key.A or Key.Left  => ":inv_filter_prev",
+			Key.D or Key.Right => ":inv_filter_next",
+			Key.E             => ":inv_equip",
+			Key.U             => ":inv_use",
+			Key.Q             => ":inv_drop",
+			Key.R             => ":inv_sort",
+			Key.Tab           => key.ShiftPressed ? ":inv_filter_prev" : ":inv_filter_next",
+			Key.I or Key.Escape => ":inv_close",
+			_ => (string?)null,
+		};
+		if (invCmd != null)
+		{
+			CommandReceived?.Invoke(invCmd);
+			return true;
+		}
+		return false;
+	}
+
+	private bool HandleChestKey(InputEventKey key)
+	{
+		var chestCmd = key.Keycode switch
+		{
+			Key.W or Key.Up    => ":chest_up",
+			Key.S or Key.Down  => ":chest_down",
+			Key.E             => ":chest_take",
+			Key.P             => ":chest_put",
+			Key.Escape        => ":chest_close",
+			_ => (string?)null,
+		};
+		if (chestCmd != null)
+		{
+			CommandReceived?.Invoke(chestCmd);
+			return true;
+		}
+		return false;
+	}
+
+	private bool HandleActionKey(InputEventKey key)
+	{
 		var cmd = key.Keycode switch
 		{
 			Key.W      => "w",
@@ -132,7 +181,7 @@ public partial class InputModule
 			Key.D      => "d",
 			Key.L      => "look",
 			Key.R      => ":render",
-			Key.F      => ":interact",
+			Key.F or Key.O => ":interact",
 			Key.I      => ":inventory",
 			Key.G      => ":dig",
 			Key.K      => ":skills",
@@ -151,15 +200,10 @@ public partial class InputModule
 		if (cmd is null)
 			return false;
 
-		switch (cmd)
-		{
-			case ":typing":
-				EnterTypingMode();
-				break;
-			default:
-				CommandReceived?.Invoke(cmd);
-				break;
-		}
+		if (cmd == ":typing")
+			SetFocus(InputFocus.Typing);
+		else
+			CommandReceived?.Invoke(cmd);
 
 		return true;
 	}
@@ -168,7 +212,7 @@ public partial class InputModule
 	{
 		var cmd = text.Trim().ToLowerInvariant();
 		_lineEdit.Clear();
-		EnterActionMode();
+		SetFocus(InputFocus.Action);
 		if (cmd.Length > 0)
 			CommandReceived?.Invoke(cmd);
 	}

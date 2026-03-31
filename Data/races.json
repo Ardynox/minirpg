@@ -7,7 +7,9 @@
       "human_brain", "human_heart",
       "human_left_lung", "human_right_lung",
       "human_stomach", "human_mouth",
+      "human_torso", "human_head",
       "human_right_arm", "human_left_arm",
+      "human_right_hand", "human_left_hand",
       "human_right_leg", "human_left_leg",
       "human_right_eye", "human_left_eye"
     ]

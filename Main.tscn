@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://dbw8hh2am6yoj"]
+[gd_scene load_steps=12 format=3 uid="uid://dbw8hh2am6yoj"]
 
 [ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
 [ext_resource type="PackedScene" path="res://Scene/MapPanel.tscn" id="2_map"]
@@ -8,6 +8,9 @@
 [ext_resource type="PackedScene" path="res://Scene/SettingsPanel.tscn" id="6_settings"]
 [ext_resource type="PackedScene" path="res://Scene/MainMenu.tscn" id="7_menu"]
 [ext_resource type="PackedScene" path="res://Scene/SkillPanel.tscn" id="8_skill"]
+[ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
+[ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
+[ext_resource type="PackedScene" path="res://Scene/ChestPanel.tscn" id="11_chest"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -36,6 +39,12 @@ theme_override_constants/separation = 6
 [node name="StatusPanel" parent="UI/TopRow" instance=ExtResource("3_status")]
 
 [node name="SkillPanel" parent="UI/TopRow" instance=ExtResource("8_skill")]
+
+[node name="InventoryPanel" parent="UI/TopRow" instance=ExtResource("9_inv")]
+
+[node name="ChestPanel" parent="UI/TopRow" instance=ExtResource("11_chest")]
+
+[node name="GroundPanel" parent="UI" instance=ExtResource("10_ground")]
 
 [node name="LogPanel" parent="UI" instance=ExtResource("4_log")]
 

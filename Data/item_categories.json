@@ -1,0 +1,10 @@
+[
+  { "id": "weapon",     "name": "武器",   "defaultWeight": 2.0 },
+  { "id": "armor",      "name": "护甲",   "defaultWeight": 5.0 },
+  { "id": "clothing",   "name": "服装",   "defaultWeight": 1.0 },
+  { "id": "consumable", "name": "消耗品", "defaultWeight": 0.3 },
+  { "id": "tool",       "name": "工具",   "defaultWeight": 1.5 },
+  { "id": "material",   "name": "素材",   "defaultWeight": 1.0 },
+  { "id": "food",       "name": "食物",   "defaultWeight": 0.5 },
+  { "id": "misc",       "name": "杂货",   "defaultWeight": 0.5 }
+]

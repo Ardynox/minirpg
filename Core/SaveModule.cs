@@ -20,6 +20,7 @@ public static class SaveModule
 	{
 		WriteIndented = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
 	};
 
 	// ══════════════════════════════════════════════════════
@@ -206,7 +207,14 @@ public static class SaveModule
 
 	private static Item CopyItem(Item i) => new()
 	{
-		Id = i.Id, Name = i.Name, Price = i.Price, Equipped = i.Equipped,
+		Id = i.Id, Name = i.Name, Category = i.Category,
+		Price = i.Price, Weight = i.Weight, Equipped = i.Equipped,
+		BodyPart = i.BodyPart, Layer = i.Layer,
+		CoveredParts = [.. i.CoveredParts],
+		SharpArmor = i.SharpArmor, BluntArmor = i.BluntArmor,
+		SharpDamage = i.SharpDamage, BluntDamage = i.BluntDamage,
+		GrantedSkills = [.. i.GrantedSkills],
+		Contents = i.Contents?.ConvertAll(CopyItem),
 		Tags = new Dictionary<string, int>(i.Tags),
 	};
 
@@ -216,9 +224,16 @@ public static class SaveModule
 	private static Limb CopyLimb(Limb l) => new()
 	{
 		Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
-		Material = l.Material,
+		Material = l.Material, BodyPart = l.BodyPart,
+		EquipLayers = [.. l.EquipLayers],
+		EquipSlots = l.EquipSlots.ConvertAll(CopyEquipSlot),
 		Capacities = new Dictionary<string, float>(l.Capacities),
 		Tags = new Dictionary<string, int>(l.Tags),
+	};
+
+	private static EquipSlot CopyEquipSlot(EquipSlot s) => new()
+	{
+		LimbId = s.LimbId, BodyPart = s.BodyPart, Layer = s.Layer, ItemId = s.ItemId,
 	};
 
 	private static Race CopyRace(Race r) => new()

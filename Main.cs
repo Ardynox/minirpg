@@ -25,7 +25,8 @@ namespace MiniRPG;
 // REVIEW: Main 类承担了太多职责（约 850 行），违反单一职责原则。
 //         输入路由、事件分发、楼层切换、菜单管理、渲染等可以进一步拆分。
 //         虽然作为 Godot 入口节点有一定集中的必要性，但内部逻辑可以委托给更多子模块。
-public partial class Main : Node, IGameUI
+public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
+	GroundPanelModule.IHost, ChestPanelModule.IHost
 {
 	private const int MaxLogLines = 30;
 	private const double MapFps = 10.0;
@@ -74,6 +75,12 @@ public partial class Main : Node, IGameUI
 	private RichTextLabel _statusEquip = null!;
 
 	private SkillPanelModule _skillPanel = null!;
+	private InventoryPanelModule _inventoryPanel = null!;
+	private GroundPanelModule _groundPanel = null!;
+	private ChestPanelModule _chestPanel = null!;
+
+	private bool InventoryOpen => _inputModule?.Focus == InputFocus.Inventory;
+	private bool ChestOpen => _inputModule?.Focus == InputFocus.Chest;
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule _tradeUI = null!;
@@ -92,6 +99,26 @@ public partial class Main : Node, IGameUI
 	void IGameUI.CancelSelection() => CancelSelection();
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
+
+	void InventoryPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void InventoryPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
+	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
+	GameState InventoryPanelModule.IHost.State => _state;
+	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
+	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(chestItem);
+
+	void GroundPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
+	void GroundPanelModule.IHost.FlushMap() => FlushMap();
+	GameState GroundPanelModule.IHost.State => _state;
+	void GroundPanelModule.IHost.OpenChestPanel(Item chestItem) => OpenChestPanel(chestItem);
+	void GroundPanelModule.IHost.PickupGroundItem(Item item) => PickupGroundItem(ActorModule.GetPlayer(_state)!, item);
+
+	void ChestPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void ChestPanelModule.IHost.FlushMap() => FlushMap();
+	GameState ChestPanelModule.IHost.State => _state;
+	void ChestPanelModule.IHost.CloseChestPanel() => CloseChestPanel();
+	void ChestPanelModule.IHost.OpenPutIntoChestSelection(Item chestItem) => OpenPutIntoChestSelection(chestItem);
 
 	/// <summary>
 	/// 统一的玩家死亡处理：显示死亡战绩 → 冻结输入 → 等待任意键返回主菜单。
@@ -156,6 +183,9 @@ public partial class Main : Node, IGameUI
 		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
 
 		_skillPanel = new SkillPanelModule(GetNode<PanelContainer>("UI/TopRow/SkillPanel"));
+		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
+		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
+		_chestPanel = new ChestPanelModule(GetNode<PanelContainer>("UI/TopRow/ChestPanel"), this);
 
 		_renderModule = new RenderModule();
 		_renderModule.ApplyFont(_mapPanel);
@@ -333,6 +363,8 @@ public partial class Main : Node, IGameUI
 		_fogMapModule.Visible = false;
 		_minimapModule.Visible = false;
 		_skillPanel.Visible = false;
+		_inventoryPanel.Visible = false;
+		_chestPanel.Visible = false;
 		InitializeWorld();
 		_gameStarted = true;
 		AddLog("新游戏开始 🗺️");
@@ -383,6 +415,18 @@ public partial class Main : Node, IGameUI
 			return;
 		}
 
+		if (InventoryOpen && cmd.StartsWith(":inv_"))
+		{
+			HandleInventoryInput(cmd);
+			return;
+		}
+
+		if (ChestOpen && cmd.StartsWith(":chest_"))
+		{
+			HandleChestInput(cmd);
+			return;
+		}
+
 		if (cmd == ":select_cancel")
 		{
 			CancelSelection();
@@ -422,7 +466,7 @@ public partial class Main : Node, IGameUI
 			case ":quickload": DoLoad(QuickSavePath, "快速存档"); return;
 			case ":interact" or "interact": DoInteract(); return;
 			case ":dig": StartDig(); return;
-			case ":inventory": _inventoryUI.Open(); return;
+			case ":inventory": ToggleInventory(); return;
 			case ":skills": ToggleSkillPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
 			case ":minimap": ToggleMinimap(); return;
@@ -461,7 +505,79 @@ public partial class Main : Node, IGameUI
 				AddLog("新地图已生成 🗺️");
 				FlushMap();
 				break;
-			default: AddLog("未知指令 ❓"); break;
+			default:
+				if (cmd.StartsWith('/'))
+					HandleDebugCommand(cmd);
+				else
+					AddLog("未知指令 ❓");
+				break;
+		}
+	}
+
+	/// <summary>处理 / 前缀的 debug 文本命令。</summary>
+	private void HandleDebugCommand(string cmd)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) { AddLog("[debug] 无玩家"); return; }
+
+		var parts = cmd.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+		var verb = parts[0].ToLowerInvariant();
+		var arg = parts.Length > 1 ? parts[1].Trim() : "";
+
+		switch (verb)
+		{
+			case "/chest":
+				var count = DebugModule.SpawnChest(_state, _state.PlayerX, _state.PlayerY);
+				AddLog($"[debug] 宝箱已生成，含 {count} 件装备。按 F 打开");
+				FlushMap();
+				break;
+
+			case "/gold":
+				var gold = int.TryParse(arg, out var g) ? g : 1000;
+				DebugModule.GiveGold(player, gold);
+				AddLog($"[debug] +{gold}G (总计: {player.Gold}G)");
+				break;
+
+			case "/heal":
+				DebugModule.HealAll(player);
+				AddLog("[debug] 所有肢体已恢复满耐久");
+				break;
+
+			case "/spawn":
+				if (string.IsNullOrEmpty(arg))
+				{
+					var ids = DebugModule.GetMonsterTemplateIds();
+					AddLog($"[debug] 可用模板: {string.Join(", ", ids)}");
+					break;
+				}
+				var sx = _state.PlayerX + player.FacingX;
+				var sy = _state.PlayerY + player.FacingY;
+				var spawned = DebugModule.SpawnEnemy(_state, arg, sx, sy);
+				if (spawned != null)
+				{
+					AddLog($"[debug] 已生成 {spawned.DisplayName} 在 ({sx},{sy})");
+					FlushMap();
+				}
+				else
+				{
+					AddLog($"[debug] 未知模板: {arg}");
+				}
+				break;
+
+			case "/god":
+				var on = DebugModule.ToggleGodMode(player);
+				AddLog($"[debug] 无敌模式: {(on ? "开启" : "关闭")}");
+				break;
+
+			case "/down":
+				DebugModule.SkipToNextFloor(_state);
+				AddLog($"[debug] 已传送到第 {_state.PlayerZ} 层");
+				FlushMap();
+				break;
+
+			default:
+				AddLog("[debug] 可用命令: /chest /gold /heal /spawn /god /down");
+				break;
 		}
 	}
 
@@ -469,52 +585,52 @@ public partial class Main : Node, IGameUI
 	//  交互流程
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>触发交互：扫描周围 Actor + 脚下物品 → 选择交互目标。</summary>
+	/// <summary>F 键智能交互：有相邻 Actor → 交互菜单；否则 → 脚下面板交互。</summary>
 	private void DoInteract()
 	{
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null) return;
 
 		var targets = InteractionModule.GetAvailableTargets(_state, player);
-		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
 
-		if (targets.Count == 0 && groundItems.Count == 0)
+		if (targets.Count > 0)
+		{
+			if (targets.Count == 1)
+			{
+				ShowInteractionsFor(player, targets[0]);
+				return;
+			}
+
+			var options = new List<(string Name, Action Execute)>();
+			foreach (var t in targets)
+			{
+				var target = t;
+				options.Add((target.DisplayName, () => ShowInteractionsFor(player, target)));
+			}
+
+			var sb = new StringBuilder("选择目标：");
+			for (var i = 0; i < options.Count; i++)
+				sb.Append($"  [{i + 1}] {options[i].Name}");
+			AddLog(sb.ToString());
+
+			EnterSelection(n =>
+			{
+				if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
+				options[n - 1].Execute();
+			});
+			return;
+		}
+
+		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
+		if (groundItems.Count > 0)
+		{
+			_groundPanel.Refresh();
+			_groundPanel.DoInteractSelected();
+		}
+		else
 		{
 			AddLog("附近没有可交互的对象 🤷");
-			return;
 		}
-
-		if (targets.Count == 1 && groundItems.Count == 0)
-		{
-			ShowInteractionsFor(player, targets[0]);
-			return;
-		}
-
-		if (targets.Count == 0 && groundItems.Count > 0)
-		{
-			ShowPickupOptions(player, groundItems);
-			return;
-		}
-
-		var options = new List<(string Name, Action Execute)>();
-		foreach (var t in targets)
-		{
-			var target = t;
-			options.Add((target.DisplayName, () => ShowInteractionsFor(player, target)));
-		}
-		if (groundItems.Count > 0)
-			options.Add(($"地上的物品 ({groundItems.Count})", () => ShowPickupOptions(player, groundItems)));
-
-		var sb = new StringBuilder("选择目标：");
-		for (var i = 0; i < options.Count; i++)
-			sb.Append($"  [{i + 1}] {options[i].Name}");
-		AddLog(sb.ToString());
-
-		EnterSelection(n =>
-		{
-			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
-			options[n - 1].Execute();
-		});
 	}
 
 	/// <summary>G 键：进入地形破坏方向选择。</summary>
@@ -615,43 +731,75 @@ public partial class Main : Node, IGameUI
 		};
 	}
 
-	/// <summary>显示脚下掉落物拾取选项。</summary>
-	private void ShowPickupOptions(Actor player, List<Item> groundItems)
-	{
-		if (groundItems.Count == 1)
-		{
-			PickupGroundItem(player, groundItems[0]);
-			return;
-		}
-
-		var sb = new StringBuilder("拾取物品：");
-		for (var i = 0; i < groundItems.Count; i++)
-			sb.Append($"  [{i + 1}] {groundItems[i].Name}");
-		sb.Append($"  [{groundItems.Count + 1}] 全部拾取");
-		sb.Append("  [0] 取消");
-		AddLog(sb.ToString());
-
-		EnterSelection(n =>
-		{
-			if (n == 0) { AddLog("取消拾取"); return; }
-			if (n == groundItems.Count + 1)
-			{
-				foreach (var item in groundItems)
-					PickupGroundItem(player, item);
-				FlushMap();
-				return;
-			}
-			if (n < 1 || n > groundItems.Count) { AddLog("无效选择"); return; }
-			PickupGroundItem(player, groundItems[n - 1]);
-			FlushMap();
-		});
-	}
-
 	/// <summary>从地面拾取一个物品放入背包。</summary>
 	private void PickupGroundItem(Actor player, Item itemInfo)
 	{
 		var events = InteractionModule.PickupItem(_state, player, itemInfo.Id);
 		Dispatch(events);
+		_groundPanel.Refresh();
+	}
+
+	/// <summary>打开宝箱面板。</summary>
+	private void OpenChestPanel(Item chestItem)
+	{
+		_chestPanel.Open(chestItem);
+		_inputModule.EnterChestMode();
+	}
+
+	/// <summary>关闭宝箱面板。</summary>
+	private void CloseChestPanel()
+	{
+		_chestPanel.Close();
+		_inputModule.EnterActionMode();
+		_groundPanel.Refresh();
+		FlushMap();
+	}
+
+	/// <summary>从背包选择物品放入宝箱。</summary>
+	private void OpenPutIntoChestSelection(Item chestItem)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null) return;
+
+		var inv = InventoryModule.List(player);
+		if (inv.Count == 0)
+		{
+			AddLog("背包是空的");
+			return;
+		}
+
+		var sb = new StringBuilder("选择要放入的物品：");
+		for (var i = 0; i < inv.Count; i++)
+		{
+			var (_, item) = inv[i];
+			var eqMark = item.Equipped ? "[E]" : "";
+			sb.Append($"  [{i + 1}] {eqMark}{item.Name}");
+		}
+		sb.Append("  [0] 取消");
+		AddLog(sb.ToString());
+
+		_inputModule.EnterSelectionMode();
+		EnterSelection(n =>
+		{
+			if (n == 0) { AddLog("取消"); _inputModule.EnterChestMode(); return; }
+			if (n < 1 || n > inv.Count) { AddLog("无效选择"); _inputModule.EnterChestMode(); return; }
+			var (invIdx, item) = inv[n - 1];
+			if (item.Equipped)
+			{
+				AddLog($"请先卸下 {item.Name}");
+				_inputModule.EnterChestMode();
+				return;
+			}
+			var removed = InventoryModule.RemoveAt(player, invIdx);
+			if (removed != null)
+			{
+				chestItem.Contents!.Add(removed);
+				AddLog($"将 {removed.Name} 放入了 {chestItem.Name}");
+			}
+			_inputModule.EnterChestMode();
+			_chestPanel.Refresh();
+			FlushMap();
+		});
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -1168,6 +1316,8 @@ public partial class Main : Node, IGameUI
 		_statusEquip.AppendText(StatusModule.BuildEquipInfo(player));
 
 		_skillPanel.Refresh(player);
+		if (InventoryOpen) _inventoryPanel.Refresh();
+		_groundPanel.Refresh();
 	}
 
 	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
@@ -1238,6 +1388,53 @@ public partial class Main : Node, IGameUI
 		_skillPanel.Visible = !_skillPanel.Visible;
 		AddLog(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
 		FlushMap();
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  背包面板
+	// ══════════════════════════════════════════════════════
+
+	private void ToggleInventory()
+	{
+		if (InventoryOpen)
+		{
+			_inventoryPanel.Visible = false;
+			_inputModule.EnterActionMode();
+		}
+		else
+		{
+			_inventoryPanel.Visible = true;
+			_inputModule.EnterInventoryMode();
+		}
+		FlushMap();
+	}
+
+	private void HandleInventoryInput(string cmd)
+	{
+		switch (cmd)
+		{
+			case ":inv_up": _inventoryPanel.MoveCursor(-1); break;
+			case ":inv_down": _inventoryPanel.MoveCursor(1); break;
+			case ":inv_equip": _inventoryPanel.TryEquip(); break;
+			case ":inv_use": _inventoryPanel.TryUse(); break;
+			case ":inv_drop": _inventoryPanel.TryDrop(); break;
+			case ":inv_filter_next": _inventoryPanel.CycleFilter(1); break;
+			case ":inv_filter_prev": _inventoryPanel.CycleFilter(-1); break;
+			case ":inv_sort": _inventoryPanel.CycleSort(); break;
+			case ":inv_close": ToggleInventory(); break;
+		}
+	}
+
+	private void HandleChestInput(string cmd)
+	{
+		switch (cmd)
+		{
+			case ":chest_up": _chestPanel.MoveCursor(-1); break;
+			case ":chest_down": _chestPanel.MoveCursor(1); break;
+			case ":chest_take": _chestPanel.TryTake(); break;
+			case ":chest_put": _chestPanel.TryPut(); break;
+			case ":chest_close": CloseChestPanel(); break;
+		}
 	}
 
 	// ══════════════════════════════════════════════════════

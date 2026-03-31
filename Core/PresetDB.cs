@@ -33,6 +33,10 @@ public class LimbPreset
 	public int MaxDurability { get; set; } = 5;
 	[JsonPropertyName("material")]
 	public string Material { get; set; } = "flesh";
+	[JsonPropertyName("bodyPart")]
+	public string BodyPart { get; set; } = "";
+	[JsonPropertyName("equipLayers")]
+	public List<EquipLayer> EquipLayers { get; set; } = [];
 	[JsonPropertyName("capacities")]
 	public Dictionary<string, float> Capacities { get; set; } = new();
 	[JsonPropertyName("tags")]
@@ -55,8 +59,30 @@ public class ItemPreset
 	public string Id { get; set; } = "";
 	[JsonPropertyName("name")]
 	public string Name { get; set; } = "";
+	[JsonPropertyName("category")]
+	public string Category { get; set; } = ItemCategories.Misc;
 	[JsonPropertyName("price")]
 	public int Price { get; set; }
+	[JsonPropertyName("weight")]
+	public float Weight { get; set; }
+	[JsonPropertyName("bodyPart")]
+	public string BodyPart { get; set; } = "";
+	[JsonPropertyName("layer")]
+	public EquipLayer Layer { get; set; }
+	[JsonPropertyName("coveredParts")]
+	public List<string> CoveredParts { get; set; } = [];
+	[JsonPropertyName("sharpArmor")]
+	public float SharpArmor { get; set; }
+	[JsonPropertyName("bluntArmor")]
+	public float BluntArmor { get; set; }
+	[JsonPropertyName("sharpDamage")]
+	public float SharpDamage { get; set; }
+	[JsonPropertyName("bluntDamage")]
+	public float BluntDamage { get; set; }
+	[JsonPropertyName("grantedSkills")]
+	public List<string> GrantedSkills { get; set; } = [];
+	[JsonPropertyName("isContainer")]
+	public bool IsContainer { get; set; }
 	[JsonPropertyName("tags")]
 	public Dictionary<string, int> Tags { get; set; } = new();
 }
@@ -89,6 +115,16 @@ public class ActorPreset
 	public List<ShopSlotPreset> ShopSlots { get; set; } = [];
 }
 
+public class ItemCategoryPreset
+{
+	[JsonPropertyName("id")]
+	public string Id { get; set; } = "";
+	[JsonPropertyName("name")]
+	public string Name { get; set; } = "";
+	[JsonPropertyName("defaultWeight")]
+	public float DefaultWeight { get; set; } = 1.0f;
+}
+
 public class InteractionPreset
 {
 	[JsonPropertyName("id")]
@@ -107,6 +143,8 @@ public class InteractionPreset
 	public Dictionary<string, int> TargetRequired { get; set; } = new();
 	[JsonPropertyName("effectType")]
 	public string EffectType { get; set; } = "";
+	[JsonPropertyName("damageType")]
+	public string DamageType { get; set; } = "";
 	[JsonPropertyName("power")]
 	public int Power { get; set; }
 	[JsonPropertyName("cooldown")]
@@ -146,6 +184,10 @@ public static class PresetDB
 		foreach (var m in materials)
 			MaterialRegistry.Register(m);
 
+		var categories = LoadList<ItemCategoryPreset>("res://Data/item_categories.json");
+		foreach (var c in categories)
+			ItemCategoryDef.Register(new ItemCategoryDef { Id = c.Id, Name = c.Name, DefaultWeight = c.DefaultWeight });
+
 		Races = LoadDict<RacePreset>("res://Data/races.json");
 		Limbs = LoadDict<LimbPreset>("res://Data/limbs.json");
 		Professions = LoadDict<ProfessionPreset>("res://Data/professions.json");
@@ -160,7 +202,8 @@ public static class PresetDB
 				Required = new(i.Required),
 				CapacityRequired = new(i.CapacityRequired),
 				TargetRequired = new(i.TargetRequired),
-				EffectType = i.EffectType, Power = i.Power,
+				EffectType = i.EffectType, DamageType = i.DamageType,
+				Power = i.Power,
 				Cooldown = i.Cooldown, Range = i.Range,
 				Hidden = i.Hidden,
 				TerrainMaterial = i.TerrainMaterial,
@@ -232,16 +275,20 @@ public static class PresetDB
 	{
 		if (!Limbs.TryGetValue(limbId, out var preset))
 			throw new ArgumentException($"Unknown limb preset: {limbId}");
-		return new Limb
+		var limb = new Limb
 		{
 			Id = preset.Id,
 			Name = preset.Name,
 			MaxDurability = preset.MaxDurability,
 			Durability = preset.MaxDurability,
 			Material = preset.Material,
+			BodyPart = preset.BodyPart,
+			EquipLayers = [.. preset.EquipLayers],
 			Capacities = new(preset.Capacities),
 			Tags = new(preset.Tags),
 		};
+		limb.InitEquipSlots();
+		return limb;
 	}
 
 	/// <summary>按 ID 查询能力定义，不存在返回 null。</summary>
@@ -257,7 +304,18 @@ public static class PresetDB
 		{
 			Id = preset.Id,
 			Name = preset.Name,
+			Category = preset.Category,
 			Price = preset.Price,
+			Weight = preset.Weight,
+			BodyPart = preset.BodyPart,
+			Layer = preset.Layer,
+			CoveredParts = [.. preset.CoveredParts],
+			SharpArmor = preset.SharpArmor,
+			BluntArmor = preset.BluntArmor,
+			SharpDamage = preset.SharpDamage,
+			BluntDamage = preset.BluntDamage,
+			GrantedSkills = [.. preset.GrantedSkills],
+			Contents = preset.IsContainer ? [] : null,
 			Tags = new(preset.Tags),
 		};
 	}
@@ -270,6 +328,7 @@ public static class PresetDB
 	{
 		PropertyNameCaseInsensitive = true,
 		ReadCommentHandling = JsonCommentHandling.Skip,
+		Converters = { new JsonStringEnumConverter() },
 	};
 
 	private static Dictionary<string, T> LoadDict<T>(string resPath) where T : class

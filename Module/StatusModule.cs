@@ -125,26 +125,44 @@ public static class StatusModule
 
 	public static string BuildEquipInfo(Actor player)
 	{
-		var equipped = new List<Item>();
-		foreach (var item in player.Inventory)
-			if (item.Equipped) equipped.Add(item);
+		var hasAny = false;
+		var sb = new StringBuilder();
 
-		if (equipped.Count == 0)
+		foreach (var limb in player.Limbs)
+		{
+			if (limb.EquipSlots.Count == 0) continue;
+			var limbHasEquip = false;
+			foreach (var slot in limb.EquipSlots)
+			{
+				if (slot.ItemId == null) continue;
+				var item = player.Inventory.Find(i => i.Id == slot.ItemId);
+				if (item == null) continue;
+
+				if (!limbHasEquip)
+				{
+					sb.AppendLine($"[color=#aaaaaa]{limb.Name}:[/color]");
+					limbHasEquip = true;
+				}
+				hasAny = true;
+
+				sb.Append($"  [color=#44ccff]{item.Name}[/color] ({slot.Layer})");
+				var stats = new List<string>();
+				if (item.SharpDamage > 0) stats.Add($"锐伤{item.SharpDamage:F0}");
+				if (item.BluntDamage > 0) stats.Add($"钝伤{item.BluntDamage:F0}");
+				if (item.SharpArmor > 0) stats.Add($"锐防{item.SharpArmor:F0}");
+				if (item.BluntArmor > 0) stats.Add($"钝防{item.BluntArmor:F0}");
+				if (stats.Count > 0) sb.Append($" {string.Join(" ", stats)}");
+				sb.AppendLine();
+			}
+		}
+
+		if (!hasAny)
 			return "[color=#888888]无装备[/color]";
 
-		var sb = new StringBuilder();
-		foreach (var item in equipped)
-		{
-			sb.Append($"[color=#44ccff]{item.Name}[/color]");
-			if (item.Tags.Count > 0)
-			{
-				var parts = new List<string>();
-				foreach (var (key, val) in item.Tags)
-					parts.Add($"{key}+{val}");
-				sb.Append($" ({string.Join(", ", parts)})");
-			}
-			sb.AppendLine();
-		}
+		var weightLine = $"负重: {player.CarryWeight:F1}/{player.MaxCarryWeight:F1}kg";
+		if (player.IsOverweight) weightLine = $"[color=#ff4444]{weightLine} 超重！[/color]";
+		sb.AppendLine(weightLine);
+
 		return sb.ToString();
 	}
 }

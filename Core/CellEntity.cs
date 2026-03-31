@@ -12,8 +12,9 @@ namespace MiniRPG.Core;
 public enum CellEntityType
 {
 	Terrain = 0,    // 地形：墙、地面、水、岩浆
-	Fixture = 10,   // 设施：楼梯、巢穴、门、房屋
-	Item    = 20,   // 掉落物：地上的物品
+	Fixture   = 10, // 设施：楼梯、巢穴、门、房屋
+	Container = 15, // 容器：宝箱、箱子
+	Item      = 20, // 掉落物：地上的物品
 	Hazard  = 30,   // 危险物：陷阱、毒雾、火焰
 	Corpse  = 40,   // 尸体/残骸
 	Effect  = 60,   // 视觉效果：爆炸、魔法光环（临时）

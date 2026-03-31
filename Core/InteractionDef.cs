@@ -26,6 +26,8 @@ public class InteractionDef
 	public Dictionary<string, int> TargetRequired { get; set; } = new();
 
 	public string EffectType { get; set; } = "";
+	/// <summary>伤害类型：sharp/blunt/poison。空 = 由武器决定或默认 blunt。</summary>
+	public string DamageType { get; set; } = "";
 	public int Power { get; set; }
 
 	/// <summary>冷却回合数。0 = 无冷却。</summary>

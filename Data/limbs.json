@@ -4,6 +4,8 @@
     "name": "大脑",
     "maxDurability": 5,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "consciousness": 1.0 },
     "tags": { "要害": 1 }
   },
@@ -12,6 +14,8 @@
     "name": "心脏",
     "maxDurability": 5,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "blood_circulation": 1.0, "consciousness": 0.1 },
     "tags": { "要害": 1 }
   },
@@ -20,6 +24,8 @@
     "name": "左肺",
     "maxDurability": 5,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "breathing": 0.5 },
     "tags": {}
   },
@@ -28,6 +34,8 @@
     "name": "右肺",
     "maxDurability": 5,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "breathing": 0.5 },
     "tags": {}
   },
@@ -36,7 +44,29 @@
     "name": "胃",
     "maxDurability": 6,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "human_torso",
+    "name": "躯干",
+    "maxDurability": 15,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "human_head",
+    "name": "头部",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": ["Skin", "Middle", "Shell", "Overhead"],
+    "capacities": {},
     "tags": {}
   },
   {
@@ -44,6 +74,8 @@
     "name": "右臂",
     "maxDurability": 8,
     "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "manipulation": 0.5 },
     "tags": { "格挡": 1 }
   },
@@ -52,6 +84,8 @@
     "name": "左臂",
     "maxDurability": 8,
     "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "manipulation": 0.5 },
     "tags": { "格挡": 1 }
   },
@@ -60,6 +94,8 @@
     "name": "右腿",
     "maxDurability": 10,
     "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "moving": 0.5 },
     "tags": {}
   },
@@ -68,7 +104,29 @@
     "name": "左腿",
     "maxDurability": 10,
     "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "human_right_hand",
+    "name": "右手",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "human_left_hand",
+    "name": "左手",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
     "tags": {}
   },
   {
@@ -76,6 +134,8 @@
     "name": "右眼",
     "maxDurability": 3,
     "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
     "capacities": { "sight": 0.5 },
     "tags": {}
   },
@@ -84,6 +144,8 @@
     "name": "左眼",
     "maxDurability": 3,
     "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
     "capacities": { "sight": 0.5 },
     "tags": {}
   },
@@ -92,6 +154,8 @@
     "name": "嘴",
     "maxDurability": 4,
     "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
     "capacities": { "talking": 1.0, "eating": 1.0 },
     "tags": {}
   },
@@ -101,6 +165,8 @@
     "name": "小脑",
     "maxDurability": 3,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "consciousness": 1.0 },
     "tags": { "要害": 1 }
   },
@@ -109,6 +175,8 @@
     "name": "心脏",
     "maxDurability": 3,
     "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "blood_circulation": 1.0 },
     "tags": { "要害": 1 }
   },
@@ -117,6 +185,8 @@
     "name": "利爪",
     "maxDurability": 4,
     "material": "chitin",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
     "capacities": { "manipulation": 1.0 },
     "tags": {}
   },
@@ -125,6 +195,8 @@
     "name": "短腿",
     "maxDurability": 5,
     "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "moving": 1.0 },
     "tags": {}
   },
@@ -133,6 +205,8 @@
     "name": "夜眼",
     "maxDurability": 2,
     "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
     "capacities": { "sight": 1.0 },
     "tags": { "夜视": 1 }
   },
@@ -142,6 +216,8 @@
     "name": "弹性体",
     "maxDurability": 8,
     "material": "slime",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "manipulation": 0.5, "moving": 0.5 },
     "tags": {}
   },
@@ -150,6 +226,8 @@
     "name": "核心",
     "maxDurability": 5,
     "material": "crystal",
+    "bodyPart": "torso",
+    "equipLayers": [],
     "capacities": { "consciousness": 1.0, "blood_circulation": 1.0, "metabolism": 1.0 },
     "tags": { "要害": 1, "毒性": 1 }
   },
@@ -159,6 +237,8 @@
     "name": "头骨",
     "maxDurability": 4,
     "material": "bone",
+    "bodyPart": "head",
+    "equipLayers": ["Skin", "Shell", "Overhead"],
     "capacities": { "consciousness": 1.0, "sight": 1.0 },
     "tags": { "要害": 1, "亡灵": 1 }
   },
@@ -167,6 +247,8 @@
     "name": "骨臂(右)",
     "maxDurability": 5,
     "material": "bone",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "manipulation": 0.5 },
     "tags": {}
   },
@@ -175,6 +257,8 @@
     "name": "骨臂(左)",
     "maxDurability": 5,
     "material": "bone",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "manipulation": 0.5 },
     "tags": { "格挡": 1 }
   },
@@ -183,6 +267,8 @@
     "name": "骨腿",
     "maxDurability": 5,
     "material": "bone",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "moving": 1.0 },
     "tags": {}
   }
