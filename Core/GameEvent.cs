@@ -17,6 +17,10 @@ public class GameEvent
 	public string? InteractionName { get; set; }
 	public string? EffectType { get; set; }
 
+	// ── 物品事件专用 ──
+	/// <summary>物品名称（拾取/丢弃事件使用）。</summary>
+	public string? ItemName { get; set; }
+
 	// ── 战斗事件专用 ──
 	public int Damage { get; set; }
 	public string? LimbName { get; set; }

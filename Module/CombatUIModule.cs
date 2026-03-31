@@ -60,6 +60,23 @@ public class CombatUIModule
 			player.Gold += goldDrop;
 			_ui.AddLog($"  💰 获得 {goldDrop}G (总计: {player.Gold}G)");
 		}
+
+		GenerateLoot(e);
+	}
+
+	/// <summary>怪物死亡时按概率在死亡位置生成掉落物。</summary>
+	private void GenerateLoot(GameEvent e)
+	{
+		var rng = new Random(_ui.State.RngSeed + _ui.State.Turn + (e.TargetId ?? "").GetHashCode());
+		if (rng.Next(100) >= 40) return;
+
+		var pool = new List<string>(PresetDB.Items.Keys);
+		if (pool.Count == 0) return;
+
+		var itemId = pool[rng.Next(pool.Count)];
+		var item = PresetDB.CloneItem(itemId);
+		MapModule.PlaceItem(_ui.State, e.TargetX, e.TargetY, item);
+		_ui.AddLog($"  📦 {e.TargetActorName}掉落了 {item.Name}");
 	}
 
 	private void ShowActionSelection(Actor player, Actor target)
@@ -164,14 +181,10 @@ public class CombatUIModule
 					_ui.AddLog($"💥 你的{ev.LimbName}被摧毁了！");
 					break;
 				case "actor_killed":
-					_ui.AddLog("💀 你死了……");
-					_ui.AddLog("按任意方向键返回主菜单");
-					_ui.PlayerDead = true;
+					_ui.HandlePlayerDeath("killed");
 					break;
 				case "actor_incapacitated":
-					_ui.AddLog("😵 你失去了意识……");
-					_ui.AddLog("按任意方向键返回主菜单");
-					_ui.PlayerDead = true;
+					_ui.HandlePlayerDeath("incapacitated");
 					break;
 				default:
 					_ui.Dispatch([ev]);

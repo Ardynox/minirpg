@@ -76,8 +76,8 @@ public class InventoryUIModule
 			}
 			else if ((!hasUse && n == 2) || (hasUse && n == 3))
 			{
-				var r = InventoryModule.Drop(player, invIndex);
-				_ui.AddLog(r.Message);
+				var events = InteractionModule.DropItem(_ui.State, player, invIndex);
+				_ui.Dispatch(events);
 			}
 			else
 			{

@@ -16,4 +16,7 @@ public interface IGameUI
 	void Dispatch(System.Collections.Generic.List<GameEvent> events);
 	GameState State { get; }
 	bool PlayerDead { get; set; }
+
+	/// <summary>统一的玩家死亡处理入口。reason: "killed" / "incapacitated"。</summary>
+	void HandlePlayerDeath(string reason);
 }

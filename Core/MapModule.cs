@@ -200,6 +200,93 @@ public static class MapModule
 	}
 
 	// ══════════════════════════════════════════════════════
+	//  Item 层操作
+	// ══════════════════════════════════════════════════════
+
+	/// <summary>在格子上放置一个掉落物。物品数据存储在 CellEntity.Meta 中。</summary>
+	public static void PlaceItem(GameState s, int x, int y, Item item)
+	{
+		if (!InBounds(s, x, y)) return;
+		var entity = new CellEntity
+		{
+			Type = CellEntityType.Item,
+			Glyph = "!",
+			EntityId = item.Id,
+			Meta = new Dictionary<string, string>
+			{
+				["name"] = item.Name,
+				["price"] = item.Price.ToString(),
+				["tags"] = SerializeItemTags(item.Tags),
+			},
+		};
+		Push(s, x, y, entity);
+	}
+
+	/// <summary>获取指定格子上的所有掉落物。</summary>
+	public static List<CellEntity> GetGroundItems(GameState s, int x, int y) =>
+		GetByType(s, x, y, CellEntityType.Item);
+
+	/// <summary>从格子上拾取（移除）第一个匹配 EntityId 的掉落物，返回还原后的 Item。</summary>
+	public static Item? PickupItem(GameState s, int x, int y, string entityId)
+	{
+		if (!InBounds(s, x, y)) return null;
+		var stack = s.Cells[y][x];
+		for (var i = 0; i < stack.Count; i++)
+		{
+			if (stack[i].Type != CellEntityType.Item) continue;
+			if (stack[i].EntityId != entityId) continue;
+
+			var entity = stack[i];
+			stack.RemoveAt(i);
+			return RestoreItemFromEntity(entity);
+		}
+		return null;
+	}
+
+	/// <summary>从 CellEntity.Meta 还原 Item 对象。</summary>
+	private static Item RestoreItemFromEntity(CellEntity entity)
+	{
+		var meta = entity.Meta ?? new Dictionary<string, string>();
+		return new Item
+		{
+			Id = entity.EntityId,
+			Name = meta.GetValueOrDefault("name", entity.EntityId),
+			Price = int.TryParse(meta.GetValueOrDefault("price", "0"), out var p) ? p : 0,
+			Tags = DeserializeItemTags(meta.GetValueOrDefault("tags", "")),
+		};
+	}
+
+	/// <summary>将格子上的所有掉落物还原为 Item 列表（不移除）。</summary>
+	public static List<Item> PeekGroundItems(GameState s, int x, int y)
+	{
+		var items = new List<Item>();
+		foreach (var e in GetGroundItems(s, x, y))
+			items.Add(RestoreItemFromEntity(e));
+		return items;
+	}
+
+	private static string SerializeItemTags(Dictionary<string, int> tags)
+	{
+		var parts = new List<string>();
+		foreach (var (k, v) in tags)
+			parts.Add($"{k}={v}");
+		return string.Join(";", parts);
+	}
+
+	private static Dictionary<string, int> DeserializeItemTags(string raw)
+	{
+		var tags = new Dictionary<string, int>();
+		if (string.IsNullOrEmpty(raw)) return tags;
+		foreach (var pair in raw.Split(';'))
+		{
+			var kv = pair.Split('=', 2);
+			if (kv.Length == 2 && int.TryParse(kv[1], out var val))
+				tags[kv[0]] = val;
+		}
+		return tags;
+	}
+
+	// ══════════════════════════════════════════════════════
 	//  兼容旧逻辑的便捷方法（过渡期保留，新代码应使用 Push/Remove）
 	// ══════════════════════════════════════════════════════
 

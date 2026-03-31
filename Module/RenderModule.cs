@@ -80,6 +80,7 @@ public class RenderModule
 		"D" => "[color=#ffaa00]D·[/color]",
 		">" => "[color=#00ccff]▼·[/color]",
 		"<" => "[color=#00ccff]▲·[/color]",
+		"!" => "[color=#ffee44]!·[/color]",
 		_ => c + " ",
 	};
 
@@ -100,6 +101,7 @@ public class RenderModule
 		"D" => "🚪",
 		">" => "⬇️",
 		"<" => "⬆️",
+		"!" => "📦",
 		_ => c,
 	};
 }

@@ -79,12 +79,44 @@ public partial class Main : Node, IGameUI
 
 	public GameState State => _state;
 	public bool PlayerDead { get; set; }
+	private int _killCount;
 
 	void IGameUI.AddLog(string msg) => AddLog(msg);
 	void IGameUI.EnterSelection(Action<int> callback) => EnterSelection(callback);
 	void IGameUI.CancelSelection() => CancelSelection();
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
+
+	/// <summary>
+	/// 统一的玩家死亡处理：显示死亡战绩 → 冻结输入 → 等待任意键返回主菜单。
+	/// </summary>
+	public void HandlePlayerDeath(string reason)
+	{
+		if (PlayerDead) return;
+		PlayerDead = true;
+
+		if (_state.WatchMode)
+		{
+			_state.WatchMode = false;
+			var player = ActorModule.GetPlayer(_state);
+			if (player != null) player.BrainId = null;
+			_watchModeBtn.Text = "看海模式：关闭";
+		}
+
+		CancelSelection();
+
+		AddLog("");
+		AddLog(reason == "incapacitated"
+			? "══════ 😵 你失去了意识 ══════"
+			: "══════ 💀 你死了 ══════");
+		AddLog($"  回合: {_state.Turn}");
+		AddLog($"  到达: 第 {_state.CurrentFloor} 层");
+		AddLog($"  击杀: {_killCount}");
+		var player2 = ActorModule.GetPlayer(_state);
+		if (player2 != null) AddLog($"  金币: {player2.Gold}G");
+		AddLog("════════════════════════════");
+		AddLog("按任意键返回主菜单……");
+	}
 
 	// ══════════════════════════════════════════════════════
 	//  Godot 生命周期
@@ -275,6 +307,8 @@ public partial class Main : Node, IGameUI
 	{
 		_state.Reset();
 		_logLines.Clear();
+		_killCount = 0;
+		PlayerDead = false;
 		GenerateNewMap();
 		EnsurePlayerActor();
 		_gameStarted = true;
@@ -318,6 +352,14 @@ public partial class Main : Node, IGameUI
 	/// </summary>
 	private void OnCommand(string cmd)
 	{
+		if (PlayerDead)
+		{
+			PlayerDead = false;
+			_killCount = 0;
+			ShowMainMenu();
+			return;
+		}
+
 		if (cmd == ":select_cancel")
 		{
 			CancelSelection();
@@ -374,35 +416,91 @@ public partial class Main : Node, IGameUI
 	//  交互流程
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>触发交互：扫描周围目标 → 单目标直接交互 / 多目标进入选择模式。</summary>
+	/// <summary>触发交互：扫描周围 Actor + 脚下物品 → 选择交互目标。</summary>
 	private void DoInteract()
 	{
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null) return;
 
-		var targets = InteractionModule.GetAvailableTargets(_state);
-		if (targets.Count == 0)
+		var targets = InteractionModule.GetAvailableTargets(_state, player);
+		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
+
+		if (targets.Count == 0 && groundItems.Count == 0)
 		{
 			AddLog("附近没有可交互的对象 🤷");
 			return;
 		}
 
-		if (targets.Count == 1)
+		if (targets.Count == 1 && groundItems.Count == 0)
 		{
 			ShowInteractionsFor(player, targets[0]);
 			return;
 		}
 
+		if (targets.Count == 0 && groundItems.Count > 0)
+		{
+			ShowPickupOptions(player, groundItems);
+			return;
+		}
+
+		var options = new List<(string Name, Action Execute)>();
+		foreach (var t in targets)
+		{
+			var target = t;
+			options.Add((target.DisplayName, () => ShowInteractionsFor(player, target)));
+		}
+		if (groundItems.Count > 0)
+			options.Add(($"地上的物品 ({groundItems.Count})", () => ShowPickupOptions(player, groundItems)));
+
 		var sb = new StringBuilder("选择目标：");
-		for (var i = 0; i < targets.Count; i++)
-			sb.Append($"  [{i + 1}] {targets[i].DisplayName}");
+		for (var i = 0; i < options.Count; i++)
+			sb.Append($"  [{i + 1}] {options[i].Name}");
 		AddLog(sb.ToString());
 
 		EnterSelection(n =>
 		{
-			if (n < 1 || n > targets.Count) { AddLog("无效选择"); return; }
-			ShowInteractionsFor(player, targets[n - 1]);
+			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
+			options[n - 1].Execute();
 		});
+	}
+
+	/// <summary>显示脚下掉落物拾取选项。</summary>
+	private void ShowPickupOptions(Actor player, List<Item> groundItems)
+	{
+		if (groundItems.Count == 1)
+		{
+			PickupGroundItem(player, groundItems[0]);
+			return;
+		}
+
+		var sb = new StringBuilder("拾取物品：");
+		for (var i = 0; i < groundItems.Count; i++)
+			sb.Append($"  [{i + 1}] {groundItems[i].Name}");
+		sb.Append($"  [{groundItems.Count + 1}] 全部拾取");
+		sb.Append("  [0] 取消");
+		AddLog(sb.ToString());
+
+		EnterSelection(n =>
+		{
+			if (n == 0) { AddLog("取消拾取"); return; }
+			if (n == groundItems.Count + 1)
+			{
+				foreach (var item in groundItems)
+					PickupGroundItem(player, item);
+				FlushMap();
+				return;
+			}
+			if (n < 1 || n > groundItems.Count) { AddLog("无效选择"); return; }
+			PickupGroundItem(player, groundItems[n - 1]);
+			FlushMap();
+		});
+	}
+
+	/// <summary>从地面拾取一个物品放入背包。</summary>
+	private void PickupGroundItem(Actor player, Item itemInfo)
+	{
+		var events = InteractionModule.PickupItem(_state, player, itemInfo.Id);
+		Dispatch(events);
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -481,16 +579,8 @@ public partial class Main : Node, IGameUI
 	/// 处理方向键移动：玩家已死时按方向键返回主菜单，
 	/// 否则执行 TryMove → Tick → Dispatch → FlushMap。
 	/// </summary>
-	// REVIEW: DoMove 把「死亡后按键返回主菜单」的逻辑混在移动方法中，
-	//         职责不清晰。应拆分为独立的死亡处理流程。
 	private void DoMove(int dx, int dy)
 	{
-		if (PlayerDead)
-		{
-			PlayerDead = false;
-			ShowMainMenu();
-			return;
-		}
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null) return;
 
@@ -546,6 +636,18 @@ public partial class Main : Node, IGameUI
 				case "actor_incapacitated":
 					DispatchIncapacitated(e);
 					break;
+				case "item_picked_up":
+					AddLog($"📦 拾取了 {e.ItemName}");
+					break;
+				case "item_dropped":
+					AddLog($"📦 丢弃了 {e.ItemName}");
+					break;
+				case "drop_failed":
+					AddLog($"⚠️ 请先卸下 {e.ItemName} 再丢弃");
+					break;
+				case "pickup_failed":
+					AddLog("物品已经不在了");
+					break;
 			}
 		}
 	}
@@ -582,17 +684,15 @@ public partial class Main : Node, IGameUI
 			AddLog($"💥 {e.TargetActorName}的{e.LimbName}被摧毁了！");
 	}
 
-	/// <summary>处理击杀事件：玩家死亡 → 设置死亡标记；怪物死亡 → 委托 CombatUI。</summary>
 	private void DispatchActorKilled(GameEvent e)
 	{
 		if (e.TargetId == _state.PlayerId)
 		{
-			AddLog("💀 你死了……");
-			AddLog("按任意方向键返回主菜单");
-			PlayerDead = true;
+			HandlePlayerDeath("killed");
 		}
 		else
 		{
+			_killCount++;
 			_combatUI.HandleActorKilled(e);
 		}
 	}
@@ -601,9 +701,7 @@ public partial class Main : Node, IGameUI
 	{
 		if (e.TargetId == _state.PlayerId)
 		{
-			AddLog("😵 你失去了意识……");
-			AddLog("按任意方向键返回主菜单");
-			PlayerDead = true;
+			HandlePlayerDeath("incapacitated");
 		}
 		else
 		{
@@ -712,6 +810,13 @@ public partial class Main : Node, IGameUI
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
 
+		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
+		if (groundItems.Count > 0)
+		{
+			var names = groundItems.ConvertAll(i => i.Name);
+			sb.Append($"\n  📦 地上: {string.Join(", ", names)}  (F 键拾取)");
+		}
+
 		var coActors = ActorModule.GetAllAt(_state, _state.PlayerX, _state.PlayerY);
 		foreach (var a in coActors)
 		{
@@ -742,6 +847,8 @@ public partial class Main : Node, IGameUI
 			var names = actors.ConvertAll(a => a.DisplayName);
 			return string.Join("+", names);
 		}
+		var items = MapModule.GetGroundItems(_state, x, y);
+		if (items.Count > 0) return $"📦{items.Count}个物品";
 		var f = MapModule.GetFixtureId(_state, x, y);
 		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
 		return "空地";
