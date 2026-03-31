@@ -76,12 +76,25 @@ public class StatusPanelModule
 		SetTab(Tabs[idx]);
 	}
 
+	/// <summary>InputModule 直接调用：cmd = "up"/"down"/"prev"/"next"/"close"。</summary>
+	public void HandleCommand(string cmd, Action? onClose = null)
+	{
+		switch (cmd)
+		{
+			case "up": MoveCursor(-1); break;
+			case "down": MoveCursor(1); break;
+			case "prev": CycleTab(-1); break;
+			case "next": CycleTab(1); break;
+			case "close": onClose?.Invoke(); break;
+		}
+	}
+
 	public void MoveCursor(int delta)
 	{
-		if (_rows.Count == 0) return;
-		_cursor = Math.Clamp(_cursor + delta, 0, _rows.Count - 1);
+		if (_usedRows == 0) return;
+		_cursor = Math.Clamp(_cursor + delta, 0, _usedRows - 1);
 		UpdateRowVisuals();
-		if (_cursor >= 0 && _cursor < _rows.Count)
+		if (_cursor >= 0 && _cursor < _usedRows)
 			RowStyleHelper.EnsureVisible(_contentScroll, _rows[_cursor]);
 	}
 
@@ -117,38 +130,50 @@ public class StatusPanelModule
 			case StatusTab.Equip: BuildEquipRows(_cachedPlayer); break;
 		}
 
-		if (_cursor >= _rows.Count)
-			_cursor = Math.Max(0, _rows.Count - 1);
+		for (var i = _usedRows; i < _rows.Count; i++)
+			_rows[i].Visible = false;
+
+		if (_cursor >= _usedRows)
+			_cursor = Math.Max(0, _usedRows - 1);
 		UpdateRowVisuals();
 	}
 
+	private int _usedRows;
+
 	private void ClearRows()
 	{
-		foreach (var r in _rows)
-			r.QueueFree();
-		_rows.Clear();
+		_usedRows = 0;
 		_hoverIndex = -1;
 	}
 
 	private void AddRow(string text)
 	{
-		var idx = _rows.Count;
-		var row = new Button
+		var idx = _usedRows;
+		if (idx < _rows.Count)
 		{
-			Text = text,
-			Flat = true,
-			FocusMode = Control.FocusModeEnum.None,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 24),
-			Alignment = HorizontalAlignment.Left,
-			ClipText = true,
-		};
-		RowStyleHelper.Apply(row, false, false);
-		row.MouseEntered += () => { _hoverIndex = idx; UpdateRowVisuals(); };
-		row.MouseExited += () => { if (_hoverIndex == idx) _hoverIndex = -1; UpdateRowVisuals(); };
-		row.Pressed += () => { _cursor = idx; UpdateRowVisuals(); };
-		_itemList.AddChild(row);
-		_rows.Add(row);
+			_rows[idx].Text = text;
+			_rows[idx].Visible = true;
+		}
+		else
+		{
+			var row = new Button
+			{
+				Text = text,
+				Flat = true,
+				FocusMode = Control.FocusModeEnum.None,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+				CustomMinimumSize = new Vector2(0, 24),
+				Alignment = HorizontalAlignment.Left,
+				ClipText = true,
+			};
+			var capturedIdx = idx;
+			row.MouseEntered += () => { _hoverIndex = capturedIdx; UpdateRowVisuals(); };
+			row.MouseExited += () => { if (_hoverIndex == capturedIdx) _hoverIndex = -1; UpdateRowVisuals(); };
+			row.Pressed += () => { _cursor = capturedIdx; UpdateRowVisuals(); };
+			_itemList.AddChild(row);
+			_rows.Add(row);
+		}
+		_usedRows++;
 	}
 
 	// ── Limb tab ─────────────────────────────────────────
@@ -283,7 +308,7 @@ public class StatusPanelModule
 
 	private void UpdateRowVisuals()
 	{
-		for (var i = 0; i < _rows.Count; i++)
+		for (var i = 0; i < _usedRows; i++)
 			RowStyleHelper.Apply(_rows[i], i == _cursor, i == _hoverIndex);
 	}
 

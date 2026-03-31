@@ -21,8 +21,29 @@ public partial class InputModule
 	private readonly LineEdit _lineEdit;
 	private InputFocus _focus = InputFocus.Action;
 	private string _directionPrefix = "";
+	private Action<int>? _selectionCallback;
 
 	public InputFocus Focus => _focus;
+
+	/// <summary>
+	/// 进入选择模式。选中数字后执行 callback(n)，ESC 取消后执行 onCancel（可选）。
+	/// </summary>
+	public void EnterSelection(Action<int> callback, Action? onCancel = null)
+	{
+		_selectionCallback = callback;
+		_onSelectionCancel = onCancel;
+		SetFocus(InputFocus.Selection);
+	}
+
+	public void CancelSelection()
+	{
+		_selectionCallback = null;
+		_onSelectionCancel = null;
+		if (_focus == InputFocus.Selection)
+			SetFocus(InputFocus.Action);
+	}
+
+	private Action? _onSelectionCancel;
 
 	public InputModule(LineEdit lineEdit)
 	{
@@ -48,7 +69,6 @@ public partial class InputModule
 
 	public void EnterActionMode() => SetFocus(InputFocus.Action);
 	public void EnterTypingMode() => SetFocus(InputFocus.Typing);
-	public void EnterSelectionMode() => SetFocus(InputFocus.Selection);
 	public void EnterStatusMode() => SetFocus(InputFocus.Status);
 	public void EnterInventoryMode() => SetFocus(InputFocus.Inventory);
 	public void EnterChestMode() => SetFocus(InputFocus.Chest);
@@ -85,8 +105,9 @@ public partial class InputModule
 	{
 		if (key.Keycode == Key.Escape)
 		{
-			SetFocus(InputFocus.Action);
-			CommandReceived?.Invoke(":select_cancel");
+			var cancel = _onSelectionCancel;
+			CancelSelection();
+			cancel?.Invoke();
 			return true;
 		}
 		var num = key.Keycode switch
@@ -97,9 +118,13 @@ public partial class InputModule
 			Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
 			_ => -1,
 		};
-		if (num >= 0)
+		if (num >= 0 && _selectionCallback != null)
 		{
-			CommandReceived?.Invoke($":select_{num}");
+			var cb = _selectionCallback;
+			_selectionCallback = null;
+			_onSelectionCancel = null;
+			SetFocus(InputFocus.Action);
+			cb(num);
 			return true;
 		}
 		return false;
@@ -131,57 +156,62 @@ public partial class InputModule
 		return false;
 	}
 
+	/// <summary>Panel focus handlers: registered by panel modules to receive key commands directly.</summary>
+	public Action<string>? OnStatusCommand { get; set; }
+	public Action<string>? OnInventoryCommand { get; set; }
+	public Action<string>? OnChestCommand { get; set; }
+
 	private bool HandleStatusKey(InputEventKey key)
 	{
 		var cmd = key.Keycode switch
 		{
-			Key.W or Key.Up    => ":status_up",
-			Key.S or Key.Down  => ":status_down",
-			Key.A or Key.Left  => ":status_prev",
-			Key.D or Key.Right => ":status_next",
-			Key.Tab            => key.ShiftPressed ? ":status_prev" : ":status_next",
-			Key.Escape         => ":status_close",
+			Key.W or Key.Up    => "up",
+			Key.S or Key.Down  => "down",
+			Key.A or Key.Left  => "prev",
+			Key.D or Key.Right => "next",
+			Key.Tab            => key.ShiftPressed ? "prev" : "next",
+			Key.Escape         => "close",
 			_ => (string?)null,
 		};
 		if (cmd != null)
-			CommandReceived?.Invoke(cmd);
+			OnStatusCommand?.Invoke(cmd);
 		return true;
 	}
 
 	private bool HandleInventoryKey(InputEventKey key)
 	{
-		var invCmd = key.Keycode switch
+		var cmd = key.Keycode switch
 		{
-			Key.W or Key.Up    => ":inv_up",
-			Key.S or Key.Down  => ":inv_down",
-			Key.A or Key.Left  => ":inv_filter_prev",
-			Key.D or Key.Right => ":inv_filter_next",
-			Key.E             => ":inv_equip",
-			Key.U             => ":inv_use",
-			Key.Q             => ":inv_drop",
-			Key.R             => ":inv_sort",
-			Key.Tab           => key.ShiftPressed ? ":inv_filter_prev" : ":inv_filter_next",
-			Key.I or Key.Escape => ":inv_close",
+			Key.W or Key.Up    => "up",
+			Key.S or Key.Down  => "down",
+			Key.A or Key.Left  => "filter_prev",
+			Key.D or Key.Right => "filter_next",
+			Key.E             => "equip",
+			Key.U             => "use",
+			Key.Q             => "drop",
+			Key.R             => "sort",
+			Key.Tab           => key.ShiftPressed ? "filter_prev" : "filter_next",
+			Key.I or Key.Escape => "close",
 			_ => (string?)null,
 		};
-		if (invCmd != null)
-			CommandReceived?.Invoke(invCmd);
+		if (cmd != null)
+			OnInventoryCommand?.Invoke(cmd);
 		return true;
 	}
 
 	private bool HandleChestKey(InputEventKey key)
 	{
-		var chestCmd = key.Keycode switch
+		var cmd = key.Keycode switch
 		{
-			Key.W or Key.Up    => ":chest_up",
-			Key.S or Key.Down  => ":chest_down",
-			Key.E             => ":chest_take",
-			Key.P             => ":chest_put",
-			Key.Escape        => ":chest_close",
+			Key.W or Key.Up    => "up",
+			Key.S or Key.Down  => "down",
+			Key.E             => "take",
+			Key.P             => "put",
+			Key.Escape        => "close",
 			_ => (string?)null,
 		};
-		if (chestCmd != null)
-			CommandReceived?.Invoke(chestCmd);
+		if (cmd != null)
+			OnChestCommand?.Invoke(cmd);
 		return true;
 	}
 

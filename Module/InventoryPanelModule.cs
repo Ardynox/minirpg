@@ -268,43 +268,44 @@ public class InventoryPanelModule
 
 	private void RebuildItemNodes()
 	{
-		foreach (var old in _itemRows)
-			old.QueueFree();
-		_itemRows.Clear();
+		var needed = Math.Max(_displayItems.Count, 1);
 
-		for (var i = 0; i < _displayItems.Count; i++)
+		while (_itemRows.Count > needed)
 		{
-			var row = CreateItemRow(i, _displayItems[i].Item);
+			_itemRows[^1].QueueFree();
+			_itemRows.RemoveAt(_itemRows.Count - 1);
+		}
+		while (_itemRows.Count < needed)
+		{
+			var row = CreateEmptyRow(_itemRows.Count);
 			_itemList.AddChild(row);
 			_itemRows.Add(row);
 		}
 
 		if (_displayItems.Count == 0)
 		{
-			var empty = new Button
+			_itemRows[0].Text = "  (空)";
+			_itemRows[0].Disabled = true;
+			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+		}
+		else
+		{
+			for (var i = 0; i < _displayItems.Count; i++)
 			{
-				Text = "  (空)",
-				Flat = true,
-				FocusMode = Control.FocusModeEnum.None,
-				Disabled = true,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			};
-			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
-			_itemList.AddChild(empty);
-			_itemRows.Add(empty);
+				var item = _displayItems[i].Item;
+				var eqTag = item.Equipped ? "[E] " : "    ";
+				var stats = ItemFormatHelper.InlineStats(item);
+				var weight = $" {item.EffectiveWeight:F1}kg";
+				_itemRows[i].Text = $"{eqTag}{item.Name}  {stats}{weight}";
+				_itemRows[i].Disabled = false;
+			}
 		}
 	}
 
-	private Button CreateItemRow(int index, Item item)
+	private Button CreateEmptyRow(int index)
 	{
-		var eqTag = item.Equipped ? "[E] " : "    ";
-		var stats = ItemFormatHelper.InlineStats(item);
-		var weight = $" {item.EffectiveWeight:F1}kg";
-		var text = $"{eqTag}{item.Name}  {stats}{weight}";
-
 		var row = new Button
 		{
-			Text = text,
 			Flat = true,
 			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -312,8 +313,6 @@ public class InventoryPanelModule
 			Alignment = HorizontalAlignment.Left,
 			ClipText = true,
 		};
-
-		RowStyleHelper.Apply(row, false, false, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);

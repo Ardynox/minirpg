@@ -21,31 +21,30 @@ public static class ShadowcastFOV
 	}
 
 	/// <summary>
-	/// 朝向 FOV：先用 max(front,rear) 算完整视野，再按朝向裁剪距离。
+	/// 朝向 FOV：从预计算的完整视野集合中按朝向裁剪距离。
+	/// 传入 fullVisible 避免重复 shadowcast。
 	/// </summary>
 	public static HashSet<(int X, int Y)> ComputeDirectional(
 		int ox, int oy, int frontRadius, int rearRadius,
-		int facingX, int facingY, IsOpaqueFunc isOpaque)
+		int facingX, int facingY, HashSet<(int X, int Y)> fullVisible)
 	{
-		var maxR = Math.Max(frontRadius, rearRadius);
-		var visible = Compute(ox, oy, maxR, isOpaque);
-
-		if (frontRadius == rearRadius) return visible;
+		if (frontRadius == rearRadius)
+			return new HashSet<(int X, int Y)>(fullVisible);
 
 		long frontSq = (long)frontRadius * frontRadius;
 		long rearSq = (long)rearRadius * rearRadius;
 
-		visible.RemoveWhere(cell =>
+		var result = new HashSet<(int X, int Y)>(fullVisible.Count);
+		foreach (var (cx, cy) in fullVisible)
 		{
-			var (cx, cy) = cell;
-			if (cx == ox && cy == oy) return false;
+			if (cx == ox && cy == oy) { result.Add((cx, cy)); continue; }
 			int dx = cx - ox, dy = cy - oy;
 			long distSq = (long)dx * dx + (long)dy * dy;
 			int dot = dx * facingX + dy * facingY;
-			return distSq > (dot >= 0 ? frontSq : rearSq);
-		});
-
-		return visible;
+			if (distSq <= (dot >= 0 ? frontSq : rearSq))
+				result.Add((cx, cy));
+		}
+		return result;
 	}
 
 	/// <summary>

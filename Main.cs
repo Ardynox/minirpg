@@ -23,7 +23,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private readonly GameState _state = new();
 	private readonly List<string> _logLines = [];
-	private Action<int>? _selectionCallback;
 
 	private PanelContainer _mapPanelNode = null!;
 	private RichTextLabel _mapText = null!;
@@ -71,8 +70,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	public bool PlayerDead { get; set; }
 
 	void IGameUI.AddLog(string msg) => AddLog(msg);
-	void IGameUI.EnterSelection(Action<int> callback) => EnterSelection(callback);
-	void IGameUI.CancelSelection() => CancelSelection();
+	void IGameUI.EnterSelection(Action<int> callback) => _inputModule.EnterSelection(callback);
+	void IGameUI.CancelSelection() => _inputModule.CancelSelection();
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
 
@@ -112,7 +111,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_watchModeBtn.Text = "看海模式：关闭";
 		}
 
-		CancelSelection();
+		_inputModule.CancelSelection();
 
 		AddLog("");
 		AddLog(reason == "incapacitated"
@@ -172,6 +171,34 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
+		_inputModule.OnStatusCommand += cmd =>
+			_statusPanelModule.HandleCommand(cmd, () => { _inputModule.EnterActionMode(); RefreshAllBorders(); });
+		_inputModule.OnInventoryCommand += cmd =>
+		{
+			switch (cmd)
+			{
+				case "up": _inventoryPanel.MoveCursor(-1); break;
+				case "down": _inventoryPanel.MoveCursor(1); break;
+				case "equip": _inventoryPanel.TryEquip(); break;
+				case "use": _inventoryPanel.TryUse(); break;
+				case "drop": _inventoryPanel.TryDrop(); break;
+				case "filter_next": _inventoryPanel.CycleFilter(1); break;
+				case "filter_prev": _inventoryPanel.CycleFilter(-1); break;
+				case "sort": _inventoryPanel.CycleSort(); break;
+				case "close": ToggleInventory(); break;
+			}
+		};
+		_inputModule.OnChestCommand += cmd =>
+		{
+			switch (cmd)
+			{
+				case "up": _chestPanel.MoveCursor(-1); break;
+				case "down": _chestPanel.MoveCursor(1); break;
+				case "take": _chestPanel.TryTake(); break;
+				case "put": _chestPanel.TryPut(); break;
+				case "close": CloseChestPanel(); break;
+			}
+		};
 
 		_combatUI = new CombatUIModule(this);
 		_tradeUI = new TradeUIModule(this);
@@ -326,7 +353,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
-		CancelSelection();
+		_inputModule.CancelSelection();
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
@@ -358,25 +385,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  选择模式（数字键选择列表项）
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>进入选择模式：InputModule 切换为数字键监听，选中后回调 callback(n)。</summary>
-	private void EnterSelection(Action<int> callback)
-	{
-		_selectionCallback = callback;
-		_inputModule.EnterSelectionMode();
-	}
-
-	/// <summary>取消选择模式，恢复正常输入。</summary>
-	private void CancelSelection()
-	{
-		_selectionCallback = null;
-		if (_inputModule != null)
-			_inputModule.EnterActionMode();
-	}
-
-	// ══════════════════════════════════════════════════════
 	//  命令分发（InputModule 产出命令字符串 → 此处路由到具体逻辑）
 	// ══════════════════════════════════════════════════════
 
@@ -390,43 +398,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		{
 			PlayerDead = false;
 			_menu.ShowMainMenu(_session.HasAnySave());
-			return;
-		}
-
-		if (StatusOpen && cmd.StartsWith(":status_"))
-		{
-			HandleStatusInput(cmd);
-			return;
-		}
-
-		if (InventoryOpen && cmd.StartsWith(":inv_"))
-		{
-			HandleInventoryInput(cmd);
-			return;
-		}
-
-		if (ChestOpen && cmd.StartsWith(":chest_"))
-		{
-			HandleChestInput(cmd);
-			return;
-		}
-
-		if (cmd == ":select_cancel")
-		{
-			CancelSelection();
-			AddLog("已取消");
-			return;
-		}
-
-		if (cmd.StartsWith(":select_") && _selectionCallback != null)
-		{
-			if (int.TryParse(cmd[":select_".Length..], out var n))
-			{
-				var cb = _selectionCallback;
-				_selectionCallback = null;
-				_inputModule.EnterActionMode();
-				cb(n);
-			}
 			return;
 		}
 
@@ -554,7 +525,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				break;
 
 			case "/down":
-				DebugModule.SkipToNextFloor(_state);
+				_session.ChangeFloor(goDown: true);
 				AddLog($"[debug] 已传送到第 {_state.PlayerZ} 层");
 				FlushMap();
 				break;
@@ -597,11 +568,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				sb.Append($"  [{i + 1}] {options[i].Name}");
 			AddLog(sb.ToString());
 
-			EnterSelection(n =>
+			_inputModule.EnterSelection(n =>
 			{
 				if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
 				options[n - 1].Execute();
-			});
+			}, () => AddLog("已取消"));
 			return;
 		}
 
@@ -720,6 +691,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		var events = InteractionModule.PickupItem(_state, player, itemInfo.Id);
 		Dispatch(events);
+		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 	}
 
@@ -739,6 +711,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_chestPanel.Close();
 		_inputModule.EnterActionMode();
 		RefreshAllBorders();
+		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 		FlushMap();
 	}
@@ -779,8 +752,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		sb.Append("  [0] 取消");
 		AddLog(sb.ToString());
 
-		_inputModule.EnterSelectionMode();
-		EnterSelection(n =>
+		_inputModule.EnterSelection(n =>
 		{
 			if (n == 0) { AddLog("取消"); _inputModule.EnterChestMode(); return; }
 			if (n < 1 || n > inv.Count) { AddLog("无效选择"); _inputModule.EnterChestMode(); return; }
@@ -800,7 +772,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_inputModule.EnterChestMode();
 			_chestPanel.Refresh();
 			FlushMap();
-		});
+		}, () => { AddLog("取消"); _inputModule.EnterChestMode(); });
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -835,11 +807,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			sb.Append($"  [{i + 1}] {options[i].Name}");
 		AddLog(sb.ToString());
 
-		EnterSelection(n =>
+		_inputModule.EnterSelection(n =>
 		{
 			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
 			options[n - 1].Execute();
-		});
+		}, () => AddLog("已取消"));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -931,6 +903,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				case "interaction":
 					DispatchInteraction(e);
 					break;
+				case "item_picked_up" or "item_dropped":
+					_groundPanel.Invalidate();
+					break;
 			}
 		}
 	}
@@ -962,45 +937,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	//  楼梯（上行 / 下行）
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>尝试使用楼梯：扫描脚下 + 四方向是否有楼梯 Fixture。</summary>
 	private void DoEnterStairs()
 	{
-		var px = _state.PlayerX;
-		var py = _state.PlayerY;
-		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
-
-		foreach (var (dx, dy) in dirs)
+		if (ChestOpen) CloseChestPanel();
+		if (_session.TryUseStairs(out var msg))
 		{
-			var nx = px + dx;
-			var ny = py + dy;
-			if (MapModule.HasFixture(_state, nx, ny, Entities.StairDown)) { GoDown(); return; }
-			if (MapModule.HasFixture(_state, nx, ny, Entities.StairUp)) { GoUp(); return; }
+			AddLog(msg!);
+			FlushMap();
 		}
-		AddLog("附近没有楼梯 🤷");
-	}
-
-	/// <summary>下楼：Z++ 并传送到下层楼梯附近。</summary>
-	private void GoDown()
-	{
-		if (ChestOpen) CloseChestPanel();
-		MapModule.GoDown(_state);
-		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
-		MapModule.PlacePlayerAtFixture(_state, Entities.StairUp);
-		AddLog($"你进入了第 {_state.PlayerZ} 层 ⬇️");
-		FlushMap();
-	}
-
-	/// <summary>上楼：Z-- 并传送到上层楼梯附近。</summary>
-	private void GoUp()
-	{
-		if (ChestOpen) CloseChestPanel();
-		MapModule.GoUp(_state);
-		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
-		MapModule.PlacePlayerAtFixture(_state, Entities.StairDown);
-		AddLog($"你回到了第 {_state.PlayerZ} 层 ⬆️");
-		FlushMap();
+		else
+		{
+			AddLog("附近没有楼梯 🤷");
+		}
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1235,25 +1183,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  状态面板
-	// ══════════════════════════════════════════════════════
-
-	private void HandleStatusInput(string cmd)
-	{
-		switch (cmd)
-		{
-			case ":status_up": _statusPanelModule.MoveCursor(-1); break;
-			case ":status_down": _statusPanelModule.MoveCursor(1); break;
-			case ":status_prev": _statusPanelModule.CycleTab(-1); break;
-			case ":status_next": _statusPanelModule.CycleTab(1); break;
-			case ":status_close":
-				_inputModule.EnterActionMode();
-				RefreshAllBorders();
-				break;
-		}
-	}
-
-	// ══════════════════════════════════════════════════════
 	//  背包面板
 	// ══════════════════════════════════════════════════════
 
@@ -1271,34 +1200,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		RefreshAllBorders();
 		FlushMap();
-	}
-
-	private void HandleInventoryInput(string cmd)
-	{
-		switch (cmd)
-		{
-			case ":inv_up": _inventoryPanel.MoveCursor(-1); break;
-			case ":inv_down": _inventoryPanel.MoveCursor(1); break;
-			case ":inv_equip": _inventoryPanel.TryEquip(); break;
-			case ":inv_use": _inventoryPanel.TryUse(); break;
-			case ":inv_drop": _inventoryPanel.TryDrop(); break;
-			case ":inv_filter_next": _inventoryPanel.CycleFilter(1); break;
-			case ":inv_filter_prev": _inventoryPanel.CycleFilter(-1); break;
-			case ":inv_sort": _inventoryPanel.CycleSort(); break;
-			case ":inv_close": ToggleInventory(); break;
-		}
-	}
-
-	private void HandleChestInput(string cmd)
-	{
-		switch (cmd)
-		{
-			case ":chest_up": _chestPanel.MoveCursor(-1); break;
-			case ":chest_down": _chestPanel.MoveCursor(1); break;
-			case ":chest_take": _chestPanel.TryTake(); break;
-			case ":chest_put": _chestPanel.TryPut(); break;
-			case ":chest_close": CloseChestPanel(); break;
-		}
 	}
 
 	// ══════════════════════════════════════════════════════

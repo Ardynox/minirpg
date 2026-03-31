@@ -158,44 +158,45 @@ public class ChestPanelModule
 
 	private void RebuildItemNodes()
 	{
-		foreach (var old in _itemRows)
-			old.QueueFree();
-		_itemRows.Clear();
-
 		var contents = _chestItem?.Contents;
-		if (contents == null || contents.Count == 0)
-		{
-			var empty = new Button
-			{
-				Text = "  (空)",
-				Flat = true,
-				FocusMode = Control.FocusModeEnum.None,
-				Disabled = true,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			};
-			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
-			_itemList.AddChild(empty);
-			_itemRows.Add(empty);
-			return;
-		}
+		var count = contents?.Count ?? 0;
+		var needed = Math.Max(count, 1);
 
-		for (var i = 0; i < contents.Count; i++)
+		while (_itemRows.Count > needed)
 		{
-			var row = CreateItemRow(i, contents[i]);
+			_itemRows[^1].QueueFree();
+			_itemRows.RemoveAt(_itemRows.Count - 1);
+		}
+		while (_itemRows.Count < needed)
+		{
+			var row = CreateEmptyRow(_itemRows.Count);
 			_itemList.AddChild(row);
 			_itemRows.Add(row);
 		}
+
+		if (count == 0)
+		{
+			_itemRows[0].Text = "  (空)";
+			_itemRows[0].Disabled = true;
+			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+		}
+		else
+		{
+			for (var i = 0; i < count; i++)
+			{
+				var item = contents![i];
+				var stats = ItemFormatHelper.InlineStats(item);
+				var weight = $" {item.EffectiveWeight:F1}kg";
+				_itemRows[i].Text = $"{item.Name}  {stats}{weight}";
+				_itemRows[i].Disabled = false;
+			}
+		}
 	}
 
-	private Button CreateItemRow(int index, Item item)
+	private Button CreateEmptyRow(int index)
 	{
-		var stats = ItemFormatHelper.InlineStats(item);
-		var weight = $" {item.EffectiveWeight:F1}kg";
-		var text = $"{item.Name}  {stats}{weight}";
-
 		var row = new Button
 		{
-			Text = text,
 			Flat = true,
 			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -203,8 +204,6 @@ public class ChestPanelModule
 			Alignment = HorizontalAlignment.Left,
 			ClipText = true,
 		};
-
-		RowStyleHelper.Apply(row, false, false, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);

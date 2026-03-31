@@ -79,6 +79,45 @@ public class GameSessionModule
 			|| System.IO.File.Exists(ManualSavePath);
 	}
 
+	/// <summary>
+	/// 扫描玩家附近是否有楼梯，有则切换楼层。
+	/// 返回 true 表示成功切换，logMessage 为日志文本。
+	/// </summary>
+	public bool TryUseStairs(out string? logMessage)
+	{
+		logMessage = null;
+		var px = _state.PlayerX;
+		var py = _state.PlayerY;
+		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
+
+		foreach (var (dx, dy) in dirs)
+		{
+			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairDown))
+			{
+				ChangeFloor(goDown: true);
+				logMessage = $"你进入了第 {_state.PlayerZ} 层 ⬇️";
+				return true;
+			}
+			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairUp))
+			{
+				ChangeFloor(goDown: false);
+				logMessage = $"你回到了第 {_state.PlayerZ} 层 ⬆️";
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>执行楼层切换：修改 Z 层、加载区块、传送玩家到对应楼梯。</summary>
+	public void ChangeFloor(bool goDown)
+	{
+		if (goDown) MapModule.GoDown(_state);
+		else MapModule.GoUp(_state);
+		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
+		MapModule.PlacePlayerAtFixture(_state, goDown ? Entities.StairUp : Entities.StairDown);
+	}
+
 	private void InitializeWorld()
 	{
 		MapGenModule.InitializeWorld(_state);

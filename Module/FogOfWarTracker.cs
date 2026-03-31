@@ -69,7 +69,7 @@ public class FogOfWarTracker
 		var facingX = player?.FacingX ?? 0;
 		var facingY = player?.FacingY ?? 1;
 		_directionalVisible = ShadowcastFOV.ComputeDirectional(
-			cx, cy, frontRadius, rearRadius, facingX, facingY, isOpaque);
+			cx, cy, frontRadius, rearRadius, facingX, facingY, _fullVisible);
 
 		foreach (var (vx, vy) in _fullVisible)
 			seenSet.Add(Pack(vx, vy));

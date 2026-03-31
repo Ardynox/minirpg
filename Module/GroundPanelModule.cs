@@ -32,6 +32,9 @@ public class GroundPanelModule
 	private ulong _lastClickTime;
 	private int _lastClickIndex = -1;
 	private const ulong DoubleClickMs = 400;
+	private int _cachedX = int.MinValue;
+	private int _cachedY = int.MinValue;
+	private bool _dirty = true;
 
 	public bool Visible
 	{
@@ -57,9 +60,20 @@ public class GroundPanelModule
 		_pickupAllBtn.Pressed += () => DoPickupAll();
 	}
 
+	/// <summary>标记地面物品已变化，下次 Refresh 时重新查询。</summary>
+	public void Invalidate() => _dirty = true;
+
 	public void Refresh()
 	{
-		_groundItems = MapModule.PeekGroundItems(_host.State, _host.State.PlayerX, _host.State.PlayerY);
+		var px = _host.State.PlayerX;
+		var py = _host.State.PlayerY;
+		if (_dirty || px != _cachedX || py != _cachedY)
+		{
+			_groundItems = MapModule.PeekGroundItems(_host.State, px, py);
+			_cachedX = px;
+			_cachedY = py;
+			_dirty = false;
+		}
 		if (_cursor >= _groundItems.Count)
 			_cursor = Math.Max(0, _groundItems.Count - 1);
 
@@ -123,44 +137,45 @@ public class GroundPanelModule
 
 	private void RebuildItemNodes()
 	{
-		foreach (var old in _itemRows)
-			old.QueueFree();
-		_itemRows.Clear();
+		var needed = Math.Max(_groundItems.Count, 1);
 
-		for (var i = 0; i < _groundItems.Count; i++)
+		while (_itemRows.Count > needed)
 		{
-			var row = CreateItemRow(i, _groundItems[i]);
+			_itemRows[^1].QueueFree();
+			_itemRows.RemoveAt(_itemRows.Count - 1);
+		}
+		while (_itemRows.Count < needed)
+		{
+			var row = CreateEmptyRow(_itemRows.Count);
 			_itemList.AddChild(row);
 			_itemRows.Add(row);
 		}
 
 		if (_groundItems.Count == 0)
 		{
-			var empty = new Button
+			_itemRows[0].Text = "  地上没有物品";
+			_itemRows[0].Disabled = true;
+			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+		}
+		else
+		{
+			for (var i = 0; i < _groundItems.Count; i++)
 			{
-				Text = "  地上没有物品",
-				Flat = true,
-				FocusMode = Control.FocusModeEnum.None,
-				Disabled = true,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			};
-			empty.AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
-			_itemList.AddChild(empty);
-			_itemRows.Add(empty);
+				var item = _groundItems[i];
+				var icon = item.IsContainer ? "📦 " : "· ";
+				var nameText = item.IsContainer
+					? $"{item.Name} ({item.Contents?.Count ?? 0}件)"
+					: item.Name;
+				_itemRows[i].Text = $"{icon}{nameText}  {item.EffectiveWeight:F1}kg";
+				_itemRows[i].Disabled = false;
+			}
 		}
 	}
 
-	private Button CreateItemRow(int index, Item item)
+	private Button CreateEmptyRow(int index)
 	{
-		var icon = item.IsContainer ? "📦 " : "· ";
-		var nameText = item.IsContainer
-			? $"{item.Name} ({item.Contents?.Count ?? 0}件)"
-			: item.Name;
-		var text = $"{icon}{nameText}  {item.EffectiveWeight:F1}kg";
-
 		var row = new Button
 		{
-			Text = text,
 			Flat = true,
 			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -168,9 +183,6 @@ public class GroundPanelModule
 			Alignment = HorizontalAlignment.Left,
 			ClipText = true,
 		};
-
-		RowStyleHelper.Apply(row, false, false,
-			textOverride: item.IsContainer ? UIColors.TextContainer : null, transparentBg: true);
 
 		var idx = index;
 		row.GuiInput += ev => OnRowInput(ev, idx);

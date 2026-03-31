@@ -81,15 +81,6 @@ public static class DebugModule
 		return true;
 	}
 
-	/// <summary>直接下一层。</summary>
-	public static void SkipToNextFloor(GameState state)
-	{
-		MapModule.GoDown(state);
-		var center = new WorldCoord(state.PlayerX, state.PlayerY, state.PlayerZ);
-		state.World?.Chunks.UpdateLoadedChunks(center, state.Turn);
-		MapModule.PlacePlayerAtFixture(state, Entities.StairUp);
-	}
-
 	/// <summary>获取所有怪物模板 ID 列表。</summary>
 	public static List<string> GetMonsterTemplateIds()
 	{
