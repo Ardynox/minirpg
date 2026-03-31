@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using MiniRPG.Core;
+using MiniRPG.Core.World;
 using MiniRPG.Module;
 
 namespace MiniRPG;
@@ -28,8 +29,6 @@ public partial class Main : Node, IGameUI
 {
 	private const int MaxLogLines = 30;
 	private const double MapFps = 10.0;
-	private const int GenWidth = 40;
-	private const int GenHeight = 24;
 	private const int ViewW = 21;
 	private const int ViewH = 11;
 
@@ -59,6 +58,7 @@ public partial class Main : Node, IGameUI
 	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
 	private RenderModule _renderModule = null!;
+	private IViewMode _viewMode = null!;
 	private double _watchTimer;
 
 	private PanelContainer _statusPanel = null!;
@@ -110,7 +110,7 @@ public partial class Main : Node, IGameUI
 			? "══════ 😵 你失去了意识 ══════"
 			: "══════ 💀 你死了 ══════");
 		AddLog($"  回合: {_state.Turn}");
-		AddLog($"  到达: 第 {_state.CurrentFloor} 层");
+		AddLog($"  到达: 第 {_state.PlayerZ} 层");
 		AddLog($"  击杀: {_killCount}");
 		var player2 = ActorModule.GetPlayer(_state);
 		if (player2 != null) AddLog($"  金币: {player2.Gold}G");
@@ -126,6 +126,8 @@ public partial class Main : Node, IGameUI
 	public override void _Ready()
 	{
 		PresetDB.Load();
+		TerrainRegistry.Load("res://Data/terrains.json");
+		_viewMode = new SingleLayerViewMode();
 
 		_ui = GetNode<VBoxContainer>("UI");
 		_mapPanel = GetNode<RichTextLabel>("UI/TopRow/MapPanel");
@@ -234,7 +236,9 @@ public partial class Main : Node, IGameUI
 		if (SaveModule.LoadGame(_state, QuickSavePath)
 			|| SaveModule.LoadGame(_state, ManualSavePath))
 		{
+			MapGenModule.InitializeWorld(_state);
 			EnsurePlayerActor();
+			SyncViewMode();
 			_logLines.Clear();
 			AddLog("存档已加载 📂");
 		}
@@ -259,13 +263,17 @@ public partial class Main : Node, IGameUI
 	{
 		if (SaveModule.LoadGame(_state, ManualSavePath))
 		{
+			MapGenModule.InitializeWorld(_state);
 			EnsurePlayerActor();
+			SyncViewMode();
 			_logLines.Clear();
 			AddLog("存档已加载 📂");
 		}
 		else if (SaveModule.LoadGame(_state, QuickSavePath))
 		{
+			MapGenModule.InitializeWorld(_state);
 			EnsurePlayerActor();
+			SyncViewMode();
 			_logLines.Clear();
 			AddLog("快速存档已加载 📂");
 		}
@@ -302,15 +310,15 @@ public partial class Main : Node, IGameUI
 		ShowMainMenu();
 	}
 
-	/// <summary>重置状态并生成新地图。</summary>
+	/// <summary>重置状态并初始化无限世界。</summary>
 	private void StartNewGame()
 	{
 		_state.Reset();
+		_state.WorldSeed = System.Environment.TickCount;
 		_logLines.Clear();
 		_killCount = 0;
 		PlayerDead = false;
-		GenerateNewMap();
-		EnsurePlayerActor();
+		InitializeWorld();
 		_gameStarted = true;
 		AddLog("新游戏开始 🗺️");
 	}
@@ -403,8 +411,8 @@ public partial class Main : Node, IGameUI
 			case "load": DoLoad(ManualSavePath); break;
 			case "newmap":
 				_state.Reset();
-				GenerateNewMap();
-				EnsurePlayerActor();
+				_state.WorldSeed = System.Environment.TickCount;
+				InitializeWorld();
 				AddLog("新地图已生成 🗺️");
 				FlushMap();
 				break;
@@ -587,6 +595,10 @@ public partial class Main : Node, IGameUI
 		var events = ActionModule.TryMove(_state, player, dx, dy);
 		events.AddRange(TurnModule.Tick(_state));
 		Dispatch(events);
+
+		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
+
 		FlushMap();
 	}
 
@@ -647,6 +659,15 @@ public partial class Main : Node, IGameUI
 					break;
 				case "pickup_failed":
 					AddLog("物品已经不在了");
+					break;
+				case "dig_success":
+					AddLog($"挖掘成功！墙壁被破坏了 ⛏️");
+					break;
+				case "dig_progress":
+					AddLog($"挖掘中... 造成 {e.Damage} 点破坏 ⛏️");
+					break;
+				case "dig_failed":
+					AddLog($"无法挖掘：{e.ItemName}");
 					break;
 			}
 		}
@@ -753,32 +774,25 @@ public partial class Main : Node, IGameUI
 		AddLog("附近没有楼梯 🤷");
 	}
 
-	/// <summary>下楼：缓存当前层 → 切换到下一层（有缓存则恢复，无则生成新地图）。</summary>
+	/// <summary>下楼：Z++ 并传送到下层楼梯附近。</summary>
 	private void GoDown()
 	{
-		if (MapModule.GoDownFloor(_state))
-		{
-			MapModule.PlacePlayerAtFixture(_state, Entities.StairUp);
-			AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬇️");
-		}
-		else
-		{
-			GenerateNewMap();
-			AddLog($"你进入了第 {_state.CurrentFloor} 层 ⬇️");
-		}
+		MapModule.GoDown(_state);
+		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
+		MapModule.PlacePlayerAtFixture(_state, Entities.StairUp);
+		AddLog($"你进入了第 {_state.PlayerZ} 层 ⬇️");
 		FlushMap();
 	}
 
-	/// <summary>上楼：缓存当前层 → 恢复上一层。已是顶层时提示。</summary>
+	/// <summary>上楼：Z-- 并传送到上层楼梯附近。</summary>
 	private void GoUp()
 	{
-		if (!MapModule.GoUpFloor(_state))
-		{
-			AddLog("已经是最顶层 🚫");
-			return;
-		}
+		MapModule.GoUp(_state);
+		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
 		MapModule.PlacePlayerAtFixture(_state, Entities.StairDown);
-		AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬆️");
+		AddLog($"你回到了第 {_state.PlayerZ} 层 ⬆️");
 		FlushMap();
 	}
 
@@ -791,7 +805,7 @@ public partial class Main : Node, IGameUI
 	{
 		var sb = new StringBuilder();
 		var player = ActorModule.GetPlayer(_state);
-		sb.Append($"📍 第 {_state.CurrentFloor} 层 ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
+		sb.Append($"📍 Z{_state.PlayerZ} ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
 		if (player != null) sb.Append($"  💰{player.Gold}G");
 
 		if (player != null && player.Limbs.Count > 0)
@@ -877,13 +891,15 @@ public partial class Main : Node, IGameUI
 		AddLog($"{label}已保存 💾");
 	}
 
-	/// <summary>从指定路径加载存档。加载后确保玩家 Actor 存在。</summary>
+	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
 	private void DoLoad(string path, string label = "存档")
 	{
 		if (SaveModule.LoadGame(_state, path))
 		{
+			MapGenModule.InitializeWorld(_state);
 			EnsurePlayerActor();
-			AddLog($"{label}已加载 📂 (第 {_state.CurrentFloor} 层)");
+			SyncViewMode();
+			AddLog($"{label}已加载 📂 (Z{_state.PlayerZ})");
 			FlushMap();
 		}
 		else
@@ -892,10 +908,13 @@ public partial class Main : Node, IGameUI
 		}
 	}
 
-	/// <summary>调用 MapGenModule 生成新地图，尺寸为 GenWidth × GenHeight。</summary>
-	private void GenerateNewMap()
+	/// <summary>初始化无限世界：创建 WorldMap、找出生点、生成玩家。</summary>
+	private void InitializeWorld()
 	{
-		MapGenModule.Generate(_state, GenWidth, GenHeight, _state.CurrentFloor);
+		MapGenModule.InitializeWorld(_state);
+		MapGenModule.FindSpawnPoint(_state);
+		MapGenModule.SpawnPlayer(_state);
+		SyncViewMode();
 	}
 
 	/// <summary>
@@ -911,6 +930,7 @@ public partial class Main : Node, IGameUI
 		var player = ActorTemplates.Spawn("player", _state.PlayerId);
 		player.X = _state.PlayerX;
 		player.Y = _state.PlayerY;
+		player.Z = _state.PlayerZ;
 		_state.Actors[player.Id] = player;
 	}
 
@@ -963,7 +983,7 @@ public partial class Main : Node, IGameUI
 		}
 
 		_statusName.Clear();
-		_statusName.AppendText(StatusModule.BuildNameInfo(player, _state.CurrentFloor, _state.Turn));
+		_statusName.AppendText(StatusModule.BuildNameInfo(player, _state.PlayerZ, _state.Turn));
 		_statusLimb.Clear();
 		_statusLimb.AppendText(StatusModule.BuildLimbInfo(player));
 		_statusCap.Clear();
@@ -976,32 +996,18 @@ public partial class Main : Node, IGameUI
 		_statusEquip.AppendText(StatusModule.BuildEquipInfo(player));
 	}
 
-	/// <summary>
-	/// 构建 ViewW × ViewH 的显示地图：以玩家为中心的视窗裁剪。
-	/// 越界区域显示为 "#"（墙）。
-	/// </summary>
-	private List<List<string>> BuildDisplayMap()
-	{
-		var cx = _state.PlayerX;
-		var cy = _state.PlayerY;
-		var halfW = ViewW / 2;
-		var halfH = ViewH / 2;
+	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
+	private List<List<string>> BuildDisplayMap() =>
+		_viewMode.BuildDisplayMap(_state, ViewW, ViewH);
 
-		var result = new List<List<string>>();
-		for (var vy = 0; vy < ViewH; vy++)
+	/// <summary>根据 GameState.ViewModeId 同步视图模式实例。</summary>
+	private void SyncViewMode()
+	{
+		_viewMode = _state.ViewModeId switch
 		{
-			var row = new List<string>();
-			var my = cy - halfH + vy;
-			for (var vx = 0; vx < ViewW; vx++)
-			{
-				var mx = cx - halfW + vx;
-				row.Add(MapModule.InBounds(_state, mx, my)
-					? MapModule.GetDisplayCell(_state, mx, my)
-					: "#");
-			}
-			result.Add(row);
-		}
-		return result;
+			"multi_layer" => new MultiLayerViewMode(),
+			_ => new SingleLayerViewMode(),
+		};
 	}
 
 	// ══════════════════════════════════════════════════════

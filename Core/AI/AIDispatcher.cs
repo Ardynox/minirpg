@@ -85,7 +85,9 @@ public static class AIDispatcher
 	private static SimDetail Classify(Actor actor, int cx, int cy, int range)
 	{
 		var dist = Math.Abs(actor.X - cx) + Math.Abs(actor.Y - cy);
-		return dist <= range ? SimDetail.Full : SimDetail.Simplified;
+		if (dist <= range) return SimDetail.Full;
+		if (dist <= range * 3) return SimDetail.Simplified;
+		return SimDetail.Summary;
 	}
 
 	// ── Decision → ActionModule 执行 ─────────────────────

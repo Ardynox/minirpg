@@ -13,6 +13,7 @@ public enum RenderMode
 /// <summary>
 /// 渲染模块：将二维字符地图转成可显示字符串。
 /// 支持 ASCII（等宽 + BBCode 着色）和 Emoji（全 Emoji 等宽）两种模式。
+/// 支持 "dim:" 前缀的暗色字符（多层预览视图模式使用）。
 /// </summary>
 public class RenderModule
 {
@@ -56,23 +57,32 @@ public class RenderModule
 		}
 	}
 
-	private string CellText(string c) => Mode switch
+	private string CellText(string c)
 	{
-		RenderMode.Ascii => AsciiCell(c),
-		RenderMode.Emoji => EmojiCell(c),
-		_ => c,
-	};
+		var dim = c.StartsWith("dim:");
+		var raw = dim ? c[4..] : c;
+
+		return Mode switch
+		{
+			RenderMode.Ascii => dim ? AsciiDimCell(raw) : AsciiCell(raw),
+			RenderMode.Emoji => dim ? EmojiDimCell(raw) : EmojiCell(raw),
+			_ => raw,
+		};
+	}
 
 	private static string AsciiCell(string c) => c switch
 	{
 		"#" => "[color=#555555]██[/color]",
 		"." => "[color=#333333]· [/color]",
+		"~" => "[color=#2266cc]~~[/color]",
+		"^" => "[color=#888888]^^[/color]",
+		"T" => "[color=#22aa44]♣ [/color]",
+		" " => "  ",
 		"P" => "[color=#44ee44]@·[/color]",
 		"M" => "[color=#ee4444]M·[/color]",
 		"G" => "[color=#44cc44]G·[/color]",
 		"S" => "[color=#44ddaa]S·[/color]",
 		"K" => "[color=#cccccc]K·[/color]",
-		"T" => "[color=#ffcc44]T·[/color]",
 		"E" => "[color=#44aaff]E·[/color]",
 		"V" => "[color=#88cc88]V·[/color]",
 		"N" => "[color=#aa44ff]N·[/color]",
@@ -84,24 +94,47 @@ public class RenderModule
 		_ => c + " ",
 	};
 
+	/// <summary>暗色版本：用于多层预览中下层内容的渲染。</summary>
+	private static string AsciiDimCell(string c) => c switch
+	{
+		"#" => "[color=#222222]░░[/color]",
+		"." => "[color=#1a1a1a]· [/color]",
+		"~" => "[color=#113355]~~[/color]",
+		"^" => "[color=#444444]^^[/color]",
+		"T" => "[color=#114422]♣ [/color]",
+		_ => "[color=#222222]" + c + " [/color]",
+	};
+
 	private static string EmojiCell(string c) => c switch
 	{
 		"#" => "⬛",
 		"." => "⬜",
+		"~" => "🟦",
+		"^" => "🔺",
+		"T" => "🌲",
+		" " => "  ",
 		"P" => "🙂",
 		"M" => "👾",
 		"G" => "👺",
 		"S" => "🟢",
 		"K" => "💀",
-		"T" => "🧑",
-		"E" => "👴",
-		"V" => "😐",
 		"N" => "🕳️",
 		"H" => "🏠",
 		"D" => "🚪",
 		">" => "⬇️",
 		"<" => "⬆️",
 		"!" => "📦",
+		"E" => "👴",
+		"V" => "😐",
 		_ => c,
+	};
+
+	/// <summary>暗色 Emoji 版本：用半透明方块或暗色符号表示下层。</summary>
+	private static string EmojiDimCell(string c) => c switch
+	{
+		"#" => "◾",
+		"." => "◽",
+		"~" => "🔵",
+		_ => "◾",
 	};
 }

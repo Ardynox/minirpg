@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.World;
 
 namespace MiniRPG.Core;
 
 /// <summary>
 /// 交互模块：检测可交互目标、过滤可用交互、执行交互产出事件。
-/// 交互范围包括：Actor↔Actor 交互、物品拾取、物品丢弃。
+/// 交互范围包括：Actor↔Actor 交互、Actor→Cell 交互（挖掘等）、物品拾取、物品丢弃。
 /// </summary>
 public static class InteractionModule
 {
@@ -137,6 +138,34 @@ public static class InteractionModule
 			TargetY = actor.Y,
 		}];
 	}
+
+	// ══════════════════════════════════════════════════════
+	//  Actor→Cell 交互（挖掘等）
+	// ══════════════════════════════════════════════════════
+
+	/// <summary>扫描 Actor 相邻四方向的可交互地形格（实心且可破坏）。</summary>
+	public static List<(int X, int Y, int Z, string TerrainName)> GetDiggableNeighbors(
+		GameState state, Actor actor)
+	{
+		var results = new List<(int, int, int, string)>();
+		if (state.World == null) return results;
+
+		var adjacentDirs = new (int Dx, int Dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
+		foreach (var (dx, dy) in adjacentDirs)
+		{
+			var tx = actor.X + dx;
+			var ty = actor.Y + dy;
+			var tz = actor.Z;
+			var terrain = state.World.GetTerrain(tx, ty, tz);
+			if (terrain.Solid && state.World.GetHardness(tx, ty, tz) > 0)
+				results.Add((tx, ty, tz, terrain.StringId));
+		}
+		return results;
+	}
+
+	/// <summary>执行 Actor→Cell 的挖掘交互。</summary>
+	public static List<GameEvent> ExecuteDig(GameState state, Actor actor, int tx, int ty, int tz) =>
+		DigModule.TryDig(state, actor, tx, ty, tz);
 
 	// ══════════════════════════════════════════════════════
 	//  内部工具

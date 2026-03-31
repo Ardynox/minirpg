@@ -18,7 +18,7 @@ public static class StatusModule
 		if (player.Profession != null)
 			sb.Append($" · {player.Profession.Name}");
 		sb.AppendLine();
-		sb.AppendLine($"[color=#ffcc00]金币: {player.Gold}G[/color]  楼层: {floor}  回合: {turn}");
+		sb.AppendLine($"[color=#ffcc00]金币: {player.Gold}G[/color]  深度: Z{floor}  回合: {turn}");
 		return sb.ToString();
 	}
 

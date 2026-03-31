@@ -2,19 +2,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MiniRPG.Core.World;
 
 namespace MiniRPG.Core;
 
 /// <summary>
-/// 存档模块：负责游戏状态的持久化（JSON 文件）和楼层切换时的内存快照。
+/// 存档模块：负责游戏状态的持久化。
 ///
-/// 两种用途：
-///   1. 全局存读档：SaveGame / LoadGame → 将所有楼层写入/读取 JSON 文件
-///   2. 楼层切换：SaveFloorToDict / LoadFloorFromDict → 内存中临时缓存楼层快照
-///
-/// 序列化策略：
-///   - Cells 二维数组平铺为一维 List（FlattenCells / UnflattenCells），减小 JSON 嵌套深度
-///   - 所有实体采用手动深拷贝（CopyActor / CopyCellEntity 等），保证独立副本
+/// 无限世界存档策略：
+/// - 未修改的 chunk 可以从种子重新生成，不需要存档
+/// - 只存储被修改过的 dirty chunk（挖掘、建造等）
+/// - Actor 表、玩家位置、世界种子、设置等存在全局存档中
 /// </summary>
 public static class SaveModule
 {
@@ -25,27 +23,32 @@ public static class SaveModule
 	};
 
 	// ══════════════════════════════════════════════════════
-	//  全局存读档（所有楼层 → JSON 文件）
+	//  全局存读档
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>将当前游戏的所有楼层（含当前层）序列化为 JSON 并写入文件。</summary>
 	public static void SaveGame(GameState state, string filePath)
 	{
-		var data = new FullSaveData
+		var data = new WorldSaveData
 		{
-			CurrentFloor = state.CurrentFloor,
+			WorldSeed = state.WorldSeed,
 			Turn = state.Turn,
-			RngSeed = state.RngSeed,
+			PlayerX = state.PlayerX,
+			PlayerY = state.PlayerY,
+			PlayerZ = state.PlayerZ,
 			BumpAttack = state.BumpAttack,
 			WatchMode = state.WatchMode,
+			GeneratorId = state.GeneratorId,
+			ViewModeId = state.ViewModeId,
+			Actors = CopyActors(state.Actors),
 		};
 
-		data.Floors[state.CurrentFloor.ToString()] = SnapshotToSaveData(state);
-
-		foreach (var (floor, floorData) in state.Floors)
+		if (state.World != null)
 		{
-			if (floor == state.CurrentFloor) continue;
-			data.Floors[floor.ToString()] = FloorToSaveData(floorData);
+			foreach (var (coord, chunk) in state.World.Chunks.LoadedChunks)
+			{
+				if (!chunk.Dirty) continue;
+				data.DirtyChunks.Add(SerializeChunk(coord, chunk));
+			}
 		}
 
 		var json = JsonSerializer.Serialize(data, JsonOpts);
@@ -53,173 +56,113 @@ public static class SaveModule
 		File.WriteAllText(filePath, json);
 	}
 
-	/// <summary>从 JSON 文件加载存档并恢复到 state。返回 false = 文件不存在或解析失败。</summary>
-	// REVIEW: LoadGame 在异常情况下（JSON 损坏、版本不兼容）
-	//         只返回 false，不提供失败原因。调用方无法区分「无存档」和「存档损坏」。
 	public static bool LoadGame(GameState state, string filePath)
 	{
 		if (!File.Exists(filePath)) return false;
 
 		var json = File.ReadAllText(filePath);
-		var data = JsonSerializer.Deserialize<FullSaveData>(json, JsonOpts);
-		if (data is null) return false;
+		var data = JsonSerializer.Deserialize<WorldSaveData>(json, JsonOpts);
+		if (data == null) return false;
 
-		state.CurrentFloor = data.CurrentFloor;
+		state.WorldSeed = data.WorldSeed;
 		state.Turn = data.Turn;
-		state.RngSeed = data.RngSeed;
-		state.BumpAttack = data.BumpAttack;
-		state.WatchMode = data.WatchMode;
-		state.Floors.Clear();
-
-		foreach (var (key, mapData) in data.Floors)
-		{
-			if (!int.TryParse(key, out var floor)) continue;
-			state.Floors[floor] = SaveDataToFloor(mapData);
-		}
-
-		if (state.Floors.TryGetValue(state.CurrentFloor, out var current))
-		{
-			RestoreFloor(state, current);
-			state.Floors.Remove(state.CurrentFloor);
-		}
-
-		return true;
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  楼层切换用的内存快照
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>
-	/// 将当前楼层数据深拷贝到 state.Floors 缓存。
-	/// player Actor 不会被存入快照（由调用方负责跨楼层携带）。
-	/// </summary>
-	public static void SaveFloorToDict(GameState state)
-	{
-		var playerId = state.PlayerId;
-		Actor? player = null;
-		if (state.Actors.TryGetValue(playerId, out var p))
-		{
-			player = p;
-			state.Actors.Remove(playerId);
-		}
-
-		state.Floors[state.CurrentFloor] = SnapshotFloor(state);
-
-		if (player != null)
-			state.Actors[playerId] = player;
-	}
-
-	/// <summary>从 state.Floors 缓存中恢复指定楼层。成功后从缓存中移除。</summary>
-	public static bool LoadFloorFromDict(GameState state, int floor)
-	{
-		if (!state.Floors.TryGetValue(floor, out var data))
-			return false;
-		RestoreFloor(state, data);
-		state.Floors.Remove(floor);
-		state.CurrentFloor = floor;
-		return true;
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  快照 / 恢复
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>将 GameState 当前楼层数据深拷贝为 FloorData。</summary>
-	private static FloorData SnapshotFloor(GameState state) => new()
-	{
-		Width = state.MapWidth,
-		Height = state.MapHeight,
-		Cells = CopyCells(state.Cells),
-		Nests = CopyNests(state.Nests),
-		Actors = CopyActors(state.Actors),
-		PlayerX = state.PlayerX,
-		PlayerY = state.PlayerY,
-	};
-
-	/// <summary>从 FloorData 恢复到 GameState 的当前楼层字段。</summary>
-	private static void RestoreFloor(GameState state, FloorData data)
-	{
-		state.MapWidth = data.Width;
-		state.MapHeight = data.Height;
-		state.Cells = CopyCells(data.Cells);
-		state.Nests = CopyNests(data.Nests);
-		state.Actors = CopyActors(data.Actors);
 		state.PlayerX = data.PlayerX;
 		state.PlayerY = data.PlayerY;
-	}
+		state.PlayerZ = data.PlayerZ;
+		state.BumpAttack = data.BumpAttack;
+		state.WatchMode = data.WatchMode;
+		state.GeneratorId = data.GeneratorId ?? "room_corridor";
+		state.ViewModeId = data.ViewModeId ?? "single_layer";
+		state.Actors = data.Actors ?? new();
 
-	// ══════════════════════════════════════════════════════
-	//  转换：GameState ↔ MapSaveData（持久化格式）
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>当前楼层 → 持久化格式（Cells 平铺）。</summary>
-	private static MapSaveData SnapshotToSaveData(GameState s) => new()
-	{
-		Width = s.MapWidth,
-		Height = s.MapHeight,
-		Cells = FlattenCells(s.Cells),
-		PlayerX = s.PlayerX,
-		PlayerY = s.PlayerY,
-		Nests = CopyNests(s.Nests),
-		Actors = CopyActors(s.Actors),
-	};
-
-	/// <summary>缓存的 FloorData → 持久化格式。</summary>
-	private static MapSaveData FloorToSaveData(FloorData f) => new()
-	{
-		Width = f.Width,
-		Height = f.Height,
-		Cells = FlattenCells(f.Cells),
-		PlayerX = f.PlayerX,
-		PlayerY = f.PlayerY,
-		Nests = new List<NestData>(f.Nests),
-		Actors = CopyActors(f.Actors),
-	};
-
-	/// <summary>持久化格式 → FloorData（Cells 从一维还原为二维）。</summary>
-	private static FloorData SaveDataToFloor(MapSaveData d) => new()
-	{
-		Width = d.Width,
-		Height = d.Height,
-		Cells = UnflattenCells(d.Cells, d.Width, d.Height),
-		Nests = d.Nests ?? [],
-		Actors = d.Actors ?? new(),
-		PlayerX = d.PlayerX,
-		PlayerY = d.PlayerY,
-	};
-
-	// ══════════════════════════════════════════════════════
-	//  深拷贝（手动逐字段复制）
-	// ══════════════════════════════════════════════════════
-	// REVIEW: 全部手动深拷贝，每次新增字段都必须同步修改对应的 Copy 方法。
-	//         容易遗漏导致浅拷贝 bug。考虑：
-	//         1. 使用 JSON 序列化/反序列化做通用深拷贝（牺牲性能换安全）
-	//         2. 为每个数据类实现 ICloneable 或 record 的 with 表达式
-
-	private static List<List<List<CellEntity>>> CopyCells(List<List<List<CellEntity>>> src)
-	{
-		var copy = new List<List<List<CellEntity>>>();
-		foreach (var row in src)
+		DirtyChunkCache.Clear();
+		if (data.DirtyChunks != null)
 		{
-			var r = new List<List<CellEntity>>();
-			foreach (var stack in row)
+			foreach (var cs in data.DirtyChunks)
 			{
-				var s = new List<CellEntity>();
-				foreach (var e in stack)
-					s.Add(CopyCellEntity(e));
-				r.Add(s);
+				var coord = new ChunkCoord(cs.Cx, cs.Cy, cs.Cz);
+				DirtyChunkCache[coord] = cs;
 			}
-			copy.Add(r);
 		}
-		return copy;
+
+		return true;
 	}
+
+	// ══════════════════════════════════════════════════════
+	//  Dirty Chunk 缓存（存档加载后供 ChunkManager 使用）
+	// ══════════════════════════════════════════════════════
+
+	internal static readonly Dictionary<ChunkCoord, ChunkSaveData> DirtyChunkCache = new();
+
+	/// <summary>供 ChunkManager.OnChunkLoad 使用：从存档缓存中还原 dirty chunk。</summary>
+	public static ChunkData? LoadChunkFromCache(ChunkCoord coord)
+	{
+		if (!DirtyChunkCache.TryGetValue(coord, out var cs)) return null;
+		return DeserializeChunk(cs);
+	}
+
+	/// <summary>供 ChunkManager.OnChunkUnload 使用：将 dirty chunk 写入缓存。</summary>
+	public static void SaveChunkToCache(ChunkCoord coord, ChunkData chunk)
+	{
+		DirtyChunkCache[coord] = SerializeChunk(coord, chunk);
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  Chunk 序列化 / 反序列化
+	// ══════════════════════════════════════════════════════
+
+	private static ChunkSaveData SerializeChunk(ChunkCoord coord, ChunkData chunk)
+	{
+		var cs = new ChunkSaveData
+		{
+			Cx = coord.Cx, Cy = coord.Cy, Cz = coord.Cz,
+			TerrainIds = new ushort[ChunkData.Area],
+			Hardness = new byte[ChunkData.Area],
+		};
+		System.Array.Copy(chunk.TerrainIds, cs.TerrainIds, ChunkData.Area);
+		System.Array.Copy(chunk.Hardness, cs.Hardness, ChunkData.Area);
+
+		foreach (var (idx, entities) in chunk.Entities)
+		{
+			var list = new List<CellEntity>();
+			foreach (var e in entities) list.Add(CopyCellEntity(e));
+			cs.Entities[idx] = list;
+		}
+
+		cs.Nests = CopyNests(chunk.Nests);
+		return cs;
+	}
+
+	private static ChunkData DeserializeChunk(ChunkSaveData cs)
+	{
+		var chunk = new ChunkData
+		{
+			Coord = new ChunkCoord(cs.Cx, cs.Cy, cs.Cz),
+			Dirty = true,
+			TerrainIds = new ushort[ChunkData.Area],
+			Hardness = new byte[ChunkData.Area],
+		};
+		if (cs.TerrainIds != null) System.Array.Copy(cs.TerrainIds, chunk.TerrainIds, ChunkData.Area);
+		if (cs.Hardness != null) System.Array.Copy(cs.Hardness, chunk.Hardness, ChunkData.Area);
+
+		foreach (var (idx, entities) in cs.Entities)
+		{
+			var list = new List<CellEntity>();
+			foreach (var e in entities) list.Add(CopyCellEntity(e));
+			chunk.Entities[idx] = list;
+		}
+
+		chunk.Nests = cs.Nests ?? [];
+		return chunk;
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  深拷贝
+	// ══════════════════════════════════════════════════════
 
 	private static CellEntity CopyCellEntity(CellEntity e) => new()
 	{
-		Type = e.Type,
-		Glyph = e.Glyph,
-		EntityId = e.EntityId,
+		Type = e.Type, Glyph = e.Glyph, EntityId = e.EntityId,
 		Meta = e.Meta != null ? new Dictionary<string, string>(e.Meta) : null,
 	};
 
@@ -241,17 +184,15 @@ public static class SaveModule
 	private static Dictionary<string, Actor> CopyActors(Dictionary<string, Actor> src)
 	{
 		var copy = new Dictionary<string, Actor>();
-		foreach (var (id, a) in src)
-			copy[id] = CopyActor(a);
+		foreach (var (id, a) in src) copy[id] = CopyActor(a);
 		return copy;
 	}
 
 	private static Actor CopyActor(Actor a) => new()
 	{
-		Id = a.Id, X = a.X, Y = a.Y,
+		Id = a.Id, X = a.X, Y = a.Y, Z = a.Z,
 		Glyph = a.Glyph, DisplayName = a.DisplayName,
-		Faction = a.Faction,
-		BrainId = a.BrainId,
+		Faction = a.Faction, BrainId = a.BrainId,
 		Gold = a.Gold,
 		Inventory = a.Inventory.ConvertAll(CopyItem),
 		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
@@ -269,74 +210,24 @@ public static class SaveModule
 	};
 
 	private static ShopSlot CopyShopSlot(ShopSlot s) => new()
+		{ Stock = s.Stock, Item = CopyItem(s.Item) };
+
+	private static Limb CopyLimb(Limb l) => new()
 	{
-		Stock = s.Stock,
-		Item = CopyItem(s.Item),
+		Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
+		Capacities = new Dictionary<string, float>(l.Capacities),
+		Tags = new Dictionary<string, int>(l.Tags),
 	};
 
-	// BUG-FIX: 原代码遗漏了 Capacities 字段，导致存档/换层后肢体的能力权重全部丢失。
-	private static Limb CopyLimb(Limb l) => new()
-		{ Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
-		  Capacities = new Dictionary<string, float>(l.Capacities),
-		  Tags = new Dictionary<string, int>(l.Tags) };
 	private static Race CopyRace(Race r) => new()
 		{ Id = r.Id, Name = r.Name, Tags = new Dictionary<string, int>(r.Tags) };
 	private static Profession CopyProfession(Profession p) => new()
 		{ Id = p.Id, Name = p.Name, Tags = new Dictionary<string, int>(p.Tags) };
 	private static Buff CopyBuff(Buff b) => new()
-		{ Id = b.Id, Name = b.Name, RemainingTurns = b.RemainingTurns,
-		  Tags = new Dictionary<string, int>(b.Tags) };
+		{ Id = b.Id, Name = b.Name, RemainingTurns = b.RemainingTurns, Tags = new Dictionary<string, int>(b.Tags) };
 	private static Experience CopyExperience(Experience e) => new()
 		{ Id = e.Id, Name = e.Name, Tags = new Dictionary<string, int>(e.Tags) };
 
-	// ══════════════════════════════════════════════════════
-	//  平铺 / 还原 Cells（二维 ↔ 一维）
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>二维 Cells[y][x] → 一维 flat[y*w+x]，用于 JSON 序列化。</summary>
-	private static List<List<CellEntity>> FlattenCells(List<List<List<CellEntity>>> cells)
-	{
-		var flat = new List<List<CellEntity>>();
-		foreach (var row in cells)
-			foreach (var stack in row)
-			{
-				var s = new List<CellEntity>();
-				foreach (var e in stack)
-					s.Add(CopyCellEntity(e));
-				flat.Add(s);
-			}
-		return flat;
-	}
-
-	/// <summary>一维 flat[y*w+x] → 二维 Cells[y][x]，从 JSON 反序列化恢复。</summary>
-	private static List<List<List<CellEntity>>> UnflattenCells(
-		List<List<CellEntity>>? flat, int w, int h)
-	{
-		var cells = new List<List<List<CellEntity>>>();
-		for (var y = 0; y < h; y++)
-		{
-			var row = new List<List<CellEntity>>();
-			for (var x = 0; x < w; x++)
-			{
-				var idx = y * w + x;
-				if (flat != null && idx < flat.Count)
-				{
-					var s = new List<CellEntity>();
-					foreach (var e in flat[idx])
-						s.Add(CopyCellEntity(e));
-					row.Add(s);
-				}
-				else
-				{
-					row.Add([new CellEntity { Type = CellEntityType.Terrain, Glyph = "#", EntityId = Entities.Wall }]);
-				}
-			}
-			cells.Add(row);
-		}
-		return cells;
-	}
-
-	/// <summary>确保文件路径的目录存在，不存在则创建。</summary>
 	private static void EnsureDir(string filePath)
 	{
 		var dir = Path.GetDirectoryName(filePath);
@@ -345,33 +236,32 @@ public static class SaveModule
 	}
 }
 
-/// <summary>
-/// 全局存档的根数据结构：包含所有楼层的 MapSaveData + 全局元数据。
-/// </summary>
-// REVIEW: Floors 的 key 是字符串（"0", "1"），而非 int。
-//         这是因为 JSON 对象的 key 必须是字符串，但解析时需要 int.TryParse 转换。
-//         可考虑用 List 或自定义 JsonConverter 来简化。
-public class FullSaveData
-{
-	public int CurrentFloor { get; set; }
-	public int Turn { get; set; }
-	public int RngSeed { get; set; }
-	public bool BumpAttack { get; set; } = true;
-	public bool WatchMode { get; set; }
-	public Dictionary<string, MapSaveData> Floors { get; set; } = new();
-}
+// ══════════════════════════════════════════════════════
+//  存档数据结构
+// ══════════════════════════════════════════════════════
 
-/// <summary>
-/// 单层地图的序列化格式：Cells 平铺为一维列表以减少 JSON 嵌套层级。
-/// </summary>
-public class MapSaveData
+public class WorldSaveData
 {
-	public int Width { get; set; }
-	public int Height { get; set; }
-	/// <summary>平铺的格子栈：索引 = y * Width + x，值 = 该格的实体栈。</summary>
-	public List<List<CellEntity>>? Cells { get; set; }
+	public int WorldSeed { get; set; }
+	public int Turn { get; set; }
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
-	public List<NestData>? Nests { get; set; }
+	public int PlayerZ { get; set; }
+	public bool BumpAttack { get; set; } = true;
+	public bool WatchMode { get; set; }
+	public string? GeneratorId { get; set; }
+	public string? ViewModeId { get; set; }
 	public Dictionary<string, Actor>? Actors { get; set; }
+	public List<ChunkSaveData> DirtyChunks { get; set; } = [];
+}
+
+public class ChunkSaveData
+{
+	public int Cx { get; set; }
+	public int Cy { get; set; }
+	public int Cz { get; set; }
+	public ushort[]? TerrainIds { get; set; }
+	public byte[]? Hardness { get; set; }
+	public Dictionary<int, List<CellEntity>> Entities { get; set; } = new();
+	public List<NestData>? Nests { get; set; }
 }

@@ -1,0 +1,15 @@
+[
+  { "Id": 0,  "StringId": "void",          "Glyph": " ", "DefaultHardness": 0,   "Solid": true,  "Material": "" },
+  { "Id": 1,  "StringId": "floor",         "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "stone" },
+  { "Id": 2,  "StringId": "wall_soil",     "Glyph": "#", "DefaultHardness": 20,  "Solid": true,  "Material": "soil" },
+  { "Id": 3,  "StringId": "wall_stone",    "Glyph": "#", "DefaultHardness": 60,  "Solid": true,  "Material": "stone" },
+  { "Id": 4,  "StringId": "wall_granite",  "Glyph": "#", "DefaultHardness": 120, "Solid": true,  "Material": "granite" },
+  { "Id": 5,  "StringId": "wall_obsidian", "Glyph": "#", "DefaultHardness": 200, "Solid": true,  "Material": "obsidian" },
+  { "Id": 6,  "StringId": "rubble",        "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "rubble" },
+  { "Id": 7,  "StringId": "grass",         "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "grass" },
+  { "Id": 8,  "StringId": "water",         "Glyph": "~", "DefaultHardness": 0,   "Solid": false, "Material": "water" },
+  { "Id": 9,  "StringId": "tree",          "Glyph": "T", "DefaultHardness": 15,  "Solid": true,  "Material": "wood", "BreaksInto": "grass" },
+  { "Id": 10, "StringId": "lava",          "Glyph": "~", "DefaultHardness": 0,   "Solid": false, "Material": "lava" },
+  { "Id": 11, "StringId": "sand",          "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "sand" },
+  { "Id": 12, "StringId": "mountain",      "Glyph": "^", "DefaultHardness": 150, "Solid": true,  "Material": "stone" }
+]
