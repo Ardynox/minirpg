@@ -3,7 +3,12 @@
     "allow": [
       "Bash(grep -v \"^d.*\\\\.$\")",
       "Bash(wc -l /d/Godot/mini-rpg/Core/*.cs /d/Godot/mini-rpg/Module/*.cs)",
-      "Bash(grep -n \"PlayerId\\\\|GetPlayer\" /d/Godot/mini-rpg/Core/*.cs)"
+      "Bash(grep -n \"PlayerId\\\\|GetPlayer\" /d/Godot/mini-rpg/Core/*.cs)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
