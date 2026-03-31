@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Text;
 using Godot;
 using MiniRPG.Core;
 
@@ -14,14 +14,26 @@ public class StatusPanelModule
 
 	private static readonly string[] TabLabels = ["肢体", "能力", "标记", "Buff", "装备"];
 
+	private static readonly Color ColorRowBg = new(0.12f, 0.12f, 0.15f);
+	private static readonly Color ColorHoverBg = new(0.18f, 0.18f, 0.22f);
+	private static readonly Color ColorSelectedBg = new(0.15f, 0.22f, 0.18f);
+	private static readonly Color ColorNormal = new(0.85f, 0.85f, 0.85f);
+	private static readonly Color ColorSelected = new(0.6f, 1f, 0.7f);
+	private static readonly Color ColorFocusBorder = new(0.3f, 0.8f, 0.4f);
+
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _nameInfo;
 	private readonly HBoxContainer _filterBar;
 	private readonly ScrollContainer _contentScroll;
-	private readonly RichTextLabel _contentBox;
+	private readonly VBoxContainer _itemList;
+	private readonly RichTextLabel _hintBar;
 	private readonly List<Button> _tabButtons = [];
+	private readonly List<Button> _rows = [];
 
 	private StatusTab _currentTab = StatusTab.Limb;
+	private int _cursor;
+	private int _hoverIndex = -1;
+	private Actor? _cachedPlayer;
 
 	public StatusPanelModule(PanelContainer panel)
 	{
@@ -30,9 +42,12 @@ public class StatusPanelModule
 		_nameInfo = vbox.GetNode<RichTextLabel>("NameInfo");
 		_filterBar = vbox.GetNode<HBoxContainer>("FilterBar");
 		_contentScroll = vbox.GetNode<ScrollContainer>("ContentScroll");
-		_contentBox = _contentScroll.GetNode<RichTextLabel>("ContentBox");
+		_itemList = _contentScroll.GetNode<VBoxContainer>("ItemList");
+		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
 
 		BuildTabButtons();
+		_hintBar.Clear();
+		_hintBar.AppendText("[color=#666666]↑↓选择 ←→分类 Esc退出[/color]");
 	}
 
 	private void BuildTabButtons()
@@ -43,9 +58,8 @@ public class StatusPanelModule
 			{
 				Text = TabLabels[i],
 				ToggleMode = true,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 				FocusMode = Control.FocusModeEnum.None,
-				CustomMinimumSize = new Vector2(0, 24),
 			};
 			var idx = i;
 			btn.Pressed += () => SetTab(Tabs[idx]);
@@ -57,15 +71,24 @@ public class StatusPanelModule
 	public void SetTab(StatusTab tab)
 	{
 		_currentTab = tab;
+		_cursor = 0;
 		UpdateTabHighlight();
 		RefreshContent();
 	}
 
 	public void CycleTab(int dir)
 	{
-		var idx = System.Array.IndexOf(Tabs, _currentTab);
+		var idx = Array.IndexOf(Tabs, _currentTab);
 		idx = (idx + dir + Tabs.Length) % Tabs.Length;
 		SetTab(Tabs[idx]);
+	}
+
+	public void MoveCursor(int delta)
+	{
+		if (_rows.Count == 0) return;
+		_cursor = Math.Clamp(_cursor + delta, 0, _rows.Count - 1);
+		UpdateRowVisuals();
+		EnsureCursorVisible();
 	}
 
 	public void Refresh(Actor? player, int floor, int turn)
@@ -73,7 +96,7 @@ public class StatusPanelModule
 		if (player == null)
 		{
 			_nameInfo.Clear();
-			_contentBox.Clear();
+			ClearRows();
 			return;
 		}
 
@@ -83,72 +106,77 @@ public class StatusPanelModule
 		RefreshContent(player);
 	}
 
-	private void RefreshContent(Actor? player = null)
-	{
-		player ??= GetCachedPlayer();
-		if (player == null) return;
-
-		_contentBox.Clear();
-		var text = _currentTab switch
-		{
-			StatusTab.Limb => BuildLimbInfo(player),
-			StatusTab.Capacity => BuildCapacityInfo(player),
-			StatusTab.Tag => BuildTagInfo(player),
-			StatusTab.Buff => BuildBuffInfo(player),
-			StatusTab.Equip => BuildEquipInfo(player),
-			_ => "",
-		};
-		_contentBox.AppendText(text);
-		_contentScroll.ScrollVertical = 0;
-	}
-
-	private void UpdateTabHighlight()
-	{
-		for (var i = 0; i < _tabButtons.Count; i++)
-			_tabButtons[i].ButtonPressed = Tabs[i] == _currentTab;
-	}
-
-	private Actor? _cachedPlayer;
-	private Actor? GetCachedPlayer() => _cachedPlayer;
-
 	public void Refresh(Actor? player, int floor, int turn, bool _)
 	{
 		_cachedPlayer = player;
 		Refresh(player, floor, turn);
 	}
 
-	// ── Static build helpers (kept from old StatusModule) ─
+	// ── Content building ─────────────────────────────────
 
-	private static string BuildNameInfo(Actor player, int floor, int turn)
+	private void RefreshContent(Actor? player = null)
 	{
-		var sb = new StringBuilder();
-		sb.Append($"[b]{player.DisplayName}[/b]");
-		if (player.Race != null)
-			sb.Append($"  {player.Race.Name}");
-		if (player.Profession != null)
-			sb.Append($" · {player.Profession.Name}");
-		sb.AppendLine();
-		sb.AppendLine($"[color=#ffcc00]金币: {player.Gold}G[/color]  深度: Z{floor}  回合: {turn}");
-		return sb.ToString();
+		player ??= _cachedPlayer;
+		if (player == null) return;
+
+		ClearRows();
+		switch (_currentTab)
+		{
+			case StatusTab.Limb: BuildLimbRows(player); break;
+			case StatusTab.Capacity: BuildCapacityRows(player); break;
+			case StatusTab.Tag: BuildTagRows(player); break;
+			case StatusTab.Buff: BuildBuffRows(player); break;
+			case StatusTab.Equip: BuildEquipRows(player); break;
+		}
+
+		if (_cursor >= _rows.Count)
+			_cursor = Math.Max(0, _rows.Count - 1);
+		UpdateRowVisuals();
 	}
 
-	private static string BuildLimbInfo(Actor player)
+	private void ClearRows()
+	{
+		foreach (var r in _rows)
+			r.QueueFree();
+		_rows.Clear();
+		_hoverIndex = -1;
+	}
+
+	private void AddRow(string text)
+	{
+		var idx = _rows.Count;
+		var row = new Button
+		{
+			Text = text,
+			Flat = true,
+			FocusMode = Control.FocusModeEnum.None,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			CustomMinimumSize = new Vector2(0, 24),
+			Alignment = HorizontalAlignment.Left,
+			ClipText = true,
+		};
+		ApplyRowStyle(row, false, false);
+		row.MouseEntered += () => { _hoverIndex = idx; UpdateRowVisuals(); };
+		row.MouseExited += () => { if (_hoverIndex == idx) _hoverIndex = -1; UpdateRowVisuals(); };
+		row.Pressed += () => { _cursor = idx; UpdateRowVisuals(); };
+		_itemList.AddChild(row);
+		_rows.Add(row);
+	}
+
+	// ── Limb tab ─────────────────────────────────────────
+
+	private void BuildLimbRows(Actor player)
 	{
 		if (player.Limbs.Count == 0)
-			return "[color=#ff4444]无肢体 — 致命状态[/color]";
-
-		var sb = new StringBuilder();
+		{
+			AddRow("无肢体 — 致命状态");
+			return;
+		}
 		foreach (var limb in player.Limbs)
 		{
 			var ratio = limb.MaxDurability > 0
-				? (float)limb.Durability / limb.MaxDurability
-				: 0f;
-			var hpColor = ratio > 0.6f ? "#44ee44" : ratio > 0.3f ? "#ffcc00" : "#ff4444";
-			var vital = limb.Tags.ContainsKey("要害") ? " [color=#ff4444]*[/color]" : "";
-
-			sb.Append($"[color={hpColor}]{limb.Name}{vital}[/color]");
-			sb.Append($"  {limb.Durability}/{limb.MaxDurability}");
-
+				? (float)limb.Durability / limb.MaxDurability : 0f;
+			var vital = limb.Tags.ContainsKey("要害") ? " *" : "";
 			var capParts = new List<string>();
 			foreach (var (capId, weight) in limb.Capacities)
 			{
@@ -157,81 +185,68 @@ public class StatusPanelModule
 				var pct = (int)(weight * ratio * 100);
 				capParts.Add($"{name}{pct}%");
 			}
-			if (capParts.Count > 0)
-				sb.Append($"  [color=#888888]{string.Join(" ", capParts)}[/color]");
-
-			sb.AppendLine();
+			var caps = capParts.Count > 0 ? $"  {string.Join(" ", capParts)}" : "";
+			AddRow($"{limb.Name}{vital}  {limb.Durability}/{limb.MaxDurability}{caps}");
 		}
-		sb.Append("[color=#888888][color=#ff4444]*[/color] = 要害[/color]");
-		return sb.ToString();
 	}
 
-	private static string BuildCapacityInfo(Actor player)
+	// ── Capacity tab ─────────────────────────────────────
+
+	private void BuildCapacityRows(Actor player)
 	{
 		var caps = player.ComputeCapacities();
-		if (caps.Count == 0)
-			return "[color=#888888]无[/color]";
-
-		var sb = new StringBuilder();
+		if (caps.Count == 0) { AddRow("无"); return; }
 		foreach (var (capId, val) in caps)
 		{
 			var def = PresetDB.GetCapacity(capId);
 			var name = def?.Name ?? capId;
 			var pct = (int)(val * 100);
-			var color = pct >= 80 ? "#44ee44" : pct >= 40 ? "#ffcc00" : "#ff4444";
-			sb.Append($"{name}: [color={color}]{pct}%[/color]");
-
+			var effect = "";
 			if (def?.VitalEffect != null)
 			{
-				var effectLabel = def.VitalEffect switch
+				effect = def.VitalEffect switch
 				{
-					"death_instant" => "[color=#ff4444]致命[/color]",
-					"incapacitate" => "[color=#ff8844]昏迷[/color]",
-					"death_slow" => "[color=#ffaa44]缓死[/color]",
+					"death_instant" => " [致命]",
+					"incapacitate" => " [昏迷]",
+					"death_slow" => " [缓死]",
 					_ => "",
 				};
-				if (effectLabel.Length > 0)
-					sb.Append($" {effectLabel}");
 			}
-			sb.AppendLine();
+			AddRow($"{name}: {pct}%{effect}");
 		}
-		return sb.ToString();
 	}
 
-	private static string BuildTagInfo(Actor player)
+	// ── Tag tab ──────────────────────────────────────────
+
+	private void BuildTagRows(Actor player)
 	{
 		var tags = player.ComputeTags();
-		if (tags.Count == 0)
-			return "[color=#888888]无[/color]";
-
-		var sb = new StringBuilder();
+		if (tags.Count == 0) { AddRow("无"); return; }
 		foreach (var (key, val) in tags)
-			sb.AppendLine($"{key}: [color=#aaaaff]{val}[/color]");
-		return sb.ToString();
+			AddRow($"{key}: {val}");
 	}
 
-	private static string BuildBuffInfo(Actor player)
-	{
-		if (player.Buffs.Count == 0)
-			return "[color=#888888]无[/color]";
+	// ── Buff tab ─────────────────────────────────────────
 
-		var sb = new StringBuilder();
+	private void BuildBuffRows(Actor player)
+	{
+		if (player.Buffs.Count == 0) { AddRow("无"); return; }
 		foreach (var buff in player.Buffs)
 		{
 			var turns = buff.RemainingTurns < 0 ? "永久" : $"{buff.RemainingTurns}回合";
-			sb.Append($"[color=#aa88ff]{buff.Name}[/color] ({turns})");
+			var tagParts = new List<string>();
 			foreach (var (key, val) in buff.Tags)
-				sb.Append($" {key}{(val >= 0 ? "+" : "")}{val}");
-			sb.AppendLine();
+				tagParts.Add($"{key}{(val >= 0 ? "+" : "")}{val}");
+			var tagStr = tagParts.Count > 0 ? $" {string.Join(" ", tagParts)}" : "";
+			AddRow($"{buff.Name} ({turns}){tagStr}");
 		}
-		return sb.ToString();
 	}
 
-	private static string BuildEquipInfo(Actor player)
+	// ── Equip tab ────────────────────────────────────────
+
+	private void BuildEquipRows(Actor player)
 	{
 		var hasAny = false;
-		var sb = new StringBuilder();
-
 		foreach (var limb in player.Limbs)
 		{
 			if (limb.EquipSlots.Count == 0) continue;
@@ -244,29 +259,99 @@ public class StatusPanelModule
 
 				if (!limbHasEquip)
 				{
-					sb.AppendLine($"[color=#aaaaaa]{limb.Name}:[/color]");
+					AddRow($"── {limb.Name} ──");
 					limbHasEquip = true;
 				}
 				hasAny = true;
 
-				sb.Append($"  [color=#44ccff]{item.Name}[/color] ({slot.Layer})");
 				var stats = new List<string>();
 				if (item.SharpDamage > 0) stats.Add($"锐伤{item.SharpDamage:F0}");
 				if (item.BluntDamage > 0) stats.Add($"钝伤{item.BluntDamage:F0}");
 				if (item.SharpArmor > 0) stats.Add($"锐防{item.SharpArmor:F0}");
 				if (item.BluntArmor > 0) stats.Add($"钝防{item.BluntArmor:F0}");
-				if (stats.Count > 0) sb.Append($" {string.Join(" ", stats)}");
-				sb.AppendLine();
+				var statStr = stats.Count > 0 ? $" {string.Join(" ", stats)}" : "";
+				AddRow($"  {item.Name} ({slot.Layer}){statStr}");
 			}
 		}
 
 		if (!hasAny)
-			return "[color=#888888]无装备[/color]";
+		{
+			AddRow("无装备");
+			return;
+		}
 
-		var weightLine = $"负重: {player.CarryWeight:F1}/{player.MaxCarryWeight:F1}kg";
-		if (player.IsOverweight) weightLine = $"[color=#ff4444]{weightLine} 超重！[/color]";
-		sb.AppendLine(weightLine);
+		var weight = $"负重: {player.CarryWeight:F1}/{player.MaxCarryWeight:F1}kg";
+		if (player.IsOverweight) weight += " 超重！";
+		AddRow(weight);
+	}
 
-		return sb.ToString();
+	// ── Visual helpers ───────────────────────────────────
+
+	private void UpdateTabHighlight()
+	{
+		for (var i = 0; i < _tabButtons.Count; i++)
+			_tabButtons[i].ButtonPressed = Tabs[i] == _currentTab;
+	}
+
+	private void UpdateRowVisuals()
+	{
+		for (var i = 0; i < _rows.Count; i++)
+			ApplyRowStyle(_rows[i], i == _cursor, i == _hoverIndex);
+	}
+
+	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
+	{
+		Color bg;
+		if (selected) bg = ColorSelectedBg;
+		else if (hovered) bg = ColorHoverBg;
+		else bg = ColorRowBg;
+
+		var sb = new StyleBoxFlat
+		{
+			BgColor = bg,
+			ContentMarginLeft = 4,
+			ContentMarginRight = 4,
+		};
+
+		if (selected)
+		{
+			sb.BorderWidthLeft = 3;
+			sb.BorderColor = ColorFocusBorder;
+			sb.ContentMarginLeft = 6;
+		}
+
+		row.AddThemeStyleboxOverride("normal", sb);
+		row.AddThemeStyleboxOverride("hover", sb);
+		row.AddThemeStyleboxOverride("pressed", sb);
+		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
+		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
+	}
+
+	private void EnsureCursorVisible()
+	{
+		if (_cursor < 0 || _cursor >= _rows.Count) return;
+		var row = _rows[_cursor];
+		var rowTop = row.Position.Y;
+		var rowBot = rowTop + row.Size.Y;
+		var scrollTop = _contentScroll.ScrollVertical;
+		var scrollBot = scrollTop + _contentScroll.Size.Y;
+
+		if (rowTop < scrollTop)
+			_contentScroll.ScrollVertical = (int)rowTop;
+		else if (rowBot > scrollBot)
+			_contentScroll.ScrollVertical = (int)(rowBot - _contentScroll.Size.Y);
+	}
+
+	// ── Name info (header) ───────────────────────────────
+
+	private static string BuildNameInfo(Actor player, int floor, int turn)
+	{
+		var name = $"[b]{player.DisplayName}[/b]";
+		if (player.Race != null)
+			name += $"  {player.Race.Name}";
+		if (player.Profession != null)
+			name += $" · {player.Profession.Name}";
+		name += $"\n[color=#ffcc00]金币: {player.Gold}G[/color]  深度: Z{floor}  回合: {turn}";
+		return name;
 	}
 }

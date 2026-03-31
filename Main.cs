@@ -48,7 +48,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private Action<int>? _selectionCallback;
 
 	private VBoxContainer _ui = null!;
-	private RichTextLabel _mapPanel = null!;
+	private PanelContainer _mapPanelNode = null!;
+	private RichTextLabel _mapText = null!;
 	private RichTextLabel _logPanel = null!;
 	private PanelContainer _settingsPanel = null!;
 	private PanelContainer _mainMenu = null!;
@@ -80,6 +81,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PanelContainer? _focusedPanelNode;
 	private (int x, int y)? _openChestPos;
 
+	private bool StatusOpen => _inputModule?.Focus == InputFocus.Status;
 	private bool InventoryOpen => _inputModule?.Focus == InputFocus.Inventory;
 	private bool ChestOpen => _inputModule?.Focus == InputFocus.Chest;
 
@@ -167,7 +169,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_fogMapModule = new FogMapModule(_fogTracker);
 
 		_ui = GetNode<VBoxContainer>("UI");
-		_mapPanel = GetNode<RichTextLabel>("UI/TopRow/MapPanel");
+		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
+		_mapText = GetNode<RichTextLabel>("UI/TopRow/MapPanel/MarginContainer/MapText");
 		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
 		_settingsPanel = GetNode<PanelContainer>("SettingsPanel");
 		_mainMenu = GetNode<PanelContainer>("MainMenu");
@@ -188,7 +191,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 
 		_renderModule = new RenderModule();
-		_renderModule.ApplyFont(_mapPanel);
+		_renderModule.ApplyFont(_mapText);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
@@ -281,6 +284,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			}
 			_focusedPanelNode = _chestPanelNode;
 		}
+		else if (hit == _statusPanelNode)
+		{
+			if (cur != InputFocus.Status)
+				_inputModule.EnterStatusMode();
+			_focusedPanelNode = _statusPanelNode;
+		}
 		else
 		{
 			_focusedPanelNode = hit;
@@ -296,7 +305,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PanelContainer? HitTestPanel(Vector2 globalPos)
 	{
 		PanelContainer?[] panels =
-			[_statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
+			[_mapPanelNode, _statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
 		foreach (var p in panels)
 		{
 			if (p == null || !p.Visible) continue;
@@ -477,6 +486,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			PlayerDead = false;
 			_killCount = 0;
 			ShowMainMenu();
+			return;
+		}
+
+		if (StatusOpen && cmd.StartsWith(":status_"))
+		{
+			HandleStatusInput(cmd);
 			return;
 		}
 
@@ -1333,7 +1348,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void ToggleRender()
 	{
 		var mode = _renderModule.ToggleMode();
-		_renderModule.ApplyFont(_mapPanel);
+		_renderModule.ApplyFont(_mapText);
 		if (_gameStarted && !_inMenu)
 			AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
 		if (!_inMenu) FlushMap();
@@ -1346,9 +1361,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_fogMapModule.Visible)
 		{
-			_mapPanel.BbcodeEnabled = true;
-			_mapPanel.Clear();
-			_mapPanel.AppendText(_fogMapModule.Render(_state));
+			_mapText.BbcodeEnabled = true;
+			_mapText.Clear();
+			_mapText.AppendText(_fogMapModule.Render(_state));
 			RefreshStatus();
 			return;
 		}
@@ -1362,14 +1377,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_renderModule.UsesBBCode || _minimapModule.Visible)
 		{
-			_mapPanel.BbcodeEnabled = true;
-			_mapPanel.Clear();
-			_mapPanel.AppendText(text);
+			_mapText.BbcodeEnabled = true;
+			_mapText.Clear();
+			_mapText.AppendText(text);
 		}
 		else
 		{
-			_mapPanel.BbcodeEnabled = false;
-			_mapPanel.Text = text;
+			_mapText.BbcodeEnabled = false;
+			_mapText.Text = text;
 		}
 		RefreshStatus();
 	}
@@ -1455,6 +1470,25 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_skillPanel.Visible = !_skillPanel.Visible;
 		AddLog(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
 		FlushMap();
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  状态面板
+	// ══════════════════════════════════════════════════════
+
+	private void HandleStatusInput(string cmd)
+	{
+		switch (cmd)
+		{
+			case ":status_up": _statusPanelModule.MoveCursor(-1); break;
+			case ":status_down": _statusPanelModule.MoveCursor(1); break;
+			case ":status_prev": _statusPanelModule.CycleTab(-1); break;
+			case ":status_next": _statusPanelModule.CycleTab(1); break;
+			case ":status_close":
+				_inputModule.EnterActionMode();
+				RefreshAllBorders();
+				break;
+		}
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1592,7 +1626,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void RefreshAllBorders()
 	{
 		var focus = _inputModule?.Focus ?? InputFocus.Action;
-		if (focus == InputFocus.Inventory)
+		if (focus == InputFocus.Status)
+			_focusedPanelNode = _statusPanelNode;
+		else if (focus == InputFocus.Inventory)
 			_focusedPanelNode = _invPanelNode;
 		else if (focus == InputFocus.Chest)
 			_focusedPanelNode = _chestPanelNode;
@@ -1600,7 +1636,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_focusedPanelNode = null;
 
 		PanelContainer?[] all =
-			[_statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
+			[_mapPanelNode, _statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
 		foreach (var p in all)
 			PanelBorderHelper.Apply(p!, p == _focusedPanelNode);
 	}

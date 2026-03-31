@@ -9,6 +9,7 @@ public enum InputFocus
 	Typing,
 	Selection,
 	Direction,
+	Status,
 	Inventory,
 	Chest,
 }
@@ -48,6 +49,7 @@ public partial class InputModule
 	public void EnterActionMode() => SetFocus(InputFocus.Action);
 	public void EnterTypingMode() => SetFocus(InputFocus.Typing);
 	public void EnterSelectionMode() => SetFocus(InputFocus.Selection);
+	public void EnterStatusMode() => SetFocus(InputFocus.Status);
 	public void EnterInventoryMode() => SetFocus(InputFocus.Inventory);
 	public void EnterChestMode() => SetFocus(InputFocus.Chest);
 	public void EnterDirectionMode(string prefix) => SetFocus(InputFocus.Direction, prefix);
@@ -62,6 +64,7 @@ public partial class InputModule
 			InputFocus.Typing => HandleTypingKey(key),
 			InputFocus.Selection => HandleSelectionKey(key),
 			InputFocus.Direction => HandleDirectionKey(key),
+			InputFocus.Status => HandleStatusKey(key),
 			InputFocus.Inventory => HandleInventoryKey(key),
 			InputFocus.Chest => HandleChestKey(key),
 			_ => HandleActionKey(key),
@@ -126,6 +129,23 @@ public partial class InputModule
 			return true;
 		}
 		return false;
+	}
+
+	private bool HandleStatusKey(InputEventKey key)
+	{
+		var cmd = key.Keycode switch
+		{
+			Key.W or Key.Up    => ":status_up",
+			Key.S or Key.Down  => ":status_down",
+			Key.A or Key.Left  => ":status_prev",
+			Key.D or Key.Right => ":status_next",
+			Key.Tab            => key.ShiftPressed ? ":status_prev" : ":status_next",
+			Key.Escape         => ":status_close",
+			_ => (string?)null,
+		};
+		if (cmd != null)
+			CommandReceived?.Invoke(cmd);
+		return true;
 	}
 
 	private bool HandleInventoryKey(InputEventKey key)
