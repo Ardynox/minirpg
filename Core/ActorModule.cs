@@ -4,49 +4,56 @@ using System.Linq;
 namespace MiniRPG.Core;
 
 /// <summary>
-/// Actor 的增删查改：纯函数操作 GameState.Actors + 同步 Objects 层。
-/// 多个 Actor 可以重叠在同一格，Objects 层显示优先级最高的 Glyph。
+/// Actor 增删查改模块：对 GameState.Actors 字典的纯函数操作集合。
+/// Actor 不存在地图格子栈中——位置由 Actor.X/Y 表示，渲染时由 MapModule.GetDisplayCell 动态查询。
+///
+/// 职责边界：
+/// - 只做 CRUD + 简单查询，不包含战斗/AI/交互逻辑。
+/// - 战斗 → CombatModule，AI → AIDispatcher，交互 → InteractionModule。
 /// </summary>
 public static class ActorModule
 {
+	/// <summary>将 Actor 加入字典。已有同 Id 会被覆盖。</summary>
 	public static void Add(GameState state, Actor actor)
 	{
 		state.Actors[actor.Id] = actor;
-		RefreshObjectsCell(state, actor.X, actor.Y);
 	}
 
+	/// <summary>按 Id 移除 Actor。Id 不存在时静默返回。</summary>
 	public static void Remove(GameState state, string id)
 	{
-		if (!state.Actors.TryGetValue(id, out var actor))
-			return;
 		state.Actors.Remove(id);
-		RefreshObjectsCell(state, actor.X, actor.Y);
 	}
 
+	/// <summary>按 Id 查找 Actor，不存在则返回 null。</summary>
 	public static Actor? GetById(GameState state, string id) =>
 		state.Actors.GetValueOrDefault(id);
 
+	/// <summary>返回指定坐标上的第一个 Actor。同格有多个时结果不稳定。</summary>
+	// REVIEW: Dictionary.Values 的遍历顺序不保证稳定。
+	//         如果需要确定性，应排序后取第一个。
 	public static Actor? GetAt(GameState state, int x, int y) =>
 		state.Actors.Values.FirstOrDefault(a => a.X == x && a.Y == y);
 
-	/// <summary>返回指定坐标上的所有 Actor。</summary>
+	/// <summary>返回指定坐标上的所有 Actor（可能为空列表）。</summary>
+	// REVIEW: 每次调用都遍历整个 Actors 字典并创建新 List，O(n) 且产生 GC 压力。
+	//         如果地图上 Actor 数量增多，考虑维护空间索引（如坐标 → Actor 列表的字典）。
 	public static List<Actor> GetAllAt(GameState state, int x, int y) =>
 		state.Actors.Values.Where(a => a.X == x && a.Y == y).ToList();
 
+	/// <summary>返回指定坐标上的第一个敌对 Actor。</summary>
+	// REVIEW: Faction 使用魔术字符串 "hostile"，建议抽为常量。
 	public static Actor? GetHostileAt(GameState state, int x, int y) =>
 		state.Actors.Values.FirstOrDefault(a =>
 			a.X == x && a.Y == y && a.Faction == "hostile");
 
+	/// <summary>移动 Actor 到新坐标，同时同步 GameState.PlayerX/Y（如果是玩家）。</summary>
 	public static void MoveActor(GameState state, string id, int nx, int ny)
 	{
 		if (!state.Actors.TryGetValue(id, out var actor))
 			return;
-		var ox = actor.X;
-		var oy = actor.Y;
 		actor.X = nx;
 		actor.Y = ny;
-		RefreshObjectsCell(state, ox, oy);
-		RefreshObjectsCell(state, nx, ny);
 
 		if (id == state.PlayerId)
 		{
@@ -55,30 +62,14 @@ public static class ActorModule
 		}
 	}
 
-	/// <summary>
-	/// 重算一格的 Objects 层显示。优先级：player > hostile > 其他。
-	/// </summary>
-	public static void RefreshObjectsCell(GameState state, int x, int y)
-	{
-		var actors = GetAllAt(state, x, y);
-		if (actors.Count == 0)
-		{
-			MapModule.SetObject(state, x, y, "");
-			return;
-		}
-
-		var best = actors[0];
-		foreach (var a in actors)
-		{
-			if (a.Id == state.PlayerId) { best = a; break; }
-			if (a.Faction == "hostile" && best.Faction != "hostile") best = a;
-		}
-		MapModule.SetObject(state, x, y, best.Glyph);
-	}
-
+	/// <summary>获取玩家 Actor 的快捷方法。</summary>
 	public static Actor? GetPlayer(GameState state) =>
 		GetById(state, state.PlayerId);
 
+	/// <summary>在玩家四方向相邻格中查找第一个敌对 Actor。</summary>
+	// REVIEW: 硬编码使用 state.PlayerX/Y 而非接受参数，
+	//         与其他方法接受 (state, actor) 的模式不一致。
+	//         只能用于玩家，AI 无法复用。
 	public static Actor? FindAdjacentHostile(GameState state)
 	{
 		var dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
@@ -90,11 +81,14 @@ public static class ActorModule
 		return null;
 	}
 
+	/// <summary>清空所有 Actor（新地图生成前调用）。</summary>
 	public static void ClearAll(GameState state) => state.Actors.Clear();
 
+	/// <summary>获取所有敌对阵营的 Actor。</summary>
 	public static List<Actor> GetAllHostile(GameState state) =>
 		state.Actors.Values.Where(a => a.Faction == "hostile").ToList();
 
+	/// <summary>构建玩家状态快照（tag 表 + 可用动作列表），供 UI 展示。</summary>
 	public static PlayerStatus? GetPlayerStatus(GameState state)
 	{
 		var player = GetPlayer(state);
@@ -111,6 +105,8 @@ public static class ActorModule
 /// 玩家状态快照：聚合 tag 表 + 可用动作。
 /// 没有独立的 HP/ATK/DEF —— 生存状态由肢体耐久决定，能力由 tag 聚合得出。
 /// </summary>
+// REVIEW: PlayerStatus 目前只在 GetPlayerStatus 中构建，
+//         但该方法在代码中从未被调用。如已废弃应清理。
 public class PlayerStatus
 {
 	public Dictionary<string, int> Tags { get; set; } = new();
