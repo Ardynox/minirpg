@@ -17,27 +17,22 @@ namespace MiniRPG;
 public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	GroundPanelModule.IHost, ChestPanelModule.IHost
 {
-	private const int MaxLogLines = 30;
 	private const int ViewW = 21;
 	private const int ViewH = 11;
 
 	private readonly GameState _state = new();
-	private readonly List<string> _logLines = [];
 
 	private PanelContainer _mapPanelNode = null!;
-	private RichTextLabel _mapText = null!;
-	private RichTextLabel _logPanel = null!;
+	private LogModule _log = null!;
 	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
-	private RenderModule _renderModule = null!;
+	private MapRenderModule _mapRender = null!;
 	private double _watchTimer;
 
 	private GameSessionModule _session = null!;
 	private MenuModule _menu = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
-	private MinimapModule _minimapModule = null!;
-	private FogMapModule _fogMapModule = null!;
 
 	private StatusPanelModule _statusPanelModule = null!;
 
@@ -69,27 +64,27 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	public GameState State => _state;
 	public bool PlayerDead { get; set; }
 
-	void IGameUI.AddLog(string msg) => AddLog(msg);
+	void IGameUI.AddLog(string msg) => _log.Add(msg);
 	void IGameUI.EnterSelection(Action<int> callback) => _inputModule.EnterSelection(callback);
 	void IGameUI.CancelSelection() => _inputModule.CancelSelection();
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
 
-	void InventoryPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void InventoryPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void InventoryPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
 	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
 	GameState InventoryPanelModule.IHost.State => _state;
 	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
 	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(chestItem);
 
-	void GroundPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void GroundPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
 	void GroundPanelModule.IHost.FlushMap() => FlushMap();
 	GameState GroundPanelModule.IHost.State => _state;
 	void GroundPanelModule.IHost.OpenChestPanel(Item chestItem) => OpenChestPanel(chestItem);
 	void GroundPanelModule.IHost.PickupGroundItem(Item item) => PickupGroundItem(ActorModule.GetPlayer(_state)!, item);
 
-	void ChestPanelModule.IHost.AddLog(string msg) => AddLog(msg);
+	void ChestPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void ChestPanelModule.IHost.FlushMap() => FlushMap();
 	GameState ChestPanelModule.IHost.State => _state;
 	void ChestPanelModule.IHost.CloseChestPanel() => CloseChestPanel();
@@ -113,17 +108,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_inputModule.CancelSelection();
 
-		AddLog("");
-		AddLog(reason == "incapacitated"
+		_log.Add("");
+		_log.Add(reason == "incapacitated"
 			? "══════ 😵 你失去了意识 ══════"
 			: "══════ 💀 你死了 ══════");
-		AddLog($"  回合: {_state.Turn}");
-		AddLog($"  到达: 第 {_state.PlayerZ} 层");
-		AddLog($"  击杀: {_state.KillCount}");
+		_log.Add($"  回合: {_state.Turn}");
+		_log.Add($"  到达: 第 {_state.PlayerZ} 层");
+		_log.Add($"  击杀: {_state.KillCount}");
 		var player2 = ActorModule.GetPlayer(_state);
-		if (player2 != null) AddLog($"  金币: {player2.Gold}G");
-		AddLog("════════════════════════════");
-		AddLog("按任意键返回主菜单……");
+		if (player2 != null) _log.Add($"  金币: {player2.Gold}G");
+		_log.Add("════════════════════════════");
+		_log.Add("按任意键返回主菜单……");
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -136,16 +131,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
 		_fogTracker = new FogOfWarTracker();
-		_minimapModule = new MinimapModule(_fogTracker);
-		_fogMapModule = new FogMapModule(_fogTracker);
 
 		_session = new GameSessionModule(_state, _fogTracker);
 		_menu = new MenuModule(this);
 
 		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
-		_mapText = GetNode<RichTextLabel>("UI/TopRow/MapPanel/MarginContainer/MapText");
-		_logPanel = GetNode<RichTextLabel>("UI/LogPanel");
+		var mapText = GetNode<RichTextLabel>("UI/TopRow/MapPanel/MarginContainer/MapText");
+		_log = new LogModule(GetNode<RichTextLabel>("UI/LogPanel"));
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
+
+		var renderModule = new RenderModule();
+		renderModule.ApplyFont(mapText);
+		_mapRender = new MapRenderModule(
+			_state, _fogTracker, renderModule,
+			new MinimapModule(_fogTracker), new FogMapModule(_fogTracker),
+			mapText, ViewW, ViewH, () => _session.ViewMode);
 
 		_statusPanelNode = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
 		_statusPanelModule = new StatusPanelModule(_statusPanelNode);
@@ -165,9 +165,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			[InputFocus.Inventory] = _invPanelNode,
 			[InputFocus.Chest] = _chestPanelNode,
 		};
-
-		_renderModule = new RenderModule();
-		_renderModule.ApplyFont(_mapText);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
@@ -318,8 +315,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		else
 		{
-			_logLines.Clear();
-			AddLog("存档已加载 📂");
+			_log.Clear();
+			_log.Add("存档已加载 📂");
 		}
 		ShowGameHints();
 		DoEnterGame();
@@ -336,13 +333,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_session.TryLoadGame())
 		{
-			_logLines.Clear();
-			AddLog("存档已加载 📂");
+			_log.Clear();
+			_log.Add("存档已加载 📂");
 		}
 		else
 		{
-			_logLines.Clear();
-			AddLog("未找到存档，已创建新游戏");
+			_log.Clear();
+			_log.Add("未找到存档，已创建新游戏");
 			DoStartNewGame();
 		}
 		ShowGameHints();
@@ -359,16 +356,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void DoStartNewGame()
 	{
-		_logLines.Clear();
+		_log.Clear();
 		PlayerDead = false;
 		_session.NewGame();
-		_fogMapModule.Visible = false;
-		_minimapModule.Visible = false;
+		_mapRender.FogMap.Visible = false;
+		_mapRender.Minimap.Visible = false;
 		_skillPanel.Visible = false;
 		_inventoryPanel.Visible = false;
 		_chestPanel.Visible = false;
 		RefreshAllBorders();
-		AddLog("新游戏开始 🗺️");
+		_log.Add("新游戏开始 🗺️");
 	}
 
 	private void DoEnterGame()
@@ -380,8 +377,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ShowGameHints()
 	{
-		AddLog("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		AddLog("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
+		_log.Add("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
+		_log.Add("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -408,14 +405,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		if (cmd == ":dir_cancel")
 		{
-			AddLog("已取消");
+			_log.Add("已取消");
 			return;
 		}
 
 		switch (cmd)
 		{
 			case ":settings" or "settings":
-				if (_fogMapModule.Visible) { _fogMapModule.Visible = false; AddLog("大地图: 关闭"); FlushMap(); return; }
+				if (_mapRender.FogMap.Visible) { _mapRender.FogMap.Visible = false; _log.Add("大地图: 关闭"); FlushMap(); return; }
 				_menu.ToggleSettings(_session.GameStarted); return;
 			case ":quicksave": DoSave(GameSessionModule.QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(GameSessionModule.QuickSavePath, "快速存档"); return;
@@ -433,14 +430,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_menu.SettingsOpen) return;
 
-		if (_fogMapModule.Visible)
+		if (_mapRender.FogMap.Visible)
 		{
 			switch (cmd)
 			{
-				case "w": _fogMapModule.Scroll(0, -1); FlushMap(); break;
-				case "s": _fogMapModule.Scroll(0, 1); FlushMap(); break;
-				case "a": _fogMapModule.Scroll(-1, 0); FlushMap(); break;
-				case "d": _fogMapModule.Scroll(1, 0); FlushMap(); break;
+				case "w": _mapRender.ScrollFogMap(0, -1); FlushMap(); break;
+				case "s": _mapRender.ScrollFogMap(0, 1); FlushMap(); break;
+				case "a": _mapRender.ScrollFogMap(-1, 0); FlushMap(); break;
+				case "d": _mapRender.ScrollFogMap(1, 0); FlushMap(); break;
 			}
 			return;
 		}
@@ -457,83 +454,23 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case "load": DoLoad(GameSessionModule.ManualSavePath); break;
 			case "newmap":
 				_session.NewGame();
-				AddLog("新地图已生成 🗺️");
+				_log.Add("新地图已生成 🗺️");
 				FlushMap();
 				break;
 			default:
 				if (cmd.StartsWith('/'))
 					HandleDebugCommand(cmd);
 				else
-					AddLog("未知指令 ❓");
+					_log.Add("未知指令 ❓");
 				break;
 		}
 	}
 
-	/// <summary>处理 / 前缀的 debug 文本命令。</summary>
 	private void HandleDebugCommand(string cmd)
 	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null) { AddLog("[debug] 无玩家"); return; }
-
-		var parts = cmd.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-		var verb = parts[0].ToLowerInvariant();
-		var arg = parts.Length > 1 ? parts[1].Trim() : "";
-
-		switch (verb)
-		{
-			case "/chest":
-				var count = DebugModule.SpawnChest(_state, _state.PlayerX, _state.PlayerY);
-				AddLog($"[debug] 宝箱已生成，含 {count} 件装备。按 F 打开");
-				FlushMap();
-				break;
-
-			case "/gold":
-				var gold = int.TryParse(arg, out var g) ? g : 1000;
-				DebugModule.GiveGold(player, gold);
-				AddLog($"[debug] +{gold}G (总计: {player.Gold}G)");
-				break;
-
-			case "/heal":
-				DebugModule.HealAll(player);
-				AddLog("[debug] 所有肢体已恢复满耐久");
-				break;
-
-			case "/spawn":
-				if (string.IsNullOrEmpty(arg))
-				{
-					var ids = DebugModule.GetMonsterTemplateIds();
-					AddLog($"[debug] 可用模板: {string.Join(", ", ids)}");
-					break;
-				}
-				var sx = _state.PlayerX + player.FacingX;
-				var sy = _state.PlayerY + player.FacingY;
-				var spawned = DebugModule.SpawnEnemy(_state, arg, sx, sy);
-				if (spawned != null)
-				{
-					AddLog($"[debug] 已生成 {spawned.DisplayName} 在 ({sx},{sy})");
-					FlushMap();
-				}
-				else
-				{
-					AddLog($"[debug] 未知模板: {arg}");
-				}
-				break;
-
-			case "/god":
-				var on = DebugModule.ToggleGodMode(player);
-				AddLog($"[debug] 无敌模式: {(on ? "开启" : "关闭")}");
-				break;
-
-			case "/down":
-				_session.ChangeFloor(goDown: true);
-				AddLog($"[debug] 已传送到第 {_state.PlayerZ} 层");
-				FlushMap();
-				break;
-
-			default:
-				AddLog("[debug] 可用命令: /chest /gold /heal /spawn /god /down");
-				break;
-		}
+		var result = DebugCommandHandler.Handle(cmd, _state, _session);
+		foreach (var msg in result.Logs) _log.Add(msg);
+		if (result.NeedsFlush) FlushMap();
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -566,13 +503,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var sb = new StringBuilder("选择目标：");
 			for (var i = 0; i < options.Count; i++)
 				sb.Append($"  [{i + 1}] {options[i].Name}");
-			AddLog(sb.ToString());
+			_log.Add(sb.ToString());
 
 			_inputModule.EnterSelection(n =>
 			{
-				if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
+				if (n < 1 || n > options.Count) { _log.Add("无效选择"); return; }
 				options[n - 1].Execute();
-			}, () => AddLog("已取消"));
+			}, () => _log.Add("已取消"));
 			return;
 		}
 
@@ -584,7 +521,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		else
 		{
-			AddLog("附近没有可交互的对象 🤷");
+			_log.Add("附近没有可交互的对象 🤷");
 		}
 	}
 
@@ -597,7 +534,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var cellSkills = SkillQuery.GetCellSkills(player);
 		if (cellSkills.Count == 0)
 		{
-			AddLog("你没有任何地形破坏技能");
+			_log.Add("你没有任何地形破坏技能");
 			return;
 		}
 
@@ -610,11 +547,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (!hasTargets)
 		{
-			AddLog("周围没有可破坏的地形");
+			_log.Add("周围没有可破坏的地形");
 			return;
 		}
 
-		AddLog("选择方向 (WASD/方向键)...");
+		_log.Add("选择方向 (WASD/方向键)...");
 		_inputModule.EnterDirectionMode("dig");
 	}
 
@@ -644,7 +581,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (!terrain.Solid || hardness == 0)
 		{
-			AddLog("那个方向没有可破坏的地形");
+			_log.Add("那个方向没有可破坏的地形");
 			return;
 		}
 
@@ -661,7 +598,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (bestSkill == null)
 		{
-			AddLog($"你没有能破坏 {terrain.StringId} 的技能");
+			_log.Add($"你没有能破坏 {terrain.StringId} 的技能");
 			return;
 		}
 
@@ -670,20 +607,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var turnEvents = TurnModule.Tick(_state);
 		Dispatch(turnEvents);
 		FlushMap();
-	}
-
-	private static string GetDirectionName(int fx, int fy, int tx, int ty)
-	{
-		var dx = tx - fx;
-		var dy = ty - fy;
-		return (dx, dy) switch
-		{
-			(0, -1) => "北",
-			(0, 1) => "南",
-			(-1, 0) => "西",
-			(1, 0) => "东",
-			_ => $"{dx},{dy}",
-		};
 	}
 
 	/// <summary>从地面拾取一个物品放入背包。</summary>
@@ -724,7 +647,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var dist = Math.Max(Math.Abs(_state.PlayerX - cx), Math.Abs(_state.PlayerY - cy));
 		if (dist > 1)
 		{
-			AddLog("你离开了宝箱范围，宝箱已关闭。");
+			_log.Add("你离开了宝箱范围，宝箱已关闭。");
 			CloseChestPanel();
 		}
 	}
@@ -738,7 +661,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var inv = InventoryModule.List(player);
 		if (inv.Count == 0)
 		{
-			AddLog("背包是空的");
+			_log.Add("背包是空的");
 			return;
 		}
 
@@ -750,16 +673,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			sb.Append($"  [{i + 1}] {eqMark}{item.Name}");
 		}
 		sb.Append("  [0] 取消");
-		AddLog(sb.ToString());
+		_log.Add(sb.ToString());
 
 		_inputModule.EnterSelection(n =>
 		{
-			if (n == 0) { AddLog("取消"); _inputModule.EnterChestMode(); return; }
-			if (n < 1 || n > inv.Count) { AddLog("无效选择"); _inputModule.EnterChestMode(); return; }
+			if (n == 0) { _log.Add("取消"); _inputModule.EnterChestMode(); return; }
+			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _inputModule.EnterChestMode(); return; }
 			var (invIdx, item) = inv[n - 1];
 			if (item.Equipped)
 			{
-				AddLog($"请先卸下 {item.Name}");
+				_log.Add($"请先卸下 {item.Name}");
 				_inputModule.EnterChestMode();
 				return;
 			}
@@ -767,12 +690,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			if (removed != null)
 			{
 				chestItem.Contents!.Add(removed);
-				AddLog($"将 {removed.Name} 放入了 {chestItem.Name}");
+				_log.Add($"将 {removed.Name} 放入了 {chestItem.Name}");
 			}
 			_inputModule.EnterChestMode();
 			_chestPanel.Refresh();
 			FlushMap();
-		}, () => { AddLog("取消"); _inputModule.EnterChestMode(); });
+		}, () => { _log.Add("取消"); _inputModule.EnterChestMode(); });
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -794,7 +717,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				FlushMap();
 			}));
 		}
-		options.Add(("没什么", () => AddLog("你转身离开")));
+		options.Add(("没什么", () => _log.Add("你转身离开")));
 
 		if (options.Count == 1)
 		{
@@ -805,13 +728,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var sb = new StringBuilder($"{target.DisplayName}：");
 		for (var i = 0; i < options.Count; i++)
 			sb.Append($"  [{i + 1}] {options[i].Name}");
-		AddLog(sb.ToString());
+		_log.Add(sb.ToString());
 
 		_inputModule.EnterSelection(n =>
 		{
-			if (n < 1 || n > options.Count) { AddLog("无效选择"); return; }
+			if (n < 1 || n > options.Count) { _log.Add("无效选择"); return; }
 			options[n - 1].Execute();
-		}, () => AddLog("已取消"));
+		}, () => _log.Add("已取消"));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -832,7 +755,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			player.BrainId = _state.WatchMode ? "simple" : null;
 
 		_watchModeBtn.Text = _state.WatchMode ? "看海模式：开启 🌊" : "看海模式：关闭";
-		AddLog(_state.WatchMode ? "看海模式已开启 🌊 世界将自动推进" : "看海模式已关闭 🎮 恢复手动控制");
+		_log.Add(_state.WatchMode ? "看海模式已开启 🌊 世界将自动推进" : "看海模式已关闭 🎮 恢复手动控制");
 	}
 
 	/// <summary>看海模式每 0.15 秒推进一次回合。</summary>
@@ -883,7 +806,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var logLines = EventLogModule.ToLogLines(e, _state);
 			if (logLines != null)
 				foreach (var line in logLines)
-					AddLog(line);
+					_log.Add(line);
 
 			switch (e.Type)
 			{
@@ -922,13 +845,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_combatUI.OpenCombatMenu(e);
 				break;
 			case "talk":
-				AddLog($"{e.TargetActorName}: 「你好，旅行者。」");
+				_log.Add($"{e.TargetActorName}: 「你好，旅行者。」");
 				break;
 			case "tame":
-				AddLog($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
+				_log.Add($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
 				break;
 			default:
-				AddLog($"[{e.InteractionName}] {e.TargetActorName}");
+				_log.Add($"[{e.InteractionName}] {e.TargetActorName}");
 				break;
 		}
 	}
@@ -942,98 +865,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (ChestOpen) CloseChestPanel();
 		if (_session.TryUseStairs(out var msg))
 		{
-			AddLog(msg!);
+			_log.Add(msg!);
 			FlushMap();
 		}
 		else
 		{
-			AddLog("附近没有楼梯 🤷");
+			_log.Add("附近没有楼梯 🤷");
 		}
 	}
 
-	// ══════════════════════════════════════════════════════
-	//  查看（L 键）
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>构建环境信息文本：位置、肢体状态、脚下设施、同格 Actor、四方向概览。</summary>
-	private void DoLook()
-	{
-		var sb = new StringBuilder();
-		var player = ActorModule.GetPlayer(_state);
-		sb.Append($"📍 Z{_state.PlayerZ} ({_state.PlayerX}, {_state.PlayerY})  回合: {_state.Turn}");
-		if (player != null) sb.Append($"  💰{player.Gold}G");
-
-		if (player != null && player.Limbs.Count > 0)
-		{
-			sb.Append("\n  肢体: ");
-			var parts = new List<string>();
-			foreach (var l in player.Limbs)
-			{
-				var vital = l.Tags.ContainsKey("要害") ? "*" : "";
-				parts.Add($"{l.Name}{vital}({l.Durability}/{l.MaxDurability})");
-			}
-			sb.Append(string.Join(" ", parts));
-		}
-
-		var standingOn = MapModule.GetFixtureId(_state, _state.PlayerX, _state.PlayerY);
-		if (!string.IsNullOrEmpty(standingOn))
-			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
-
-		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
-		if (groundItems.Count > 0)
-		{
-			var names = groundItems.ConvertAll(i => i.Name);
-			sb.Append($"\n  📦 地上: {string.Join(", ", names)}  (F 键拾取)");
-		}
-
-		var coActors = ActorModule.GetAllAt(_state, _state.PlayerX, _state.PlayerY);
-		foreach (var a in coActors)
-		{
-			if (a.Id == _state.PlayerId) continue;
-			sb.Append($"  同格: {a.DisplayName}");
-		}
-
-		var dirs = new (string Name, int Dx, int Dy)[]
-		{
-			("上", 0, -1), ("下", 0, 1), ("左", -1, 0), ("右", 1, 0),
-		};
-		foreach (var (name, dx, dy) in dirs)
-		{
-			var tx = _state.PlayerX + dx;
-			var ty = _state.PlayerY + dy;
-			sb.Append($"  {name}: {CellLabel(tx, ty)}");
-		}
-		AddLog(sb.ToString());
-	}
-
-	/// <summary>将格子内容转化为人类可读文本标签。</summary>
-	private string CellLabel(int x, int y)
-	{
-		if (MapModule.IsWall(_state, x, y)) return "墙 🚧";
-		var actors = ActorModule.GetAllAt(_state, x, y);
-		if (actors.Count > 0)
-		{
-			var names = actors.ConvertAll(a => a.DisplayName);
-			return string.Join("+", names);
-		}
-		var items = MapModule.GetGroundItems(_state, x, y);
-		if (items.Count > 0) return $"📦{items.Count}个物品";
-		var f = MapModule.GetFixtureId(_state, x, y);
-		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
-		return "空地";
-	}
-
-	/// <summary>Fixture EntityId → 中文标签。</summary>
-	private static string FixtureLabel(string id) => id switch
-	{
-		Entities.StairDown => "下行楼梯 ⬇️",
-		Entities.StairUp => "上行楼梯 ⬆️",
-		Entities.Nest => "巢穴 🕳️",
-		Entities.House => "房屋 🏠",
-		Entities.Item => "道具 📦",
-		Entities.Door => "门 🚪",
-		_ => id,
-	};
+	private void DoLook() => _log.Add(LookModule.BuildLookText(_state));
 
 	// ══════════════════════════════════════════════════════
 	//  存档 / 读档
@@ -1043,7 +884,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void DoSave(string path, string label = "存档")
 	{
 		_session.SaveGame(path);
-		AddLog($"{label}已保存 💾");
+		_log.Add($"{label}已保存 💾");
 	}
 
 	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
@@ -1051,12 +892,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_session.LoadGame(path))
 		{
-			AddLog($"{label}已加载 📂 (Z{_state.PlayerZ})");
+			_log.Add($"{label}已加载 📂 (Z{_state.PlayerZ})");
 			FlushMap();
 		}
 		else
 		{
-			AddLog($"未找到{label} ❌");
+			_log.Add($"未找到{label} ❌");
 		}
 	}
 
@@ -1064,48 +905,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	//  渲染
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>切换 ASCII / Emoji 渲染模式。</summary>
 	private void ToggleRender()
 	{
-		var mode = _renderModule.ToggleMode();
-		_renderModule.ApplyFont(_mapText);
-		if (_session.GameStarted && !_menu.InMenu)
-			AddLog(mode == RenderMode.Emoji ? "渲染模式: Emoji 🎨" : "渲染模式: ASCII ⌨️");
+		var msg = _mapRender.ToggleRenderMode();
+		if (_session.GameStarted && !_menu.InMenu && msg != null)
+			_log.Add(msg);
 		if (!_menu.InMenu) FlushMap();
 	}
 
-	/// <summary>立即刷新地图面板和状态面板。</summary>
+	/// <summary>立即刷新地图面板和所有状态面板。</summary>
 	private void FlushMap()
 	{
-		_fogTracker.Update(_state);
-
-		if (_fogMapModule.Visible)
-		{
-			_mapText.BbcodeEnabled = true;
-			_mapText.Clear();
-			_mapText.AppendText(_fogMapModule.Render(_state));
-			RefreshStatus();
-			return;
-		}
-
-		var displayMap = BuildDisplayMap();
-		ApplyFOV(displayMap);
-		var text = _renderModule.RenderMap(displayMap);
-
-		if (_minimapModule.Visible)
-			text += "\n" + _minimapModule.Render(_state);
-
-		if (_renderModule.UsesBBCode || _minimapModule.Visible)
-		{
-			_mapText.BbcodeEnabled = true;
-			_mapText.Clear();
-			_mapText.AppendText(text);
-		}
-		else
-		{
-			_mapText.BbcodeEnabled = false;
-			_mapText.Text = text;
-		}
+		_mapRender.Flush();
 		RefreshStatus();
 	}
 
@@ -1122,55 +933,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		RefreshAllBorders();
 	}
 
-	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
-	private List<List<string>> BuildDisplayMap() =>
-		_session.ViewMode.BuildDisplayMap(_state, ViewW, ViewH);
-
-	/// <summary>
-	/// 根据 FOV 四态给 displayMap 中的格子加前缀：
-	/// 1. 朝向可见 → 原样（正常亮色）
-	/// 2. 周边感知 → "per:" + 原始glyph（灰色但显示实时内容含怪物）
-	/// 3. 已探索 → "mem:" + 地形glyph（暗色只显示地形）
-	/// 4. 未探索 → "fog:"（黑色迷雾）
-	/// </summary>
-	private void ApplyFOV(List<List<string>> displayMap)
-	{
-		var cx = _state.PlayerX;
-		var cy = _state.PlayerY;
-		var cz = _state.PlayerZ;
-		var halfW = ViewW / 2;
-		var halfH = ViewH / 2;
-
-		for (var vy = 0; vy < displayMap.Count; vy++)
-		{
-			var row = displayMap[vy];
-			var wy = cy - halfH + vy;
-			for (var vx = 0; vx < row.Count; vx++)
-			{
-				var wx = cx - halfW + vx;
-
-				if (_fogTracker.IsVisible(wx, wy, cz))
-					continue;
-
-				if (_fogTracker.IsPeripheral(wx, wy, cz))
-				{
-					row[vx] = "per:" + row[vx];
-					continue;
-				}
-
-				if (_fogTracker.HasSeen(wx, wy, cz))
-				{
-					var terrain = _state.World?.GetTerrain(wx, wy, cz);
-					row[vx] = "mem:" + (terrain?.Glyph ?? " ");
-				}
-				else
-				{
-					row[vx] = "fog:";
-				}
-			}
-		}
-	}
-
 	// ══════════════════════════════════════════════════════
 	//  技能面板
 	// ══════════════════════════════════════════════════════
@@ -1178,7 +940,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void ToggleSkillPanel()
 	{
 		_skillPanel.Visible = !_skillPanel.Visible;
-		AddLog(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
+		_log.Add(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
 		FlushMap();
 	}
 
@@ -1208,45 +970,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleMinimap()
 	{
-		if (_fogMapModule.Visible) return;
-		_minimapModule.Visible = !_minimapModule.Visible;
-		AddLog(_minimapModule.Visible ? "小地图: 开启 (Tab 关闭)" : "小地图: 关闭");
+		var msg = _mapRender.ToggleMinimap();
+		if (msg.Length > 0) _log.Add(msg);
 		FlushMap();
 	}
 
 	private void ToggleFogMap()
 	{
-		_fogMapModule.Visible = !_fogMapModule.Visible;
-		if (_fogMapModule.Visible)
-		{
-			_fogMapModule.CenterOnPlayer(_state);
-			AddLog("大地图: 开启 (WASD 滚动 / C 回中心 / M 关闭)");
-		}
-		else
-		{
-			AddLog("大地图: 关闭");
-		}
+		_log.Add(_mapRender.ToggleFogMap());
 		FlushMap();
 	}
 
 	private void CenterFogMap()
 	{
-		if (!_fogMapModule.Visible) return;
-		_fogMapModule.CenterOnPlayer(_state);
+		_mapRender.CenterFogMap();
 		FlushMap();
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  日志
-	// ══════════════════════════════════════════════════════
-
-	/// <summary>追加日志消息，超出 MaxLogLines 时裁剪最旧的。</summary>
-	private void AddLog(string msg)
-	{
-		_logLines.Add(msg);
-		if (_logLines.Count > MaxLogLines)
-			_logLines.RemoveRange(0, _logLines.Count - MaxLogLines);
-		_logPanel.Text = string.Join("\n", _logLines);
 	}
 
 	private void RefreshAllBorders()
