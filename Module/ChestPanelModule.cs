@@ -29,16 +29,18 @@ public class ChestPanelModule
 	private readonly Button _closeBtn;
 	private readonly IHost _host;
 
-	private readonly List<Panel> _itemRows = [];
+	private readonly List<Button> _itemRows = [];
 	private Item? _chestItem;
 	private int _cursor;
 	private int _hoverIndex = -1;
 
 	private static readonly Color ColorNormal = new(0.8f, 0.8f, 0.8f);
 	private static readonly Color ColorSelected = new(1f, 1f, 1f);
-	private static readonly Color ColorHover = new(0.3f, 0.3f, 0.4f);
-	private static readonly Color ColorSelectedBg = new(0.2f, 0.25f, 0.35f);
-	private static readonly Color ColorTransparent = new(0, 0, 0, 0);
+	private static readonly Color ColorDim = new(0.5f, 0.5f, 0.5f);
+	private static readonly Color ColorRowBg = new(0, 0, 0, 0);
+	private static readonly Color ColorHoverBg = new(0.25f, 0.28f, 0.35f);
+	private static readonly Color ColorSelectedBg = new(0.18f, 0.3f, 0.25f);
+	private static readonly Color ColorAccent = new(0.3f, 0.65f, 0.4f);
 
 	public bool Visible
 	{
@@ -153,6 +155,7 @@ public class ChestPanelModule
 		_host.OpenPutIntoChestSelection(_chestItem);
 	}
 
+
 	private void RenderHeader()
 	{
 		_header.Clear();
@@ -170,14 +173,17 @@ public class ChestPanelModule
 		var contents = _chestItem?.Contents;
 		if (contents == null || contents.Count == 0)
 		{
-			var empty = new Label { Text = "  (空)" };
-			empty.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-			var wrapper = new Panel { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-			var sb = new StyleBoxFlat { BgColor = ColorTransparent };
-			wrapper.AddThemeStyleboxOverride("panel", sb);
-			wrapper.AddChild(empty);
-			_itemList.AddChild(wrapper);
-			_itemRows.Add(wrapper);
+			var empty = new Button
+			{
+				Text = "  (空)",
+				Flat = true,
+				FocusMode = Control.FocusModeEnum.None,
+				Disabled = true,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			};
+			empty.AddThemeColorOverride("font_disabled_color", ColorDim);
+			_itemList.AddChild(empty);
+			_itemRows.Add(empty);
 			return;
 		}
 
@@ -189,64 +195,59 @@ public class ChestPanelModule
 		}
 	}
 
-	private Panel CreateItemRow(int index, Item item)
+	private Button CreateItemRow(int index, Item item)
 	{
-		var row = new Panel
+		var stats = FormatInlineStats(item);
+		var weight = $" {item.EffectiveWeight:F1}kg";
+		var text = $"{item.Name}  {stats}{weight}";
+
+		var row = new Button
 		{
+			Text = text,
+			Flat = true,
+			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 24),
-			MouseFilter = Control.MouseFilterEnum.Stop,
+			CustomMinimumSize = new Vector2(0, 26),
+			Alignment = HorizontalAlignment.Left,
+			ClipText = true,
 		};
 
-		var sb = new StyleBoxFlat { BgColor = ColorTransparent };
-		row.AddThemeStyleboxOverride("panel", sb);
-
-		var hbox = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-		hbox.AddThemeConstantOverride("separation", 6);
-
-		var nameLabel = new Label
-		{
-			Text = item.Name,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-		};
-
-		var statsLabel = new Label
-		{
-			Text = FormatInlineStats(item),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		statsLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-
-		var weightLabel = new Label
-		{
-			Text = $"{item.EffectiveWeight:F1}kg",
-			CustomMinimumSize = new Vector2(50, 0),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		weightLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-
-		hbox.AddChild(nameLabel);
-		hbox.AddChild(statsLabel);
-		hbox.AddChild(weightLabel);
-
-		var margin = new MarginContainer();
-		margin.AddThemeConstantOverride("margin_left", 4);
-		margin.AddThemeConstantOverride("margin_right", 4);
-		margin.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-		margin.MouseFilter = Control.MouseFilterEnum.Ignore;
-		hbox.MouseFilter = Control.MouseFilterEnum.Ignore;
-		nameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		statsLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		weightLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		margin.AddChild(hbox);
-		row.AddChild(margin);
+		ApplyRowStyle(row, false, false);
 
 		var idx = index;
-		row.GuiInput += (ev) => OnRowInput(ev, idx);
+		row.GuiInput += ev => OnRowInput(ev, idx);
 		row.MouseEntered += () => OnRowHover(idx);
 		row.MouseExited += () => OnRowHoverExit(idx);
 
 		return row;
+	}
+
+	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
+	{
+		Color bg;
+		if (selected) bg = ColorSelectedBg;
+		else if (hovered) bg = ColorHoverBg;
+		else bg = ColorRowBg;
+
+		var sb = new StyleBoxFlat
+		{
+			BgColor = bg,
+			ContentMarginLeft = 4,
+			ContentMarginRight = 4,
+		};
+
+		if (selected)
+		{
+			sb.BorderWidthLeft = 3;
+			sb.BorderColor = ColorAccent;
+			sb.ContentMarginLeft = 6;
+		}
+
+		row.AddThemeStyleboxOverride("normal", sb);
+		row.AddThemeStyleboxOverride("hover", sb);
+		row.AddThemeStyleboxOverride("pressed", sb);
+		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
+		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
 	}
 
 	private void OnRowInput(InputEvent ev, int index)
@@ -277,24 +278,7 @@ public class ChestPanelModule
 		if (contents == null) return;
 
 		for (var i = 0; i < _itemRows.Count && i < contents.Count; i++)
-		{
-			var row = _itemRows[i];
-			var isSelected = i == _cursor;
-			var isHover = i == _hoverIndex;
-
-			Color bg;
-			if (isSelected) bg = ColorSelectedBg;
-			else if (isHover) bg = ColorHover;
-			else bg = ColorTransparent;
-
-			var stylebox = new StyleBoxFlat { BgColor = bg };
-			row.AddThemeStyleboxOverride("panel", stylebox);
-
-			var nameLabel = row.GetNode<MarginContainer>("MarginContainer")
-				.GetNode<HBoxContainer>("HBoxContainer")
-				.GetChild<Label>(0);
-			nameLabel.AddThemeColorOverride("font_color", isSelected ? ColorSelected : ColorNormal);
-		}
+			ApplyRowStyle(_itemRows[i], i == _cursor, i == _hoverIndex);
 	}
 
 	private void UpdateActionButtons()

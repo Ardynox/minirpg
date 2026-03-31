@@ -66,18 +66,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MinimapModule _minimapModule = null!;
 	private FogMapModule _fogMapModule = null!;
 
-	private PanelContainer _statusPanel = null!;
-	private RichTextLabel _statusName = null!;
-	private RichTextLabel _statusLimb = null!;
-	private RichTextLabel _statusCap = null!;
-	private RichTextLabel _statusTag = null!;
-	private RichTextLabel _statusBuff = null!;
-	private RichTextLabel _statusEquip = null!;
+	private StatusPanelModule _statusPanelModule = null!;
 
 	private SkillPanelModule _skillPanel = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
 	private ChestPanelModule _chestPanel = null!;
+	private PanelContainer _invPanelNode = null!;
+	private PanelContainer _chestPanelNode = null!;
+	private PanelContainer _statusPanelNode = null!;
+	private PanelContainer _skillPanelNode = null!;
+	private PanelContainer _groundPanelNode = null!;
+	private PanelContainer? _focusedPanelNode;
+	private (int x, int y)? _openChestPos;
 
 	private bool InventoryOpen => _inputModule?.Focus == InputFocus.Inventory;
 	private bool ChestOpen => _inputModule?.Focus == InputFocus.Chest;
@@ -173,19 +174,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_continueBtn = GetNode<Button>("MainMenu/Center/VBox/ContinueBtn");
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
-		_statusPanel = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
-		var statusVBox = _statusPanel.GetNode("MarginContainer/ScrollContainer/VBox");
-		_statusName = statusVBox.GetNode<RichTextLabel>("NameInfo");
-		_statusLimb = statusVBox.GetNode<RichTextLabel>("LimbInfo");
-		_statusCap = statusVBox.GetNode<RichTextLabel>("CapInfo");
-		_statusTag = statusVBox.GetNode<RichTextLabel>("TagInfo");
-		_statusBuff = statusVBox.GetNode<RichTextLabel>("BuffInfo");
-		_statusEquip = statusVBox.GetNode<RichTextLabel>("EquipInfo");
+		_statusPanelNode = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
+		_statusPanelModule = new StatusPanelModule(_statusPanelNode);
 
-		_skillPanel = new SkillPanelModule(GetNode<PanelContainer>("UI/TopRow/SkillPanel"));
-		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
-		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
-		_chestPanel = new ChestPanelModule(GetNode<PanelContainer>("UI/TopRow/ChestPanel"), this);
+		_skillPanelNode = GetNode<PanelContainer>("UI/TopRow/SkillPanel");
+		_skillPanel = new SkillPanelModule(_skillPanelNode);
+		_invPanelNode = GetNode<PanelContainer>("UI/TopRow/InventoryPanel");
+		_inventoryPanel = new InventoryPanelModule(_invPanelNode, this);
+		_groundPanelNode = GetNode<PanelContainer>("UI/GroundPanel");
+		_groundPanel = new GroundPanelModule(_groundPanelNode, this);
+		_chestPanelNode = GetNode<PanelContainer>("UI/TopRow/ChestPanel");
+		_chestPanel = new ChestPanelModule(_chestPanelNode, this);
+
 
 		_renderModule = new RenderModule();
 		_renderModule.ApplyFont(_mapPanel);
@@ -240,6 +240,70 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_inMenu) return;
 		if (@event is InputEventKey key && _inputModule.HandleKeyInput(key))
 			GetViewport().SetInputAsHandled();
+	}
+
+	/// <summary>全局输入：检测鼠标点击落在哪个面板内，切换焦点。</summary>
+	public override void _Input(InputEvent @event)
+	{
+		if (_inMenu || !_gameStarted) return;
+		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
+		if (mb.ButtonIndex != MouseButton.Left) return;
+
+		var pos = mb.GlobalPosition;
+		var hit = HitTestPanel(pos);
+		if (hit == null) return;
+
+		var cur = _inputModule.Focus;
+
+		if (hit == _invPanelNode)
+		{
+			if (cur == InputFocus.Inventory) return;
+			if (!_inventoryPanel.Visible)
+			{
+				_inventoryPanel.Visible = true;
+				_inputModule.EnterInventoryMode();
+				FlushMap();
+			}
+			else
+			{
+				_inputModule.EnterInventoryMode();
+				_inventoryPanel.Refresh();
+			}
+			_focusedPanelNode = _invPanelNode;
+		}
+		else if (hit == _chestPanelNode)
+		{
+			if (cur == InputFocus.Chest) return;
+			if (_chestPanel.Visible)
+			{
+				_inputModule.EnterChestMode();
+				_chestPanel.Refresh();
+			}
+			_focusedPanelNode = _chestPanelNode;
+		}
+		else
+		{
+			_focusedPanelNode = hit;
+			if (cur != InputFocus.Action)
+			{
+				_inputModule.EnterActionMode();
+				FlushMap();
+			}
+		}
+		RefreshAllBorders();
+	}
+
+	private PanelContainer? HitTestPanel(Vector2 globalPos)
+	{
+		PanelContainer?[] panels =
+			[_statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
+		foreach (var p in panels)
+		{
+			if (p == null || !p.Visible) continue;
+			var rect = p.GetGlobalRect();
+			if (rect.HasPoint(globalPos)) return p;
+		}
+		return null;
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -367,6 +431,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_chestPanel.Visible = false;
 		InitializeWorld();
 		_gameStarted = true;
+		RefreshAllBorders();
 		AddLog("新游戏开始 🗺️");
 	}
 
@@ -469,6 +534,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":inventory": ToggleInventory(); return;
 			case ":skills": ToggleSkillPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
+			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
+			case ":status_next": _statusPanelModule.CycleTab(1); return;
 			case ":minimap": ToggleMinimap(); return;
 			case ":fogmap": ToggleFogMap(); return;
 			case ":fogmap_center": CenterFogMap(); return;
@@ -742,17 +809,34 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>打开宝箱面板。</summary>
 	private void OpenChestPanel(Item chestItem)
 	{
+		_openChestPos = (_state.PlayerX, _state.PlayerY);
 		_chestPanel.Open(chestItem);
 		_inputModule.EnterChestMode();
+		RefreshAllBorders();
 	}
 
 	/// <summary>关闭宝箱面板。</summary>
 	private void CloseChestPanel()
 	{
+		_openChestPos = null;
 		_chestPanel.Close();
 		_inputModule.EnterActionMode();
+		RefreshAllBorders();
 		_groundPanel.Refresh();
 		FlushMap();
+	}
+
+	/// <summary>玩家移动后检查是否离开宝箱范围，超过1格自动关闭。</summary>
+	private void CheckChestRange()
+	{
+		if (_openChestPos == null || !_chestPanel.Visible) return;
+		var (cx, cy) = _openChestPos.Value;
+		var dist = Math.Max(Math.Abs(_state.PlayerX - cx), Math.Abs(_state.PlayerY - cy));
+		if (dist > 1)
+		{
+			AddLog("你离开了宝箱范围，宝箱已关闭。");
+			CloseChestPanel();
+		}
 	}
 
 	/// <summary>从背包选择物品放入宝箱。</summary>
@@ -891,6 +975,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
 
 		FlushMap();
+		CheckChestRange();
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1068,6 +1153,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>下楼：Z++ 并传送到下层楼梯附近。</summary>
 	private void GoDown()
 	{
+		if (ChestOpen) CloseChestPanel();
 		MapModule.GoDown(_state);
 		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
 		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
@@ -1079,6 +1165,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>上楼：Z-- 并传送到上层楼梯附近。</summary>
 	private void GoUp()
 	{
+		if (ChestOpen) CloseChestPanel();
 		MapModule.GoUp(_state);
 		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
 		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
@@ -1287,37 +1374,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		RefreshStatus();
 	}
 
-	/// <summary>刷新右侧状态面板（名字/肢体/能力/标签/Buff/装备 6 个子面板）。</summary>
+	/// <summary>刷新右侧状态面板（分页式）+ 技能/背包/脚下面板。</summary>
 	private void RefreshStatus()
 	{
 		var player = ActorModule.GetPlayer(_state);
-		if (player == null)
-		{
-			_statusName.Text = "";
-			_statusLimb.Text = "";
-			_statusCap.Text = "";
-			_statusTag.Text = "";
-			_statusBuff.Text = "";
-			_statusEquip.Text = "";
-			return;
-		}
+		_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn, true);
 
-		_statusName.Clear();
-		_statusName.AppendText(StatusModule.BuildNameInfo(player, _state.PlayerZ, _state.Turn));
-		_statusLimb.Clear();
-		_statusLimb.AppendText(StatusModule.BuildLimbInfo(player));
-		_statusCap.Clear();
-		_statusCap.AppendText(StatusModule.BuildCapacityInfo(player));
-		_statusTag.Clear();
-		_statusTag.AppendText(StatusModule.BuildTagInfo(player));
-		_statusBuff.Clear();
-		_statusBuff.AppendText(StatusModule.BuildBuffInfo(player));
-		_statusEquip.Clear();
-		_statusEquip.AppendText(StatusModule.BuildEquipInfo(player));
-
-		_skillPanel.Refresh(player);
+		if (player != null)
+			_skillPanel.Refresh(player);
 		if (InventoryOpen) _inventoryPanel.Refresh();
 		_groundPanel.Refresh();
+		RefreshAllBorders();
 	}
 
 	/// <summary>委托给当前 IViewMode 构建显示地图。</summary>
@@ -1406,6 +1473,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_inventoryPanel.Visible = true;
 			_inputModule.EnterInventoryMode();
 		}
+		RefreshAllBorders();
 		FlushMap();
 	}
 
@@ -1519,5 +1587,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_logLines.Count > MaxLogLines)
 			_logLines.RemoveRange(0, _logLines.Count - MaxLogLines);
 		_logPanel.Text = string.Join("\n", _logLines);
+	}
+
+	private void RefreshAllBorders()
+	{
+		var focus = _inputModule?.Focus ?? InputFocus.Action;
+		if (focus == InputFocus.Inventory)
+			_focusedPanelNode = _invPanelNode;
+		else if (focus == InputFocus.Chest)
+			_focusedPanelNode = _chestPanelNode;
+		else if (_focusedPanelNode != null && !_focusedPanelNode.Visible)
+			_focusedPanelNode = null;
+
+		PanelContainer?[] all =
+			[_statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
+		foreach (var p in all)
+			PanelBorderHelper.Apply(p!, p == _focusedPanelNode);
 	}
 }

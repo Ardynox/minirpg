@@ -1,15 +1,125 @@
 using System.Collections.Generic;
 using System.Text;
+using Godot;
 using MiniRPG.Core;
 
 namespace MiniRPG.Module;
 
-/// <summary>
-/// 角色状态面板渲染：以肢体为核心，展示角色的身体状态、能力百分比、Buff 和装备。
-/// </summary>
-public static class StatusModule
+public enum StatusTab { Limb, Capacity, Tag, Buff, Equip }
+
+public class StatusPanelModule
 {
-	public static string BuildNameInfo(Actor player, int floor, int turn)
+	private static readonly StatusTab[] Tabs =
+		[StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip];
+
+	private static readonly string[] TabLabels = ["肢体", "能力", "标记", "Buff", "装备"];
+
+	private readonly PanelContainer _panel;
+	private readonly RichTextLabel _nameInfo;
+	private readonly HBoxContainer _filterBar;
+	private readonly ScrollContainer _contentScroll;
+	private readonly RichTextLabel _contentBox;
+	private readonly List<Button> _tabButtons = [];
+
+	private StatusTab _currentTab = StatusTab.Limb;
+
+	public StatusPanelModule(PanelContainer panel)
+	{
+		_panel = panel;
+		var vbox = panel.GetNode("MarginContainer/VBox");
+		_nameInfo = vbox.GetNode<RichTextLabel>("NameInfo");
+		_filterBar = vbox.GetNode<HBoxContainer>("FilterBar");
+		_contentScroll = vbox.GetNode<ScrollContainer>("ContentScroll");
+		_contentBox = _contentScroll.GetNode<RichTextLabel>("ContentBox");
+
+		BuildTabButtons();
+	}
+
+	private void BuildTabButtons()
+	{
+		for (var i = 0; i < TabLabels.Length; i++)
+		{
+			var btn = new Button
+			{
+				Text = TabLabels[i],
+				ToggleMode = true,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+				FocusMode = Control.FocusModeEnum.None,
+				CustomMinimumSize = new Vector2(0, 24),
+			};
+			var idx = i;
+			btn.Pressed += () => SetTab(Tabs[idx]);
+			_filterBar.AddChild(btn);
+			_tabButtons.Add(btn);
+		}
+	}
+
+	public void SetTab(StatusTab tab)
+	{
+		_currentTab = tab;
+		UpdateTabHighlight();
+		RefreshContent();
+	}
+
+	public void CycleTab(int dir)
+	{
+		var idx = System.Array.IndexOf(Tabs, _currentTab);
+		idx = (idx + dir + Tabs.Length) % Tabs.Length;
+		SetTab(Tabs[idx]);
+	}
+
+	public void Refresh(Actor? player, int floor, int turn)
+	{
+		if (player == null)
+		{
+			_nameInfo.Clear();
+			_contentBox.Clear();
+			return;
+		}
+
+		_nameInfo.Clear();
+		_nameInfo.AppendText(BuildNameInfo(player, floor, turn));
+		UpdateTabHighlight();
+		RefreshContent(player);
+	}
+
+	private void RefreshContent(Actor? player = null)
+	{
+		player ??= GetCachedPlayer();
+		if (player == null) return;
+
+		_contentBox.Clear();
+		var text = _currentTab switch
+		{
+			StatusTab.Limb => BuildLimbInfo(player),
+			StatusTab.Capacity => BuildCapacityInfo(player),
+			StatusTab.Tag => BuildTagInfo(player),
+			StatusTab.Buff => BuildBuffInfo(player),
+			StatusTab.Equip => BuildEquipInfo(player),
+			_ => "",
+		};
+		_contentBox.AppendText(text);
+		_contentScroll.ScrollVertical = 0;
+	}
+
+	private void UpdateTabHighlight()
+	{
+		for (var i = 0; i < _tabButtons.Count; i++)
+			_tabButtons[i].ButtonPressed = Tabs[i] == _currentTab;
+	}
+
+	private Actor? _cachedPlayer;
+	private Actor? GetCachedPlayer() => _cachedPlayer;
+
+	public void Refresh(Actor? player, int floor, int turn, bool _)
+	{
+		_cachedPlayer = player;
+		Refresh(player, floor, turn);
+	}
+
+	// ── Static build helpers (kept from old StatusModule) ─
+
+	private static string BuildNameInfo(Actor player, int floor, int turn)
 	{
 		var sb = new StringBuilder();
 		sb.Append($"[b]{player.DisplayName}[/b]");
@@ -22,7 +132,7 @@ public static class StatusModule
 		return sb.ToString();
 	}
 
-	public static string BuildLimbInfo(Actor player)
+	private static string BuildLimbInfo(Actor player)
 	{
 		if (player.Limbs.Count == 0)
 			return "[color=#ff4444]无肢体 — 致命状态[/color]";
@@ -56,10 +166,7 @@ public static class StatusModule
 		return sb.ToString();
 	}
 
-	/// <summary>
-	/// 显示能力百分比总览，替代旧的 tag 聚合显示。
-	/// </summary>
-	public static string BuildCapacityInfo(Actor player)
+	private static string BuildCapacityInfo(Actor player)
 	{
 		var caps = player.ComputeCapacities();
 		if (caps.Count == 0)
@@ -91,10 +198,7 @@ public static class StatusModule
 		return sb.ToString();
 	}
 
-	/// <summary>
-	/// 显示从所有来源聚合后的 tag 总值（仅保留非能力类标记）。
-	/// </summary>
-	public static string BuildTagInfo(Actor player)
+	private static string BuildTagInfo(Actor player)
 	{
 		var tags = player.ComputeTags();
 		if (tags.Count == 0)
@@ -106,7 +210,7 @@ public static class StatusModule
 		return sb.ToString();
 	}
 
-	public static string BuildBuffInfo(Actor player)
+	private static string BuildBuffInfo(Actor player)
 	{
 		if (player.Buffs.Count == 0)
 			return "[color=#888888]无[/color]";
@@ -123,7 +227,7 @@ public static class StatusModule
 		return sb.ToString();
 	}
 
-	public static string BuildEquipInfo(Actor player)
+	private static string BuildEquipInfo(Actor player)
 	{
 		var hasAny = false;
 		var sb = new StringBuilder();

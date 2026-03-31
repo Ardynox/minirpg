@@ -48,7 +48,7 @@ public class InventoryPanelModule
 	private readonly IHost _host;
 
 	private readonly List<Button> _filterButtons = [];
-	private readonly List<Panel> _itemRows = [];
+	private readonly List<Button> _itemRows = [];
 
 	private int _filterIndex;
 	private InvSortMode _sortMode = InvSortMode.Name;
@@ -60,11 +60,13 @@ public class InventoryPanelModule
 	private const ulong DoubleClickMs = 400;
 
 	private static readonly Color ColorNormal = new(0.8f, 0.8f, 0.8f);
+	private static readonly Color ColorDim = new(0.5f, 0.5f, 0.5f);
 	private static readonly Color ColorSelected = new(1f, 1f, 1f);
 	private static readonly Color ColorEquipped = new(1f, 0.8f, 0f);
-	private static readonly Color ColorHover = new(0.3f, 0.3f, 0.4f);
-	private static readonly Color ColorSelectedBg = new(0.2f, 0.25f, 0.35f);
-	private static readonly Color ColorTransparent = new(0, 0, 0, 0);
+	private static readonly Color ColorRowBg = new(0, 0, 0, 0);
+	private static readonly Color ColorHoverBg = new(0.25f, 0.28f, 0.35f);
+	private static readonly Color ColorSelectedBg = new(0.18f, 0.3f, 0.25f);
+	private static readonly Color ColorFocusBorder = new(0.3f, 0.65f, 0.4f);
 
 	public bool Visible
 	{
@@ -96,7 +98,7 @@ public class InventoryPanelModule
 
 		BuildFilterButtons();
 		WireActionButtons();
-		WireContextMenu();
+		_contextMenu.IdPressed += OnContextMenuAction;
 
 		_hintBar.Clear();
 		_hintBar.AppendText("[color=#666666]↑↓选择 ←→分类 E装备 U使用 Q丢弃 R排序 I/Esc关闭[/color]");
@@ -134,11 +136,6 @@ public class InventoryPanelModule
 		_sortBtn.Pressed += () => CycleSort();
 	}
 
-	private void WireContextMenu()
-	{
-		_contextMenu.IdPressed += OnContextMenuAction;
-	}
-
 	private void OnContextMenuAction(long id)
 	{
 		switch (id)
@@ -150,7 +147,7 @@ public class InventoryPanelModule
 		}
 	}
 
-	// ── Public API (keyboard commands) ──────────────────
+	// ── Public API ───────────────────────────────────────
 
 	public void Refresh()
 	{
@@ -251,7 +248,7 @@ public class InventoryPanelModule
 		return true;
 	}
 
-	// ── Data ────────────────────────────────────────────
+	// ── Data ─────────────────────────────────────────────
 
 	private void RebuildList(Actor player)
 	{
@@ -276,7 +273,7 @@ public class InventoryPanelModule
 			_cursor = Math.Max(0, _displayItems.Count - 1);
 	}
 
-	// ── Item row nodes ──────────────────────────────────
+	// ── Row nodes (Button-based) ─────────────────────────
 
 	private void RebuildItemNodes()
 	{
@@ -286,133 +283,119 @@ public class InventoryPanelModule
 
 		for (var i = 0; i < _displayItems.Count; i++)
 		{
-			var (_, item) = _displayItems[i];
-			var row = CreateItemRow(i, item);
+			var row = CreateItemRow(i, _displayItems[i].Item);
 			_itemList.AddChild(row);
 			_itemRows.Add(row);
 		}
 
 		if (_displayItems.Count == 0)
 		{
-			var empty = new Label { Text = "  (空)", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-			empty.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-			var wrapper = new Panel { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-			var sb = new StyleBoxFlat { BgColor = ColorTransparent };
-			wrapper.AddThemeStyleboxOverride("panel", sb);
-			wrapper.AddChild(empty);
-			_itemList.AddChild(wrapper);
-			_itemRows.Add(wrapper);
+			var empty = new Button
+			{
+				Text = "  (空)",
+				Flat = true,
+				FocusMode = Control.FocusModeEnum.None,
+				Disabled = true,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			};
+			empty.AddThemeColorOverride("font_disabled_color", ColorDim);
+			_itemList.AddChild(empty);
+			_itemRows.Add(empty);
 		}
 	}
 
-	private Panel CreateItemRow(int index, Item item)
+	private Button CreateItemRow(int index, Item item)
 	{
-		var row = new Panel
+		var eqTag = item.Equipped ? "[E] " : "    ";
+		var stats = FormatInlineStats(item);
+		var weight = $" {item.EffectiveWeight:F1}kg";
+		var text = $"{eqTag}{item.Name}  {stats}{weight}";
+
+		var row = new Button
 		{
+			Text = text,
+			Flat = true,
+			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 24),
-			MouseFilter = Control.MouseFilterEnum.Stop,
+			CustomMinimumSize = new Vector2(0, 26),
+			Alignment = HorizontalAlignment.Left,
+			ClipText = true,
 		};
 
-		var sb = new StyleBoxFlat { BgColor = ColorTransparent };
-		row.AddThemeStyleboxOverride("panel", sb);
-
-		var hbox = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-		hbox.AddThemeConstantOverride("separation", 6);
-
-		var eqMark = new Label
-		{
-			Text = item.Equipped ? "[E]" : "   ",
-			CustomMinimumSize = new Vector2(28, 0),
-			HorizontalAlignment = HorizontalAlignment.Center,
-		};
-		if (item.Equipped)
-			eqMark.AddThemeColorOverride("font_color", ColorEquipped);
-
-		var nameLabel = new Label
-		{
-			Text = item.Name,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-		};
-
-		var statsLabel = new Label
-		{
-			Text = FormatInlineStats(item),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		statsLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-
-		var weightLabel = new Label
-		{
-			Text = $"{item.EffectiveWeight:F1}kg",
-			CustomMinimumSize = new Vector2(50, 0),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		weightLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-
-		hbox.AddChild(eqMark);
-		hbox.AddChild(nameLabel);
-		hbox.AddChild(statsLabel);
-		hbox.AddChild(weightLabel);
-
-		var margin = new MarginContainer();
-		margin.AddThemeConstantOverride("margin_left", 4);
-		margin.AddThemeConstantOverride("margin_right", 4);
-		margin.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-		margin.MouseFilter = Control.MouseFilterEnum.Ignore;
-		hbox.MouseFilter = Control.MouseFilterEnum.Ignore;
-		eqMark.MouseFilter = Control.MouseFilterEnum.Ignore;
-		nameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		statsLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		weightLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
-		margin.AddChild(hbox);
-		row.AddChild(margin);
+		ApplyRowStyle(row, false, false);
 
 		var idx = index;
-		row.GuiInput += (ev) => OnRowInput(ev, idx);
+		row.GuiInput += ev => OnRowInput(ev, idx);
 		row.MouseEntered += () => OnRowHover(idx);
 		row.MouseExited += () => OnRowHoverExit(idx);
 
 		return row;
 	}
 
-	// ── Mouse events ────────────────────────────────────
+	private static void ApplyRowStyle(Button row, bool selected, bool hovered)
+	{
+		Color bg;
+		if (selected) bg = ColorSelectedBg;
+		else if (hovered) bg = ColorHoverBg;
+		else bg = ColorRowBg;
+
+		var sb = new StyleBoxFlat
+		{
+			BgColor = bg,
+			ContentMarginLeft = 4,
+			ContentMarginRight = 4,
+		};
+
+		if (selected)
+		{
+			sb.BorderWidthLeft = 3;
+			sb.BorderColor = ColorFocusBorder;
+			sb.ContentMarginLeft = 6;
+		}
+
+		row.AddThemeStyleboxOverride("normal", sb);
+		row.AddThemeStyleboxOverride("hover", sb);
+		row.AddThemeStyleboxOverride("pressed", sb);
+		row.AddThemeColorOverride("font_color", selected ? ColorSelected : ColorNormal);
+		row.AddThemeColorOverride("font_hover_color", selected ? ColorSelected : ColorNormal);
+	}
+
+	// ── Mouse events ─────────────────────────────────────
 
 	private void OnRowInput(InputEvent ev, int index)
 	{
-		if (ev is InputEventMouseButton mb && mb.Pressed)
+		if (ev is not InputEventMouseButton mb || !mb.Pressed) return;
+
+		if (mb.ButtonIndex == MouseButton.Left)
 		{
-			if (mb.ButtonIndex == MouseButton.Left)
+			var now = Time.GetTicksMsec();
+			if (index == _lastClickIndex && now - _lastClickTime < DoubleClickMs)
 			{
-				var now = Time.GetTicksMsec();
-				if (index == _lastClickIndex && now - _lastClickTime < DoubleClickMs)
-				{
-					_cursor = index;
-					var (_, dblItem) = _displayItems[_cursor];
-					if (dblItem.IsContainer)
-						_host.OpenChestFromInventory(dblItem);
-					else
-						TryEquip();
-					_lastClickIndex = -1;
-				}
+				_cursor = index;
+				var (_, dblItem) = _displayItems[_cursor];
+				if (dblItem.IsContainer)
+					_host.OpenChestFromInventory(dblItem);
 				else
-				{
-					_cursor = index;
-					UpdateRowVisuals();
-					RenderDetail();
-					UpdateActionButtons();
-					_lastClickIndex = index;
-					_lastClickTime = now;
-				}
+					TryEquip();
+				_lastClickIndex = -1;
 			}
-			else if (mb.ButtonIndex == MouseButton.Right)
+			else
 			{
 				_cursor = index;
 				UpdateRowVisuals();
 				RenderDetail();
 				UpdateActionButtons();
-				ShowContextMenu(mb.GlobalPosition);
+				_lastClickIndex = index;
+				_lastClickTime = now;
 			}
+		}
+		else if (mb.ButtonIndex == MouseButton.Right)
+		{
+			_cursor = index;
+			UpdateRowVisuals();
+			RenderDetail();
+			UpdateActionButtons();
+			ShowContextMenu(mb.GlobalPosition);
 		}
 	}
 
@@ -446,29 +429,12 @@ public class InventoryPanelModule
 		_contextMenu.Popup();
 	}
 
-	// ── Visuals ─────────────────────────────────────────
+	// ── Visuals ──────────────────────────────────────────
 
 	private void UpdateRowVisuals()
 	{
 		for (var i = 0; i < _itemRows.Count && i < _displayItems.Count; i++)
-		{
-			var row = _itemRows[i];
-			var isSelected = i == _cursor;
-			var isHover = i == _hoverIndex;
-
-			Color bg;
-			if (isSelected) bg = ColorSelectedBg;
-			else if (isHover) bg = ColorHover;
-			else bg = ColorTransparent;
-
-			var sb = new StyleBoxFlat { BgColor = bg };
-			row.AddThemeStyleboxOverride("panel", sb);
-
-			var nameLabel = row.GetNode<MarginContainer>("MarginContainer")
-				.GetNode<HBoxContainer>("HBoxContainer")
-				.GetChild<Label>(1);
-			nameLabel.AddThemeColorOverride("font_color", isSelected ? ColorSelected : ColorNormal);
-		}
+			ApplyRowStyle(_itemRows[i], i == _cursor, i == _hoverIndex);
 	}
 
 	private void UpdateFilterHighlight()
@@ -495,6 +461,7 @@ public class InventoryPanelModule
 			_equipBtn.Text = "装备 [E]";
 		}
 	}
+
 
 	private void RenderHeader(Actor player)
 	{

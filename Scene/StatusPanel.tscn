@@ -13,88 +13,34 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer"]
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="NameInfo" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="FilterBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="ContentScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="VBox" type="VBoxContainer" parent="MarginContainer/ScrollContainer"]
+[node name="ContentBox" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="NameInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-
-[node name="Sep0" type="HSeparator" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-
-[node name="LimbTitle" type="Label" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-text = "── 肢体 ──"
-horizontal_alignment = 1
-
-[node name="LimbInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-
-[node name="Sep1" type="HSeparator" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-
-[node name="CapTitle" type="Label" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-text = "── 能力 ──"
-horizontal_alignment = 1
-
-[node name="CapInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-
-[node name="Sep2" type="HSeparator" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-
-[node name="TagTitle" type="Label" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-text = "── 标记 ──"
-horizontal_alignment = 1
-
-[node name="TagInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-
-[node name="Sep2b" type="HSeparator" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-
-[node name="BuffTitle" type="Label" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-text = "── 状态效果 ──"
-horizontal_alignment = 1
-
-[node name="BuffInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-
-[node name="Sep3" type="HSeparator" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-
-[node name="EquipTitle" type="Label" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
-text = "── 装备 ──"
-horizontal_alignment = 1
-
-[node name="EquipInfo" type="RichTextLabel" parent="MarginContainer/ScrollContainer/VBox"]
-layout_mode = 2
+size_flags_vertical = 3
 bbcode_enabled = true
 fit_content = true
 scroll_active = false

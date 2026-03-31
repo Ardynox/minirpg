@@ -145,11 +145,8 @@ public partial class InputModule
 			_ => (string?)null,
 		};
 		if (invCmd != null)
-		{
 			CommandReceived?.Invoke(invCmd);
-			return true;
-		}
-		return false;
+		return true;
 	}
 
 	private bool HandleChestKey(InputEventKey key)
@@ -164,11 +161,8 @@ public partial class InputModule
 			_ => (string?)null,
 		};
 		if (chestCmd != null)
-		{
 			CommandReceived?.Invoke(chestCmd);
-			return true;
-		}
-		return false;
+		return true;
 	}
 
 	private bool HandleActionKey(InputEventKey key)
@@ -194,6 +188,8 @@ public partial class InputModule
 			Key.T      => ":typing",
 			Key.F5     => ":quicksave",
 			Key.F9     => ":quickload",
+			Key.Comma  => ":status_prev",
+			Key.Period => ":status_next",
 			_          => null,
 		};
 
