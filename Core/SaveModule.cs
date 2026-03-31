@@ -90,10 +90,24 @@ public static class SaveModule
 	//  楼层切换用的内存快照
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>将当前楼层数据深拷贝到 state.Floors 缓存。</summary>
+	/// <summary>
+	/// 将当前楼层数据深拷贝到 state.Floors 缓存。
+	/// player Actor 不会被存入快照（由调用方负责跨楼层携带）。
+	/// </summary>
 	public static void SaveFloorToDict(GameState state)
 	{
+		var playerId = state.PlayerId;
+		Actor? player = null;
+		if (state.Actors.TryGetValue(playerId, out var p))
+		{
+			player = p;
+			state.Actors.Remove(playerId);
+		}
+
 		state.Floors[state.CurrentFloor] = SnapshotFloor(state);
+
+		if (player != null)
+			state.Actors[playerId] = player;
 	}
 
 	/// <summary>从 state.Floors 缓存中恢复指定楼层。成功后从缓存中移除。</summary>

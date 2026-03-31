@@ -660,7 +660,6 @@ public partial class Main : Node, IGameUI
 	{
 		if (MapModule.GoDownFloor(_state))
 		{
-			EnsurePlayerActor();
 			MapModule.PlacePlayerAtFixture(_state, Entities.StairUp);
 			AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬇️");
 		}
@@ -680,7 +679,6 @@ public partial class Main : Node, IGameUI
 			AddLog("已经是最顶层 🚫");
 			return;
 		}
-		EnsurePlayerActor();
 		MapModule.PlacePlayerAtFixture(_state, Entities.StairDown);
 		AddLog($"你回到了第 {_state.CurrentFloor} 层 ⬆️");
 		FlushMap();
@@ -794,18 +792,15 @@ public partial class Main : Node, IGameUI
 	}
 
 	/// <summary>
-	/// 确保玩家 Actor 存在于 Actors 字典中。
-	/// 楼层切换或加载存档后，玩家 Actor 可能不在当前楼层的 Actors 中，需要重新创建。
+	/// 防御性保障：确保玩家 Actor 存在于 Actors 字典中。
+	/// 正常楼层切换由 GoDownFloor/GoUpFloor 携带 player，不需要调用此方法。
+	/// 仅在新游戏、加载存档、newmap 等场景作为 fallback 使用。
 	/// </summary>
-	// REVIEW: EnsurePlayerActor 会创建全新的 player Actor（模板默认值），
-	//         丢失了之前的肢体损伤、背包、Buff 等状态。
-	//         这应该是一个防御性 fallback，而非正常流程。
-	//         正常楼层切换应该在 SaveFloorToDict 时将 player 从 Actors 中移出，
-	//         在 LoadFloorFromDict 后重新放入，而非新建。
 	private void EnsurePlayerActor()
 	{
 		if (_state.Actors.ContainsKey(_state.PlayerId))
 			return;
+		GD.PushWarning($"EnsurePlayerActor: player '{_state.PlayerId}' not found, creating fallback");
 		var player = ActorTemplates.Spawn("player", _state.PlayerId);
 		player.X = _state.PlayerX;
 		player.Y = _state.PlayerY;

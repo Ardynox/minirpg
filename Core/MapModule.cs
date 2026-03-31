@@ -176,19 +176,14 @@ public static class MapModule
 		stack.Insert(idx, entity);
 	}
 
-	/// <summary>
-	/// 从格子上移除指定 EntityId 的第一个实体。
-	/// </summary>
-	// REVIEW: 按 EntityId 匹配，但不限制 Type。
-	//         如果不同 Type 的实体碰巧有相同 EntityId（如 "floor"），可能误删。
-	//         建议增加 Type 参数或确保 EntityId 全局唯一。
-	public static bool Remove(GameState s, int x, int y, string entityId)
+	/// <summary>从格子上移除指定 Type + EntityId 的第一个实体。</summary>
+	public static bool Remove(GameState s, int x, int y, CellEntityType type, string entityId)
 	{
 		if (!InBounds(s, x, y)) return false;
 		var stack = s.Cells[y][x];
 		for (var i = 0; i < stack.Count; i++)
 		{
-			if (stack[i].EntityId == entityId)
+			if (stack[i].Type == type && stack[i].EntityId == entityId)
 			{
 				stack.RemoveAt(i);
 				return true;
@@ -294,25 +289,33 @@ public static class MapModule
 	//  楼层切换
 	// ══════════════════════════════════════════════════════
 
-	/// <summary>保存当前楼层快照 → CurrentFloor++ → 尝试从缓存加载。返回 true = 命中缓存。</summary>
-	// REVIEW: GoDownFloor / GoUpFloor 调用了 SaveModule，
-	//         使 MapModule 对 SaveModule 产生了正向依赖。
-	//         按架构图 MapModule 和 SaveModule 是同级基础服务，
-	//         楼层切换编排逻辑更适合放在上层（如 Main 或 TurnModule）。
+	/// <summary>
+	/// 保存当前楼层快照 → CurrentFloor++ → 尝试从缓存加载。
+	/// player Actor 跨楼层携带，不随快照丢失。
+	/// 返回 true = 命中缓存。
+	/// </summary>
 	public static bool GoDownFloor(GameState s)
 	{
+		var player = ActorModule.GetById(s, s.PlayerId);
 		SaveModule.SaveFloorToDict(s);
 		s.CurrentFloor++;
-		return SaveModule.LoadFloorFromDict(s, s.CurrentFloor);
+		var loaded = SaveModule.LoadFloorFromDict(s, s.CurrentFloor);
+		if (player != null) s.Actors[s.PlayerId] = player;
+		return loaded;
 	}
 
-	/// <summary>保存当前楼层快照 → CurrentFloor-- → 从缓存加载。返回 false = 已是最顶层。</summary>
+	/// <summary>
+	/// 保存当前楼层快照 → CurrentFloor-- → 从缓存加载。
+	/// 返回 false = 已是最顶层。
+	/// </summary>
 	public static bool GoUpFloor(GameState s)
 	{
 		if (s.CurrentFloor <= 0) return false;
+		var player = ActorModule.GetById(s, s.PlayerId);
 		SaveModule.SaveFloorToDict(s);
 		s.CurrentFloor--;
 		SaveModule.LoadFloorFromDict(s, s.CurrentFloor);
+		if (player != null) s.Actors[s.PlayerId] = player;
 		return true;
 	}
 
