@@ -1,3 +1,4 @@
+using MiniRPG.Core;
 using MiniRPG.Core.World.Noise;
 
 namespace MiniRPG.Core.World.Generators;
@@ -37,12 +38,12 @@ public static class SurfaceGenerator
 	/// </summary>
 	private static ushort Classify(double height, double moisture)
 	{
-		if (height < -0.35) return TerrainRegistry.GetId("water");
-		if (height < -0.2) return TerrainRegistry.GetId("sand");
-		if (height > 0.55) return TerrainRegistry.GetId("mountain");
+		if (height < -0.35) return TerrainRegistry.GetId(Terrains.Water);
+		if (height < -0.2) return TerrainRegistry.GetId(Terrains.Sand);
+		if (height > 0.55) return TerrainRegistry.GetId(Terrains.Mountain);
 
-		if (moisture > 0.25) return TerrainRegistry.GetId("tree");
-		if (moisture > -0.05) return TerrainRegistry.GetId("grass");
-		return TerrainRegistry.GetId("sand");
+		if (moisture > 0.25) return TerrainRegistry.GetId(Terrains.Tree);
+		if (moisture > -0.05) return TerrainRegistry.GetId(Terrains.Grass);
+		return TerrainRegistry.GetId(Terrains.Sand);
 	}
 }

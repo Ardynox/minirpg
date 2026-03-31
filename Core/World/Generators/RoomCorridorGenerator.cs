@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MiniRPG.Core;
 
 namespace MiniRPG.Core.World.Generators;
 
@@ -24,12 +25,12 @@ public class RoomCorridorGenerator : IMapGenerator
 			SurfaceGenerator.Generate(chunk, worldSeed);
 			return;
 		}
-		if (chunk.Coord.Cz < 0) { chunk.Fill(TerrainRegistry.GetId("floor")); return; }
+		if (chunk.Coord.Cz < 0) { chunk.Fill(TerrainRegistry.GetId(Terrains.Floor)); return; }
 
 		var seed = HashSeed(worldSeed, chunk.Coord);
 		var rng = new Random(seed);
 		var wallId = GetWallTerrain(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 
 		chunk.Fill(wallId);
 
@@ -42,7 +43,7 @@ public class RoomCorridorGenerator : IMapGenerator
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ 0x50505050;
 		var rng = new Random(seed);
 		var z = chunk.Coord.Cz;
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 
 		if (z > 0)
 			PopulateDungeon(chunk, rng);
@@ -54,11 +55,11 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static ushort GetWallTerrain(int z)
 	{
-		if (z <= 0) return TerrainRegistry.GetId("wall_stone");
-		if (z <= 3) return TerrainRegistry.GetId("wall_soil");
-		if (z <= 8) return TerrainRegistry.GetId("wall_stone");
-		if (z <= 15) return TerrainRegistry.GetId("wall_granite");
-		return TerrainRegistry.GetId("wall_obsidian");
+		if (z <= 0) return TerrainRegistry.GetId(Terrains.WallStone);
+		if (z <= 3) return TerrainRegistry.GetId(Terrains.WallSoil);
+		if (z <= 8) return TerrainRegistry.GetId(Terrains.WallStone);
+		if (z <= 15) return TerrainRegistry.GetId(Terrains.WallGranite);
+		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 
 	private static List<Room> PlaceRooms(ChunkData chunk, Random rng, ushort floorId)
@@ -136,7 +137,7 @@ public class RoomCorridorGenerator : IMapGenerator
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
 		{
-			if (chunk.GetTerrainId(lx, ly) != TerrainRegistry.GetId("floor")) continue;
+			if (chunk.GetTerrainId(lx, ly) != TerrainRegistry.GetId(Terrains.Floor)) continue;
 			if (rng.Next(100) < 3)
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
@@ -147,7 +148,7 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static void PopulateDungeon(ChunkData chunk, Random rng)
 	{
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
 		{

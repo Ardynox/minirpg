@@ -22,12 +22,12 @@ public static class MapModule
 	{
 		var stringId = glyph switch
 		{
-			"#" => "wall_stone",
-			"." => "floor",
-			"~" => "water",
-			"^" => "mountain",
-			"T" => "tree",
-			_ => "floor",
+			"#" => Terrains.WallStone,
+			"." => Terrains.Floor,
+			"~" => Terrains.Water,
+			"^" => Terrains.Mountain,
+			"T" => Terrains.Tree,
+			_ => Terrains.Floor,
 		};
 		s.World!.SetTerrain(x, y, z, stringId);
 	}
@@ -234,7 +234,7 @@ public static class MapModule
 			}
 			else
 			{
-				state.World.SetTerrain(x, y, z, "wall_stone");
+				state.World.SetTerrain(x, y, z, Terrains.WallStone);
 			}
 		}
 	}
@@ -244,34 +244,34 @@ public static class MapModule
 		switch (ch)
 		{
 			case "#":
-				state.World!.SetTerrain(x, y, z, "wall_stone");
+				state.World!.SetTerrain(x, y, z, Terrains.WallStone);
 				break;
 			case ".":
 			case "P":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				break;
 			case "D":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				state.World.SetFixture(x, y, z, "D", Entities.Door);
 				break;
 			case "N":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				state.World.SetFixture(x, y, z, "N", Entities.Nest);
 				break;
 			case "H":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				state.World.SetFixture(x, y, z, "H", Entities.House);
 				break;
 			case ">":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				state.World.SetFixture(x, y, z, ">", Entities.StairDown);
 				break;
 			case "<":
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				state.World.SetFixture(x, y, z, "<", Entities.StairUp);
 				break;
 			default:
-				state.World!.SetTerrain(x, y, z, "floor");
+				state.World!.SetTerrain(x, y, z, Terrains.Floor);
 				break;
 		}
 	}

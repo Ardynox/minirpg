@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 
 namespace MiniRPG.Core.World;
@@ -30,6 +30,12 @@ public static class TerrainRegistry
 	private static readonly List<TerrainDef> _byId = [];
 	private static readonly Dictionary<string, TerrainDef> _byStringId = new();
 
+	private static readonly JsonSerializerOptions JsonOpts = new()
+	{
+		PropertyNameCaseInsensitive = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+	};
+
 	public static IReadOnlyList<TerrainDef> All => _byId;
 
 	public static TerrainDef Get(ushort id) =>
@@ -48,16 +54,23 @@ public static class TerrainRegistry
 		_byStringId[def.StringId] = def;
 	}
 
-	public static void Load(string jsonPath)
+	/// <summary>
+	/// 从 Godot res:// 路径加载地形定义。使用 Godot.FileAccess 以正确解析虚拟路径。
+	/// </summary>
+	public static void Load(string resPath)
 	{
 		_byId.Clear();
 		_byStringId.Clear();
 
-		if (!File.Exists(jsonPath)) { LoadDefaults(); return; }
+		using var file = Godot.FileAccess.Open(resPath, Godot.FileAccess.ModeFlags.Read);
+		if (file == null)
+			throw new InvalidOperationException(
+				$"Failed to open terrain file: {resPath} (error: {Godot.FileAccess.GetOpenError()})");
 
-		var json = File.ReadAllText(jsonPath);
-		var presets = JsonSerializer.Deserialize<List<TerrainPreset>>(json);
-		if (presets == null) { LoadDefaults(); return; }
+		var json = file.GetAsText();
+		var presets = JsonSerializer.Deserialize<List<TerrainPreset>>(json, JsonOpts);
+		if (presets == null || presets.Count == 0)
+			throw new InvalidOperationException($"Terrain file is empty or invalid: {resPath}");
 
 		foreach (var p in presets)
 		{
@@ -73,23 +86,6 @@ public static class TerrainRegistry
 				Tags = p.Tags ?? new(),
 			});
 		}
-	}
-
-	private static void LoadDefaults()
-	{
-		Register(new TerrainDef { Id = 0, StringId = "void", Glyph = " ", Solid = true, DefaultHardness = 0 });
-		Register(new TerrainDef { Id = 1, StringId = "floor", Glyph = ".", Solid = false, DefaultHardness = 0 });
-		Register(new TerrainDef { Id = 2, StringId = "wall_soil", Glyph = "#", Solid = true, DefaultHardness = 20, Material = "soil" });
-		Register(new TerrainDef { Id = 3, StringId = "wall_stone", Glyph = "#", Solid = true, DefaultHardness = 60, Material = "stone" });
-		Register(new TerrainDef { Id = 4, StringId = "wall_granite", Glyph = "#", Solid = true, DefaultHardness = 120, Material = "granite" });
-		Register(new TerrainDef { Id = 5, StringId = "wall_obsidian", Glyph = "#", Solid = true, DefaultHardness = 200, Material = "obsidian" });
-		Register(new TerrainDef { Id = 6, StringId = "rubble", Glyph = ".", Solid = false, DefaultHardness = 0, Material = "rubble" });
-		Register(new TerrainDef { Id = 7, StringId = "grass", Glyph = ".", Solid = false, DefaultHardness = 0, Material = "grass" });
-		Register(new TerrainDef { Id = 8, StringId = "water", Glyph = "~", Solid = false, DefaultHardness = 0, Material = "water" });
-		Register(new TerrainDef { Id = 9, StringId = "tree", Glyph = "T", Solid = true, DefaultHardness = 15, Material = "wood", BreaksInto = "grass" });
-		Register(new TerrainDef { Id = 10, StringId = "lava", Glyph = "~", Solid = false, DefaultHardness = 0, Material = "lava" });
-		Register(new TerrainDef { Id = 11, StringId = "sand", Glyph = ".", Solid = false, DefaultHardness = 0, Material = "sand" });
-		Register(new TerrainDef { Id = 12, StringId = "mountain", Glyph = "^", Solid = true, DefaultHardness = 150, Material = "stone" });
 	}
 }
 

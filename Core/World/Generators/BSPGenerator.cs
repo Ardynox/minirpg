@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MiniRPG.Core;
 
 namespace MiniRPG.Core.World.Generators;
 
@@ -27,7 +28,7 @@ public class BSPGenerator : IMapGenerator
 		}
 
 		var wallId = GetWallForDepth(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		chunk.Fill(wallId);
 
 		if (chunk.Coord.Cz < 0) { chunk.Fill(floorId); return; }
@@ -69,7 +70,7 @@ public class BSPGenerator : IMapGenerator
 
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xB5B5B5B5);
 		var rng = new Random(seed);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var downPlaced = false;
 		var upPlaced = false;
 
@@ -186,10 +187,10 @@ public class BSPGenerator : IMapGenerator
 
 	private static ushort GetWallForDepth(int z)
 	{
-		if (z <= 3) return TerrainRegistry.GetId("wall_soil");
-		if (z <= 8) return TerrainRegistry.GetId("wall_stone");
-		if (z <= 15) return TerrainRegistry.GetId("wall_granite");
-		return TerrainRegistry.GetId("wall_obsidian");
+		if (z <= 3) return TerrainRegistry.GetId(Terrains.WallSoil);
+		if (z <= 8) return TerrainRegistry.GetId(Terrains.WallStone);
+		if (z <= 15) return TerrainRegistry.GetId(Terrains.WallGranite);
+		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 
 	private static int HashSeed(int worldSeed, ChunkCoord c) =>

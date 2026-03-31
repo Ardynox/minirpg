@@ -1,4 +1,5 @@
 using System;
+using MiniRPG.Core;
 using MiniRPG.Core.World.Noise;
 
 namespace MiniRPG.Core.World.Generators;
@@ -27,7 +28,7 @@ public class CellularAutomataGenerator : IMapGenerator
 		else if (chunk.Coord.Cz > 0)
 			GenerateCaves(chunk, worldSeed);
 		else
-			chunk.Fill(TerrainRegistry.GetId("floor"));
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
 	}
 
 	public void PopulateChunk(ChunkData chunk, int worldSeed)
@@ -39,7 +40,7 @@ public class CellularAutomataGenerator : IMapGenerator
 	private void GenerateCaves(ChunkData chunk, int worldSeed)
 	{
 		var wallId = GetWallForDepth(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var noise = new PerlinNoise(worldSeed ^ chunk.Coord.Cz * 99991);
 
 		var grid = new bool[ChunkData.Size, ChunkData.Size];
@@ -91,17 +92,17 @@ public class CellularAutomataGenerator : IMapGenerator
 
 	private static ushort GetWallForDepth(int z)
 	{
-		if (z <= 3) return TerrainRegistry.GetId("wall_soil");
-		if (z <= 8) return TerrainRegistry.GetId("wall_stone");
-		if (z <= 15) return TerrainRegistry.GetId("wall_granite");
-		return TerrainRegistry.GetId("wall_obsidian");
+		if (z <= 3) return TerrainRegistry.GetId(Terrains.WallSoil);
+		if (z <= 8) return TerrainRegistry.GetId(Terrains.WallStone);
+		if (z <= 15) return TerrainRegistry.GetId(Terrains.WallGranite);
+		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 
 	private static void PlaceFixtures(ChunkData chunk, int worldSeed)
 	{
 		var seed = worldSeed ^ 0xCA1234 ^ chunk.Coord.Cx * 7193 ^ chunk.Coord.Cy * 5437 ^ chunk.Coord.Cz * 3119;
 		var rng = new Random(seed);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var downPlaced = false;
 		var upPlaced = false;
 

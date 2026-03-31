@@ -45,14 +45,13 @@ public class MultiLayerViewMode : IViewMode
 		if (state.World.IsSolid(x, y, z))
 			return currentCell;
 
-		var hasActorOrEntity = currentCell != state.World.GetTerrain(x, y, z).Glyph;
-		if (hasActorOrEntity)
+		if (state.World.HasActorOrEntity(x, y, z, state.Actors))
 			return currentCell;
 
 		var belowCell = state.World.GetDisplayCell(x, y, z + 1, state.Actors);
 		var belowTerrain = state.World.GetTerrain(x, y, z + 1);
 
-		if (belowTerrain.Solid || belowTerrain.StringId != "floor")
+		if (belowTerrain.Solid || belowTerrain.StringId != Terrains.Floor)
 			return "dim:" + belowCell;
 
 		return currentCell;

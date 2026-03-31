@@ -45,7 +45,7 @@ public static class DigModule
 		{
 			var breaksInto = terrain.BreaksInto;
 			var rubbleId = TerrainRegistry.GetId(breaksInto);
-			if (rubbleId == 0) rubbleId = TerrainRegistry.GetId("rubble");
+			if (rubbleId == 0) rubbleId = TerrainRegistry.GetId(Terrains.Rubble);
 			world.SetTerrainId(tx, ty, tz, rubbleId);
 
 			return [new GameEvent("dig_success")
@@ -86,18 +86,18 @@ public static class DigModule
 	{
 		var tags = actor.ComputeTags();
 		var caps = actor.ComputeCapacities();
-		var manipulation = caps.GetValueOrDefault("manipulation", 0f);
+		var manipulation = caps.GetValueOrDefault(Caps.Manipulation, 0f);
 		if (manipulation <= 0f) return 0;
 
 		var tagKey = skill?.Id switch
 		{
-			"chop" => "伐木",
-			"mine" => "采矿",
-			_ => "挖掘",
+			"chop" => SkillTags.Chop,
+			"mine" => SkillTags.Mine,
+			_ => SkillTags.Dig,
 		};
 		var skillLevel = tags.GetValueOrDefault(tagKey, 0);
 
-		var limbHardness = actor.GetLimbHardness("manipulation");
+		var limbHardness = actor.GetLimbHardness(Caps.Manipulation);
 
 		var power = (1 + skillLevel) * manipulation * 5f * (1f + limbHardness / 10f);
 		return Math.Max(1, (int)power);

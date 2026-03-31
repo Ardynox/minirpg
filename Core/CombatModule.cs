@@ -108,7 +108,7 @@ public static class CombatModule
 		var aCaps = attacker.ComputeCapacities();
 		var tTags = target.ComputeTags();
 
-		var manipFactor = aCaps.GetValueOrDefault("manipulation", 0.5f);
+		var manipFactor = aCaps.GetValueOrDefault(Caps.Manipulation, 0.5f);
 		int baseDmg;
 		if (action.EffectType == "poison_attack")
 		{

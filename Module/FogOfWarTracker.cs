@@ -54,7 +54,7 @@ public class FogOfWarTracker
 		}
 
 		var player = ActorModule.GetPlayer(state);
-		var sight = player?.GetCapacity("sight") ?? 1.0f;
+		var sight = player?.GetCapacity(Caps.Sight) ?? 1.0f;
 		var frontRadius = (int)(BaseVisionRadius * sight * AmbientLight);
 		if (frontRadius < 2) frontRadius = 2;
 		var rearRadius = System.Math.Max(2, (int)(frontRadius * RearVisionRatio));
@@ -73,13 +73,6 @@ public class FogOfWarTracker
 
 		foreach (var (vx, vy) in _fullVisible)
 			seenSet.Add(Pack(vx, vy));
-
-		var n = isOpaque(cx, cy - 1);
-		var s = isOpaque(cx, cy + 1);
-		var w = isOpaque(cx - 1, cy);
-		var e = isOpaque(cx + 1, cy);
-		var self = isOpaque(cx, cy);
-		Godot.GD.Print($"[FOV] pos=({cx},{cy},{z}) facing=({facingX},{facingY}) front={frontRadius} rear={rearRadius} full={_fullVisible.Count} dir={_directionalVisible.Count} self={self} N={n} S={s} W={w} E={e}");
 	}
 
 	/// <summary>在朝向视野锥内 → 正常亮色渲染。</summary>

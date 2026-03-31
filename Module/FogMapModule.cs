@@ -54,11 +54,8 @@ public class FogMapModule
 		var halfW = DisplayW / 2;
 		var halfH = DisplayH / 2;
 
-		var bounds = _fog.GetBounds(cz);
-		var explored = _fog.ExploredCount(cz);
-
 		var sb = new StringBuilder();
-		sb.Append($"[color=#888888]── 大地图  Z{cz}  已探索: {explored} 格 ──[/color]\n");
+		sb.Append($"[color=#888888]── 大地图  Z{cz}  已探索: {_fog.ExploredCount(cz)} 格 ──[/color]\n");
 
 		for (var vy = 0; vy < DisplayH; vy++)
 		{
@@ -130,19 +127,19 @@ public class FogMapModule
 
 	private static string TerrainMiniChar(TerrainDef t) => t.StringId switch
 	{
-		"void" => " ",
-		"floor" => "[color=#333333].[/color]",
-		"wall_soil" => "[color=#665533]#[/color]",
-		"wall_stone" => "[color=#555555]#[/color]",
-		"wall_granite" => "[color=#777777]#[/color]",
-		"wall_obsidian" => "[color=#333344]#[/color]",
-		"rubble" => "[color=#554433].[/color]",
-		"grass" => "[color=#338833].[/color]",
-		"water" => "[color=#2266cc]~[/color]",
-		"tree" => "[color=#22aa44]T[/color]",
-		"lava" => "[color=#cc4400]~[/color]",
-		"sand" => "[color=#ccbb66].[/color]",
-		"mountain" => "[color=#888888]^[/color]",
+		Terrains.Void => " ",
+		Terrains.Floor => "[color=#333333].[/color]",
+		Terrains.WallSoil => "[color=#665533]#[/color]",
+		Terrains.WallStone => "[color=#555555]#[/color]",
+		Terrains.WallGranite => "[color=#777777]#[/color]",
+		Terrains.WallObsidian => "[color=#333344]#[/color]",
+		Terrains.Rubble => "[color=#554433].[/color]",
+		Terrains.Grass => "[color=#338833].[/color]",
+		Terrains.Water => "[color=#2266cc]~[/color]",
+		Terrains.Tree => "[color=#22aa44]T[/color]",
+		Terrains.Lava => "[color=#cc4400]~[/color]",
+		Terrains.Sand => "[color=#ccbb66].[/color]",
+		Terrains.Mountain => "[color=#888888]^[/color]",
 		_ => "[color=#444444]?[/color]",
 	};
 }

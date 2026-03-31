@@ -127,6 +127,14 @@ public class WorldMap
 		return GetTerrain(x, y, z).Glyph;
 	}
 
+	/// <summary>该格是否有 Actor 或非地形实体（不依赖 Glyph 比较）。</summary>
+	public bool HasActorOrEntity(int x, int y, int z, Dictionary<string, Actor> actors)
+	{
+		foreach (var a in actors.Values)
+			if (a.X == x && a.Y == y && a.Z == z) return true;
+		return GetEntities(x, y, z).Count > 0;
+	}
+
 	private static Actor? GetDisplayActor(int x, int y, int z, Dictionary<string, Actor> actors)
 	{
 		Actor? best = null;

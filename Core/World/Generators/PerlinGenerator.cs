@@ -1,4 +1,5 @@
 using System;
+using MiniRPG.Core;
 using MiniRPG.Core.World.Noise;
 
 namespace MiniRPG.Core.World.Generators;
@@ -33,7 +34,7 @@ public class PerlinGenerator : IMapGenerator
 
 		var seed = worldSeed ^ unchecked((int)0xDEAD0001) ^ chunk.Coord.Cz * 31337;
 		var rng = new Random(seed ^ chunk.Coord.Cx * 7919 ^ chunk.Coord.Cy * 6563);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var downPlaced = false;
 		var upPlaced = false;
 
@@ -74,7 +75,7 @@ public class PerlinGenerator : IMapGenerator
 		var caveNoise = new PerlinNoise(worldSeed ^ 0xCAFE);
 		var oreNoise = new PerlinNoise(worldSeed ^ 0xBEEF);
 		var wallId = GetWallForDepth(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 
 		chunk.Fill(wallId);
 
@@ -95,15 +96,15 @@ public class PerlinGenerator : IMapGenerator
 
 	private static ushort GetWallForDepth(int z)
 	{
-		if (z <= 2) return TerrainRegistry.GetId("wall_soil");
-		if (z <= 6) return TerrainRegistry.GetId("wall_stone");
-		if (z <= 12) return TerrainRegistry.GetId("wall_granite");
-		return TerrainRegistry.GetId("wall_obsidian");
+		if (z <= 2) return TerrainRegistry.GetId(Terrains.WallSoil);
+		if (z <= 6) return TerrainRegistry.GetId(Terrains.WallStone);
+		if (z <= 12) return TerrainRegistry.GetId(Terrains.WallGranite);
+		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 
 	private static void GenerateSky(ChunkData chunk)
 	{
-		var floorId = TerrainRegistry.GetId("floor");
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		chunk.Fill(floorId);
 	}
 }
