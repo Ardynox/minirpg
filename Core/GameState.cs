@@ -52,8 +52,6 @@ public class GameState
 	public Dictionary<int, FloorData> Floors { get; set; } = new();
 
 	/// <summary>重置为初始状态，用于开始新游戏。</summary>
-	// REVIEW: Reset() 未重置 BumpAttack / WatchMode / PlayerId，
-	//         如果这些值在游戏中被修改，新游戏会残留旧值。
 	public void Reset()
 	{
 		Turn = 0;
@@ -66,6 +64,8 @@ public class GameState
 		Actors.Clear();
 		PlayerX = 0;
 		PlayerY = 0;
+		BumpAttack = true;
+		WatchMode = false;
 		Floors.Clear();
 	}
 }

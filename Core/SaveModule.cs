@@ -29,8 +29,6 @@ public static class SaveModule
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>将当前游戏的所有楼层（含当前层）序列化为 JSON 并写入文件。</summary>
-	// REVIEW: SaveGame 未保存 BumpAttack / WatchMode 等设置字段。
-	//         加载后这些设置会保持内存中的值而非存档中的值。
 	public static void SaveGame(GameState state, string filePath)
 	{
 		var data = new FullSaveData
@@ -38,6 +36,8 @@ public static class SaveModule
 			CurrentFloor = state.CurrentFloor,
 			Turn = state.Turn,
 			RngSeed = state.RngSeed,
+			BumpAttack = state.BumpAttack,
+			WatchMode = state.WatchMode,
 		};
 
 		data.Floors[state.CurrentFloor.ToString()] = SnapshotToSaveData(state);
@@ -67,6 +67,8 @@ public static class SaveModule
 		state.CurrentFloor = data.CurrentFloor;
 		state.Turn = data.Turn;
 		state.RngSeed = data.RngSeed;
+		state.BumpAttack = data.BumpAttack;
+		state.WatchMode = data.WatchMode;
 		state.Floors.Clear();
 
 		foreach (var (key, mapData) in data.Floors)
@@ -138,10 +140,6 @@ public static class SaveModule
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>当前楼层 → 持久化格式（Cells 平铺）。</summary>
-	// REVIEW: SnapshotToSaveData 中 Nests 直接引用 state.Nests 而非深拷贝，
-	//         但 FloorToSaveData 中做了 new List<NestData>(f.Nests)（浅拷贝）。
-	//         两者策略不一致。由于 SaveGame 后立即序列化为 JSON，实际不会出错，
-	//         但如果未来在 SaveGame 后继续修改 state.Nests，引用会被污染。
 	private static MapSaveData SnapshotToSaveData(GameState s) => new()
 	{
 		Width = s.MapWidth,
@@ -149,7 +147,7 @@ public static class SaveModule
 		Cells = FlattenCells(s.Cells),
 		PlayerX = s.PlayerX,
 		PlayerY = s.PlayerY,
-		Nests = s.Nests,
+		Nests = CopyNests(s.Nests),
 		Actors = CopyActors(s.Actors),
 	};
 
@@ -234,13 +232,12 @@ public static class SaveModule
 		return copy;
 	}
 
-	// REVIEW: CopyActor 未拷贝 BrainId 字段。
-	//         看海模式下玩家的 BrainId 被设为 "simple"，存档加载后会丢失。
 	private static Actor CopyActor(Actor a) => new()
 	{
 		Id = a.Id, X = a.X, Y = a.Y,
 		Glyph = a.Glyph, DisplayName = a.DisplayName,
 		Faction = a.Faction,
+		BrainId = a.BrainId,
 		Gold = a.Gold,
 		Inventory = a.Inventory.ConvertAll(CopyItem),
 		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
@@ -343,6 +340,8 @@ public class FullSaveData
 	public int CurrentFloor { get; set; }
 	public int Turn { get; set; }
 	public int RngSeed { get; set; }
+	public bool BumpAttack { get; set; } = true;
+	public bool WatchMode { get; set; }
 	public Dictionary<string, MapSaveData> Floors { get; set; } = new();
 }
 

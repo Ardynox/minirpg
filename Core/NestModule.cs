@@ -91,9 +91,6 @@ public static class NestModule
 	}
 
 	/// <summary>在巢穴四方向相邻格中随机选一个可行走且无 Actor 的格子。</summary>
-	// REVIEW: FindSpawnSlot 只检查 GetAt（返回第一个 Actor），
-	//         如果该格已有 Actor 但不在最前面（字典顺序），可能漏判。
-	//         应改为 GetAllAt(x,y).Count == 0。
 	private static (int, int)? FindSpawnSlot(GameState state, NestData nest, Random rng)
 	{
 		var candidates = new List<(int, int)>();
@@ -101,7 +98,7 @@ public static class NestModule
 		{
 			var nx = nest.X + dx;
 			var ny = nest.Y + dy;
-			if (MapModule.IsWalkable(state, nx, ny) && ActorModule.GetAt(state, nx, ny) == null)
+			if (MapModule.IsWalkable(state, nx, ny) && ActorModule.GetAllAt(state, nx, ny).Count == 0)
 				candidates.Add((nx, ny));
 		}
 		if (candidates.Count == 0)
