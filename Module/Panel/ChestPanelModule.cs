@@ -3,8 +3,26 @@ using System.Collections.Generic;
 using Godot;
 namespace MiniRPG.Module.Panel;
 
-public class ChestPanelModule
+public class ChestPanelModule : IPanel
 {
+	public string PanelId => "chest";
+	public PanelContainer PanelNode => _panel;
+	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+
+	bool IPanel.HandleCommand(string cmd)
+	{
+		switch (cmd)
+		{
+			case "up": MoveCursor(-1); return true;
+			case "down": MoveCursor(1); return true;
+			case "action1": TryTake(); return true;
+			case "action4": TryPut(); return true;
+		}
+		return false;
+	}
+
+	void IPanel.OnBlur() => _host.CloseChestPanel();
+
 	public interface IHost
 	{
 		GameState State { get; }

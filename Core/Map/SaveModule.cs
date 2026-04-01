@@ -205,6 +205,12 @@ public static class SaveModule
 		Profession = a.Profession != null ? CopyProfession(a.Profession) : null,
 		Buffs = a.Buffs.ConvertAll(CopyBuff),
 		Experiences = a.Experiences.ConvertAll(CopyExperience),
+		DialogMood = a.DialogMood,
+		DialogAffinity = a.DialogAffinity,
+		DialogMemory = [.. a.DialogMemory],
+		DialogTalkCount = a.DialogTalkCount,
+		DialogPersonality = new(a.DialogPersonality),
+		DialogNeeds = new(a.DialogNeeds),
 	};
 
 	private static Item CopyItem(Item i) => new()

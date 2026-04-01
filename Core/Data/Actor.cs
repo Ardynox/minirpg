@@ -47,6 +47,15 @@ public class Actor
 	public List<Buff> Buffs { get; set; } = [];
 	public List<Experience> Experiences { get; set; } = [];
 
+	// ── 对话状态 ─────────────────────────────────────────
+
+	public float DialogMood { get; set; }
+	public float DialogAffinity { get; set; }
+	public List<string> DialogMemory { get; set; } = [];
+	public int DialogTalkCount { get; set; }
+	public Dictionary<string, float> DialogPersonality { get; set; } = new();
+	public Dictionary<string, float> DialogNeeds { get; set; } = new();
+
 	// ── tag 表计算 ───────────────────────────────────────
 
 	/// <summary>

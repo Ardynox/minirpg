@@ -3,8 +3,14 @@ using System.Collections.Generic;
 using Godot;
 namespace MiniRPG.Module.Panel;
 
-public class GroundPanelModule
+public class GroundPanelModule : IPanel
 {
+	public string PanelId => "ground";
+	public PanelContainer PanelNode => _panel;
+	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	bool IPanel.CanFocus => false;
+	bool IPanel.HandleCommand(string cmd) => false;
+
 	public interface IHost
 	{
 		GameState State { get; }

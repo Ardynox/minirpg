@@ -1,0 +1,448 @@
+[
+  {
+    "id": "greet_universal",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_first_meet",
+        "template": "{tone}{player_ref}，你是第一次来这里吧？{self_ref}是{npc_name}。",
+        "condition": { "requiresTags": ["first_meet"], "forbidsTags": ["npc_angry"] },
+        "options": [
+          { "text": "你好，{npc_name}", "nextId": "intro_ask", "effects": [{ "type": "affinity", "value": 5 }] },
+          { "text": "（沉默点头）", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 10
+      },
+      {
+        "id": "greet_first_angry",
+        "template": "……又来了个外来人。有什么事快说。",
+        "condition": { "requiresTags": ["first_meet", "npc_angry"] },
+        "options": [
+          { "text": "打扰了", "effects": [{ "type": "mood", "value": 0.05 }] },
+          { "text": "你态度能好点吗？", "effects": [{ "type": "mood", "value": -0.1 }, { "type": "affinity", "value": -3 }] }
+        ],
+        "priority": 12
+      },
+      {
+        "id": "greet_stranger",
+        "template": "{mood_greeting}",
+        "condition": { "forbidsTags": ["first_meet"], "maxTags": {"affinity": 15} },
+        "options": [
+          { "text": "你好", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "（离开）", "effects": [] }
+        ],
+        "priority": 1
+      },
+      {
+        "id": "greet_known",
+        "template": "{tone}{mood_greeting} 是{player_ref}啊。",
+        "condition": { "forbidsTags": ["first_meet"], "minTags": {"affinity": 15}, "maxTags": {"affinity": 50} },
+        "options": [
+          { "text": "最近怎么样？", "nextId": "chat_casual", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "有什么新鲜事吗？", "nextId": "chat_news", "effects": [{ "type": "affinity", "value": 1 }] },
+          { "text": "再见", "effects": [] }
+        ],
+        "priority": 2
+      },
+      {
+        "id": "greet_friend",
+        "template": "{tone}{player_ref}！{mood_greeting} {filler}。",
+        "condition": { "requiresTags": ["is_friend"], "forbidsTags": ["is_close_friend"] },
+        "options": [
+          { "text": "聊聊吧", "nextId": "chat_deep", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "有什么需要帮忙的吗？", "nextId": "chat_favor", "effects": [{ "type": "affinity", "value": 3 }] },
+          { "text": "下次再聊", "effects": [] }
+        ],
+        "priority": 5
+      },
+      {
+        "id": "greet_close_friend",
+        "template": "{tone}太好了，{player_ref}来了！{self_ref}一直在等你。",
+        "condition": { "requiresTags": ["is_close_friend"] },
+        "options": [
+          { "text": "我也很高兴见到你", "nextId": "chat_deep", "effects": [{ "type": "affinity", "value": 3 }, { "type": "mood", "value": 0.1 }] },
+          { "text": "有什么重要的事吗？", "nextId": "chat_secret", "effects": [] },
+          { "text": "改天再聊", "effects": [] }
+        ],
+        "priority": 8
+      },
+      {
+        "id": "greet_angry_known",
+        "template": "……{player_ref}。{self_ref}现在心情不好，别来烦我。",
+        "condition": { "requiresTags": ["npc_angry"], "forbidsTags": ["first_meet"], "minTags": {"affinity": 10} },
+        "options": [
+          { "text": "怎么了？", "nextId": "chat_angry_reason", "effects": [{ "type": "mood", "value": 0.1 }] },
+          { "text": "好吧，改天再来", "effects": [] }
+        ],
+        "priority": 15
+      },
+      {
+        "id": "greet_danger",
+        "template": "{tone}小心！附近有 {enemy_count} 个敌人！别在这里闲聊了！",
+        "condition": { "requiresTags": ["danger_nearby"] },
+        "options": [
+          { "text": "谢谢提醒！", "effects": [{ "type": "affinity", "value": 3 }] }
+        ],
+        "priority": 20
+      },
+      {
+        "id": "greet_veteran",
+        "template": "{tone}{player_ref}，你已经击杀了 {kill_count} 只怪物了。{filler}。",
+        "condition": { "requiresTags": ["veteran"], "forbidsTags": ["danger_nearby", "npc_angry", "first_meet"], "minTags": {"affinity": 20} },
+        "options": [
+          { "text": "还会更多的", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "不值一提", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 6
+      },
+      {
+        "id": "greet_player_rich",
+        "template": "{tone}哟，{player_ref}看起来很阔绰啊。{gold} 金币……",
+        "condition": { "requiresTags": ["player_rich", "is_shopkeeper"], "forbidsTags": ["danger_nearby", "npc_angry"] },
+        "options": [
+          { "text": "看看你的货物", "nextId": "trade_intro", "effects": [] },
+          { "text": "只是路过", "effects": [] }
+        ],
+        "priority": 7
+      },
+      {
+        "id": "greet_player_poor",
+        "template": "{tone}{player_ref}看起来囊中羞涩啊……没关系，先看看吧。",
+        "condition": { "requiresTags": ["player_poor", "is_shopkeeper"], "forbidsTags": ["danger_nearby", "npc_angry"] },
+        "options": [
+          { "text": "随便看看", "nextId": "trade_intro", "effects": [] },
+          { "text": "改天再来", "effects": [] }
+        ],
+        "priority": 4
+      }
+    ]
+  },
+
+  {
+    "id": "chat_universal",
+    "category": "chat",
+    "entries": [
+      {
+        "id": "intro_ask",
+        "template": "这地方虽然偏僻，但也算安宁。{filler}。你有什么想问的？",
+        "options": [
+          { "text": "这里有什么危险？", "nextId": "chat_danger_info", "effects": [] },
+          { "text": "附近有什么人？", "nextId": "chat_people_info", "effects": [] },
+          { "text": "没什么了，谢谢", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_casual",
+        "template": "{tone}还行吧。{filler}。你呢，在第 {floor} 层了？",
+        "options": [
+          { "text": "是啊，越来越深了", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "还在摸索", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_news",
+        "template": "{tone}最近嘛……听说深层出现了一些奇怪的东西。{filler}。",
+        "options": [
+          { "text": "什么东西？", "nextId": "chat_lore_deep", "effects": [] },
+          { "text": "我会小心的", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_deep",
+        "template": "{tone}说实话，{self_ref}觉得这个地方不简单。地下的洞穴似乎比我们想象的要深得多。{filler}。",
+        "options": [
+          { "text": "你知道些什么？", "nextId": "chat_lore_deep", "effects": [] },
+          { "text": "确实，我也有同感", "effects": [{ "type": "affinity", "value": 3 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_favor",
+        "template": "{tone}你愿意帮忙？太好了。{filler}。其实{self_ref}一直想拜托人帮个忙……",
+        "options": [
+          { "text": "说吧，什么事？", "nextId": "chat_favor_detail", "effects": [] },
+          { "text": "看情况吧", "effects": [] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_favor_detail",
+        "template": "你下次去洞穴的时候，能帮{self_ref}留意一下有没有特别的东西吗？什么都行。",
+        "options": [
+          { "text": "没问题", "effects": [{ "type": "affinity", "value": 5 }, { "type": "memory", "key": "accepted_favor" }] },
+          { "text": "再说吧", "effects": [] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_secret",
+        "template": "{tone}既然是{player_ref}……{self_ref}告诉你一件事。最深处似乎有什么古老的东西在沉睡。{filler}。",
+        "condition": { "requiresTags": ["is_close_friend"], "forbidsTags": ["memory:told_secret"] },
+        "options": [
+          { "text": "我会去看看的", "effects": [{ "type": "affinity", "value": 5 }, { "type": "memory", "key": "told_secret" }] },
+          { "text": "听起来很危险", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_secret_repeat",
+        "template": "{tone}关于那件事……你去看过了吗？{filler}。",
+        "condition": { "requiresTags": ["is_close_friend", "memory:told_secret"] },
+        "options": [
+          { "text": "还没有，但我会去的", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "我正在准备", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_angry_reason",
+        "template": "别提了……{filler}。最近诸事不顺。",
+        "options": [
+          { "text": "发生什么了？", "nextId": "chat_angry_detail", "effects": [{ "type": "mood", "value": 0.1 }] },
+          { "text": "节哀", "effects": [{ "type": "mood", "value": 0.15 }, { "type": "affinity", "value": 3 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_angry_detail",
+        "template": "路上遇到了麻烦。损失了不少东西。……谢谢你愿意听{self_ref}说。",
+        "options": [
+          { "text": "会好起来的", "effects": [{ "type": "mood", "value": 0.2 }, { "type": "affinity", "value": 5 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_danger_info",
+        "template": "地下洞穴里有各种怪物。越深越危险。你现在在第 {floor} 层……再往下，会遇到更强的敌人。{filler}。",
+        "options": [
+          { "text": "谢谢告知", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_people_info",
+        "template": "村子里有不少人。商人偶尔会来，铁匠和药师也在。你需要什么可以找他们。{filler}。",
+        "options": [
+          { "text": "明白了", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_lore_deep",
+        "template": "{tone}据说在最深处，有一个远古时代留下的遗迹。没人知道里面有什么。{filler}。",
+        "options": [
+          { "text": "我会去探索的", "effects": [{ "type": "affinity", "value": 3 }, { "type": "memory", "key": "heard_lore" }] },
+          { "text": "太危险了", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "chat_after_favor",
+        "template": "{tone}上次拜托你的事……有消息了吗？{filler}。",
+        "condition": { "requiresTags": ["memory:accepted_favor"], "minTags": {"talk_count": 2} },
+        "options": [
+          { "text": "还在找", "effects": [{ "type": "affinity", "value": 1 }] },
+          { "text": "我会记着的", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 3
+      }
+    ]
+  },
+
+  {
+    "id": "trade_universal",
+    "category": "trade",
+    "entries": [
+      {
+        "id": "trade_intro",
+        "template": "{tone}看看吧，都是好货。{player_ref}有 {gold} 金币。{filler}。",
+        "condition": { "requiresTags": ["is_shopkeeper"] },
+        "options": [
+          { "text": "（查看货物）", "effects": [] },
+          { "text": "今天不买了", "effects": [] }
+        ],
+        "priority": 0
+      },
+      {
+        "id": "trade_friend_discount",
+        "template": "{tone}既然是{player_ref}，{self_ref}给你打个折。老规矩，朋友价。",
+        "condition": { "requiresTags": ["is_shopkeeper", "is_friend"] },
+        "options": [
+          { "text": "谢谢！", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "太客气了", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 5
+      }
+    ]
+  },
+
+  {
+    "id": "react_universal",
+    "category": "react",
+    "entries": [
+      {
+        "id": "react_player_armed",
+        "template": "{tone}{player_ref}身上那把武器不错。{filler}。",
+        "condition": { "requiresTags": ["player_has_weapon"], "forbidsTags": ["danger_nearby", "first_meet"], "minTags": {"affinity": 20} },
+        "options": [
+          { "text": "谢谢", "effects": [{ "type": "affinity", "value": 1 }] },
+          { "text": "还行吧", "effects": [] }
+        ],
+        "tags": ["react"],
+        "priority": 3
+      },
+      {
+        "id": "react_player_armored",
+        "template": "{tone}穿得挺严实的嘛。去深层探险？{filler}。",
+        "condition": { "requiresTags": ["player_has_armor"], "forbidsTags": ["danger_nearby", "first_meet"], "minTags": {"affinity": 15} },
+        "options": [
+          { "text": "是啊，准备充分", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "只是以防万一", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "tags": ["react"],
+        "priority": 3
+      },
+      {
+        "id": "react_legendary",
+        "template": "{tone}你就是那个传说中的冒险者？击杀了 {kill_count} 只怪物的{player_ref}？{filler}！",
+        "condition": { "requiresTags": ["legendary"], "forbidsTags": ["first_meet"] },
+        "options": [
+          { "text": "过奖了", "effects": [{ "type": "affinity", "value": 5 }] },
+          { "text": "不值一提", "effects": [{ "type": "affinity", "value": 3 }] }
+        ],
+        "tags": ["react"],
+        "priority": 8
+      }
+    ]
+  },
+
+  {
+    "id": "profession_shopkeeper",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_shopkeeper_generic",
+        "template": "{tone}欢迎光临！{self_ref}这里什么都有。{player_ref}想看看吗？",
+        "condition": { "requiresTags": ["is_shopkeeper"], "forbidsTags": ["first_meet", "npc_angry", "danger_nearby"] },
+        "options": [
+          { "text": "看看你的货物", "nextId": "trade_intro", "effects": [] },
+          { "text": "随便聊聊", "nextId": "chat_casual", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "不了，谢谢", "effects": [] }
+        ],
+        "priority": 3
+      },
+      {
+        "id": "greet_shopkeeper_happy",
+        "template": "{tone}生意兴隆！{player_ref}来得正好，{self_ref}刚进了一批好货！",
+        "condition": { "requiresTags": ["is_shopkeeper", "npc_happy"], "forbidsTags": ["first_meet", "danger_nearby"] },
+        "options": [
+          { "text": "让我看看", "nextId": "trade_intro", "effects": [] },
+          { "text": "改天再来", "effects": [] }
+        ],
+        "priority": 6
+      }
+    ]
+  },
+
+  {
+    "id": "personality_wise",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_wise_advice",
+        "template": "{tone}你在第 {floor} 层了……{filler}。有什么想问的尽管说。",
+        "condition": { "minTags": {"p:wise": 0.5, "affinity": 20}, "forbidsTags": ["first_meet", "danger_nearby", "npc_angry"] },
+        "options": [
+          { "text": "前方有什么要注意的？", "nextId": "chat_danger_info", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "给我讲讲这里的历史", "nextId": "chat_lore_deep", "effects": [{ "type": "affinity", "value": 3 }] },
+          { "text": "没什么了", "effects": [] }
+        ],
+        "priority": 4
+      }
+    ]
+  },
+
+  {
+    "id": "personality_timid",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_timid_nervous",
+        "template": "{tone}你、你好……{player_ref}是外来人吧？{filler}。",
+        "condition": { "minTags": {"p:timid": 0.4}, "maxTags": {"affinity": 25}, "forbidsTags": ["first_meet"] },
+        "options": [
+          { "text": "别紧张，我没有恶意", "effects": [{ "type": "affinity", "value": 5 }, { "type": "mood", "value": 0.1 }] },
+          { "text": "（不理会）", "effects": [{ "type": "affinity", "value": -2 }] }
+        ],
+        "priority": 4
+      },
+      {
+        "id": "greet_timid_danger",
+        "template": "{tone}好、好害怕……附近有 {enemy_count} 个怪物……{player_ref}能保护{self_ref}吗？",
+        "condition": { "requiresTags": ["danger_nearby"], "minTags": {"p:timid": 0.4} },
+        "options": [
+          { "text": "交给我吧", "effects": [{ "type": "affinity", "value": 8 }, { "type": "mood", "value": 0.2 }] },
+          { "text": "你自己小心吧", "effects": [{ "type": "mood", "value": -0.1 }] }
+        ],
+        "priority": 18
+      }
+    ]
+  },
+
+  {
+    "id": "personality_greedy",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_greedy_appraise",
+        "template": "{tone}让{self_ref}看看……{player_ref}身上有 {gold} 金币。{filler}。",
+        "condition": { "minTags": {"p:greedy": 0.5}, "forbidsTags": ["first_meet", "danger_nearby", "npc_angry"] },
+        "options": [
+          { "text": "你倒是直接", "effects": [{ "type": "affinity", "value": 1 }] },
+          { "text": "少打我钱的主意", "effects": [{ "type": "affinity", "value": -1 }, { "type": "mood", "value": -0.05 }] }
+        ],
+        "priority": 4
+      }
+    ]
+  },
+
+  {
+    "id": "memory_reactions",
+    "category": "greet",
+    "entries": [
+      {
+        "id": "greet_remember_favor",
+        "template": "{tone}{player_ref}，上次的事{self_ref}一直记着呢。{filler}。",
+        "condition": { "requiresTags": ["memory:accepted_favor"], "forbidsTags": ["first_meet", "danger_nearby"], "minTags": {"talk_count": 2} },
+        "options": [
+          { "text": "举手之劳", "effects": [{ "type": "affinity", "value": 3 }] },
+          { "text": "别客气", "effects": [{ "type": "affinity", "value": 2 }] }
+        ],
+        "priority": 6
+      },
+      {
+        "id": "greet_remember_secret",
+        "template": "{tone}{player_ref}……关于上次说的那件事，你有什么进展吗？",
+        "condition": { "requiresTags": ["memory:told_secret"], "forbidsTags": ["danger_nearby"], "minTags": {"affinity": 50} },
+        "options": [
+          { "text": "还在探索中", "effects": [{ "type": "affinity", "value": 2 }] },
+          { "text": "快了", "effects": [{ "type": "affinity", "value": 1 }] }
+        ],
+        "priority": 7
+      },
+      {
+        "id": "greet_remember_lore",
+        "template": "{tone}上次和{player_ref}说的那个遗迹的事……{self_ref}又打听到一些消息。{filler}。",
+        "condition": { "requiresTags": ["memory:heard_lore"], "forbidsTags": ["danger_nearby"], "minTags": {"affinity": 30, "talk_count": 3} },
+        "options": [
+          { "text": "快说说！", "nextId": "chat_lore_deep", "effects": [{ "type": "affinity", "value": 3 }] },
+          { "text": "改天再听", "effects": [] }
+        ],
+        "priority": 7
+      }
+    ]
+  }
+]

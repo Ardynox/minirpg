@@ -113,6 +113,15 @@ public class ActorPreset
 	public string? ProfessionId { get; set; }
 	[JsonPropertyName("shopSlots")]
 	public List<ShopSlotPreset> ShopSlots { get; set; } = [];
+
+	[JsonPropertyName("dialogMood")]
+	public float DialogMood { get; set; }
+	[JsonPropertyName("dialogAffinity")]
+	public float DialogAffinity { get; set; }
+	[JsonPropertyName("dialogPersonality")]
+	public Dictionary<string, float>? DialogPersonality { get; set; }
+	[JsonPropertyName("dialogNeeds")]
+	public Dictionary<string, float>? DialogNeeds { get; set; }
 }
 
 public class ItemCategoryPreset
@@ -266,6 +275,13 @@ public static class PresetDB
 
 		if (preset.Faction != Factions.Player)
 			actor.BrainId = "simple";
+
+		actor.DialogMood = preset.DialogMood;
+		actor.DialogAffinity = preset.DialogAffinity;
+		if (preset.DialogPersonality != null)
+			actor.DialogPersonality = new(preset.DialogPersonality);
+		if (preset.DialogNeeds != null)
+			actor.DialogNeeds = new(preset.DialogNeeds);
 
 		return actor;
 	}

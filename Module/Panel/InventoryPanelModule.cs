@@ -6,8 +6,31 @@ namespace MiniRPG.Module.Panel;
 
 public enum InvSortMode { Name, Weight, Price }
 
-public class InventoryPanelModule
+public class InventoryPanelModule : IPanel
 {
+	public string PanelId => "inventory";
+	public PanelContainer PanelNode => _panel;
+	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+
+	bool IPanel.HandleCommand(string cmd)
+	{
+		switch (cmd)
+		{
+			case "up": MoveCursor(-1); return true;
+			case "down": MoveCursor(1); return true;
+			case "action1": TryEquip(); return true;
+			case "action5": TryUse(); return true;
+			case "action2": TryDrop(); return true;
+			case "action3": CycleSort(); return true;
+			case "right" or "tab_next": CycleFilter(1); return true;
+			case "left" or "tab_prev": CycleFilter(-1); return true;
+			case "toggle_inv": _host.CloseInventory(); return true;
+		}
+		return false;
+	}
+
+	void IPanel.OnBlur() => Visible = false;
+
 	public interface IHost
 	{
 		GameState State { get; }
@@ -16,6 +39,7 @@ public class InventoryPanelModule
 		void Dispatch(List<GameEvent> events);
 		void FlushMap();
 		void OpenChestFromInventory(Item chestItem);
+		void CloseInventory();
 	}
 
 	private static readonly string[] FilterIds =

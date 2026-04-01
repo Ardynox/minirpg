@@ -55,8 +55,10 @@ public static class DebugModule
 			case "/spawn":
 				if (string.IsNullOrEmpty(arg))
 				{
-					var ids = GetMonsterTemplateIds();
-					logs.Add($"[debug] 可用模板: {string.Join(", ", ids)}");
+					var hostileIds = GetMonsterTemplateIds();
+					var friendlyIds = GetFriendlyTemplateIds();
+					logs.Add($"[debug] 敌对: {string.Join(", ", hostileIds)}");
+					logs.Add($"[debug] 友方: {string.Join(", ", friendlyIds)}");
 					break;
 				}
 				var sx = state.PlayerX + player.FacingX;
@@ -84,8 +86,14 @@ public static class DebugModule
 				flush = true;
 				break;
 
+			case "/npcs":
+				var npcsSpawned = SpawnDialogTestNpcs(state, player);
+				logs.Add($"[debug] 已生成 {npcsSpawned} 个不可移动的友方 NPC（按 F 交互）");
+				flush = true;
+				break;
+
 			default:
-				logs.Add("[debug] 可用命令: /chest /gold /heal /spawn /god /down");
+				logs.Add("[debug] 可用命令: /chest /gold /heal /spawn /god /down /npcs");
 				break;
 		}
 
@@ -160,6 +168,51 @@ public static class DebugModule
 		var ids = new List<string>();
 		foreach (var (id, preset) in PresetDB.Actors)
 			if (preset.Faction == Factions.Hostile)
+				ids.Add(id);
+		return ids;
+	}
+
+	public static int SpawnDialogTestNpcs(GameState state, Actor player)
+	{
+		string[] templates =
+		[
+			"merchant", "elder", "villager", "blacksmith_npc",
+			"herbalist_npc", "cook_npc", "guard_npc", "tailor_npc",
+			"elf_trader", "orc_merchant",
+		];
+
+		int[][] offsets =
+		[
+			[1, 0], [2, 0], [3, 0], [0, 1], [1, 1],
+			[2, 1], [3, 1], [0, 2], [1, 2], [2, 2],
+		];
+
+		var count = 0;
+		for (var i = 0; i < templates.Length; i++)
+		{
+			var tx = player.X + offsets[i][0];
+			var ty = player.Y + offsets[i][1];
+			var npc = SpawnEnemy(state, templates[i], tx, ty);
+			if (npc == null) continue;
+
+			npc.BrainId = null;
+			ImmobilizeActor(npc);
+			count++;
+		}
+		return count;
+	}
+
+	private static void ImmobilizeActor(Actor actor)
+	{
+		actor.Limbs.RemoveAll(l =>
+			l.BodyPart is "arm" or "hand" or "leg" or "foot" or "paw" or "hoof");
+	}
+
+	public static List<string> GetFriendlyTemplateIds()
+	{
+		var ids = new List<string>();
+		foreach (var (id, preset) in PresetDB.Actors)
+			if (preset.Faction == Factions.Friendly && id != "player")
 				ids.Add(id);
 		return ids;
 	}

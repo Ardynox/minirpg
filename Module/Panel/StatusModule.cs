@@ -5,8 +5,24 @@ namespace MiniRPG.Module.Panel;
 
 public enum StatusTab { Limb, Capacity, Tag, Buff, Equip }
 
-public class StatusPanelModule
+public class StatusPanelModule : IPanel
 {
+	public string PanelId => "status";
+	public PanelContainer PanelNode => _panel;
+	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+
+	bool IPanel.HandleCommand(string cmd)
+	{
+		switch (cmd)
+		{
+			case "up": MoveCursor(-1); return true;
+			case "down": MoveCursor(1); return true;
+			case "left" or "tab_prev": CycleTab(-1); return true;
+			case "right" or "tab_next": CycleTab(1); return true;
+		}
+		return false;
+	}
+
 	private static readonly StatusTab[] Tabs =
 		[StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip];
 

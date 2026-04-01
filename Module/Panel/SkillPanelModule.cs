@@ -6,8 +6,14 @@ namespace MiniRPG.Module.Panel;
 /// <summary>
 /// 技能面板 UI 模块：读取 SkillQuery 结果，按分类渲染到 SkillPanel 子场景中。
 /// </summary>
-public class SkillPanelModule
+public class SkillPanelModule : IPanel
 {
+	public string PanelId => "skill";
+	public PanelContainer PanelNode => _panel;
+	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	bool IPanel.CanFocus => false;
+	bool IPanel.HandleCommand(string cmd) => false;
+
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _combatList;
 	private readonly RichTextLabel _utilityList;

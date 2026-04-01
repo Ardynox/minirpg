@@ -9,9 +9,6 @@ public enum InputFocus
 	Typing,
 	Selection,
 	Direction,
-	Status,
-	Inventory,
-	Chest,
 }
 
 public partial class InputModule
@@ -25,9 +22,6 @@ public partial class InputModule
 
 	public InputFocus Focus => _focus;
 
-	/// <summary>
-	/// 进入选择模式。选中数字后执行 callback(n)，ESC 取消后执行 onCancel（可选）。
-	/// </summary>
 	public void EnterSelection(Action<int> callback, Action? onCancel = null)
 	{
 		_selectionCallback = callback;
@@ -69,9 +63,6 @@ public partial class InputModule
 
 	public void EnterActionMode() => SetFocus(InputFocus.Action);
 	public void EnterTypingMode() => SetFocus(InputFocus.Typing);
-	public void EnterStatusMode() => SetFocus(InputFocus.Status);
-	public void EnterInventoryMode() => SetFocus(InputFocus.Inventory);
-	public void EnterChestMode() => SetFocus(InputFocus.Chest);
 	public void EnterDirectionMode(string prefix) => SetFocus(InputFocus.Direction, prefix);
 
 	public bool HandleKeyInput(InputEventKey key)
@@ -84,9 +75,6 @@ public partial class InputModule
 			InputFocus.Typing => HandleTypingKey(key),
 			InputFocus.Selection => HandleSelectionKey(key),
 			InputFocus.Direction => HandleDirectionKey(key),
-			InputFocus.Status => HandleStatusKey(key),
-			InputFocus.Inventory => HandleInventoryKey(key),
-			InputFocus.Chest => HandleChestKey(key),
 			_ => HandleActionKey(key),
 		};
 	}
@@ -154,65 +142,6 @@ public partial class InputModule
 			return true;
 		}
 		return false;
-	}
-
-	/// <summary>Panel focus handlers: registered by panel modules to receive key commands directly.</summary>
-	public Action<string>? OnStatusCommand { get; set; }
-	public Action<string>? OnInventoryCommand { get; set; }
-	public Action<string>? OnChestCommand { get; set; }
-
-	private bool HandleStatusKey(InputEventKey key)
-	{
-		var cmd = key.Keycode switch
-		{
-			Key.W or Key.Up    => "up",
-			Key.S or Key.Down  => "down",
-			Key.A or Key.Left  => "prev",
-			Key.D or Key.Right => "next",
-			Key.Tab            => key.ShiftPressed ? "prev" : "next",
-			Key.Escape         => "close",
-			_ => (string?)null,
-		};
-		if (cmd != null)
-			OnStatusCommand?.Invoke(cmd);
-		return true;
-	}
-
-	private bool HandleInventoryKey(InputEventKey key)
-	{
-		var cmd = key.Keycode switch
-		{
-			Key.W or Key.Up    => "up",
-			Key.S or Key.Down  => "down",
-			Key.A or Key.Left  => "filter_prev",
-			Key.D or Key.Right => "filter_next",
-			Key.E             => "equip",
-			Key.U             => "use",
-			Key.Q             => "drop",
-			Key.R             => "sort",
-			Key.Tab           => key.ShiftPressed ? "filter_prev" : "filter_next",
-			Key.I or Key.Escape => "close",
-			_ => (string?)null,
-		};
-		if (cmd != null)
-			OnInventoryCommand?.Invoke(cmd);
-		return true;
-	}
-
-	private bool HandleChestKey(InputEventKey key)
-	{
-		var cmd = key.Keycode switch
-		{
-			Key.W or Key.Up    => "up",
-			Key.S or Key.Down  => "down",
-			Key.E             => "take",
-			Key.P             => "put",
-			Key.Escape        => "close",
-			_ => (string?)null,
-		};
-		if (cmd != null)
-			OnChestCommand?.Invoke(cmd);
-		return true;
 	}
 
 	private bool HandleActionKey(InputEventKey key)

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
+using MiniRPG.Module.Panel;
 
 namespace MiniRPG;
 
@@ -33,27 +34,22 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private FogOfWarTracker _fogTracker = null!;
 
+	private PanelManager _panels = null!;
 	private StatusPanelModule _statusPanelModule = null!;
-
 	private SkillPanelModule _skillPanel = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
 	private ChestPanelModule _chestPanel = null!;
-	private PanelContainer _invPanelNode = null!;
-	private PanelContainer _chestPanelNode = null!;
-	private PanelContainer _statusPanelNode = null!;
-	private PanelContainer _skillPanelNode = null!;
-	private PanelContainer _groundPanelNode = null!;
-	private PanelContainer? _focusedPanelNode;
-	private Dictionary<InputFocus, PanelContainer>? _focusMap;
+	private DialogPanelModule _dialogPanel = null!;
 	private (int x, int y)? _openChestPos;
 
-	private bool StatusOpen => _inputModule?.Focus == InputFocus.Status;
-	private bool InventoryOpen => _inputModule?.Focus == InputFocus.Inventory;
-	private bool ChestOpen => _inputModule?.Focus == InputFocus.Chest;
+	private bool StatusOpen => _panels?.FocusedId == "status";
+	private bool InventoryOpen => _panels?.FocusedId == "inventory";
+	private bool ChestOpen => _panels?.FocusedId == "chest";
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule _tradeUI = null!;
+	private DialogUIModule _dialogUI = null!;
 
 	// ══════════════════════════════════════════════════════
 	//  IGameUI 接口实现
@@ -74,6 +70,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	GameState InventoryPanelModule.IHost.State => _state;
 	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
 	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(chestItem);
+	void InventoryPanelModule.IHost.CloseInventory() => ToggleInventory();
 
 	void GroundPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
@@ -128,6 +125,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
+		DialogPool.Load();
 		_fogTracker = new FogOfWarTracker();
 
 		_session = new GameSessionModule(_state, _fogTracker);
@@ -144,58 +142,28 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_state, _fogTracker, renderModule,
 			mapText, ViewW, ViewH, () => _session.ViewMode);
 
-		_statusPanelNode = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
-		_statusPanelModule = new StatusPanelModule(_statusPanelNode);
+		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
+		_skillPanel = new SkillPanelModule(GetNode<PanelContainer>("UI/TopRow/SkillPanel"));
+		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
+		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
+		_chestPanel = new ChestPanelModule(GetNode<PanelContainer>("UI/TopRow/ChestPanel"), this);
+		_dialogPanel = new DialogPanelModule(GetNode<PanelContainer>("UI/TopRow/DialogPanel"));
 
-		_skillPanelNode = GetNode<PanelContainer>("UI/TopRow/SkillPanel");
-		_skillPanel = new SkillPanelModule(_skillPanelNode);
-		_invPanelNode = GetNode<PanelContainer>("UI/TopRow/InventoryPanel");
-		_inventoryPanel = new InventoryPanelModule(_invPanelNode, this);
-		_groundPanelNode = GetNode<PanelContainer>("UI/GroundPanel");
-		_groundPanel = new GroundPanelModule(_groundPanelNode, this);
-		_chestPanelNode = GetNode<PanelContainer>("UI/TopRow/ChestPanel");
-		_chestPanel = new ChestPanelModule(_chestPanelNode, this);
-
-		_focusMap = new Dictionary<InputFocus, PanelContainer>
-		{
-			[InputFocus.Status] = _statusPanelNode,
-			[InputFocus.Inventory] = _invPanelNode,
-			[InputFocus.Chest] = _chestPanelNode,
-		};
+		_panels = new PanelManager();
+		_panels.RegisterPassive(_mapPanelNode);
+		_panels.Register(_statusPanelModule);
+		_panels.Register(_skillPanel);
+		_panels.Register(_inventoryPanel);
+		_panels.Register(_groundPanel);
+		_panels.Register(_chestPanel);
+		_panels.Register(_dialogPanel);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
-		_inputModule.OnStatusCommand += cmd =>
-			_statusPanelModule.HandleCommand(cmd, () => { _inputModule.EnterActionMode(); RefreshAllBorders(); });
-		_inputModule.OnInventoryCommand += cmd =>
-		{
-			switch (cmd)
-			{
-				case "up": _inventoryPanel.MoveCursor(-1); break;
-				case "down": _inventoryPanel.MoveCursor(1); break;
-				case "equip": _inventoryPanel.TryEquip(); break;
-				case "use": _inventoryPanel.TryUse(); break;
-				case "drop": _inventoryPanel.TryDrop(); break;
-				case "filter_next": _inventoryPanel.CycleFilter(1); break;
-				case "filter_prev": _inventoryPanel.CycleFilter(-1); break;
-				case "sort": _inventoryPanel.CycleSort(); break;
-				case "close": ToggleInventory(); break;
-			}
-		};
-		_inputModule.OnChestCommand += cmd =>
-		{
-			switch (cmd)
-			{
-				case "up": _chestPanel.MoveCursor(-1); break;
-				case "down": _chestPanel.MoveCursor(1); break;
-				case "take": _chestPanel.TryTake(); break;
-				case "put": _chestPanel.TryPut(); break;
-				case "close": CloseChestPanel(); break;
-			}
-		};
 
 		_combatUI = new CombatUIModule(this);
 		_tradeUI = new TradeUIModule(this);
+		_dialogUI = new DialogUIModule(this, _dialogPanel, _panels);
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
 		_watchModeBtn = GetNode<Button>("SettingsPanel/VBox/WatchModeToggle");
@@ -229,11 +197,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 	}
 
-	/// <summary>拦截未处理的键盘事件，转发给 InputModule 处理。</summary>
+	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
 	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (_menu.InMenu) return;
-		if (@event is InputEventKey key && _inputModule.HandleKeyInput(key))
+		if (@event is not InputEventKey key) return;
+		if (_panels.HandleKey(key) || _inputModule.HandleKeyInput(key))
 			GetViewport().SetInputAsHandled();
 	}
 
@@ -244,60 +213,22 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
 		if (mb.ButtonIndex != MouseButton.Left) return;
 
-		var pos = mb.GlobalPosition;
-		var hit = HitTestPanel(pos);
-		if (hit == null) return;
-
-		var cur = _inputModule.Focus;
-		_focusedPanelNode = hit;
-
-		if (hit == _invPanelNode)
+		var hit = _panels.HitTest(mb.GlobalPosition);
+		if (hit != null)
 		{
-			if (cur == InputFocus.Inventory) return;
-			if (!_inventoryPanel.Visible)
+			if (hit == _panels.Focused) return;
+			if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
 			{
 				_inventoryPanel.Visible = true;
-				_inputModule.EnterInventoryMode();
 				FlushMap();
 			}
-			else
-			{
-				_inputModule.EnterInventoryMode();
-				_inventoryPanel.Refresh();
-			}
+			_panels.SetFocus(hit);
 		}
-		else if (hit == _chestPanelNode)
+		else if (_panels.HasFocus)
 		{
-			if (cur != InputFocus.Chest && _chestPanel.Visible)
-			{
-				_inputModule.EnterChestMode();
-				_chestPanel.Refresh();
-			}
-		}
-		else if (hit == _statusPanelNode)
-		{
-			if (cur != InputFocus.Status)
-				_inputModule.EnterStatusMode();
-		}
-		else if (cur != InputFocus.Action)
-		{
-			_inputModule.EnterActionMode();
+			_panels.ClearFocus();
 			FlushMap();
 		}
-		RefreshAllBorders();
-	}
-
-	private PanelContainer? HitTestPanel(Vector2 globalPos)
-	{
-		PanelContainer?[] panels =
-			[_mapPanelNode, _statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
-		foreach (var p in panels)
-		{
-			if (p == null || !p.Visible) continue;
-			var rect = p.GetGlobalRect();
-			if (rect.HasPoint(globalPos)) return p;
-		}
-		return null;
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -360,6 +291,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
 		_inputModule.CancelSelection();
+		_panels.ClearFocus();
+		if (_dialogUI.InDialog) _dialogUI.CloseDialog();
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
@@ -372,7 +305,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_skillPanel.Visible = false;
 		_inventoryPanel.Visible = false;
 		_chestPanel.Visible = false;
-		RefreshAllBorders();
+		_dialogPanel.Close();
+		_panels.ClearFocus();
 		_log.Add("新游戏开始 🗺️");
 	}
 
@@ -631,8 +565,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_openChestPos = (_state.PlayerX, _state.PlayerY);
 		_chestPanel.Open(chestItem);
-		_inputModule.EnterChestMode();
-		RefreshAllBorders();
+		_panels.SetFocus(_chestPanel);
 	}
 
 	/// <summary>关闭宝箱面板。</summary>
@@ -640,8 +573,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_openChestPos = null;
 		_chestPanel.Close();
-		_inputModule.EnterActionMode();
-		RefreshAllBorders();
+		_panels.ClearFocus();
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 		FlushMap();
@@ -685,13 +617,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_inputModule.EnterSelection(n =>
 		{
-			if (n == 0) { _log.Add("取消"); _inputModule.EnterChestMode(); return; }
-			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _inputModule.EnterChestMode(); return; }
+			if (n == 0) { _log.Add("取消"); _panels.SetFocus(_chestPanel); return; }
+			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _panels.SetFocus(_chestPanel); return; }
 			var (invIdx, item) = inv[n - 1];
 			if (item.Equipped)
 			{
 				_log.Add($"请先卸下 {item.Name}");
-				_inputModule.EnterChestMode();
+				_panels.SetFocus(_chestPanel);
 				return;
 			}
 			var removed = InventoryModule.RemoveAt(player, invIdx);
@@ -700,10 +632,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				chestItem.Contents!.Add(removed);
 				_log.Add($"将 {removed.Name} 放入了 {chestItem.Name}");
 			}
-			_inputModule.EnterChestMode();
+			_panels.SetFocus(_chestPanel);
 			_chestPanel.Refresh();
 			FlushMap();
-		}, () => { _log.Add("取消"); _inputModule.EnterChestMode(); });
+		}, () => { _log.Add("取消"); _panels.SetFocus(_chestPanel); });
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -850,7 +782,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_combatUI.OpenCombatMenu(e);
 				break;
 			case "talk":
-				_log.Add($"{e.TargetActorName}: 「你好，旅行者。」");
+				if (e.TargetId != null)
+				{
+					var talkTarget = ActorModule.GetById(_state, e.TargetId);
+					if (talkTarget != null) { _dialogUI.OpenDialog(talkTarget); break; }
+				}
+				_log.Add($"{e.TargetActorName}: 「……」");
 				break;
 			case "tame":
 				_log.Add($"你成功驯服了 {e.TargetActorName}！它现在是友方了。");
@@ -958,14 +895,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (InventoryOpen)
 		{
 			_inventoryPanel.Visible = false;
-			_inputModule.EnterActionMode();
+			_panels.ClearFocus();
 		}
 		else
 		{
 			_inventoryPanel.Visible = true;
-			_inputModule.EnterInventoryMode();
+			_panels.SetFocus(_inventoryPanel);
 		}
-		RefreshAllBorders();
 		FlushMap();
 	}
 
@@ -992,17 +928,5 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		FlushMap();
 	}
 
-	private void RefreshAllBorders()
-	{
-		var focus = _inputModule?.Focus ?? InputFocus.Action;
-		if (_focusMap != null && _focusMap.TryGetValue(focus, out var mapped))
-			_focusedPanelNode = mapped;
-		else if (_focusedPanelNode != null && !_focusedPanelNode.Visible)
-			_focusedPanelNode = null;
-
-		PanelContainer?[] all =
-			[_mapPanelNode, _statusPanelNode, _skillPanelNode, _invPanelNode, _groundPanelNode, _chestPanelNode];
-		foreach (var p in all)
-			PanelBorderHelper.Apply(p!, p == _focusedPanelNode);
-	}
+	private void RefreshAllBorders() => _panels.RefreshBorders();
 }

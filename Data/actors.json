@@ -149,6 +149,9 @@
     "gold": 200,
     "raceId": "human",
     "professionId": "merchant",
+    "dialogMood": 0.3,
+    "dialogAffinity": 20,
+    "dialogPersonality": { "greedy": 0.7, "friendly": 0.8 },
     "shopSlots": [
       { "itemId": "potion_hp", "stock": 3 },
       { "itemId": "potion_str", "stock": 2 },
@@ -165,6 +168,9 @@
     "gold": 0,
     "raceId": "human",
     "professionId": "elder",
+    "dialogMood": 0.1,
+    "dialogAffinity": 30,
+    "dialogPersonality": { "wise": 0.9, "cautious": 0.6 },
     "shopSlots": []
   },
   {
@@ -175,6 +181,9 @@
     "gold": 0,
     "raceId": "human",
     "professionId": null,
+    "dialogMood": 0.0,
+    "dialogAffinity": 10,
+    "dialogPersonality": { "timid": 0.5, "curious": 0.4 },
     "shopSlots": []
   },
   {
@@ -185,6 +194,9 @@
     "gold": 100,
     "raceId": "human",
     "professionId": "blacksmith",
+    "dialogMood": 0.2,
+    "dialogAffinity": 15,
+    "dialogPersonality": { "proud": 0.6, "friendly": 0.5 },
     "shopSlots": [
       { "itemId": "sword_iron", "stock": 1 },
       { "itemId": "sword_steel", "stock": 1 },
@@ -202,6 +214,9 @@
     "gold": 80,
     "raceId": "human",
     "professionId": "herbalist",
+    "dialogMood": 0.1,
+    "dialogAffinity": 20,
+    "dialogPersonality": { "cautious": 0.6, "wise": 0.4 },
     "shopSlots": [
       { "itemId": "potion_hp", "stock": 5 },
       { "itemId": "herbal_medicine", "stock": 3 },
@@ -218,6 +233,9 @@
     "gold": 60,
     "raceId": "human",
     "professionId": "cook",
+    "dialogMood": 0.4,
+    "dialogAffinity": 25,
+    "dialogPersonality": { "friendly": 0.8, "curious": 0.3 },
     "shopSlots": [
       { "itemId": "meal_simple", "stock": 5 },
       { "itemId": "meal_fine", "stock": 3 },
@@ -233,6 +251,9 @@
     "gold": 20,
     "raceId": "human",
     "professionId": "guard",
+    "dialogMood": 0.0,
+    "dialogAffinity": 10,
+    "dialogPersonality": { "cautious": 0.7, "proud": 0.4 },
     "shopSlots": []
   },
   {
@@ -243,6 +264,9 @@
     "gold": 80,
     "raceId": "human",
     "professionId": "tailor",
+    "dialogMood": 0.3,
+    "dialogAffinity": 20,
+    "dialogPersonality": { "curious": 0.6, "friendly": 0.5 },
     "shopSlots": [
       { "itemId": "cloth_shirt", "stock": 3 },
       { "itemId": "cloth_pants", "stock": 3 },
@@ -260,6 +284,9 @@
     "gold": 150,
     "raceId": "elf",
     "professionId": "merchant",
+    "dialogMood": 0.2,
+    "dialogAffinity": 15,
+    "dialogPersonality": { "cautious": 0.5, "wise": 0.6 },
     "shopSlots": [
       { "itemId": "bow_short", "stock": 2 },
       { "itemId": "bow_great", "stock": 1 },
@@ -276,6 +303,9 @@
     "gold": 120,
     "raceId": "orc",
     "professionId": "merchant",
+    "dialogMood": 0.1,
+    "dialogAffinity": 10,
+    "dialogPersonality": { "proud": 0.7, "greedy": 0.5 },
     "shopSlots": [
       { "itemId": "war_hammer", "stock": 1 },
       { "itemId": "war_hammer_uranium", "stock": 1 },
