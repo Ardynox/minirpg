@@ -39,6 +39,14 @@ public static class Terrains
 	public const string Lava = "lava";
 	public const string Sand = "sand";
 	public const string Mountain = "mountain";
+	public const string Swamp = "swamp";
+	public const string Snow = "snow";
+	public const string Ice = "ice";
+	public const string Marsh = "marsh";
+	public const string Gravel = "gravel";
+	public const string WallIron = "wall_iron";
+	public const string Fungus = "fungus";
+	public const string CrystalVein = "crystal_vein";
 }
 
 /// <summary>能力 ID 常量，与 capacities.json 保持一致。</summary>
@@ -46,6 +54,7 @@ public static class Caps
 {
 	public const string Sight = "sight";
 	public const string Manipulation = "manipulation";
+	public const string Hearing = "hearing";
 }
 
 /// <summary>技能 tag 常量。</summary>

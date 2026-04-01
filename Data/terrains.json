@@ -11,5 +11,13 @@
   { "Id": 9,  "StringId": "tree",          "Glyph": "T", "DefaultHardness": 15,  "Solid": true,  "Material": "wood", "BreaksInto": "grass" },
   { "Id": 10, "StringId": "lava",          "Glyph": "~", "DefaultHardness": 0,   "Solid": false, "Material": "lava" },
   { "Id": 11, "StringId": "sand",          "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "sand" },
-  { "Id": 12, "StringId": "mountain",      "Glyph": "^", "DefaultHardness": 150, "Solid": true,  "Material": "stone" }
+  { "Id": 12, "StringId": "mountain",      "Glyph": "^", "DefaultHardness": 150, "Solid": true,  "Material": "stone" },
+  { "Id": 13, "StringId": "swamp",         "Glyph": "~", "DefaultHardness": 0,   "Solid": false, "Material": "soil" },
+  { "Id": 14, "StringId": "snow",          "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "soil" },
+  { "Id": 15, "StringId": "ice",           "Glyph": ".", "DefaultHardness": 30,  "Solid": false, "Material": "stone" },
+  { "Id": 16, "StringId": "marsh",         "Glyph": "~", "DefaultHardness": 0,   "Solid": false, "Material": "soil" },
+  { "Id": 17, "StringId": "gravel",        "Glyph": ".", "DefaultHardness": 0,   "Solid": false, "Material": "stone" },
+  { "Id": 18, "StringId": "wall_iron",     "Glyph": "#", "DefaultHardness": 180, "Solid": true,  "Material": "iron" },
+  { "Id": 19, "StringId": "fungus",        "Glyph": "f", "DefaultHardness": 5,   "Solid": true,  "Material": "wood", "BreaksInto": "floor" },
+  { "Id": 20, "StringId": "crystal_vein",  "Glyph": "*", "DefaultHardness": 100, "Solid": true,  "Material": "crystal", "BreaksInto": "floor" }
 ]

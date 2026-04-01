@@ -1,0 +1,7 @@
+refactor: 合并末端模块并加入菜单自动测试
+
+- 合并 Minimap/FogMap 入 MapRenderModule；EventLog 入 LogModule；
+  DebugCommand 入 DebugModule；Single/MultiLayerViewMode 合并为 ViewModes
+- 移除 InventoryUIModule 等冗余文件
+- 新增 AutoTestModule：主菜单「自动测试」、六条调用链断言、控制台与 user://test_results.log
+- Main 暴露 RunTestCommand；MenuModule 增加 OnAutoTest

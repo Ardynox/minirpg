@@ -38,5 +38,112 @@
       "undead_arm_r", "undead_arm_l",
       "undead_legs"
     ]
+  },
+  {
+    "id": "elf",
+    "name": "精灵",
+    "tags": { "伐木": 2, "驯服": 1 },
+    "defaultLimbs": [
+      "elf_brain", "elf_heart",
+      "elf_left_lung", "elf_right_lung",
+      "elf_stomach", "elf_mouth",
+      "elf_torso", "elf_head",
+      "elf_right_arm", "elf_left_arm",
+      "elf_right_hand", "elf_left_hand",
+      "elf_right_leg", "elf_left_leg",
+      "elf_right_eye", "elf_left_eye",
+      "elf_right_ear", "elf_left_ear"
+    ]
+  },
+  {
+    "id": "orc",
+    "name": "兽人",
+    "tags": { "挖掘": 2, "采矿": 2 },
+    "defaultLimbs": [
+      "orc_brain", "orc_heart",
+      "orc_left_lung", "orc_right_lung",
+      "orc_stomach", "orc_mouth",
+      "orc_torso", "orc_head",
+      "orc_right_arm", "orc_left_arm",
+      "orc_right_hand", "orc_left_hand",
+      "orc_right_leg", "orc_left_leg",
+      "orc_right_eye", "orc_left_eye",
+      "orc_tusks"
+    ]
+  },
+  {
+    "id": "spider",
+    "name": "巨蛛",
+    "tags": { "毒性": 3, "野性": 3 },
+    "defaultLimbs": [
+      "spider_brain", "spider_heart",
+      "spider_cephalothorax", "spider_abdomen",
+      "spider_eyes",
+      "spider_leg_1", "spider_leg_2", "spider_leg_3", "spider_leg_4",
+      "spider_leg_5", "spider_leg_6", "spider_leg_7", "spider_leg_8",
+      "spider_fangs", "spider_spinneret"
+    ]
+  },
+  {
+    "id": "scorpion",
+    "name": "巨蝎",
+    "tags": { "毒性": 2, "野性": 2 },
+    "defaultLimbs": [
+      "scorpion_brain", "scorpion_heart",
+      "scorpion_cephalothorax", "scorpion_abdomen",
+      "scorpion_eyes",
+      "scorpion_claw_r", "scorpion_claw_l",
+      "scorpion_legs",
+      "scorpion_tail"
+    ]
+  },
+  {
+    "id": "treant",
+    "name": "树人",
+    "tags": { "伐木": 3, "挖掘": 1, "野性": 4 },
+    "defaultLimbs": [
+      "treant_heartwood", "treant_trunk",
+      "treant_branch_r", "treant_branch_l",
+      "treant_roots", "treant_crown"
+    ]
+  },
+  {
+    "id": "wolf",
+    "name": "灰狼",
+    "tags": { "野性": 2 },
+    "defaultLimbs": [
+      "wolf_brain", "wolf_heart",
+      "wolf_left_lung", "wolf_right_lung",
+      "wolf_stomach",
+      "wolf_torso", "wolf_head",
+      "wolf_front_left_leg", "wolf_front_right_leg",
+      "wolf_rear_left_leg", "wolf_rear_right_leg",
+      "wolf_jaw", "wolf_eyes", "wolf_tail"
+    ]
+  },
+  {
+    "id": "bear",
+    "name": "灰熊",
+    "tags": { "野性": 4 },
+    "defaultLimbs": [
+      "bear_brain", "bear_heart",
+      "bear_left_lung", "bear_right_lung",
+      "bear_stomach",
+      "bear_torso", "bear_head",
+      "bear_front_left_leg", "bear_front_right_leg",
+      "bear_rear_left_leg", "bear_rear_right_leg",
+      "bear_jaw", "bear_eyes",
+      "bear_left_paw", "bear_right_paw"
+    ]
+  },
+  {
+    "id": "rat",
+    "name": "鼠",
+    "tags": { "野性": 1 },
+    "defaultLimbs": [
+      "rat_brain", "rat_heart",
+      "rat_torso", "rat_head",
+      "rat_legs", "rat_jaw", "rat_eyes", "rat_tail"
+    ]
   }
 ]

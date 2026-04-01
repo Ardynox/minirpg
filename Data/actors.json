@@ -9,6 +9,7 @@
     "professionId": null,
     "shopSlots": []
   },
+
   {
     "id": "goblin",
     "glyph": "G",
@@ -39,6 +40,107 @@
     "professionId": null,
     "shopSlots": []
   },
+  {
+    "id": "spider",
+    "glyph": "s",
+    "displayName": "巨蛛",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "spider",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "scorpion",
+    "glyph": "q",
+    "displayName": "巨蝎",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "scorpion",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "treant",
+    "glyph": "Y",
+    "displayName": "树人",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "treant",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "wolf",
+    "glyph": "W",
+    "displayName": "灰狼",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "wolf",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "bear",
+    "glyph": "B",
+    "displayName": "灰熊",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "bear",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "rat",
+    "glyph": "r",
+    "displayName": "鼠",
+    "faction": "hostile",
+    "gold": 0,
+    "raceId": "rat",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
+    "id": "orc_warrior",
+    "glyph": "O",
+    "displayName": "兽人战士",
+    "faction": "hostile",
+    "gold": 12,
+    "raceId": "orc",
+    "professionId": "soldier",
+    "shopSlots": []
+  },
+  {
+    "id": "orc_shaman",
+    "glyph": "O",
+    "displayName": "兽人萨满",
+    "faction": "hostile",
+    "gold": 15,
+    "raceId": "orc",
+    "professionId": "shaman",
+    "shopSlots": []
+  },
+  {
+    "id": "elf_ranger",
+    "glyph": "e",
+    "displayName": "精灵游侠",
+    "faction": "hostile",
+    "gold": 10,
+    "raceId": "elf",
+    "professionId": "hunter",
+    "shopSlots": []
+  },
+  {
+    "id": "goblin_miner",
+    "glyph": "g",
+    "displayName": "哥布林矿工",
+    "faction": "hostile",
+    "gold": 8,
+    "raceId": "goblin",
+    "professionId": "miner",
+    "shopSlots": []
+  },
+
   {
     "id": "merchant",
     "glyph": "T",
@@ -74,5 +176,112 @@
     "raceId": "human",
     "professionId": null,
     "shopSlots": []
+  },
+  {
+    "id": "blacksmith_npc",
+    "glyph": "B",
+    "displayName": "铁匠",
+    "faction": "friendly",
+    "gold": 100,
+    "raceId": "human",
+    "professionId": "blacksmith",
+    "shopSlots": [
+      { "itemId": "sword_iron", "stock": 1 },
+      { "itemId": "sword_steel", "stock": 1 },
+      { "itemId": "iron_helmet", "stock": 1 },
+      { "itemId": "chainmail", "stock": 1 },
+      { "itemId": "pickaxe_steel", "stock": 1 },
+      { "itemId": "war_hammer", "stock": 1 }
+    ]
+  },
+  {
+    "id": "herbalist_npc",
+    "glyph": "H",
+    "displayName": "药师",
+    "faction": "friendly",
+    "gold": 80,
+    "raceId": "human",
+    "professionId": "herbalist",
+    "shopSlots": [
+      { "itemId": "potion_hp", "stock": 5 },
+      { "itemId": "herbal_medicine", "stock": 3 },
+      { "itemId": "antidote", "stock": 3 },
+      { "itemId": "bandage", "stock": 5 },
+      { "itemId": "mat_herb", "stock": 10 }
+    ]
+  },
+  {
+    "id": "cook_npc",
+    "glyph": "C",
+    "displayName": "厨师",
+    "faction": "friendly",
+    "gold": 60,
+    "raceId": "human",
+    "professionId": "cook",
+    "shopSlots": [
+      { "itemId": "meal_simple", "stock": 5 },
+      { "itemId": "meal_fine", "stock": 3 },
+      { "itemId": "meal_lavish", "stock": 1 },
+      { "itemId": "pemmican", "stock": 8 }
+    ]
+  },
+  {
+    "id": "guard_npc",
+    "glyph": "G",
+    "displayName": "镇卫",
+    "faction": "friendly",
+    "gold": 20,
+    "raceId": "human",
+    "professionId": "guard",
+    "shopSlots": []
+  },
+  {
+    "id": "tailor_npc",
+    "glyph": "L",
+    "displayName": "裁缝",
+    "faction": "friendly",
+    "gold": 80,
+    "raceId": "human",
+    "professionId": "tailor",
+    "shopSlots": [
+      { "itemId": "cloth_shirt", "stock": 3 },
+      { "itemId": "cloth_pants", "stock": 3 },
+      { "itemId": "duster", "stock": 2 },
+      { "itemId": "parka", "stock": 1 },
+      { "itemId": "tuque", "stock": 3 },
+      { "itemId": "devilstrand_duster", "stock": 1 }
+    ]
+  },
+  {
+    "id": "elf_trader",
+    "glyph": "e",
+    "displayName": "精灵商人",
+    "faction": "friendly",
+    "gold": 150,
+    "raceId": "elf",
+    "professionId": "merchant",
+    "shopSlots": [
+      { "itemId": "bow_short", "stock": 2 },
+      { "itemId": "bow_great", "stock": 1 },
+      { "itemId": "mat_silk", "stock": 5 },
+      { "itemId": "mat_herb", "stock": 8 },
+      { "itemId": "herbal_medicine", "stock": 3 }
+    ]
+  },
+  {
+    "id": "orc_merchant",
+    "glyph": "O",
+    "displayName": "兽人行商",
+    "faction": "friendly",
+    "gold": 120,
+    "raceId": "orc",
+    "professionId": "merchant",
+    "shopSlots": [
+      { "itemId": "war_hammer", "stock": 1 },
+      { "itemId": "war_hammer_uranium", "stock": 1 },
+      { "itemId": "plate_armor", "stock": 1 },
+      { "itemId": "leather_vest", "stock": 2 },
+      { "itemId": "raw_meat", "stock": 10 }
+    ]
   }
 ]

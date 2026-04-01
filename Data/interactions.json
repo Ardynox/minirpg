@@ -70,6 +70,125 @@
     "range": 1
   },
   {
+    "id": "bite",
+    "name": "撕咬",
+    "description": "用利齿撕咬目标",
+    "category": "combat",
+    "required": { "锋利": 1 },
+    "capacityRequired": { "consciousness": 0.1 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "melee_attack",
+    "damageType": "sharp",
+    "power": 3,
+    "cooldown": 0,
+    "range": 1
+  },
+  {
+    "id": "claw_strike",
+    "name": "利爪抓击",
+    "description": "用爪子猛烈抓击",
+    "category": "combat",
+    "required": { "锋利": 2 },
+    "capacityRequired": { "manipulation": 0.2 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "melee_attack",
+    "damageType": "sharp",
+    "power": 5,
+    "cooldown": 0,
+    "range": 1
+  },
+  {
+    "id": "sting",
+    "name": "毒刺",
+    "description": "用尾部毒刺攻击目标",
+    "category": "combat",
+    "required": { "毒性": 2, "锋利": 2 },
+    "capacityRequired": {},
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "poison_attack",
+    "damageType": "sharp",
+    "power": 4,
+    "cooldown": 2,
+    "range": 1
+  },
+  {
+    "id": "web_spit",
+    "name": "吐丝缠绕",
+    "description": "向目标喷射蛛丝使其减速",
+    "category": "combat",
+    "required": { "吐丝": 1 },
+    "capacityRequired": {},
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "debuff",
+    "damageType": "",
+    "power": 0,
+    "cooldown": 3,
+    "range": 2
+  },
+  {
+    "id": "trunk_slam",
+    "name": "树干横扫",
+    "description": "用巨大的树枝横扫目标",
+    "category": "combat",
+    "required": { "钝击": 3 },
+    "capacityRequired": { "manipulation": 0.3 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "effectType": "heavy_attack",
+    "damageType": "blunt",
+    "power": 12,
+    "cooldown": 2,
+    "range": 1
+  },
+  {
+    "id": "spear_thrust",
+    "name": "突刺",
+    "description": "用长矛猛刺",
+    "category": "combat",
+    "effectType": "melee_attack",
+    "damageType": "sharp",
+    "power": 7,
+    "cooldown": 0,
+    "range": 1,
+    "hidden": false,
+    "required": {},
+    "capacityRequired": { "manipulation": 0.01 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "terrainMaterial": ""
+  },
+  {
+    "id": "bow_shoot",
+    "name": "射击",
+    "description": "用短弓射出箭矢",
+    "category": "combat",
+    "effectType": "ranged_attack",
+    "damageType": "sharp",
+    "power": 5,
+    "cooldown": 1,
+    "range": 4,
+    "hidden": false,
+    "required": {},
+    "capacityRequired": { "manipulation": 0.3, "sight": 0.3 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "terrainMaterial": ""
+  },
+  {
+    "id": "bow_shoot_heavy",
+    "name": "精确射击",
+    "description": "用长弓精准射击远处目标",
+    "category": "combat",
+    "effectType": "ranged_attack",
+    "damageType": "sharp",
+    "power": 9,
+    "cooldown": 2,
+    "range": 6,
+    "hidden": false,
+    "required": {},
+    "capacityRequired": { "manipulation": 0.3, "sight": 0.5 },
+    "targetRequired": { "@faction:hostile": 1 },
+    "terrainMaterial": ""
+  },
+
+  {
     "id": "move",
     "name": "移动",
     "description": "移动到相邻格子",
@@ -132,6 +251,7 @@
     "power": 0,
     "cooldown": 5
   },
+
   {
     "id": "dig",
     "name": "挖掘",
@@ -171,6 +291,7 @@
     "power": 0,
     "terrainMaterial": "stone"
   },
+
   {
     "id": "sword_slash",
     "name": "劈砍",

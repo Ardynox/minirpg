@@ -94,5 +94,101 @@
     "flammability": 0.0,
     "corrosionResist": 0.8,
     "density": 2.6
+  },
+  {
+    "id": "leather",
+    "name": "皮革",
+    "hardness": 2,
+    "flammability": 0.4,
+    "corrosionResist": 0.2,
+    "density": 0.9
+  },
+  {
+    "id": "cloth",
+    "name": "布料",
+    "hardness": 1,
+    "flammability": 0.9,
+    "corrosionResist": 0.05,
+    "density": 0.4
+  },
+  {
+    "id": "silk",
+    "name": "蛛丝",
+    "hardness": 2,
+    "flammability": 0.6,
+    "corrosionResist": 0.1,
+    "density": 0.3
+  },
+  {
+    "id": "devilstrand",
+    "name": "恶魔织物",
+    "hardness": 5,
+    "flammability": 0.15,
+    "corrosionResist": 0.6,
+    "density": 0.5
+  },
+  {
+    "id": "gold",
+    "name": "黄金",
+    "hardness": 3,
+    "flammability": 0.0,
+    "corrosionResist": 1.0,
+    "density": 19.3
+  },
+  {
+    "id": "silver",
+    "name": "白银",
+    "hardness": 4,
+    "flammability": 0.0,
+    "corrosionResist": 0.7,
+    "density": 10.5
+  },
+  {
+    "id": "jade",
+    "name": "翡翠",
+    "hardness": 6,
+    "flammability": 0.0,
+    "corrosionResist": 0.9,
+    "density": 3.3
+  },
+  {
+    "id": "plasteel",
+    "name": "玄钢",
+    "hardness": 10,
+    "flammability": 0.0,
+    "corrosionResist": 0.95,
+    "density": 5.5
+  },
+  {
+    "id": "uranium",
+    "name": "铀",
+    "hardness": 6,
+    "flammability": 0.0,
+    "corrosionResist": 0.4,
+    "density": 19.1
+  },
+  {
+    "id": "bark",
+    "name": "树皮",
+    "hardness": 2,
+    "flammability": 0.7,
+    "corrosionResist": 0.15,
+    "density": 0.5
+  },
+  {
+    "id": "horn",
+    "name": "角质",
+    "hardness": 4,
+    "flammability": 0.15,
+    "corrosionResist": 0.3,
+    "density": 1.4
+  },
+  {
+    "id": "scale",
+    "name": "鳞片",
+    "hardness": 5,
+    "flammability": 0.1,
+    "corrosionResist": 0.6,
+    "density": 1.6
   }
 ]

@@ -31,6 +31,7 @@ public class MenuModule
 	public event Action? OnNewGame;
 	public event Action? OnLoadGame;
 	public event Action? OnQuit;
+	public event Action? OnAutoTest;
 	public event Action? OnBackToMenu;
 
 	public MenuModule(Node root)
@@ -48,6 +49,7 @@ public class MenuModule
 		root.GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += () => OnNewGame?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/LoadGameBtn").Pressed += () => OnLoadGame?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/SettingsBtn").Pressed += OpenSettingsFromMenu;
+		root.GetNode<Button>("MainMenu/Center/VBox/AutoTestBtn").Pressed += () => OnAutoTest?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/QuitBtn").Pressed += () => OnQuit?.Invoke();
 
 		root.GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += CloseSettings;

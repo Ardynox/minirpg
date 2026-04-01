@@ -12,7 +12,7 @@ namespace MiniRPG;
 /// 游戏入口节点（Godot 胶水层），实现 IGameUI 接口。
 /// 职责：Godot 生命周期、输入路由、事件分发路由、渲染调度。
 /// 菜单 UI → MenuModule，会话生命周期 → GameSessionModule，
-/// 事件日志翻译 → EventLogModule，战斗/交易 UI → CombatUIModule/TradeUIModule。
+/// 事件日志翻译 → LogModule，战斗/交易 UI → CombatUIModule/TradeUIModule。
 /// </summary>
 public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	GroundPanelModule.IHost, ChestPanelModule.IHost
@@ -55,7 +55,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule _tradeUI = null!;
-	private InventoryUIModule _inventoryUI = null!;
 
 	// ══════════════════════════════════════════════════════
 	//  IGameUI 接口实现
@@ -144,7 +143,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		renderModule.ApplyFont(mapText);
 		_mapRender = new MapRenderModule(
 			_state, _fogTracker, renderModule,
-			new MinimapModule(_fogTracker), new FogMapModule(_fogTracker),
 			mapText, ViewW, ViewH, () => _session.ViewMode);
 
 		_statusPanelNode = GetNode<PanelContainer>("UI/TopRow/StatusPanel");
@@ -199,7 +197,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_combatUI = new CombatUIModule(this);
 		_tradeUI = new TradeUIModule(this);
-		_inventoryUI = new InventoryUIModule(this);
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
 		_watchModeBtn = GetNode<Button>("SettingsPanel/VBox/WatchModeToggle");
@@ -210,6 +207,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu.OnContinue += HandleMenuContinue;
 		_menu.OnNewGame += HandleMenuNewGame;
 		_menu.OnLoadGame += HandleMenuLoadGame;
+		_menu.OnAutoTest += HandleAutoTest;
 		_menu.OnQuit += () => GetTree().Quit();
 		_menu.OnBackToMenu += HandleBackToMenu;
 
@@ -346,6 +344,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoEnterGame();
 	}
 
+	private void HandleAutoTest()
+	{
+		DoStartNewGame();
+		DoEnterGame();
+		var test = new AutoTestModule();
+		test.RunAll(this, _state, _session, _fogTracker, _mapRender, _log,
+			RunTestCommand, FlushMap, delay: 0.05f, stopOnFail: false);
+	}
+
+	/// <summary>供 AutoTestModule 转发命令到 OnCommand。</summary>
+	public void RunTestCommand(string cmd) => OnCommand(cmd);
+
 	private void HandleBackToMenu()
 	{
 		if (_session.GameStarted)
@@ -359,8 +369,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_log.Clear();
 		PlayerDead = false;
 		_session.NewGame();
-		_mapRender.FogMap.Visible = false;
-		_mapRender.Minimap.Visible = false;
+		_mapRender.ResetOverlays();
 		_skillPanel.Visible = false;
 		_inventoryPanel.Visible = false;
 		_chestPanel.Visible = false;
@@ -412,7 +421,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		switch (cmd)
 		{
 			case ":settings" or "settings":
-				if (_mapRender.FogMap.Visible) { _mapRender.FogMap.Visible = false; _log.Add("大地图: 关闭"); FlushMap(); return; }
+				if (_mapRender.FogMapVisible) { _mapRender.FogMapVisible = false; _log.Add("大地图: 关闭"); FlushMap(); return; }
 				_menu.ToggleSettings(_session.GameStarted); return;
 			case ":quicksave": DoSave(GameSessionModule.QuickSavePath, "快速存档"); return;
 			case ":quickload": DoLoad(GameSessionModule.QuickSavePath, "快速存档"); return;
@@ -430,7 +439,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_menu.SettingsOpen) return;
 
-		if (_mapRender.FogMap.Visible)
+		if (_mapRender.FogMapVisible)
 		{
 			switch (cmd)
 			{
@@ -468,7 +477,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void HandleDebugCommand(string cmd)
 	{
-		var result = DebugCommandHandler.Handle(cmd, _state, _session);
+		var result = DebugModule.HandleCommand(cmd, _state, _session);
 		foreach (var msg in result.Logs) _log.Add(msg);
 		if (result.NeedsFlush) FlushMap();
 	}
@@ -796,17 +805,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	/// <summary>
 	/// Core 层事件到 UI 层副作用的唯一入口。
-	/// 日志翻译委托给 EventLogModule（纯函数），
+	/// 日志翻译委托给 LogModule.DispatchEvent，
 	/// 流程触发路由到对应的 UI Module。
 	/// </summary>
 	private void Dispatch(List<GameEvent> events)
 	{
 		foreach (var e in events)
 		{
-			var logLines = EventLogModule.ToLogLines(e, _state);
-			if (logLines != null)
-				foreach (var line in logLines)
-					_log.Add(line);
+			_log.DispatchEvent(e, _state);
 
 			switch (e.Type)
 			{
@@ -833,7 +839,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 	}
 
-	/// <summary>交互事件路由：流程类（trade/combat）转发到 UI Module，日志类由 EventLogModule 处理。</summary>
+	/// <summary>交互事件路由：流程类（trade/combat）转发到 UI Module，日志类由 LogModule 处理。</summary>
 	private void DispatchInteraction(GameEvent e)
 	{
 		switch (e.EffectType)

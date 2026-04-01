@@ -271,5 +271,1033 @@
     "equipLayers": ["Skin", "Middle", "Shell"],
     "capacities": { "moving": 1.0 },
     "tags": {}
+  },
+
+  {
+    "id": "elf_brain",
+    "name": "精灵脑",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "elf_heart",
+    "name": "精灵心脏",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0, "consciousness": 0.1 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "elf_left_lung",
+    "name": "左肺",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_right_lung",
+    "name": "右肺",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_stomach",
+    "name": "胃",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "elf_mouth",
+    "name": "嘴",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "talking": 1.0, "eating": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "elf_torso",
+    "name": "纤细躯干",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "elf_head",
+    "name": "头部",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": ["Skin", "Middle", "Shell", "Overhead"],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "elf_right_arm",
+    "name": "右臂",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_left_arm",
+    "name": "左臂",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_right_hand",
+    "name": "右手",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "elf_left_hand",
+    "name": "左手",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "elf_right_leg",
+    "name": "右腿",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_left_leg",
+    "name": "左腿",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "elf_right_eye",
+    "name": "鹰眼(右)",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "elf_left_eye",
+    "name": "鹰眼(左)",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "elf_right_ear",
+    "name": "尖耳(右)",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "hearing": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "elf_left_ear",
+    "name": "尖耳(左)",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "hearing": 0.6 },
+    "tags": {}
+  },
+
+  {
+    "id": "orc_brain",
+    "name": "兽人脑",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "orc_heart",
+    "name": "兽人心脏",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0, "consciousness": 0.1 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "orc_left_lung",
+    "name": "左肺",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_right_lung",
+    "name": "右肺",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_stomach",
+    "name": "铁胃",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "orc_mouth",
+    "name": "嘴",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "talking": 1.0, "eating": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "orc_torso",
+    "name": "壮硕躯干",
+    "maxDurability": 20,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "orc_head",
+    "name": "头部",
+    "maxDurability": 10,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": ["Skin", "Middle", "Shell", "Overhead"],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "orc_right_arm",
+    "name": "右臂",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 2 }
+  },
+  {
+    "id": "orc_left_arm",
+    "name": "左臂",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 2 }
+  },
+  {
+    "id": "orc_right_hand",
+    "name": "右手",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "orc_left_hand",
+    "name": "左手",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": ["Overhead"],
+    "capacities": { "manipulation": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "orc_right_leg",
+    "name": "右腿",
+    "maxDurability": 14,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_left_leg",
+    "name": "左腿",
+    "maxDurability": 14,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_right_eye",
+    "name": "右眼",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_left_eye",
+    "name": "左眼",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "orc_tusks",
+    "name": "獠牙",
+    "maxDurability": 6,
+    "material": "bone",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "eating": 1.0 },
+    "tags": { "锋利": 1 }
+  },
+
+  {
+    "id": "spider_brain",
+    "name": "神经节",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "spider_heart",
+    "name": "管状心脏",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "spider_cephalothorax",
+    "name": "头胸部",
+    "maxDurability": 10,
+    "material": "chitin",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "spider_abdomen",
+    "name": "腹部",
+    "maxDurability": 8,
+    "material": "chitin",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "spider_eyes",
+    "name": "复眼",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 1.0 },
+    "tags": { "夜视": 1 }
+  },
+  {
+    "id": "spider_leg_1",
+    "name": "蛛足I",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_2",
+    "name": "蛛足II",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_3",
+    "name": "蛛足III",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_4",
+    "name": "蛛足IV",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_5",
+    "name": "蛛足V",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_6",
+    "name": "蛛足VI",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_7",
+    "name": "蛛足VII",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_leg_8",
+    "name": "蛛足VIII",
+    "maxDurability": 4,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.125 },
+    "tags": {}
+  },
+  {
+    "id": "spider_fangs",
+    "name": "毒牙",
+    "maxDurability": 3,
+    "material": "chitin",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "eating": 1.0, "manipulation": 0.3 },
+    "tags": { "毒性": 2, "锋利": 2 }
+  },
+  {
+    "id": "spider_spinneret",
+    "name": "吐丝器",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": { "吐丝": 2 }
+  },
+
+  {
+    "id": "scorpion_brain",
+    "name": "神经节",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "scorpion_heart",
+    "name": "管状心脏",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "scorpion_cephalothorax",
+    "name": "头胸甲",
+    "maxDurability": 12,
+    "material": "chitin",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "scorpion_abdomen",
+    "name": "腹节",
+    "maxDurability": 10,
+    "material": "chitin",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "scorpion_eyes",
+    "name": "复眼",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.8 },
+    "tags": {}
+  },
+  {
+    "id": "scorpion_claw_r",
+    "name": "右钳",
+    "maxDurability": 8,
+    "material": "chitin",
+    "bodyPart": "hand",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "钝击": 2, "格挡": 2 }
+  },
+  {
+    "id": "scorpion_claw_l",
+    "name": "左钳",
+    "maxDurability": 8,
+    "material": "chitin",
+    "bodyPart": "hand",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "钝击": 2, "格挡": 2 }
+  },
+  {
+    "id": "scorpion_legs",
+    "name": "节肢足",
+    "maxDurability": 6,
+    "material": "chitin",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "scorpion_tail",
+    "name": "毒尾",
+    "maxDurability": 6,
+    "material": "chitin",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": { "毒性": 3, "锋利": 2 }
+  },
+
+  {
+    "id": "treant_heartwood",
+    "name": "心材",
+    "maxDurability": 20,
+    "material": "wood",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0, "blood_circulation": 1.0, "metabolism": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "treant_trunk",
+    "name": "主干",
+    "maxDurability": 30,
+    "material": "wood",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "treant_branch_r",
+    "name": "右枝",
+    "maxDurability": 15,
+    "material": "wood",
+    "bodyPart": "arm",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "钝击": 3 }
+  },
+  {
+    "id": "treant_branch_l",
+    "name": "左枝",
+    "maxDurability": 15,
+    "material": "wood",
+    "bodyPart": "arm",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "钝击": 3, "格挡": 2 }
+  },
+  {
+    "id": "treant_roots",
+    "name": "根系",
+    "maxDurability": 20,
+    "material": "wood",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.3 },
+    "tags": {}
+  },
+  {
+    "id": "treant_crown",
+    "name": "树冠",
+    "maxDurability": 12,
+    "material": "wood",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.6 },
+    "tags": {}
+  },
+
+  {
+    "id": "wolf_brain",
+    "name": "脑",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "wolf_heart",
+    "name": "心脏",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "wolf_left_lung",
+    "name": "左肺",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_right_lung",
+    "name": "右肺",
+    "maxDurability": 4,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_stomach",
+    "name": "胃",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_torso",
+    "name": "躯体",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "wolf_head",
+    "name": "头部",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "hearing": 0.8 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_front_left_leg",
+    "name": "左前腿",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_front_right_leg",
+    "name": "右前腿",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_rear_left_leg",
+    "name": "左后腿",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_rear_right_leg",
+    "name": "右后腿",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "wolf_jaw",
+    "name": "狼颚",
+    "maxDurability": 5,
+    "material": "bone",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "eating": 1.0, "manipulation": 0.3 },
+    "tags": { "锋利": 2 }
+  },
+  {
+    "id": "wolf_eyes",
+    "name": "狼眼",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 1.0 },
+    "tags": { "夜视": 1 }
+  },
+  {
+    "id": "wolf_tail",
+    "name": "尾巴",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+
+  {
+    "id": "bear_brain",
+    "name": "脑",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "bear_heart",
+    "name": "心脏",
+    "maxDurability": 6,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "bear_left_lung",
+    "name": "左肺",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "bear_right_lung",
+    "name": "右肺",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "bear_stomach",
+    "name": "铁胃",
+    "maxDurability": 7,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "bear_torso",
+    "name": "壮硕躯体",
+    "maxDurability": 22,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "bear_head",
+    "name": "头部",
+    "maxDurability": 10,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "hearing": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "bear_front_left_leg",
+    "name": "左前肢",
+    "maxDurability": 10,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "bear_front_right_leg",
+    "name": "右前肢",
+    "maxDurability": 10,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "bear_rear_left_leg",
+    "name": "左后肢",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "bear_rear_right_leg",
+    "name": "右后肢",
+    "maxDurability": 12,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 0.25 },
+    "tags": {}
+  },
+  {
+    "id": "bear_jaw",
+    "name": "熊颚",
+    "maxDurability": 7,
+    "material": "bone",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "eating": 1.0, "manipulation": 0.3 },
+    "tags": { "锋利": 3 }
+  },
+  {
+    "id": "bear_eyes",
+    "name": "熊眼",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.8 },
+    "tags": {}
+  },
+  {
+    "id": "bear_left_paw",
+    "name": "左熊掌",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.3 },
+    "tags": { "锋利": 2, "钝击": 3 }
+  },
+  {
+    "id": "bear_right_paw",
+    "name": "右熊掌",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "hand",
+    "equipLayers": [],
+    "capacities": { "manipulation": 0.3 },
+    "tags": { "锋利": 2, "钝击": 3 }
+  },
+
+  {
+    "id": "rat_brain",
+    "name": "小脑",
+    "maxDurability": 1,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "consciousness": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "rat_heart",
+    "name": "小心脏",
+    "maxDurability": 1,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "rat_torso",
+    "name": "小躯体",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "metabolism": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "rat_head",
+    "name": "鼠头",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
+  },
+  {
+    "id": "rat_legs",
+    "name": "鼠足",
+    "maxDurability": 2,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": [],
+    "capacities": { "moving": 1.0 },
+    "tags": {}
+  },
+  {
+    "id": "rat_jaw",
+    "name": "门齿",
+    "maxDurability": 2,
+    "material": "bone",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "eating": 1.0, "manipulation": 0.3 },
+    "tags": { "锋利": 1 }
+  },
+  {
+    "id": "rat_eyes",
+    "name": "鼠眼",
+    "maxDurability": 1,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.8 },
+    "tags": { "夜视": 1 }
+  },
+  {
+    "id": "rat_tail",
+    "name": "鼠尾",
+    "maxDurability": 1,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": {},
+    "tags": {}
   }
 ]

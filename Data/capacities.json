@@ -70,5 +70,13 @@
     "zeroThreshold": 0.0,
     "multipliers": [],
     "description": "影响血液循环效率"
+  },
+  {
+    "id": "hearing",
+    "name": "听觉",
+    "vitalEffect": null,
+    "zeroThreshold": 0.0,
+    "multipliers": ["consciousness"],
+    "description": "影响环境感知和社交"
   }
 ]
