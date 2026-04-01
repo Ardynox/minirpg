@@ -1,4 +1,3 @@
-using MiniRPG.Core;
 using MiniRPG.Core.World.Noise;
 
 namespace MiniRPG.Core.World.Generators;

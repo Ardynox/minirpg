@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
-using MiniRPG.Core;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.World;
 

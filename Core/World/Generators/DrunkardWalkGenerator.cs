@@ -1,5 +1,4 @@
 using System;
-using MiniRPG.Core;
 
 namespace MiniRPG.Core.World.Generators;
 

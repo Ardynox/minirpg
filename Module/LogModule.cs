@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using Godot;
-using MiniRPG.Core;
-
 namespace MiniRPG.Module;
 
 /// <summary>

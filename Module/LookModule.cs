@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Text;
-using MiniRPG.Core;
-
 namespace MiniRPG.Module;
 
 /// <summary>

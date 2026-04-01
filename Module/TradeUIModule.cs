@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using MiniRPG.Core;
 
 namespace MiniRPG.Module;
 

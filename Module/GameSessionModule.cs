@@ -1,5 +1,4 @@
 using Godot;
-using MiniRPG.Core;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using MiniRPG.Core;
 using MiniRPG.Core.AI;
 
 namespace MiniRPG.Module;
