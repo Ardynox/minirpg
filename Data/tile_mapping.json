@@ -1,0 +1,41 @@
+{
+  "terrain": {
+    "void": "BLACK TILE",
+    "floor": "Ground A1_N",
+    "wall_soil": "Wall A1_N",
+    "wall_stone": "Stone A1_N",
+    "wall_granite": "Stone A10_N",
+    "wall_obsidian": "Stone A20_N",
+    "wall_iron": "Stone A5_N",
+    "rubble": "Ground A3_N",
+    "grass": "Ground B1_N",
+    "water": "Water Ripples 1",
+    "lava": "Fire",
+    "sand": "Ground E1_N",
+    "snow": "Ground F1_N",
+    "ice": "Ground G1_N",
+    "mountain": "Stone A15_N",
+    "swamp": "Ground C1_N",
+    "marsh": "Ground C3_N",
+    "gravel": "Ground H1_N",
+    "tree": "Tree A1_N",
+    "fungus": "Flora A1_N",
+    "crystal_vein": "Wall F1_N"
+  },
+  "entity": {
+    "player": "Misc B1_N",
+    "hostile": "Misc B2_N",
+    "friendly": "Misc B3_N"
+  },
+  "fixture": {
+    "stair_down": "Misc A1_N",
+    "stair_up": "Misc A2_N",
+    "door": "Door A1_N",
+    "nest": "Misc A3_N",
+    "house": "Roof A1_N"
+  },
+  "item": {
+    "container": "Chest A1_N",
+    "drop": "Misc B5_N"
+  }
+}

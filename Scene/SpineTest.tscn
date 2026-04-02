@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="SpineAtlasResource" path="res://Balin/Balin.atlas" id="atlas"]
+[ext_resource type="SpineSkeletonFileResource" path="res://Balin/Balin.skel" id="skel"]
+[ext_resource type="Script" path="res://Scene/SpineTest.cs" id="script"]
+
+[sub_resource type="SpineSkeletonDataResource" id="data"]
+atlas_res = ExtResource("atlas")
+skeleton_file_res = ExtResource("skel")
+default_mix = 0.2
+
+[node name="Root" type="Node2D"]
+script = ExtResource("script")
+
+[node name="Balin" type="SpineSprite" parent="."]
+position = Vector2(500, 500)
+scale = Vector2(0.5, 0.5)
+skeleton_data_res = SubResource("data")

@@ -1,0 +1,387 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Godot;
+using MiniRPG.Core.World;
+
+namespace MiniRPG.Module.Render;
+
+/// <summary>
+/// TileMapLayer 渲染模块，替代 MapRenderModule（BBCode 文本渲染）。
+///
+/// 4 层架构：
+///   GroundLayer  — 可见/周边感知的地形 tile（正常亮度）
+///   MemoryLayer  — 已探索但不可见的地形 tile（暗色，仅地形无实体）
+///   EntityLayer  — 可见/周边感知的实体 tile（玩家、怪物、道具、设施）
+///   FogLayer     — 未探索格子用纯黑 tile 遮盖
+/// </summary>
+public class TileMapRenderModule
+{
+	private const string FallbackTile = "BLACK TILE";
+	private const string MappingResPath = "res://Data/tile_mapping.json";
+	private const string IdMapResPath = "res://Tools/tile_name_to_id.json";
+	private const string FallbackFixtureTile = "Misc A4_N";
+
+	// ── 字段 ──────────────────────────────────────────────
+
+	private readonly GameState       _state;
+	private readonly FogOfWarTracker _fogTracker;
+	private readonly int             _viewW;
+	private readonly int             _viewH;
+
+	private TileMapLayer _groundLayer = null!;
+	private TileMapLayer _memoryLayer = null!;
+	private TileMapLayer _entityLayer = null!;
+	private TileMapLayer _fogLayer    = null!;
+
+	private Node2D? _playerSpine;
+	private Camera2D? _camera;
+	private string _currentAnim = "";
+	private bool _spineReady;
+
+	// tile 名称 → TileSet source ID（从 tile_name_to_id.json 加载）
+	private Dictionary<string, int> _nameToSource = new();
+	private int _blackTileSource = -1;
+
+	// 从 tile_mapping.json 加载的映射表
+	private Dictionary<string, string> _terrainMap = new();
+	private Dictionary<string, string> _entityMap  = new();
+	private Dictionary<string, string> _fixtureMap = new();
+	private Dictionary<string, string> _itemMap    = new();
+
+	// ── 公开属性（与 MapRenderModule 接口兼容） ──────────────
+
+	public bool FogMapVisible  { get; set; }
+	public bool MinimapVisible { get; set; }
+
+	// ── 构造 ──────────────────────────────────────────────
+
+	public TileMapRenderModule(GameState state, FogOfWarTracker fogTracker, int viewW, int viewH)
+	{
+		_state      = state;
+		_fogTracker = fogTracker;
+		_viewW      = viewW;
+		_viewH      = viewH;
+	}
+
+	// ── 初始化 ────────────────────────────────────────────
+
+	/// <summary>
+	/// 创建并挂载 TileMapLayer 子节点，加载映射数据。
+	/// </summary>
+	public void Init(Node2D mapRoot, TileSet tileSet, Node2D? playerSpine = null, Camera2D? camera = null)
+	{
+		LoadIdMap(IdMapResPath);
+		LoadTileMapping(MappingResPath);
+
+		_groundLayer = MakeLayer(mapRoot, "GroundLayer", tileSet, 0);
+		_memoryLayer = MakeLayer(mapRoot, "MemoryLayer", tileSet, 0);
+		_entityLayer = MakeLayer(mapRoot, "EntityLayer", tileSet, 1);
+		_fogLayer    = MakeLayer(mapRoot, "FogLayer",    tileSet, 2);
+
+		_memoryLayer.Modulate = new Color(0.22f, 0.22f, 0.28f);
+
+		_playerSpine = playerSpine;
+		if (_playerSpine != null)
+		{
+			_playerSpine.Visible = false;
+			_spineReady = true;
+			GD.Print("[TileMapRender] Spine 角色已绑定");
+		}
+
+		_camera = camera;
+	}
+
+	// ── 主渲染 ────────────────────────────────────────────
+
+	public void Flush()
+	{
+		_fogTracker.Update(_state);
+
+		_groundLayer.Clear();
+		_memoryLayer.Clear();
+		_entityLayer.Clear();
+		_fogLayer.Clear();
+
+		if (_state.World == null)
+		{
+			if (_playerSpine != null) _playerSpine.Visible = false;
+			return;
+		}
+
+		var cx = _state.PlayerX;
+		var cy = _state.PlayerY;
+		var cz = _state.PlayerZ;
+
+		var halfW = _viewW / 2;
+		var halfH = _viewH / 2;
+
+		var playerCell = new Vector2I(halfW, halfH);
+
+		for (int sy = 0; sy < _viewH; sy++)
+		{
+			for (int sx = 0; sx < _viewW; sx++)
+			{
+				int wx = cx - halfW + sx;
+				int wy = cy - halfH + sy;
+
+				var cell = new Vector2I(sx, sy);
+
+				bool visible    = _fogTracker.IsVisible(wx, wy, cz);
+				bool peripheral = _fogTracker.IsPeripheral(wx, wy, cz);
+				bool hasSeen    = _fogTracker.HasSeen(wx, wy, cz);
+
+				if (visible || peripheral)
+				{
+					var terrain = _state.World.GetTerrain(wx, wy, cz);
+					SetTile(_groundLayer, cell, TerrainSourceId(terrain));
+
+					bool isPlayerCell = _playerSpine != null && wx == cx && wy == cy;
+					if (isPlayerCell)
+						SetTile(_entityLayer, cell, EntitySourceIdSkipPlayer(wx, wy, cz));
+					else
+						SetTile(_entityLayer, cell, EntitySourceId(wx, wy, cz));
+				}
+				else if (hasSeen)
+				{
+					var terrain = _state.World.GetTerrain(wx, wy, cz);
+					SetTile(_memoryLayer, cell, TerrainSourceId(terrain));
+				}
+				else
+				{
+					if (_blackTileSource >= 0)
+						_fogLayer.SetCell(cell, _blackTileSource, Vector2I.Zero);
+				}
+			}
+		}
+
+		UpdatePlayerSpine(playerCell);
+	}
+
+	// ── 模式切换（与 MapRenderModule 接口兼容） ──────────────
+
+	public string? ToggleRenderMode() => null;
+
+	public string ToggleMinimap()
+	{
+		MinimapVisible = !MinimapVisible;
+		return MinimapVisible ? "小地图: 暂不支持（TileMap 模式）" : "小地图: 关闭";
+	}
+
+	public string ToggleFogMap()
+	{
+		FogMapVisible = !FogMapVisible;
+		return FogMapVisible ? "大地图: 暂不支持（TileMap 模式）" : "大地图: 关闭";
+	}
+
+	public void CenterFogMap() { }
+
+	public void ScrollFogMap(int dx, int dy) { }
+
+	public void ResetOverlays()
+	{
+		FogMapVisible  = false;
+		MinimapVisible = false;
+	}
+
+	// ── 内部工具 ──────────────────────────────────────────
+
+	private static TileMapLayer MakeLayer(Node2D parent, string name, TileSet ts, int zIndex)
+	{
+		var layer      = new TileMapLayer();
+		layer.Name     = name;
+		layer.TileSet  = ts;
+		layer.ZIndex   = zIndex;
+		parent.AddChild(layer);
+		return layer;
+	}
+
+	private static void SetTile(TileMapLayer layer, Vector2I cell, int sourceId)
+	{
+		if (sourceId >= 0)
+			layer.SetCell(cell, sourceId, Vector2I.Zero);
+	}
+
+	private int TerrainSourceId(TerrainDef terrain)
+	{
+		if (_terrainMap.TryGetValue(terrain.StringId, out var tileName)
+			&& _nameToSource.TryGetValue(tileName, out var id))
+			return id;
+
+		return _blackTileSource;
+	}
+
+	/// <summary>
+	/// 玩家 cell 专用：跳过玩家 tile（由 Spine 替代），但仍渲染 fixture/item。
+	/// </summary>
+	private int EntitySourceIdSkipPlayer(int wx, int wy, int cz)
+	{
+		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
+		if (fixture != null)
+			return TileId(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
+
+		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
+		if (container != null)
+			return TileId(_itemMap.GetValueOrDefault("container", FallbackTile));
+
+		var item = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Item);
+		if (item != null)
+			return TileId(_itemMap.GetValueOrDefault("drop", FallbackTile));
+
+		return -1;
+	}
+
+	private int EntitySourceId(int wx, int wy, int cz)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player is { X: var px, Y: var py, Z: var pz } && px == wx && py == wy && pz == cz)
+			return TileId(_entityMap.GetValueOrDefault("player", FallbackTile));
+
+		foreach (var actor in _state.Actors.Values)
+		{
+			if (actor.X != wx || actor.Y != wy || actor.Z != cz) continue;
+			if (actor.Id == _state.PlayerId) continue;
+
+			var key = actor.Faction == Factions.Hostile ? "hostile" : "friendly";
+			return TileId(_entityMap.GetValueOrDefault(key, FallbackTile));
+		}
+
+		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
+		if (fixture != null)
+			return TileId(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
+
+		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
+		if (container != null)
+			return TileId(_itemMap.GetValueOrDefault("container", FallbackTile));
+
+		var item = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Item);
+		if (item != null)
+			return TileId(_itemMap.GetValueOrDefault("drop", FallbackTile));
+
+		return -1;
+	}
+
+	private int TileId(string name) =>
+		_nameToSource.TryGetValue(name, out var id) ? id : _blackTileSource;
+
+	/// <summary>
+	/// 将 Camera 和 Spine 角色移动到玩家所在 TileMap cell 的像素坐标。
+	/// </summary>
+	private void UpdatePlayerSpine(Vector2I playerCell)
+	{
+		var localPos = _groundLayer.MapToLocal(playerCell);
+
+		if (_camera != null)
+			_camera.Position = localPos;
+
+		if (_playerSpine == null) return;
+
+		if (!_playerSpine.Visible)
+		{
+			_playerSpine.Visible = true;
+			PlaySpineAnim("Idle", true);
+		}
+		_playerSpine.Position = localPos;
+	}
+
+	// ── Spine 动画控制 ───────────────────────────────────
+
+	/// <summary>
+	/// 播放指定动画。如果已在播放同名动画则跳过，避免重复触发。
+	/// </summary>
+	public void PlaySpineAnim(string animName, bool loop, int track = 0)
+	{
+		if (!_spineReady || _playerSpine == null) return;
+		if (animName == _currentAnim && loop) return;
+
+		_currentAnim = animName;
+		var animState = (GodotObject)_playerSpine.Call("get_animation_state");
+		animState.Call("set_animation", animName, loop, track);
+	}
+
+	/// <summary>
+	/// 在当前动画结束后追加播放。用于一次性动画（攻击、受伤）完成后回到 Idle。
+	/// </summary>
+	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0)
+	{
+		if (!_spineReady || _playerSpine == null) return;
+
+		var animState = (GodotObject)_playerSpine.Call("get_animation_state");
+		animState.Call("add_animation", animName, delay, loop, track);
+		_currentAnim = animName;
+	}
+
+	/// <summary>
+	/// 播放一次性动画，结束后自动回到 Idle。
+	/// </summary>
+	public void PlayOneShotThenIdle(string animName)
+	{
+		PlaySpineAnim(animName, false);
+		QueueSpineAnim("Idle", true);
+	}
+
+	// ── 数据加载 ─────────────────────────────────────────
+
+	private void LoadIdMap(string resPath)
+	{
+		_nameToSource.Clear();
+
+		if (!Godot.FileAccess.FileExists(resPath))
+		{
+			GD.PrintErr($"[TileMapRender] 找不到 ID 映射文件：{resPath}");
+			GD.PrintErr("[TileMapRender] 请先运行 Tools/TilesetImporter.tscn 生成映射");
+			return;
+		}
+
+		var json    = Godot.FileAccess.GetFileAsString(resPath);
+		var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+		var map     = JsonSerializer.Deserialize<Dictionary<string, TileSourceEntry>>(json, options);
+
+		if (map == null)
+		{
+			GD.PrintErr("[TileMapRender] ID 映射 JSON 解析失败");
+			return;
+		}
+
+		foreach (var (name, entry) in map)
+			_nameToSource[name] = entry.SourceId;
+
+		_blackTileSource = _nameToSource.GetValueOrDefault(FallbackTile, -1);
+
+		GD.Print($"[TileMapRender] 已加载 {_nameToSource.Count} 个 tile 映射");
+	}
+
+	private void LoadTileMapping(string resPath)
+	{
+		if (!Godot.FileAccess.FileExists(resPath))
+		{
+			GD.PrintErr($"[TileMapRender] 找不到 tile 映射配置：{resPath}");
+			return;
+		}
+
+		var json = Godot.FileAccess.GetFileAsString(resPath);
+		var root = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
+
+		if (root == null)
+		{
+			GD.PrintErr("[TileMapRender] tile 映射配置解析失败");
+			return;
+		}
+
+		_terrainMap = root.GetValueOrDefault("terrain") ?? new();
+		_entityMap  = root.GetValueOrDefault("entity")  ?? new();
+		_fixtureMap = root.GetValueOrDefault("fixture") ?? new();
+		_itemMap    = root.GetValueOrDefault("item")     ?? new();
+
+		GD.Print($"[TileMapRender] tile 映射已加载：" +
+			$"terrain={_terrainMap.Count} entity={_entityMap.Count} " +
+			$"fixture={_fixtureMap.Count} item={_itemMap.Count}");
+	}
+
+	// ── JSON 数据模型 ─────────────────────────────────────
+
+	private class TileSourceEntry
+	{
+		[JsonPropertyName("source_id")] public int SourceId { get; set; }
+	}
+}

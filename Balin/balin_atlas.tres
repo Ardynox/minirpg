@@ -1,0 +1,4 @@
+[gd_resource type="SpineAtlasResource" format=3]
+
+[resource]
+source_path = "res://Balin/Balin.atlas"

@@ -5,6 +5,7 @@ using System.Text;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
 using MiniRPG.Module.Panel;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG;
 
@@ -26,7 +27,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private LogModule _log = null!;
 	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
-	private MapRenderModule _mapRender = null!;
+	private TileMapRenderModule _mapRender = null!;
 	private double _watchTimer;
 
 	private GameSessionModule _session = null!;
@@ -135,15 +136,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu = new MenuModule(this);
 
 		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
-		var mapText = GetNode<RichTextLabel>("UI/TopRow/MapPanel/MarginContainer/MapText");
 		_log = new LogModule(GetNode<RichTextLabel>("UI/LogPanel"));
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
-		var renderModule = new RenderModule();
-		renderModule.ApplyFont(mapText);
-		_mapRender = new MapRenderModule(
-			_state, _fogTracker, renderModule,
-			mapText, ViewW, ViewH, () => _session.ViewMode);
+		var mapRoot = GetNode<Node2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/MapRoot");
+		var tileSet = GD.Load<TileSet>("res://FantasyKingdomTileSet.tres");
+		var playerSpine = mapRoot.GetNodeOrNull<Node2D>("PlayerSpine");
+		var camera = GetNode<Camera2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/Camera2D");
+		_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
+		_mapRender.Init(mapRoot, tileSet, playerSpine, camera);
 
 		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
 		_skillBar = new SkillBarModule(GetNode<PanelContainer>("SkillBar"));
@@ -761,10 +762,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 			switch (e.Type)
 			{
+				case "combat_bump" when e.InitiatorId == _state.PlayerId:
+					_mapRender.PlayOneShotThenIdle("Attack_1");
+					_combatUI.HandleCombatBump(e);
+					break;
 				case "combat_bump":
 					_combatUI.HandleCombatBump(e);
 					break;
+				case "combat_attack" when e.TargetId == _state.PlayerId:
+					_mapRender.PlayOneShotThenIdle("Pain");
+					break;
 				case "actor_killed" when e.TargetId == _state.PlayerId:
+					_mapRender.PlaySpineAnim("Die", false);
 					HandlePlayerDeath("killed");
 					break;
 				case "actor_killed":
@@ -772,7 +781,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 					_combatUI.HandleActorKilled(e);
 					break;
 				case "actor_incapacitated" when e.TargetId == _state.PlayerId:
+					_mapRender.PlaySpineAnim("Die", false);
 					HandlePlayerDeath("incapacitated");
+					break;
+				case "actor_moved" when e.InitiatorId == _state.PlayerId:
+					_mapRender.PlayOneShotThenIdle("Walk");
 					break;
 				case "interaction":
 					DispatchInteraction(e);

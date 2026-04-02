@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Godot;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG.Module;
 
@@ -19,22 +20,9 @@ public class AutoTestModule
 	private bool _aborted;
 	private readonly List<string> _logLines = [];
 
-	/// <summary>
-	/// 启动全部测试。
-	/// </summary>
-	/// <param name="main">Main 节点引用，用于访问 SceneTree 和驱动命令。</param>
-	/// <param name="state">当前游戏状态。</param>
-	/// <param name="session">会话模块。</param>
-	/// <param name="fogTracker">迷雾追踪器。</param>
-	/// <param name="mapRender">地图渲染模块。</param>
-	/// <param name="log">日志模块。</param>
-	/// <param name="runCommand">执行命令的委托（转发到 Main.OnCommand）。</param>
-	/// <param name="flushMap">刷新地图的委托。</param>
-	/// <param name="delay">步间延迟秒数。</param>
-	/// <param name="stopOnFail">遇到失败是否停止。</param>
 	public async void RunAll(
 		Node main, GameState state, GameSessionModule session,
-		FogOfWarTracker fogTracker, MapRenderModule mapRender,
+		FogOfWarTracker fogTracker, TileMapRenderModule mapRender,
 		LogModule log, Action<string> runCommand, Action flushMap,
 		float delay = 0.05f, bool stopOnFail = false)
 	{
@@ -55,7 +43,7 @@ public class AutoTestModule
 		await TestChain1_Session(tree, state, session, flushMap);
 		if (_aborted) { Finish(); return; }
 
-		await TestChain2_Render(tree, state, fogTracker, mapRender, flushMap);
+		await TestChain2_Render(tree, state, fogTracker, flushMap);
 		if (_aborted) { Finish(); return; }
 
 		await TestChain3_Command(tree, state, runCommand, flushMap);
@@ -67,7 +55,7 @@ public class AutoTestModule
 		await TestChain5_AI(tree, state, runCommand, flushMap);
 		if (_aborted) { Finish(); return; }
 
-		await TestChain6_MainLoop(tree, state, session, mapRender, flushMap);
+		await TestChain6_MainLoop(tree, state, session, flushMap);
 
 		Finish();
 	}
@@ -118,7 +106,7 @@ public class AutoTestModule
 
 	private async Task TestChain2_Render(
 		SceneTree tree, GameState state, FogOfWarTracker fogTracker,
-		MapRenderModule mapRender, Action flushMap)
+		Action flushMap)
 	{
 		Log("── Chain 2: 渲染管线 ──");
 
@@ -127,50 +115,16 @@ public class AutoTestModule
 			"FOV: player position visible");
 		await Step(tree);
 
-		var viewMode = new SingleLayerViewMode();
-		var displayMap = viewMode.BuildDisplayMap(state, 21, 11);
-		Assert(displayMap != null && displayMap.Count == 11, "ViewMode: displayMap has 11 rows");
-		Assert(displayMap![0].Count == 21, "ViewMode: displayMap has 21 cols");
-		await Step(tree);
-
-		var render = mapRender.Render;
-		var text = render.RenderMap(displayMap);
-		Assert(!string.IsNullOrEmpty(text), "RenderMap: output non-empty");
-		await Step(tree);
-
 		try
 		{
 			flushMap();
-			Assert(true, "MapRenderModule.Flush: no exception");
+			Assert(true, "TileMapRenderModule.Flush: no exception");
 		}
 		catch (Exception ex)
 		{
-			Assert(false, $"MapRenderModule.Flush: threw {ex.GetType().Name}");
+			Assert(false, $"TileMapRenderModule.Flush: threw {ex.GetType().Name}");
 		}
 		await Step(tree);
-
-		var wasMini = mapRender.MinimapVisible;
-		mapRender.ToggleMinimap();
-		Assert(mapRender.MinimapVisible != wasMini, "ToggleMinimap: state flipped");
-		flushMap();
-		await Step(tree);
-		mapRender.ToggleMinimap();
-		flushMap();
-
-		var wasFog = mapRender.FogMapVisible;
-		mapRender.ToggleFogMap();
-		Assert(mapRender.FogMapVisible != wasFog, "ToggleFogMap: state flipped");
-		flushMap();
-		await Step(tree);
-		mapRender.ToggleFogMap();
-		flushMap();
-
-		var modeMsg = mapRender.ToggleRenderMode();
-		Assert(modeMsg != null, "ToggleRenderMode: returns message");
-		flushMap();
-		await Step(tree);
-		mapRender.ToggleRenderMode();
-		flushMap();
 	}
 
 	// ── Chain 3: 命令处理 ─────────────────────────────────
@@ -304,13 +258,12 @@ public class AutoTestModule
 
 	private async Task TestChain6_MainLoop(
 		SceneTree tree, GameState state, GameSessionModule session,
-		MapRenderModule mapRender, Action flushMap)
+		Action flushMap)
 	{
 		Log("── Chain 6: 主循环验证 ──");
 
 		Assert(state != null!, "Init: GameState != null");
 		Assert(session != null!, "Init: GameSessionModule != null");
-		Assert(mapRender != null!, "Init: MapRenderModule != null");
 		await Step(tree);
 
 		try
