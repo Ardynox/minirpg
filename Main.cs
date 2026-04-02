@@ -36,11 +36,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private PanelManager _panels = null!;
 	private StatusPanelModule _statusPanelModule = null!;
-	private SkillPanelModule _skillPanel = null!;
+	private SkillBarModule _skillBar = null!;
+	private SkillManagerModule _skillMgr = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
 	private ChestPanelModule _chestPanel = null!;
 	private DialogPanelModule _dialogPanel = null!;
+	private TradePanelModule _tradePanel = null!;
+	private QuestPanelModule _questPanel = null!;
 	private (int x, int y)? _openChestPos;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
@@ -143,26 +146,31 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			mapText, ViewW, ViewH, () => _session.ViewMode);
 
 		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
-		_skillPanel = new SkillPanelModule(GetNode<PanelContainer>("UI/TopRow/SkillPanel"));
+		_skillBar = new SkillBarModule(GetNode<PanelContainer>("SkillBar"));
+		_skillMgr = new SkillManagerModule(GetNode<PanelContainer>("UI/TopRow/SkillManager"));
 		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
 		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
 		_chestPanel = new ChestPanelModule(GetNode<PanelContainer>("UI/TopRow/ChestPanel"), this);
 		_dialogPanel = new DialogPanelModule(GetNode<PanelContainer>("UI/TopRow/DialogPanel"));
+		_tradePanel = new TradePanelModule(GetNode<PanelContainer>("UI/TopRow/TradePanel"));
+		_questPanel = new QuestPanelModule(GetNode<PanelContainer>("UI/TopRow/QuestPanel"));
 
 		_panels = new PanelManager();
 		_panels.RegisterPassive(_mapPanelNode);
 		_panels.Register(_statusPanelModule);
-		_panels.Register(_skillPanel);
+		_panels.Register(_skillMgr);
 		_panels.Register(_inventoryPanel);
 		_panels.Register(_groundPanel);
 		_panels.Register(_chestPanel);
 		_panels.Register(_dialogPanel);
+		_panels.Register(_tradePanel);
+		_panels.Register(_questPanel);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
 
 		_combatUI = new CombatUIModule(this);
-		_tradeUI = new TradeUIModule(this);
+		_tradeUI = new TradeUIModule(this, _tradePanel, _panels);
 		_dialogUI = new DialogUIModule(this, _dialogPanel, _panels);
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
@@ -293,6 +301,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_inputModule.CancelSelection();
 		_panels.ClearFocus();
 		if (_dialogUI.InDialog) _dialogUI.CloseDialog();
+		if (_tradeUI.InTrade) _tradeUI.CloseTrade();
+		_skillBar.Visible = false;
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
@@ -302,10 +312,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		PlayerDead = false;
 		_session.NewGame();
 		_mapRender.ResetOverlays();
-		_skillPanel.Visible = false;
+		_skillBar.Visible = true;
+		_skillMgr.Close();
 		_inventoryPanel.Visible = false;
 		_chestPanel.Visible = false;
 		_dialogPanel.Close();
+		_tradePanel.Close();
+		_questPanel.Close();
 		_panels.ClearFocus();
 		_log.Add("新游戏开始 🗺️");
 	}
@@ -361,7 +374,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":interact" or "interact": DoInteract(); return;
 			case ":dig": StartDig(); return;
 			case ":inventory": ToggleInventory(); return;
-			case ":skills": ToggleSkillPanel(); return;
+			case ":skills": ToggleSkillManager(); return;
+			case ":quests": ToggleQuestPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
 			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
 			case ":status_next": _statusPanelModule.CycleTab(1); return;
@@ -868,22 +882,45 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var player = ActorModule.GetPlayer(_state);
 		_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
 
-		if (player != null)
-			_skillPanel.Refresh(player);
+		_skillBar.Refresh(player);
 		if (InventoryOpen) _inventoryPanel.Refresh();
 		_groundPanel.Refresh();
 		RefreshAllBorders();
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  技能面板
+	//  技能管理面板
 	// ══════════════════════════════════════════════════════
 
-	private void ToggleSkillPanel()
+	private void ToggleSkillManager()
 	{
-		_skillPanel.Visible = !_skillPanel.Visible;
-		_log.Add(_skillPanel.Visible ? "技能面板: 开启 (K 关闭)" : "技能面板: 关闭");
-		FlushMap();
+		if (_panels.FocusedId == "skill_mgr")
+		{
+			_panels.ClearFocus();
+		}
+		else
+		{
+			var player = ActorModule.GetPlayer(_state);
+			_skillMgr.Open(player);
+			_panels.SetFocus(_skillMgr);
+		}
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  任务面板
+	// ══════════════════════════════════════════════════════
+
+	private void ToggleQuestPanel()
+	{
+		if (_panels.FocusedId == "quest")
+		{
+			_panels.ClearFocus();
+		}
+		else
+		{
+			_questPanel.Open(_state);
+			_panels.SetFocus(_questPanel);
+		}
 	}
 
 	// ══════════════════════════════════════════════════════

@@ -1,0 +1,74 @@
+[gd_scene format=3]
+
+[node name="SkillManager" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.0
+custom_minimum_size = Vector2(420, 0)
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Header" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "── 技能管理 ──"
+
+[node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Sep1" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="Content" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="LeftColumn" type="ScrollContainer" parent="MarginContainer/VBox/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.4
+horizontal_scroll_mode = 0
+
+[node name="SkillList" type="VBoxContainer" parent="MarginContainer/VBox/Content/LeftColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="VSep" type="VSeparator" parent="MarginContainer/VBox/Content"]
+layout_mode = 2
+
+[node name="RightColumn" type="ScrollContainer" parent="MarginContainer/VBox/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+horizontal_scroll_mode = 0
+
+[node name="DetailText" type="RichTextLabel" parent="MarginContainer/VBox/Content/RightColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="HintBar" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false

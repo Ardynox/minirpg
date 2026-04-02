@@ -33,13 +33,18 @@ public class PanelManager
 		_allNodes.Add(node);
 	}
 
+	private bool _switching;
+
 	/// <summary>聚焦到指定面板。null = 取消焦点（回到 Action 模式）。</summary>
 	public void SetFocus(IPanel? panel)
 	{
-		if (panel == _focused) return;
-		_focused?.OnBlur();
+		if (panel == _focused || _switching) return;
+		_switching = true;
+		var prev = _focused;
 		_focused = panel;
+		prev?.OnBlur();
 		_focused?.OnFocus();
+		_switching = false;
 		RefreshBorders();
 		FocusChanged?.Invoke();
 	}
@@ -67,13 +72,16 @@ public class PanelManager
 		var cmd = MapKeyToCommand(key);
 		if (cmd == null) return true;
 
-		if (cmd == "close")
+		if (cmd == "close"
+			|| (cmd == "toggle_inv" && _focused?.PanelId == "inventory")
+			|| (cmd == "toggle_quest" && _focused?.PanelId == "quest")
+			|| (cmd == "toggle_skills" && _focused?.PanelId == "skill_mgr"))
 		{
 			ClearFocus();
 			return true;
 		}
 
-		_focused.HandleCommand(cmd);
+		_focused?.HandleCommand(cmd);
 		return true;
 	}
 
@@ -113,6 +121,8 @@ public class PanelManager
 		Key.U              => "action5",
 		Key.Tab            => key.ShiftPressed ? "tab_prev" : "tab_next",
 		Key.I              => "toggle_inv",
+		Key.J              => "toggle_quest",
+		Key.K              => "toggle_skills",
 		Key.Key1 => "1", Key.Key2 => "2", Key.Key3 => "3",
 		Key.Key4 => "4", Key.Key5 => "5", Key.Key6 => "6",
 		Key.Key7 => "7", Key.Key8 => "8", Key.Key9 => "9",

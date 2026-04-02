@@ -30,6 +30,9 @@ public class GameState
 	public Dictionary<string, Actor> Actors { get; set; } = new();
 	public string PlayerId { get; set; } = "player";
 
+	// ── 任务 ──
+	public List<Quest> Quests { get; set; } = [];
+
 	// ── 设置 ──
 	public bool BumpAttack { get; set; } = true;
 	public bool WatchMode { get; set; }
@@ -49,6 +52,7 @@ public class GameState
 		PlayerY = 0;
 		PlayerZ = 0;
 		Actors.Clear();
+		Quests.Clear();
 		BumpAttack = true;
 		WatchMode = false;
 		KillCount = 0;

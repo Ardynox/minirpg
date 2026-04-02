@@ -2,9 +2,6 @@ using System.Collections.Generic;
 
 namespace MiniRPG.Core.Trade;
 
-/// <summary>
-/// 交易结果：成功/失败 + 原因描述。
-/// </summary>
 public class TradeResult
 {
 	public bool Ok { get; set; }
@@ -14,48 +11,102 @@ public class TradeResult
 }
 
 /// <summary>
-/// 交易模块：纯函数，直接操作 Actor 字段（Gold / ShopSlots）。
+/// 可交易商品条目：统一表示来自 ShopSlots 或 Inventory 的商品。
+/// </summary>
+public class TradeGood
+{
+	public enum Source { Shop, Inventory }
+
+	public Source From { get; init; }
+	public int Index { get; init; }
+	public Item Item { get; init; } = null!;
+	public int Stock { get; init; } = 1;
+
+	public int BuyPrice => Item.Price;
+}
+
+/// <summary>
+/// 交易模块：支持 ShopSlots（传统商人）和 Inventory（任意生物）两种货源。
+/// 任何有物品的生物都可以参与交易。
 /// </summary>
 public static class TradeModule
 {
 	/// <summary>
-	/// 玩家从商人处购买指定槽位的物品，放入买家背包。
+	/// 列出对方所有可交易商品：先 ShopSlots（有库存的），再 Inventory（未装备的）。
 	/// </summary>
-	public static TradeResult Buy(Actor buyer, Actor merchant, int slotIndex)
+	public static List<TradeGood> ListGoods(Actor trader)
 	{
-		if (slotIndex < 0 || slotIndex >= merchant.ShopSlots.Count)
-			return new TradeResult { Message = "无效的商品编号" };
+		var result = new List<TradeGood>();
 
-		var slot = merchant.ShopSlots[slotIndex];
-		if (slot.Stock <= 0)
-			return new TradeResult { Message = $"{slot.Item.Name} 已售罄" };
-
-		if (buyer.Gold < slot.Item.Price)
-			return new TradeResult { Message = $"金币不足（需要 {slot.Item.Price}，当前 {buyer.Gold}）" };
-
-		buyer.Gold -= slot.Item.Price;
-		merchant.Gold += slot.Item.Price;
-		slot.Stock--;
-
-		var bought = new Item
+		for (var i = 0; i < trader.ShopSlots.Count; i++)
 		{
-			Id = slot.Item.Id, Name = slot.Item.Name,
-			Price = slot.Item.Price,
-			Tags = new Dictionary<string, int>(slot.Item.Tags),
-		};
+			var slot = trader.ShopSlots[i];
+			if (slot.Stock > 0)
+				result.Add(new TradeGood
+				{
+					From = TradeGood.Source.Shop, Index = i,
+					Item = slot.Item, Stock = slot.Stock,
+				});
+		}
+
+		for (var i = 0; i < trader.Inventory.Count; i++)
+		{
+			var item = trader.Inventory[i];
+			if (!item.Equipped && item.Price > 0)
+				result.Add(new TradeGood
+				{
+					From = TradeGood.Source.Inventory, Index = i,
+					Item = item, Stock = 1,
+				});
+		}
+
+		return result;
+	}
+
+	/// <summary>从对方购买一件商品。</summary>
+	public static TradeResult Buy(Actor buyer, Actor trader, TradeGood good)
+	{
+		if (buyer.Gold < good.BuyPrice)
+			return new TradeResult { Message = $"金币不足（需要 {good.BuyPrice}，当前 {buyer.Gold}）" };
+
+		buyer.Gold -= good.BuyPrice;
+		trader.Gold += good.BuyPrice;
+
+		Item bought;
+		if (good.From == TradeGood.Source.Shop)
+		{
+			var slot = trader.ShopSlots[good.Index];
+			slot.Stock--;
+			bought = new Item
+			{
+				Id = slot.Item.Id, Name = slot.Item.Name,
+				Price = slot.Item.Price, Category = slot.Item.Category,
+				Weight = slot.Item.Weight, BodyPart = slot.Item.BodyPart,
+				Layer = slot.Item.Layer,
+				SharpDamage = slot.Item.SharpDamage, BluntDamage = slot.Item.BluntDamage,
+				SharpArmor = slot.Item.SharpArmor, BluntArmor = slot.Item.BluntArmor,
+				Tags = new Dictionary<string, int>(slot.Item.Tags),
+				GrantedSkills = [.. slot.Item.GrantedSkills],
+				CoveredParts = [.. slot.Item.CoveredParts],
+			};
+		}
+		else
+		{
+			bought = trader.Inventory[good.Index];
+			trader.Inventory.RemoveAt(good.Index);
+		}
+
 		InventoryModule.Add(buyer, bought);
 
 		return new TradeResult
 		{
-			Ok = true, Item = bought, Price = bought.Price,
-			Message = $"购买了 {bought.Name}（-{bought.Price}G）→ 已放入背包",
+			Ok = true, Item = bought, Price = good.BuyPrice,
+			Message = $"购买了 {bought.Name}（-{good.BuyPrice}G）",
 		};
 	}
 
-	/// <summary>
-	/// 玩家向商人出售背包中指定下标的物品。售价 = 原价的一半（向下取整）。
-	/// </summary>
-	public static TradeResult Sell(Actor seller, Actor merchant, int inventoryIndex)
+	/// <summary>向对方出售背包中指定下标的物品。售价 = 半价。</summary>
+	public static TradeResult Sell(Actor seller, Actor trader, int inventoryIndex)
 	{
 		if (inventoryIndex < 0 || inventoryIndex >= seller.Inventory.Count)
 			return new TradeResult { Message = "无效的物品编号" };
@@ -68,18 +119,14 @@ public static class TradeModule
 		if (sellPrice <= 0)
 			return new TradeResult { Message = $"{item.Name} 不值钱，无法出售" };
 
-		if (merchant.Gold < sellPrice)
-			return new TradeResult { Message = "商人金币不足，无法收购" };
+		if (trader.Gold < sellPrice)
+			return new TradeResult { Message = $"{trader.DisplayName}金币不足，无法收购" };
 
 		seller.Gold += sellPrice;
-		merchant.Gold -= sellPrice;
+		trader.Gold -= sellPrice;
 		seller.Inventory.RemoveAt(inventoryIndex);
 
-		var existing = merchant.ShopSlots.Find(s => s.Item.Id == item.Id);
-		if (existing != null)
-			existing.Stock++;
-		else
-			merchant.ShopSlots.Add(new ShopSlot { Item = item, Stock = 1 });
+		InventoryModule.Add(trader, item);
 
 		return new TradeResult
 		{
@@ -88,15 +135,6 @@ public static class TradeModule
 		};
 	}
 
-	/// <summary>列出商人所有可购买的货物（库存 > 0）。</summary>
-	public static List<(int Index, ShopSlot Slot)> ListGoods(Actor merchant)
-	{
-		var result = new List<(int, ShopSlot)>();
-		for (var i = 0; i < merchant.ShopSlots.Count; i++)
-		{
-			if (merchant.ShopSlots[i].Stock > 0)
-				result.Add((i, merchant.ShopSlots[i]));
-		}
-		return result;
-	}
+	/// <summary>计算物品的出售价格。</summary>
+	public static int SellPrice(Item item) => item.Price / 2;
 }

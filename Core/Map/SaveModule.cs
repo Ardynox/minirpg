@@ -42,6 +42,7 @@ public static class SaveModule
 			GeneratorId = state.GeneratorId,
 			ViewModeId = state.ViewModeId,
 			Actors = CopyActors(state.Actors),
+			Quests = state.Quests.ConvertAll(CopyQuest),
 		};
 
 		if (state.World != null)
@@ -77,6 +78,7 @@ public static class SaveModule
 		state.GeneratorId = data.GeneratorId ?? "room_corridor";
 		state.ViewModeId = data.ViewModeId ?? "single_layer";
 		state.Actors = data.Actors ?? new();
+		state.Quests = data.Quests ?? [];
 
 		DirtyChunkCache.Clear();
 		if (data.DirtyChunks != null)
@@ -253,6 +255,16 @@ public static class SaveModule
 	private static Experience CopyExperience(Experience e) => new()
 		{ Id = e.Id, Name = e.Name, Tags = new Dictionary<string, int>(e.Tags) };
 
+	private static Quest CopyQuest(Quest q) => new()
+	{
+		Id = q.Id, Title = q.Title, Description = q.Description,
+		Source = q.Source, Status = q.Status,
+		AcceptedTurn = q.AcceptedTurn, FinishedTurn = q.FinishedTurn,
+		Objectives = q.Objectives.ConvertAll(o => new QuestObjective
+			{ Text = o.Text, Current = o.Current, Target = o.Target }),
+		Tags = new Dictionary<string, string>(q.Tags),
+	};
+
 	private static void EnsureDir(string filePath)
 	{
 		var dir = Path.GetDirectoryName(filePath);
@@ -278,6 +290,7 @@ public class WorldSaveData
 	public string? GeneratorId { get; set; }
 	public string? ViewModeId { get; set; }
 	public Dictionary<string, Actor>? Actors { get; set; }
+	public List<Quest>? Quests { get; set; }
 	public List<ChunkSaveData> DirtyChunks { get; set; } = [];
 }
 

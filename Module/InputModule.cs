@@ -158,6 +158,7 @@ public partial class InputModule
 			Key.I      => ":inventory",
 			Key.G      => ":dig",
 			Key.K      => ":skills",
+			Key.J      => ":quests",
 			Key.Tab    => ":minimap",
 			Key.M      => ":fogmap",
 			Key.C      => ":fogmap_center",

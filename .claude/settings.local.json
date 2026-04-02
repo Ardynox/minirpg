@@ -8,7 +8,15 @@
       "Bash(git commit:*)",
       "Bash(git branch:*)",
       "Bash(git checkout:*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(for d:*)",
+      "Bash(do echo:*)",
+      "Read(//d/Godot/mini-rpg/**)",
+      "Bash(done)",
+      "Bash(/tmp/structure_summary.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(python Tools/convert_unity_tileset.py)",
+      "Bash(python -c \":*)"
     ]
   }
 }
