@@ -16,7 +16,7 @@ import json
 import struct
 from pathlib import Path
 
-TILESET_DIR = "Fantasy kingdom Tileset"
+TILESET_DIR = "FantasyKingdomTileset_Godot"
 OUTPUT_JSON = "Tools/tileset_mapping.json"
 
 # ── PNG 工具 ──────────────────────────────────────────────────────────────────

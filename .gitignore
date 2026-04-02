@@ -10,3 +10,7 @@ craftpix-net-169442-free-2d-top-down-pixel-dungeon-asset-pack/
 # 转换工具生成的中间文件
 Tools/tileset_mapping.json
 Tools/tile_name_to_id.json
+
+# Godot 编辑器在项目根目录生成的临时脚本文件
+new_c_sharp_script.cs
+new_c_sharp_script.cs.uid

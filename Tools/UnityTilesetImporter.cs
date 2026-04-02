@@ -1,102 +1,158 @@
-#if TOOLS
 using Godot;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using GodotFileAccess = Godot.FileAccess;
 
 namespace MiniRPG.Tools;
 
 /// <summary>
-/// Godot Editor 工具：读取 Python 脚本生成的 tileset_mapping.json，
-/// 在编辑器中创建 TileSet 资源并保存为 .tres 文件。
+/// Fantasy Kingdom Tileset → Godot TileSet 导入器。
 ///
 /// 使用方法：
-///   菜单 → Project → Tools → Run → 选择此脚本（Ctrl+Shift+X）
+///   在 Godot 编辑器中打开 Tools/TilesetImporter.tscn，按 F6 运行当前场景。
+///   完成后程序自动退出，生成：
+///     FantasyKingdomTileSet.tres
+///     Tools/tile_name_to_id.json
 /// </summary>
-[Tool]
-public partial class UnityTilesetImporter : EditorScript
+public partial class UnityTilesetImporter : Node
 {
-	private const string MappingPath  = "res://Tools/tileset_mapping.json";
+	private const string SpritesDir   = "res://FantasyKingdomTileset_Godot/Environment/Sprites";
+	private const string AnimDir      = "res://FantasyKingdomTileset_Godot/Animations";
 	private const string TileSetPath  = "res://FantasyKingdomTileSet.tres";
 	private const string IdMapPath    = "res://Tools/tile_name_to_id.json";
 
-	public override void _Run()
+	public override void _Ready()
 	{
-		GD.Print("=== UnityTilesetImporter 开始 ===");
+		GD.Print("=== TilesetImporter 开始 ===");
 
-		if (!GodotFileAccess.FileExists(MappingPath))
-		{
-			GD.PrintErr($"找不到映射文件：{MappingPath}");
-			GD.PrintErr("请先运行：python Tools/convert_unity_tileset.py");
-			return;
-		}
-
-		var json    = GodotFileAccess.GetFileAsString(MappingPath);
-		var mapping = JsonSerializer.Deserialize<TilesetMapping>(json);
-		if (mapping == null)
-		{
-			GD.PrintErr("JSON 解析失败");
-			return;
-		}
-
-		var tileSet = new TileSet();
-		// tile_size 在等距模式下会被 TileMap 节点的 tile_size 覆盖，这里设默认值
+		var tileSet      = new TileSet();
 		tileSet.TileSize = new Vector2I(128, 128);
 
-		// tile 名称 → (sourceId, atlasCoords) 的映射，供渲染模块使用
 		var nameToSource = new Dictionary<string, TileRef>();
+		int sourceId     = 0;
+		int skipped      = 0;
 
-		int sourceId = 0;
+		// ── 静态 tile：每个 PNG 文件 = 一个 tile ─────────────────────────────
+		GD.Print($"扫描静态 tile：{SpritesDir}");
 
-		// ── 静态 tile ───────────────────────────────────────────────────────
-		GD.Print($"导入 {mapping.StaticTiles.Count} 个静态 tile...");
-
-		foreach (var tile in mapping.StaticTiles)
+		var dir = DirAccess.Open(SpritesDir);
+		if (dir == null)
 		{
-			var godotPath = "res://" + tile.Png;
-			var tex       = ResourceLoader.Load<Texture2D>(godotPath);
+			GD.PrintErr($"无法打开目录：{SpritesDir}");
+			GetTree().Quit(1);
+			return;
+		}
 
+		dir.ListDirBegin();
+		var files = new List<string>();
+		string entry;
+		while ((entry = dir.GetNext()) != "")
+		{
+			if (!dir.CurrentIsDir() && entry.EndsWith(".png"))
+				files.Add(entry);
+		}
+		dir.ListDirEnd();
+		files.Sort();
+
+		GD.Print($"  找到 {files.Count} 个 PNG");
+
+		foreach (var file in files)
+		{
+			var resPath = $"{SpritesDir}/{file}";
+			var tex     = ResourceLoader.Load<Texture2D>(resPath);
 			if (tex == null)
 			{
-				GD.PrintErr($"  [跳过] 贴图不存在：{godotPath}");
+				skipped++;
 				continue;
 			}
 
-			var atlas = new TileSetAtlasSource();
+			var atlas               = new TileSetAtlasSource();
 			atlas.Texture           = tex;
-			atlas.TextureRegionSize = new Vector2I(tile.Rect.W, tile.Rect.H);
-			// 如果贴图有边距（大部分没有），在这里设置 atlas.Margins
+			atlas.TextureRegionSize = new Vector2I(tex.GetWidth(), tex.GetHeight());
 
 			int id = tileSet.AddSource(atlas, sourceId);
 			atlas.CreateTile(Vector2I.Zero);
 
-			nameToSource[tile.Name] = new TileRef { SourceId = id, AtlasX = 0, AtlasY = 0 };
+			var name = file[..^4]; // strip ".png"
+			nameToSource[name] = new TileRef { SourceId = id };
 			sourceId++;
 		}
 
-		// ── 动画 tile ───────────────────────────────────────────────────────
-		GD.Print($"导入 {mapping.AnimatedTiles.Count} 个动画 tile...");
+		GD.Print($"  完成：{sourceId} 个，跳过：{skipped} 个");
 
-		foreach (var tile in mapping.AnimatedTiles)
+		// ── 动画 tile：每个子文件夹 = 一个动画 tile ───────────────────────────
+		GD.Print($"扫描动画 tile：{AnimDir}");
+		int animCount = 0;
+		ScanAnimDir($"{AnimDir}/Props",           tileSet, nameToSource, ref sourceId, ref animCount);
+		ScanAnimDir($"{AnimDir}/Animated Tiles",  tileSet, nameToSource, ref sourceId, ref animCount);
+		GD.Print($"  完成：{animCount} 个动画 tile");
+
+		// ── 保存 TileSet ──────────────────────────────────────────────────────
+		var saveErr = ResourceSaver.Save(tileSet, TileSetPath);
+		if (saveErr != Error.Ok)
 		{
-			if (tile.Frames.Count == 0) continue;
+			GD.PrintErr($"TileSet 保存失败：{saveErr}");
+			GetTree().Quit(1);
+			return;
+		}
+		GD.Print($"TileSet 已保存：{TileSetPath}（共 {sourceId} 个 source）");
 
-			// 动画 tile：帧图片各自作为独立 TileSetAtlasSource，
-			// 然后通过 TileData.SetAnimation 绑定帧序列。
-			// Godot 4 中 TileSetAtlasSource 本身支持多帧动画（columns × rows × duration）。
-			// 这里每一帧是独立 PNG，故采用逐帧 source 方式。
+		// ── 保存名称 → ID 映射 ────────────────────────────────────────────────
+		var idMapJson = JsonSerializer.Serialize(nameToSource, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+		using var f   = Godot.FileAccess.Open(IdMapPath, Godot.FileAccess.ModeFlags.Write);
+		if (f != null)
+		{
+			f.StoreString(idMapJson);
+			GD.Print($"ID 映射已保存：{IdMapPath}");
+		}
+
+		GD.Print("=== 导入完成，程序退出 ===");
+		GetTree().Quit();
+	}
+
+	private static void ScanAnimDir(string baseDir, TileSet tileSet,
+		Dictionary<string, TileRef> nameToSource, ref int sourceId, ref int animCount)
+	{
+		var dir = DirAccess.Open(baseDir);
+		if (dir == null) return;
+
+		dir.ListDirBegin();
+		var subDirs = new List<string>();
+		string entry;
+		while ((entry = dir.GetNext()) != "")
+		{
+			if (dir.CurrentIsDir() && entry != "." && entry != "..")
+				subDirs.Add(entry);
+		}
+		dir.ListDirEnd();
+		subDirs.Sort();
+
+		foreach (var sub in subDirs)
+		{
+			var frameDir = DirAccess.Open($"{baseDir}/{sub}");
+			if (frameDir == null) continue;
+
+			frameDir.ListDirBegin();
+			var frames = new List<string>();
+			string frame;
+			while ((frame = frameDir.GetNext()) != "")
+			{
+				if (!frameDir.CurrentIsDir() && frame.EndsWith(".png"))
+					frames.Add(frame);
+			}
+			frameDir.ListDirEnd();
+			frames.Sort();
+
+			if (frames.Count == 0) continue;
 
 			var frameSourceIds = new List<int>();
-			foreach (var frame in tile.Frames)
+			foreach (var frameFile in frames)
 			{
-				var godotPath = "res://" + frame.Png;
-				var tex       = ResourceLoader.Load<Texture2D>(godotPath);
+				var tex = ResourceLoader.Load<Texture2D>($"{baseDir}/{sub}/{frameFile}");
 				if (tex == null) continue;
 
-				var atlas = new TileSetAtlasSource();
+				var atlas               = new TileSetAtlasSource();
 				atlas.Texture           = tex;
-				atlas.TextureRegionSize = new Vector2I(frame.Rect.W, frame.Rect.H);
+				atlas.TextureRegionSize = new Vector2I(tex.GetWidth(), tex.GetHeight());
 
 				int id = tileSet.AddSource(atlas, sourceId);
 				atlas.CreateTile(Vector2I.Zero);
@@ -104,95 +160,27 @@ public partial class UnityTilesetImporter : EditorScript
 				sourceId++;
 			}
 
-			// 记录第一帧的 source ID 作为代表（动画在运行时由 AnimatedTileRenderModule 处理）
 			if (frameSourceIds.Count > 0)
 			{
-				nameToSource[tile.Name] = new TileRef
+				nameToSource[sub] = new TileRef
 				{
-					SourceId   = frameSourceIds[0],
-					AtlasX     = 0,
-					AtlasY     = 0,
-					IsAnimated = true,
-					Fps        = tile.Fps,
+					SourceId       = frameSourceIds[0],
+					IsAnimated     = true,
+					Fps            = 10f,
 					FrameSourceIds = frameSourceIds,
 				};
+				animCount++;
 			}
 		}
-
-		// ── 保存 TileSet ────────────────────────────────────────────────────
-		var saveErr = ResourceSaver.Save(tileSet, TileSetPath);
-		if (saveErr != Error.Ok)
-		{
-			GD.PrintErr($"TileSet 保存失败：{saveErr}");
-			return;
-		}
-		GD.Print($"TileSet 已保存：{TileSetPath}（{sourceId} 个 source）");
-
-		// ── 保存名称→ID 映射 ────────────────────────────────────────────────
-		var idMapJson = JsonSerializer.Serialize(nameToSource, new JsonSerializerOptions { WriteIndented = true });
-		using var file = GodotFileAccess.Open(IdMapPath, GodotFileAccess.ModeFlags.Write);
-		if (file != null)
-		{
-			file.StoreString(idMapJson);
-			GD.Print($"ID 映射已保存：{IdMapPath}");
-		}
-
-		GD.Print("=== 导入完成 ===");
-		GD.Print("下一步：");
-		GD.Print("  1. 在 Main.tscn 中添加 TileMapLayer 节点");
-		GD.Print("  2. 将 FantasyKingdomTileSet.tres 赋给 TileMapLayer.tile_set");
-		GD.Print("  3. 替换 RenderModule / MapRenderModule 为 TileMapRenderModule");
 	}
 }
 
-// ── JSON 数据模型 ─────────────────────────────────────────────────────────────
-
-public class TilesetMapping
-{
-	[JsonPropertyName("static_tiles")]
-	public List<StaticTileData> StaticTiles { get; set; } = new();
-
-	[JsonPropertyName("animated_tiles")]
-	public List<AnimatedTileData> AnimatedTiles { get; set; } = new();
-}
-
-public class StaticTileData
-{
-	[JsonPropertyName("name")]        public string   Name          { get; set; } = "";
-	[JsonPropertyName("png")]         public string   Png           { get; set; } = "";
-	[JsonPropertyName("rect")]        public RectData Rect          { get; set; } = new();
-	[JsonPropertyName("collider_type")] public int    ColliderType  { get; set; }
-}
-
-public class AnimatedTileData
-{
-	[JsonPropertyName("name")]          public string         Name         { get; set; } = "";
-	[JsonPropertyName("frames")]        public List<FrameData> Frames      { get; set; } = new();
-	[JsonPropertyName("fps")]           public float          Fps          { get; set; }
-	[JsonPropertyName("collider_type")] public int            ColliderType { get; set; }
-}
-
-public class FrameData
-{
-	[JsonPropertyName("png")]  public string   Png  { get; set; } = "";
-	[JsonPropertyName("rect")] public RectData Rect { get; set; } = new();
-}
-
-public class RectData
-{
-	[JsonPropertyName("x")] public int X { get; set; }
-	[JsonPropertyName("y")] public int Y { get; set; }
-	[JsonPropertyName("w")] public int W { get; set; }
-	[JsonPropertyName("h")] public int H { get; set; }
-}
+// ── 数据模型 ──────────────────────────────────────────────────────────────────
 
 public class TileRef
 {
-	[JsonPropertyName("source_id")]       public int        SourceId       { get; set; }
-	[JsonPropertyName("atlas_x")]         public int        AtlasX         { get; set; }
-	[JsonPropertyName("atlas_y")]         public int        AtlasY         { get; set; }
-	[JsonPropertyName("is_animated")]     public bool       IsAnimated     { get; set; }
-	[JsonPropertyName("fps")]             public float      Fps            { get; set; }
-	[JsonPropertyName("frame_source_ids")] public List<int>? FrameSourceIds { get; set; }
+	[System.Text.Json.Serialization.JsonPropertyName("source_id")]        public int        SourceId       { get; set; }
+	[System.Text.Json.Serialization.JsonPropertyName("is_animated")]      public bool       IsAnimated     { get; set; }
+	[System.Text.Json.Serialization.JsonPropertyName("fps")]              public float      Fps            { get; set; }
+	[System.Text.Json.Serialization.JsonPropertyName("frame_source_ids")] public List<int>? FrameSourceIds { get; set; }
 }
-#endif

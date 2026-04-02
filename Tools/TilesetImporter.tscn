@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://br71dt73w44sd"]
+
+[ext_resource type="Script" uid="uid://cdi7ww5umljgq" path="res://Tools/UnityTilesetImporter.cs" id="1"]
+
+[node name="TilesetImporter" type="Node" unique_id=1158358628]
+script = ExtResource("1")
