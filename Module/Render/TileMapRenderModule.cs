@@ -7,13 +7,16 @@ using MiniRPG.Core.World;
 namespace MiniRPG.Module.Render;
 
 /// <summary>
-/// TileMapLayer 渲染模块，替代 MapRenderModule（BBCode 文本渲染）。
+/// TileMapLayer 渲染模块。
 ///
 /// 4 层架构：
 ///   GroundLayer  — 可见/周边感知的地形 tile（正常亮度）
 ///   MemoryLayer  — 已探索但不可见的地形 tile（暗色，仅地形无实体）
 ///   EntityLayer  — 可见/周边感知的实体 tile（玩家、怪物、道具、设施）
 ///   FogLayer     — 未探索格子用纯黑 tile 遮盖
+///
+/// Atlas 合图模式：tile_name_to_id.json 存储 (source_id, atlas_x, atlas_y)，
+/// 同一 atlas source 内的 tile 共享纹理，大幅减少 draw call。
 /// </summary>
 public class TileMapRenderModule
 {
@@ -21,6 +24,9 @@ public class TileMapRenderModule
 	private const string MappingResPath = "res://Data/tile_mapping.json";
 	private const string IdMapResPath = "res://Tools/tile_name_to_id.json";
 	private const string FallbackFixtureTile = "Misc A4_N";
+
+	/// <summary>无效 tile 标识，sourceId = -1 表示跳过渲染。</summary>
+	private static readonly TileLoc InvalidTile = new(-1, Vector2I.Zero);
 
 	// ── 字段 ──────────────────────────────────────────────
 
@@ -37,9 +43,9 @@ public class TileMapRenderModule
 	private Camera2D? _camera;
 	private IAnimatable? _playerAnim;
 
-	// tile 名称 → TileSet source ID（从 tile_name_to_id.json 加载）
-	private Dictionary<string, int> _nameToSource = new();
-	private int _blackTileSource = -1;
+	// tile 名称 → (sourceId, atlasCoord)
+	private Dictionary<string, TileLoc> _nameToLoc = new();
+	private TileLoc _blackTile;
 
 	// 从 tile_mapping.json 加载的映射表
 	private Dictionary<string, string> _terrainMap = new();
@@ -60,6 +66,7 @@ public class TileMapRenderModule
 		_fogTracker = fogTracker;
 		_viewW      = viewW;
 		_viewH      = viewH;
+		_blackTile  = InvalidTile;
 	}
 
 	// ── 初始化 ────────────────────────────────────────────
@@ -133,23 +140,23 @@ public class TileMapRenderModule
 				if (visible || peripheral)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
-					SetTile(_groundLayer, cell, TerrainSourceId(terrain));
+					SetTile(_groundLayer, cell, TerrainLoc(terrain));
 
 					bool isPlayerCell = _playerAnim != null && wx == cx && wy == cy;
 					if (isPlayerCell)
-						SetTile(_entityLayer, cell, EntitySourceIdSkipPlayer(wx, wy, cz));
+						SetTile(_entityLayer, cell, EntityLocSkipPlayer(wx, wy, cz));
 					else
-						SetTile(_entityLayer, cell, EntitySourceId(wx, wy, cz));
+						SetTile(_entityLayer, cell, EntityLoc(wx, wy, cz));
 				}
 				else if (hasSeen)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
-					SetTile(_memoryLayer, cell, TerrainSourceId(terrain));
+					SetTile(_memoryLayer, cell, TerrainLoc(terrain));
 				}
 				else
 				{
-					if (_blackTileSource >= 0)
-						_fogLayer.SetCell(cell, _blackTileSource, Vector2I.Zero);
+					if (_blackTile.SourceId >= 0)
+						_fogLayer.SetCell(cell, _blackTile.SourceId, _blackTile.Coord);
 				}
 			}
 		}
@@ -195,46 +202,44 @@ public class TileMapRenderModule
 		return layer;
 	}
 
-	private static void SetTile(TileMapLayer layer, Vector2I cell, int sourceId)
+	private static void SetTile(TileMapLayer layer, Vector2I cell, TileLoc loc)
 	{
-		if (sourceId >= 0)
-			layer.SetCell(cell, sourceId, Vector2I.Zero);
+		if (loc.SourceId >= 0)
+			layer.SetCell(cell, loc.SourceId, loc.Coord);
 	}
 
-	private int TerrainSourceId(TerrainDef terrain)
+	private TileLoc TerrainLoc(TerrainDef terrain)
 	{
-		if (_terrainMap.TryGetValue(terrain.StringId, out var tileName)
-			&& _nameToSource.TryGetValue(tileName, out var id))
-			return id;
-
-		return _blackTileSource;
+		if (_terrainMap.TryGetValue(terrain.StringId, out var tileName))
+			return Resolve(tileName);
+		return _blackTile;
 	}
 
 	/// <summary>
 	/// 玩家 cell 专用：跳过玩家 tile（由 Spine 替代），但仍渲染 fixture/item。
 	/// </summary>
-	private int EntitySourceIdSkipPlayer(int wx, int wy, int cz)
+	private TileLoc EntityLocSkipPlayer(int wx, int wy, int cz)
 	{
 		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
 		if (fixture != null)
-			return TileId(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
+			return Resolve(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
 
 		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
 		if (container != null)
-			return TileId(_itemMap.GetValueOrDefault("container", FallbackTile));
+			return Resolve(_itemMap.GetValueOrDefault("container", FallbackTile));
 
 		var item = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Item);
 		if (item != null)
-			return TileId(_itemMap.GetValueOrDefault("drop", FallbackTile));
+			return Resolve(_itemMap.GetValueOrDefault("drop", FallbackTile));
 
-		return -1;
+		return InvalidTile;
 	}
 
-	private int EntitySourceId(int wx, int wy, int cz)
+	private TileLoc EntityLoc(int wx, int wy, int cz)
 	{
 		var player = ActorModule.GetPlayer(_state);
 		if (player is { X: var px, Y: var py, Z: var pz } && px == wx && py == wy && pz == cz)
-			return TileId(_entityMap.GetValueOrDefault("player", FallbackTile));
+			return Resolve(_entityMap.GetValueOrDefault("player", FallbackTile));
 
 		foreach (var actor in _state.Actors.Values)
 		{
@@ -242,26 +247,26 @@ public class TileMapRenderModule
 			if (actor.Id == _state.PlayerId) continue;
 
 			var key = actor.Faction == Factions.Hostile ? "hostile" : "friendly";
-			return TileId(_entityMap.GetValueOrDefault(key, FallbackTile));
+			return Resolve(_entityMap.GetValueOrDefault(key, FallbackTile));
 		}
 
 		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
 		if (fixture != null)
-			return TileId(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
+			return Resolve(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
 
 		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
 		if (container != null)
-			return TileId(_itemMap.GetValueOrDefault("container", FallbackTile));
+			return Resolve(_itemMap.GetValueOrDefault("container", FallbackTile));
 
 		var item = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Item);
 		if (item != null)
-			return TileId(_itemMap.GetValueOrDefault("drop", FallbackTile));
+			return Resolve(_itemMap.GetValueOrDefault("drop", FallbackTile));
 
-		return -1;
+		return InvalidTile;
 	}
 
-	private int TileId(string name) =>
-		_nameToSource.TryGetValue(name, out var id) ? id : _blackTileSource;
+	private TileLoc Resolve(string name) =>
+		_nameToLoc.TryGetValue(name, out var loc) ? loc : _blackTile;
 
 	/// <summary>
 	/// 将 Camera 和玩家动画节点移动到玩家所在 TileMap cell 的像素坐标。
@@ -293,7 +298,6 @@ public class TileMapRenderModule
 	/// <summary>在当前动画结束后追加播放（向后兼容接口）。</summary>
 	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0)
 	{
-		// IAnimatable 不直接暴露 queue，用 PlayOneShot 代替常见场景
 	}
 
 	/// <summary>播放一次性动画，结束后自动回到 Idle。</summary>
@@ -307,7 +311,7 @@ public class TileMapRenderModule
 
 	private void LoadIdMap(string resPath)
 	{
-		_nameToSource.Clear();
+		_nameToLoc.Clear();
 
 		if (!Godot.FileAccess.FileExists(resPath))
 		{
@@ -327,11 +331,11 @@ public class TileMapRenderModule
 		}
 
 		foreach (var (name, entry) in map)
-			_nameToSource[name] = entry.SourceId;
+			_nameToLoc[name] = new TileLoc(entry.SourceId, new Vector2I(entry.AtlasX, entry.AtlasY));
 
-		_blackTileSource = _nameToSource.GetValueOrDefault(FallbackTile, -1);
+		_blackTile = _nameToLoc.GetValueOrDefault(FallbackTile, InvalidTile);
 
-		GD.Print($"[TileMapRender] 已加载 {_nameToSource.Count} 个 tile 映射");
+		GD.Print($"[TileMapRender] 已加载 {_nameToLoc.Count} 个 tile 映射");
 	}
 
 	private void LoadTileMapping(string resPath)
@@ -361,10 +365,15 @@ public class TileMapRenderModule
 			$"fixture={_fixtureMap.Count} item={_itemMap.Count}");
 	}
 
-	// ── JSON 数据模型 ─────────────────────────────────────
+	// ── 内部数据类型 ─────────────────────────────────────
+
+	/// <summary>atlas 内一个 tile 的定位：sourceId + 网格坐标。</summary>
+	private readonly record struct TileLoc(int SourceId, Vector2I Coord);
 
 	private class TileSourceEntry
 	{
 		[JsonPropertyName("source_id")] public int SourceId { get; set; }
+		[JsonPropertyName("atlas_x")]   public int AtlasX   { get; set; }
+		[JsonPropertyName("atlas_y")]   public int AtlasY   { get; set; }
 	}
 }
