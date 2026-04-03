@@ -27,6 +27,12 @@ public partial class UnityTilesetImporter : Node
 	private const string IdMapPath    = "res://Tools/tile_name_to_id.json";
 	private const int    MaxAtlasSize = 4096;
 
+	/// <summary>
+	/// 单张 atlas 最多容纳的 tile 数。控制主线程每帧 CreateFromImage 的数据量，
+	/// 64 tiles × 256×256 = 2048×2048 ≈ 16MB RGBA8，上传耗时可控。
+	/// </summary>
+	private const int    MaxTilesPerAtlas = 64;
+
 	// ── UI ───────────────────────────────────────────────
 	private ProgressBar _bar = null!;
 	private Label _label = null!;
@@ -119,7 +125,11 @@ public partial class UnityTilesetImporter : Node
 		}
 
 		var ar = results[_assembleIdx];
-		_status = $"上传纹理并组装：source {_assembleIdx + 1} / {results.Count}（{ar.TileW}×{ar.TileH}，{ar.Tiles.Count} tiles）";
+		int texW = ar.AtlasImg?.GetWidth() ?? 0;
+		int texH = ar.AtlasImg?.GetHeight() ?? 0;
+		int mb = texW * texH * 4 / (1024 * 1024);
+		_status = $"上传纹理：source {_assembleIdx + 1} / {results.Count}" +
+			$"（{ar.Tiles.Count} tiles, {texW}×{texH}, ~{mb}MB）";
 
 		var atlasTex = ImageTexture.CreateFromImage(ar.AtlasImg);
 		var source = new TileSetAtlasSource();
@@ -282,14 +292,14 @@ public partial class UnityTilesetImporter : Node
 				var tileH = group.Key.Height;
 				var tiles = group.ToList();
 
-				var cols = Math.Max(1, MaxAtlasSize / tileW);
-				var rows = Math.Max(1, MaxAtlasSize / tileH);
-				int tilesPerAtlas = cols * rows;
+				var maxCols = Math.Max(1, MaxAtlasSize / tileW);
+				var maxRows = Math.Max(1, MaxAtlasSize / tileH);
+				int tilesPerAtlas = Math.Min(maxCols * maxRows, MaxTilesPerAtlas);
 
 				for (int batch = 0; batch < tiles.Count; batch += tilesPerAtlas)
 				{
 					var chunk = tiles.Skip(batch).Take(tilesPerAtlas).ToList();
-					int usedCols = Math.Min(cols, chunk.Count);
+					int usedCols = Math.Min(maxCols, chunk.Count);
 					int usedRows = (chunk.Count + usedCols - 1) / usedCols;
 
 					var atlasImg = Image.CreateEmpty(
