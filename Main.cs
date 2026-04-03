@@ -30,6 +30,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private TileMapRenderModule _mapRender = null!;
 	private double _watchTimer;
 
+	private bool _skillBarDirty;
+
 	private GameSessionModule _session = null!;
 	private MenuModule _menu = null!;
 
@@ -41,10 +43,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private SkillManagerModule _skillMgr = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
-	private ChestPanelModule _chestPanel = null!;
-	private DialogPanelModule _dialogPanel = null!;
-	private TradePanelModule _tradePanel = null!;
-	private QuestPanelModule _questPanel = null!;
+
+	private ChestPanelModule? _chestPanel;
+	private DialogPanelModule? _dialogPanel;
+	private TradePanelModule? _tradePanel;
+	private QuestPanelModule? _questPanel;
+
 	private (int x, int y)? _openChestPos;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
@@ -52,8 +56,70 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool ChestOpen => _panels?.FocusedId == "chest";
 
 	private CombatUIModule _combatUI = null!;
-	private TradeUIModule _tradeUI = null!;
-	private DialogUIModule _dialogUI = null!;
+	private TradeUIModule? _tradeUI;
+	private DialogUIModule? _dialogUI;
+
+	// ── 懒加载低频面板 ──────────────────────────────────
+
+	private HBoxContainer TopRow => GetNode<HBoxContainer>("UI/TopRow");
+
+	private ChestPanelModule EnsureChestPanel()
+	{
+		if (_chestPanel != null) return _chestPanel;
+		var scene = GD.Load<PackedScene>("res://Scene/ChestPanel.tscn");
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		_chestPanel = new ChestPanelModule(node, this);
+		_panels.Register(_chestPanel);
+		return _chestPanel;
+	}
+
+	private DialogPanelModule EnsureDialogPanel()
+	{
+		if (_dialogPanel != null) return _dialogPanel;
+		var scene = GD.Load<PackedScene>("res://Scene/DialogPanel.tscn");
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		_dialogPanel = new DialogPanelModule(node);
+		_panels.Register(_dialogPanel);
+		return _dialogPanel;
+	}
+
+	private TradePanelModule EnsureTradePanel()
+	{
+		if (_tradePanel != null) return _tradePanel;
+		var scene = GD.Load<PackedScene>("res://Scene/TradePanel.tscn");
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		_tradePanel = new TradePanelModule(node);
+		_panels.Register(_tradePanel);
+		return _tradePanel;
+	}
+
+	private QuestPanelModule EnsureQuestPanel()
+	{
+		if (_questPanel != null) return _questPanel;
+		var scene = GD.Load<PackedScene>("res://Scene/QuestPanel.tscn");
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		_questPanel = new QuestPanelModule(node);
+		_panels.Register(_questPanel);
+		return _questPanel;
+	}
+
+	private TradeUIModule EnsureTradeUI()
+	{
+		if (_tradeUI != null) return _tradeUI;
+		_tradeUI = new TradeUIModule(this, EnsureTradePanel(), _panels);
+		return _tradeUI;
+	}
+
+	private DialogUIModule EnsureDialogUI()
+	{
+		if (_dialogUI != null) return _dialogUI;
+		_dialogUI = new DialogUIModule(this, EnsureDialogPanel(), _panels);
+		return _dialogUI;
+	}
 
 	// ══════════════════════════════════════════════════════
 	//  IGameUI 接口实现
@@ -148,14 +214,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_mapRender.Init(mapRoot, tileSet, playerSpine, camera);
 
 		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
-		_skillBar = new SkillBarModule(GetNode<PanelContainer>("SkillBar"));
+
+		var skillBarNode = GetNode<PanelContainer>("SkillBar");
+		skillBarNode.Theme = GD.Load<Theme>("res://UITheme.tres");
+		_skillBar = new SkillBarModule(skillBarNode);
 		_skillMgr = new SkillManagerModule(GetNode<PanelContainer>("UI/TopRow/SkillManager"));
 		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
 		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
-		_chestPanel = new ChestPanelModule(GetNode<PanelContainer>("UI/TopRow/ChestPanel"), this);
-		_dialogPanel = new DialogPanelModule(GetNode<PanelContainer>("UI/TopRow/DialogPanel"));
-		_tradePanel = new TradePanelModule(GetNode<PanelContainer>("UI/TopRow/TradePanel"));
-		_questPanel = new QuestPanelModule(GetNode<PanelContainer>("UI/TopRow/QuestPanel"));
 
 		_panels = new PanelManager();
 		_panels.RegisterPassive(_mapPanelNode);
@@ -163,17 +228,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.Register(_skillMgr);
 		_panels.Register(_inventoryPanel);
 		_panels.Register(_groundPanel);
-		_panels.Register(_chestPanel);
-		_panels.Register(_dialogPanel);
-		_panels.Register(_tradePanel);
-		_panels.Register(_questPanel);
 
 		_inputModule = new InputModule(lineEdit);
 		_inputModule.CommandReceived += OnCommand;
 
 		_combatUI = new CombatUIModule(this);
-		_tradeUI = new TradeUIModule(this, _tradePanel, _panels);
-		_dialogUI = new DialogUIModule(this, _dialogPanel, _panels);
 
 		GetNode<Button>("SettingsPanel/VBox/RenderToggle").Pressed += ToggleRender;
 		_watchModeBtn = GetNode<Button>("SettingsPanel/VBox/WatchModeToggle");
@@ -191,11 +250,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
-	/// <summary>每帧更新：驱动异步资源加载 + 看海模式自动推进。</summary>
+	/// <summary>每帧更新：驱动异步资源加载 + 脏面板统一刷新 + 看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
 		ResAccess.PollAsyncLoads();
 		if (_menu.InMenu) return;
+
+		ProcessDirtyPanels();
 
 		if (_state.WatchMode && !PlayerDead)
 		{
@@ -303,8 +364,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
 		_inputModule.CancelSelection();
 		_panels.ClearFocus();
-		if (_dialogUI.InDialog) _dialogUI.CloseDialog();
-		if (_tradeUI.InTrade) _tradeUI.CloseTrade();
+		if (_dialogUI != null && _dialogUI.InDialog) _dialogUI.CloseDialog();
+		if (_tradeUI != null && _tradeUI.InTrade) _tradeUI.CloseTrade();
 		_skillBar.Visible = false;
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
@@ -318,10 +379,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_skillBar.Visible = true;
 		_skillMgr.Close();
 		_inventoryPanel.Visible = false;
-		_chestPanel.Visible = false;
-		_dialogPanel.Close();
-		_tradePanel.Close();
-		_questPanel.Close();
+		if (_chestPanel != null) _chestPanel.Visible = false;
+		if (_dialogPanel != null) _dialogPanel.Close();
+		if (_tradePanel != null) _tradePanel.Close();
+		if (_questPanel != null) _questPanel.Close();
 		_panels.ClearFocus();
 		_log.Add("新游戏开始 🗺️");
 	}
@@ -378,6 +439,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":dig": StartDig(); return;
 			case ":inventory": ToggleInventory(); return;
 			case ":skills": ToggleSkillManager(); return;
+			case ":toggle_status": ToggleStatusPanel(); return;
 			case ":quests": ToggleQuestPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
 			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
@@ -581,15 +643,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void OpenChestPanel(Item chestItem)
 	{
 		_openChestPos = (_state.PlayerX, _state.PlayerY);
-		_chestPanel.Open(chestItem);
-		_panels.SetFocus(_chestPanel);
+		var chest = EnsureChestPanel();
+		chest.Open(chestItem);
+		_panels.SetFocus(chest);
 	}
 
 	/// <summary>关闭宝箱面板。</summary>
 	private void CloseChestPanel()
 	{
 		_openChestPos = null;
-		_chestPanel.Close();
+		_chestPanel?.Close();
 		_panels.ClearFocus();
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
@@ -599,7 +662,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>玩家移动后检查是否离开宝箱范围，超过1格自动关闭。</summary>
 	private void CheckChestRange()
 	{
-		if (_openChestPos == null || !_chestPanel.Visible) return;
+		if (_openChestPos == null || _chestPanel == null || !_chestPanel.Visible) return;
 		var (cx, cy) = _openChestPos.Value;
 		var dist = Math.Max(Math.Abs(_state.PlayerX - cx), Math.Abs(_state.PlayerY - cy));
 		if (dist > 1)
@@ -632,15 +695,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		sb.Append("  [0] 取消");
 		_log.Add(sb.ToString());
 
+		var chest = EnsureChestPanel();
 		_inputModule.EnterSelection(n =>
 		{
-			if (n == 0) { _log.Add("取消"); _panels.SetFocus(_chestPanel); return; }
-			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _panels.SetFocus(_chestPanel); return; }
+			if (n == 0) { _log.Add("取消"); _panels.SetFocus(chest); return; }
+			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _panels.SetFocus(chest); return; }
 			var (invIdx, item) = inv[n - 1];
 			if (item.Equipped)
 			{
 				_log.Add($"请先卸下 {item.Name}");
-				_panels.SetFocus(_chestPanel);
+				_panels.SetFocus(chest);
 				return;
 			}
 			var removed = InventoryModule.RemoveAt(player, invIdx);
@@ -649,10 +713,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				chestItem.Contents!.Add(removed);
 				_log.Add($"将 {removed.Name} 放入了 {chestItem.Name}");
 			}
-			_panels.SetFocus(_chestPanel);
-			_chestPanel.Refresh();
+			_panels.SetFocus(chest);
+			chest.Refresh();
 			FlushMap();
-		}, () => { _log.Add("取消"); _panels.SetFocus(_chestPanel); });
+		}, () => { _log.Add("取消"); _panels.SetFocus(chest); });
 	}
 
 	/// <summary>显示对特定目标可用的交互选项列表。</summary>
@@ -805,7 +869,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		switch (e.EffectType)
 		{
 			case "trade":
-				_tradeUI.OpenTradeMenu(e);
+				EnsureTradeUI().OpenTradeMenu(e);
 				break;
 			case "combat":
 				_combatUI.OpenCombatMenu(e);
@@ -814,7 +878,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				if (e.TargetId != null)
 				{
 					var talkTarget = ActorModule.GetById(_state, e.TargetId);
-					if (talkTarget != null) { _dialogUI.OpenDialog(talkTarget); break; }
+					if (talkTarget != null) { EnsureDialogUI().OpenDialog(talkTarget); break; }
 				}
 				_log.Add($"{e.TargetActorName}: 「……」");
 				break;
@@ -884,23 +948,56 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (!_menu.InMenu) FlushMap();
 	}
 
-	/// <summary>立即刷新地图面板和所有状态面板。</summary>
+	/// <summary>立即刷新地图，标记 UI 面板为脏（由 _Process 统一驱动刷新）。</summary>
 	private void FlushMap()
 	{
 		_mapRender.Flush();
-		RefreshStatus();
+		MarkUIDirty();
 	}
 
-	/// <summary>刷新右侧状态面板（分页式）+ 技能/背包/脚下面板。</summary>
-	private void RefreshStatus()
+	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
+	private void MarkUIDirty()
 	{
-		var player = ActorModule.GetPlayer(_state);
-		_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
+		_statusPanelModule.Dirty = true;
+		_skillBarDirty = true;
+		if (InventoryOpen) _inventoryPanel.Dirty = true;
+		_groundPanel.Dirty = true;
+	}
 
-		_skillBar.Refresh(player);
-		if (InventoryOpen) _inventoryPanel.Refresh();
-		_groundPanel.Refresh();
-		RefreshAllBorders();
+	/// <summary>在 _Process 中统一驱动脏面板刷新，避免单帧重复刷新。</summary>
+	private void ProcessDirtyPanels()
+	{
+		if (_statusPanelModule.Dirty && _statusPanelModule.PanelNode.Visible)
+		{
+			var player = ActorModule.GetPlayer(_state);
+			_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
+		}
+		if (_skillBarDirty && _skillBar.Visible)
+		{
+			_skillBar.Refresh(ActorModule.GetPlayer(_state));
+			_skillBarDirty = false;
+		}
+		if (InventoryOpen && _inventoryPanel.Dirty)
+			_inventoryPanel.FlushIfDirty();
+		if (_groundPanel.Dirty)
+			_groundPanel.FlushIfDirty();
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  状态面板 toggle
+	// ══════════════════════════════════════════════════════
+
+	private void ToggleStatusPanel()
+	{
+		var node = _statusPanelModule.PanelNode;
+		node.Visible = !node.Visible;
+		if (!node.Visible && _panels.FocusedId == "status")
+			_panels.ClearFocus();
+		else if (node.Visible && _statusPanelModule.Dirty)
+		{
+			var player = ActorModule.GetPlayer(_state);
+			_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
+		}
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -933,8 +1030,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		else
 		{
-			_questPanel.Open(_state);
-			_panels.SetFocus(_questPanel);
+			var quest = EnsureQuestPanel();
+			quest.Open(_state);
+			_panels.SetFocus(quest);
 		}
 	}
 

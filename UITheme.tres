@@ -1,0 +1,249 @@
+[gd_resource type="Theme" load_steps=15 format=3]
+
+[sub_resource type="StyleBoxFlat" id="panel_idle"]
+bg_color = Color(0.1, 0.1, 0.13, 1)
+border_color = Color(0.5, 0.5, 0.55, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxFlat" id="panel_focused"]
+bg_color = Color(0.1, 0.1, 0.13, 1)
+border_color = Color(0.3, 0.8, 0.4, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxFlat" id="row_normal"]
+bg_color = Color(0, 0, 0, 0)
+content_margin_left = 4.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="row_hover"]
+bg_color = Color(0.22, 0.22, 0.28, 1)
+content_margin_left = 4.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="row_selected_normal"]
+bg_color = Color(0.15, 0.25, 0.2, 1)
+border_color = Color(0.3, 0.8, 0.4, 1)
+border_width_left = 3
+content_margin_left = 6.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="row_selected_hover"]
+bg_color = Color(0.15, 0.25, 0.2, 1)
+border_color = Color(0.3, 0.8, 0.4, 1)
+border_width_left = 3
+content_margin_left = 6.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="opaque_row_normal"]
+bg_color = Color(0.12, 0.12, 0.15, 1)
+content_margin_left = 4.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="opaque_row_hover"]
+bg_color = Color(0.22, 0.22, 0.28, 1)
+content_margin_left = 4.0
+content_margin_right = 4.0
+
+[sub_resource type="StyleBoxFlat" id="skill_slot_normal"]
+bg_color = Color(0.15, 0.15, 0.2, 1)
+border_color = Color(0.35, 0.35, 0.4, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_left = 3
+corner_radius_bottom_right = 3
+content_margin_left = 2.0
+content_margin_right = 2.0
+
+[sub_resource type="StyleBoxFlat" id="skill_slot_hover"]
+bg_color = Color(0.22, 0.22, 0.3, 1)
+border_color = Color(0.3, 0.8, 0.4, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_left = 3
+corner_radius_bottom_right = 3
+content_margin_left = 2.0
+content_margin_right = 2.0
+
+[sub_resource type="StyleBoxFlat" id="skillbar_panel"]
+bg_color = Color(0.08, 0.08, 0.1, 0.92)
+border_color = Color(0.5, 0.5, 0.55, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+content_margin_left = 4.0
+content_margin_top = 2.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxFlat" id="drag_handle"]
+bg_color = Color(0.15, 0.15, 0.2, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+
+[sub_resource type="StyleBoxEmpty" id="empty_style"]
+
+[sub_resource type="StyleBoxFlat" id="tooltip_panel"]
+bg_color = Color(0.1, 0.1, 0.14, 0.96)
+border_color = Color(0.4, 0.6, 0.4, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+
+[resource]
+PanelContainer/styles/panel = SubResource("panel_idle")
+
+FocusedPanel/base_type = "PanelContainer"
+FocusedPanel/styles/panel = SubResource("panel_focused")
+
+RowButton/base_type = "Button"
+RowButton/styles/normal = SubResource("row_normal")
+RowButton/styles/hover = SubResource("row_hover")
+RowButton/styles/pressed = SubResource("row_normal")
+RowButton/colors/font_color = Color(0.8, 0.8, 0.8, 1)
+RowButton/colors/font_hover_color = Color(0.8, 0.8, 0.8, 1)
+
+HoveredRowButton/base_type = "Button"
+HoveredRowButton/styles/normal = SubResource("row_hover")
+HoveredRowButton/styles/hover = SubResource("row_hover")
+HoveredRowButton/styles/pressed = SubResource("row_hover")
+HoveredRowButton/colors/font_color = Color(0.8, 0.8, 0.8, 1)
+HoveredRowButton/colors/font_hover_color = Color(0.8, 0.8, 0.8, 1)
+
+SelectedRowButton/base_type = "Button"
+SelectedRowButton/styles/normal = SubResource("row_selected_normal")
+SelectedRowButton/styles/hover = SubResource("row_selected_hover")
+SelectedRowButton/styles/pressed = SubResource("row_selected_normal")
+SelectedRowButton/colors/font_color = Color(0.6, 1, 0.7, 1)
+SelectedRowButton/colors/font_hover_color = Color(0.6, 1, 0.7, 1)
+
+OpaqueRowButton/base_type = "Button"
+OpaqueRowButton/styles/normal = SubResource("opaque_row_normal")
+OpaqueRowButton/styles/hover = SubResource("opaque_row_hover")
+OpaqueRowButton/styles/pressed = SubResource("opaque_row_normal")
+OpaqueRowButton/colors/font_color = Color(0.8, 0.8, 0.8, 1)
+OpaqueRowButton/colors/font_hover_color = Color(0.8, 0.8, 0.8, 1)
+
+OpaqueSelectedRowButton/base_type = "Button"
+OpaqueSelectedRowButton/styles/normal = SubResource("row_selected_normal")
+OpaqueSelectedRowButton/styles/hover = SubResource("row_selected_hover")
+OpaqueSelectedRowButton/styles/pressed = SubResource("row_selected_normal")
+OpaqueSelectedRowButton/colors/font_color = Color(0.6, 1, 0.7, 1)
+OpaqueSelectedRowButton/colors/font_hover_color = Color(0.6, 1, 0.7, 1)
+
+OpaqueHoveredRowButton/base_type = "Button"
+OpaqueHoveredRowButton/styles/normal = SubResource("opaque_row_hover")
+OpaqueHoveredRowButton/styles/hover = SubResource("opaque_row_hover")
+OpaqueHoveredRowButton/styles/pressed = SubResource("opaque_row_hover")
+OpaqueHoveredRowButton/colors/font_color = Color(0.8, 0.8, 0.8, 1)
+OpaqueHoveredRowButton/colors/font_hover_color = Color(0.8, 0.8, 0.8, 1)
+
+SkillSlot/base_type = "Button"
+SkillSlot/styles/normal = SubResource("skill_slot_normal")
+SkillSlot/styles/hover = SubResource("skill_slot_hover")
+SkillSlot/styles/pressed = SubResource("skill_slot_hover")
+
+SkillBarPanel/base_type = "PanelContainer"
+SkillBarPanel/styles/panel = SubResource("skillbar_panel")
+
+DragHandle/base_type = "Panel"
+DragHandle/styles/panel = SubResource("drag_handle")
+
+TooltipPanel/base_type = "PanelContainer"
+TooltipPanel/styles/panel = SubResource("tooltip_panel")
+
+CombatRowButton/base_type = "Button"
+CombatRowButton/styles/normal = SubResource("row_normal")
+CombatRowButton/styles/hover = SubResource("row_hover")
+CombatRowButton/styles/pressed = SubResource("row_normal")
+CombatRowButton/colors/font_color = Color(1, 0.4, 0.4, 1)
+CombatRowButton/colors/font_hover_color = Color(1, 0.4, 0.4, 1)
+
+UtilityRowButton/base_type = "Button"
+UtilityRowButton/styles/normal = SubResource("row_normal")
+UtilityRowButton/styles/hover = SubResource("row_hover")
+UtilityRowButton/styles/pressed = SubResource("row_normal")
+UtilityRowButton/colors/font_color = Color(0.4, 0.8, 1, 1)
+UtilityRowButton/colors/font_hover_color = Color(0.4, 0.8, 1, 1)
+
+SocialRowButton/base_type = "Button"
+SocialRowButton/styles/normal = SubResource("row_normal")
+SocialRowButton/styles/hover = SubResource("row_hover")
+SocialRowButton/styles/pressed = SubResource("row_normal")
+SocialRowButton/colors/font_color = Color(0.4, 1, 0.53, 1)
+SocialRowButton/colors/font_hover_color = Color(0.4, 1, 0.53, 1)
+
+CombatSkillSlot/base_type = "Button"
+CombatSkillSlot/styles/normal = SubResource("skill_slot_normal")
+CombatSkillSlot/styles/hover = SubResource("skill_slot_hover")
+CombatSkillSlot/styles/pressed = SubResource("skill_slot_hover")
+CombatSkillSlot/colors/font_color = Color(1, 0.4, 0.4, 1)
+CombatSkillSlot/colors/font_hover_color = Color(1, 1, 1, 1)
+
+UtilitySkillSlot/base_type = "Button"
+UtilitySkillSlot/styles/normal = SubResource("skill_slot_normal")
+UtilitySkillSlot/styles/hover = SubResource("skill_slot_hover")
+UtilitySkillSlot/styles/pressed = SubResource("skill_slot_hover")
+UtilitySkillSlot/colors/font_color = Color(0.4, 0.8, 1, 1)
+UtilitySkillSlot/colors/font_hover_color = Color(1, 1, 1, 1)
+
+SocialSkillSlot/base_type = "Button"
+SocialSkillSlot/styles/normal = SubResource("skill_slot_normal")
+SocialSkillSlot/styles/hover = SubResource("skill_slot_hover")
+SocialSkillSlot/styles/pressed = SubResource("skill_slot_hover")
+SocialSkillSlot/colors/font_color = Color(0.4, 1, 0.53, 1)
+SocialSkillSlot/colors/font_hover_color = Color(1, 1, 1, 1)
+
+HintLabel/base_type = "Label"
+HintLabel/colors/font_color = Color(0.4, 0.4, 0.4, 1)
+
+ContainerRowButton/base_type = "Button"
+ContainerRowButton/styles/normal = SubResource("row_normal")
+ContainerRowButton/styles/hover = SubResource("row_hover")
+ContainerRowButton/styles/pressed = SubResource("row_normal")
+ContainerRowButton/colors/font_color = Color(0.6, 0.9, 1, 1)
+ContainerRowButton/colors/font_hover_color = Color(0.6, 0.9, 1, 1)
+
+DisabledRowButton/base_type = "Button"
+DisabledRowButton/styles/normal = SubResource("empty_style")
+DisabledRowButton/styles/disabled = SubResource("empty_style")
+DisabledRowButton/colors/font_disabled_color = Color(0.5, 0.5, 0.5, 1)

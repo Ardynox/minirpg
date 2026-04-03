@@ -59,7 +59,7 @@ public class InventoryPanelModule : IPanel
 	private readonly ScrollContainer _itemScroll;
 	private readonly VBoxContainer _itemList;
 	private readonly RichTextLabel _detailBox;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 	private readonly HBoxContainer _actionBar;
 	private readonly Button _equipBtn;
 	private readonly Button _useBtn;
@@ -79,6 +79,15 @@ public class InventoryPanelModule : IPanel
 	private ulong _lastClickTime;
 	private int _lastClickIndex = -1;
 	private const ulong DoubleClickMs = 400;
+
+	public bool Dirty { get; set; }
+
+	public void FlushIfDirty()
+	{
+		if (!Dirty) return;
+		Dirty = false;
+		Refresh();
+	}
 
 	public bool Visible
 	{
@@ -100,7 +109,7 @@ public class InventoryPanelModule : IPanel
 		_itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
 		_itemList = _itemScroll.GetNode<VBoxContainer>("ItemList");
 		_detailBox = vbox.GetNode<RichTextLabel>("DetailBox");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 		_actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_equipBtn = _actionBar.GetNode<Button>("EquipBtn");
 		_useBtn = _actionBar.GetNode<Button>("UseBtn");
@@ -111,9 +120,6 @@ public class InventoryPanelModule : IPanel
 		BuildFilterButtons();
 		WireActionButtons();
 		_contextMenu.IdPressed += OnContextMenuAction;
-
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择 ←→分类 E装备 U使用 Q丢弃 R排序 I/Esc关闭[/color]");
 	}
 
 	private void BuildFilterButtons()
@@ -308,7 +314,7 @@ public class InventoryPanelModule : IPanel
 		{
 			_itemRows[0].Text = "  (空)";
 			_itemRows[0].Disabled = true;
-			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+			_itemRows[0].ThemeTypeVariation = "DisabledRowButton";
 		}
 		else
 		{

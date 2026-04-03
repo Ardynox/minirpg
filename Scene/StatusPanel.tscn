@@ -19,31 +19,24 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="NameInfo" type="RichTextLabel" parent="MarginContainer/VBox"]
+[node name="NameInfo" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
 
 [node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
 
-[node name="FilterBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+[node name="TabLabel" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 2
+theme_type_variation = "HintLabel"
 
-[node name="ContentScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+[node name="ContentText" type="RichTextLabel" parent="MarginContainer/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="ItemList" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 0
-
-[node name="HintBar" type="RichTextLabel" parent="MarginContainer/VBox"]
-layout_mode = 2
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+
+[node name="HintBar" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "↑↓选择 ←→分类 H隐藏"

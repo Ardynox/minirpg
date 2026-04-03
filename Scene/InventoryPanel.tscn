@@ -78,10 +78,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "排序 [R]"
 
-[node name="HintBar" type="RichTextLabel" parent="MarginContainer/VBox"]
+[node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
+theme_type_variation = "HintLabel"
+text = "↑↓选择 ←→分类 E装备 U使用 Q丢弃 R排序 I/Esc关闭"
 
 [node name="ContextMenu" type="PopupMenu" parent="."]

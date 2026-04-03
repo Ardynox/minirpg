@@ -37,10 +37,13 @@ public class DialogPanelModule : IPanel
 	private readonly RichTextLabel _header;
 	private readonly RichTextLabel _dialogText;
 	private readonly VBoxContainer _optionList;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 	private readonly List<Button> _optionRows = [];
 	private int _cursor;
 	private int _hoverIndex = -1;
+
+	public bool Dirty { get; set; }
+	public void FlushIfDirty() { }
 
 	public bool Visible
 	{
@@ -55,10 +58,7 @@ public class DialogPanelModule : IPanel
 		_header = vbox.GetNode<RichTextLabel>("Header");
 		_dialogText = vbox.GetNode<RichTextLabel>("DialogText");
 		_optionList = vbox.GetNode<VBoxContainer>("OptionList");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
-
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]数字键选择 / ↑↓选择 Enter确认 / Esc离开[/color]");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 	}
 
 	/// <summary>

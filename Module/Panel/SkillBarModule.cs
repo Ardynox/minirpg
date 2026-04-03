@@ -20,6 +20,7 @@ public class SkillBarModule
 	private readonly List<InteractionDef> _skills = [];
 	private bool _dragging;
 	private Vector2 _dragOffset;
+	private int _lastSkillHash;
 
 	public bool Visible
 	{
@@ -44,16 +45,25 @@ public class SkillBarModule
 	/// <summary>刷新技能栏：从玩家获取可用技能，重建图标格子。</summary>
 	public void Refresh(Actor? player)
 	{
-		_skills.Clear();
+		var newSkills = player != null ? SkillQuery.GetSkills(player) : [];
+		var hash = ComputeSkillHash(newSkills);
+		if (hash == _lastSkillHash && _skills.Count == newSkills.Count)
+			return;
 
-		if (player != null)
-		{
-			var all = SkillQuery.GetSkills(player);
-			_skills.AddRange(all);
-		}
+		_lastSkillHash = hash;
+		_skills.Clear();
+		_skills.AddRange(newSkills);
 
 		RebuildGrid();
 		_tooltip.Visible = false;
+	}
+
+	private static int ComputeSkillHash(List<InteractionDef> skills)
+	{
+		var h = 17;
+		foreach (var s in skills)
+			h = unchecked(h * 31 + (s.Id?.GetHashCode() ?? 0));
+		return h;
 	}
 
 	private void RebuildGrid()
@@ -80,9 +90,14 @@ public class SkillBarModule
 			_slots[i].Text = $"{icon}{abbr}";
 			_slots[i].Visible = true;
 
-			var color = GetCategoryColor(skill.Category);
-			_slots[i].AddThemeColorOverride("font_color", color);
-			_slots[i].AddThemeColorOverride("font_hover_color", Colors.White);
+			var variation = skill.Category switch
+			{
+				"combat" => "CombatSkillSlot",
+				"utility" => "UtilitySkillSlot",
+				"social" => "SocialSkillSlot",
+				_ => "SkillSlot",
+			};
+			_slots[i].ThemeTypeVariation = variation;
 		}
 	}
 
@@ -94,32 +109,8 @@ public class SkillBarModule
 			FocusMode = Control.FocusModeEnum.None,
 			Flat = false,
 			ClipText = true,
+			ThemeTypeVariation = "SkillSlot",
 		};
-
-		var style = new StyleBoxFlat
-		{
-			BgColor = new Color(0.15f, 0.15f, 0.2f),
-			BorderColor = new Color(0.35f, 0.35f, 0.4f),
-			BorderWidthTop = 1, BorderWidthBottom = 1,
-			BorderWidthLeft = 1, BorderWidthRight = 1,
-			CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-			CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
-			ContentMarginLeft = 2, ContentMarginRight = 2,
-		};
-		btn.AddThemeStyleboxOverride("normal", style);
-
-		var hoverStyle = new StyleBoxFlat
-		{
-			BgColor = new Color(0.22f, 0.22f, 0.3f),
-			BorderColor = UIColors.FocusBorder,
-			BorderWidthTop = 1, BorderWidthBottom = 1,
-			BorderWidthLeft = 1, BorderWidthRight = 1,
-			CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-			CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
-			ContentMarginLeft = 2, ContentMarginRight = 2,
-		};
-		btn.AddThemeStyleboxOverride("hover", hoverStyle);
-		btn.AddThemeStyleboxOverride("pressed", hoverStyle);
 
 		var idx = index;
 		btn.MouseEntered += () => ShowTooltip(idx);
@@ -215,36 +206,9 @@ public class SkillBarModule
 
 	private void ApplyStyle()
 	{
-		var panelStyle = new StyleBoxFlat
-		{
-			BgColor = new Color(0.08f, 0.08f, 0.1f, 0.92f),
-			BorderColor = UIColors.IdleBorder,
-			BorderWidthTop = 1, BorderWidthBottom = 1,
-			BorderWidthLeft = 1, BorderWidthRight = 1,
-			CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-			CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
-			ContentMarginLeft = 4, ContentMarginTop = 2,
-			ContentMarginRight = 4, ContentMarginBottom = 4,
-		};
-		_root.AddThemeStyleboxOverride("panel", panelStyle);
-
-		var handleStyle = new StyleBoxFlat
-		{
-			BgColor = new Color(0.15f, 0.15f, 0.2f, 0.8f),
-			CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-		};
-		_dragHandle.AddThemeStyleboxOverride("panel", handleStyle);
-
-		var tooltipStyle = new StyleBoxFlat
-		{
-			BgColor = new Color(0.1f, 0.1f, 0.14f, 0.96f),
-			BorderColor = new Color(0.4f, 0.6f, 0.4f),
-			BorderWidthTop = 1, BorderWidthBottom = 1,
-			BorderWidthLeft = 1, BorderWidthRight = 1,
-			CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-			CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
-		};
-		_tooltip.AddThemeStyleboxOverride("panel", tooltipStyle);
+		_root.ThemeTypeVariation = "SkillBarPanel";
+		_tooltip.ThemeTypeVariation = "TooltipPanel";
+		_dragHandle.ThemeTypeVariation = "DragHandle";
 	}
 
 	private static string GetCategoryIcon(string cat) => cat switch

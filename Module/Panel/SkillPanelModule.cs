@@ -14,6 +14,9 @@ public class SkillPanelModule : IPanel
 	bool IPanel.CanFocus => false;
 	bool IPanel.HandleCommand(string cmd) => false;
 
+	public bool Dirty { get; set; }
+	public void FlushIfDirty() { }
+
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _combatList;
 	private readonly RichTextLabel _utilityList;

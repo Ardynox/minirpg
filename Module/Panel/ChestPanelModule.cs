@@ -37,7 +37,7 @@ public class ChestPanelModule : IPanel
 	private readonly ScrollContainer _itemScroll;
 	private readonly VBoxContainer _itemList;
 	private readonly RichTextLabel _detailBox;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 	private readonly Button _takeBtn;
 	private readonly Button _takeAllBtn;
 	private readonly Button _putBtn;
@@ -48,6 +48,15 @@ public class ChestPanelModule : IPanel
 	private Item? _chestItem;
 	private int _cursor;
 	private int _hoverIndex = -1;
+
+	public bool Dirty { get; set; }
+
+	public void FlushIfDirty()
+	{
+		if (!Dirty) return;
+		Dirty = false;
+		Refresh();
+	}
 
 	public bool Visible
 	{
@@ -66,7 +75,7 @@ public class ChestPanelModule : IPanel
 		_itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
 		_itemList = _itemScroll.GetNode<VBoxContainer>("ItemList");
 		_detailBox = vbox.GetNode<RichTextLabel>("DetailBox");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_takeBtn = actionBar.GetNode<Button>("TakeBtn");
 		_takeAllBtn = actionBar.GetNode<Button>("TakeAllBtn");
@@ -82,9 +91,6 @@ public class ChestPanelModule : IPanel
 		_takeAllBtn.Pressed += () => TryTakeAll();
 		_putBtn.Pressed += () => TryPut();
 		_closeBtn.Pressed += () => _host.CloseChestPanel();
-
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择 E取出 P放入 Esc关闭[/color]");
 	}
 
 	public void Open(Item chestItem)
@@ -194,7 +200,7 @@ public class ChestPanelModule : IPanel
 		{
 			_itemRows[0].Text = "  (空)";
 			_itemRows[0].Disabled = true;
-			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+			_itemRows[0].ThemeTypeVariation = "DisabledRowButton";
 		}
 		else
 		{

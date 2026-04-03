@@ -1,10 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Godot;
 namespace MiniRPG.Module.Panel;
 
 public enum StatusTab { Limb, Capacity, Tag, Buff, Equip }
 
+/// <summary>
+/// 状态面板：用单个 RichTextLabel 渲染所有内容行，
+/// 避免每行一个 Button 节点导致的 draw call 爆炸。
+/// Tab 切换用纯文本标签，光标选中用 ▶ 前缀 + 颜色高亮。
+/// </summary>
 public class StatusPanelModule : IPanel
 {
 	public string PanelId => "status";
@@ -29,58 +35,44 @@ public class StatusPanelModule : IPanel
 	private static readonly string[] TabLabels = ["肢体", "能力", "标记", "Buff", "装备"];
 
 	private readonly PanelContainer _panel;
-	private readonly RichTextLabel _nameInfo;
-	private readonly HBoxContainer _filterBar;
-	private readonly ScrollContainer _contentScroll;
-	private readonly VBoxContainer _itemList;
-	private readonly RichTextLabel _hintBar;
-	private readonly List<Button> _tabButtons = [];
-	private readonly List<Button> _rows = [];
+	private readonly Label _nameInfo;
+	private readonly Label _tabLabel;
+	private readonly RichTextLabel _contentText;
 
 	private StatusTab _currentTab = StatusTab.Limb;
 	private int _cursor;
-	private int _hoverIndex = -1;
 	private Actor? _cachedPlayer;
+
+	private readonly List<string> _lines = [];
+
+	public bool Dirty { get; set; }
+	private int _cachedFloor;
+	private int _cachedTurn;
+
+	public void FlushIfDirty()
+	{
+		if (!Dirty) return;
+		Dirty = false;
+		Refresh(_cachedPlayer, _cachedFloor, _cachedTurn);
+	}
 
 	public StatusPanelModule(PanelContainer panel)
 	{
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_nameInfo = vbox.GetNode<RichTextLabel>("NameInfo");
-		_filterBar = vbox.GetNode<HBoxContainer>("FilterBar");
-		_contentScroll = vbox.GetNode<ScrollContainer>("ContentScroll");
-		_itemList = _contentScroll.GetNode<VBoxContainer>("ItemList");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_nameInfo = vbox.GetNode<Label>("NameInfo");
+		_tabLabel = vbox.GetNode<Label>("TabLabel");
+		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
 
-		BuildTabButtons();
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择 ←→分类 Esc退出[/color]");
-	}
-
-	private void BuildTabButtons()
-	{
-		for (var i = 0; i < TabLabels.Length; i++)
-		{
-			var btn = new Button
-			{
-				Text = TabLabels[i],
-				ToggleMode = true,
-				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
-				FocusMode = Control.FocusModeEnum.None,
-			};
-			var idx = i;
-			btn.Pressed += () => SetTab(Tabs[idx]);
-			_filterBar.AddChild(btn);
-			_tabButtons.Add(btn);
-		}
+		UpdateTabLabel();
 	}
 
 	public void SetTab(StatusTab tab)
 	{
 		_currentTab = tab;
 		_cursor = 0;
-		UpdateTabHighlight();
-		RefreshContent();
+		UpdateTabLabel();
+		RenderContent();
 	}
 
 	public void CycleTab(int dir)
@@ -90,7 +82,6 @@ public class StatusPanelModule : IPanel
 		SetTab(Tabs[idx]);
 	}
 
-	/// <summary>InputModule 直接调用：cmd = "up"/"down"/"prev"/"next"/"close"。</summary>
 	public void HandleCommand(string cmd, Action? onClose = null)
 	{
 		switch (cmd)
@@ -105,100 +96,85 @@ public class StatusPanelModule : IPanel
 
 	public void MoveCursor(int delta)
 	{
-		if (_usedRows == 0) return;
-		_cursor = Math.Clamp(_cursor + delta, 0, _usedRows - 1);
-		UpdateRowVisuals();
-		if (_cursor >= 0 && _cursor < _usedRows)
-			RowStyleHelper.EnsureVisible(_contentScroll, _rows[_cursor]);
+		if (_lines.Count == 0) return;
+		var prev = _cursor;
+		_cursor = Math.Clamp(_cursor + delta, 0, _lines.Count - 1);
+		if (_cursor != prev)
+			RenderContent();
 	}
 
 	public void Refresh(Actor? player, int floor, int turn)
 	{
 		_cachedPlayer = player;
+		_cachedFloor = floor;
+		_cachedTurn = turn;
+		Dirty = false;
 		if (player == null)
 		{
-			_nameInfo.Clear();
-			ClearRows();
+			_nameInfo.Text = "";
+			_contentText.Clear();
+			_lines.Clear();
 			return;
 		}
 
-		_nameInfo.Clear();
-		_nameInfo.AppendText(BuildNameInfo(player, floor, turn));
-		UpdateTabHighlight();
-		RefreshContent();
+		_nameInfo.Text = BuildNameInfo(player, floor, turn);
+		UpdateTabLabel();
+		BuildLines();
+		RenderContent();
 	}
 
-	// ── Content building ─────────────────────────────────
-
-	private void RefreshContent()
+	private void UpdateTabLabel()
 	{
+		var sb = new StringBuilder();
+		for (var i = 0; i < TabLabels.Length; i++)
+		{
+			if (i > 0) sb.Append("  ");
+			if (Tabs[i] == _currentTab)
+				sb.Append($"[{TabLabels[i]}]");
+			else
+				sb.Append(TabLabels[i]);
+		}
+		_tabLabel.Text = sb.ToString();
+	}
+
+	private void BuildLines()
+	{
+		_lines.Clear();
 		if (_cachedPlayer == null) return;
 
-		ClearRows();
 		switch (_currentTab)
 		{
-			case StatusTab.Limb: BuildLimbRows(_cachedPlayer); break;
-			case StatusTab.Capacity: BuildCapacityRows(_cachedPlayer); break;
-			case StatusTab.Tag: BuildTagRows(_cachedPlayer); break;
-			case StatusTab.Buff: BuildBuffRows(_cachedPlayer); break;
-			case StatusTab.Equip: BuildEquipRows(_cachedPlayer); break;
+			case StatusTab.Limb: BuildLimbLines(_cachedPlayer); break;
+			case StatusTab.Capacity: BuildCapacityLines(_cachedPlayer); break;
+			case StatusTab.Tag: BuildTagLines(_cachedPlayer); break;
+			case StatusTab.Buff: BuildBuffLines(_cachedPlayer); break;
+			case StatusTab.Equip: BuildEquipLines(_cachedPlayer); break;
 		}
 
-		for (var i = _usedRows; i < _rows.Count; i++)
-			_rows[i].Visible = false;
-
-		if (_cursor >= _usedRows)
-			_cursor = Math.Max(0, _usedRows - 1);
-		UpdateRowVisuals();
+		if (_cursor >= _lines.Count)
+			_cursor = Math.Max(0, _lines.Count - 1);
 	}
 
-	private int _usedRows;
-
-	private void ClearRows()
+	private void RenderContent()
 	{
-		_usedRows = 0;
-		_hoverIndex = -1;
+		_contentText.Clear();
+		if (_lines.Count == 0) return;
+
+		var sb = new StringBuilder();
+		for (var i = 0; i < _lines.Count; i++)
+		{
+			if (i > 0) sb.Append('\n');
+			if (i == _cursor)
+				sb.Append($"[color=#99ffaa]▶ {_lines[i]}[/color]");
+			else
+				sb.Append($"  {_lines[i]}");
+		}
+		_contentText.AppendText(sb.ToString());
 	}
 
-	private void AddRow(string text)
+	private void BuildLimbLines(Actor player)
 	{
-		var idx = _usedRows;
-		if (idx < _rows.Count)
-		{
-			_rows[idx].Text = text;
-			_rows[idx].Visible = true;
-		}
-		else
-		{
-			var row = new Button
-			{
-				Text = text,
-				Flat = true,
-				FocusMode = Control.FocusModeEnum.None,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-				CustomMinimumSize = new Vector2(0, 24),
-				Alignment = HorizontalAlignment.Left,
-				ClipText = true,
-			};
-			var capturedIdx = idx;
-			row.MouseEntered += () => { _hoverIndex = capturedIdx; UpdateRowVisuals(); };
-			row.MouseExited += () => { if (_hoverIndex == capturedIdx) _hoverIndex = -1; UpdateRowVisuals(); };
-			row.Pressed += () => { _cursor = capturedIdx; UpdateRowVisuals(); };
-			_itemList.AddChild(row);
-			_rows.Add(row);
-		}
-		_usedRows++;
-	}
-
-	// ── Limb tab ─────────────────────────────────────────
-
-	private void BuildLimbRows(Actor player)
-	{
-		if (player.Limbs.Count == 0)
-		{
-			AddRow("无肢体 — 致命状态");
-			return;
-		}
+		if (player.Limbs.Count == 0) { _lines.Add("无肢体 — 致命状态"); return; }
 		foreach (var limb in player.Limbs)
 		{
 			var ratio = limb.MaxDurability > 0
@@ -213,16 +189,14 @@ public class StatusPanelModule : IPanel
 				capParts.Add($"{name}{pct}%");
 			}
 			var caps = capParts.Count > 0 ? $"  {string.Join(" ", capParts)}" : "";
-			AddRow($"{limb.Name}{vital}  {limb.Durability}/{limb.MaxDurability}{caps}");
+			_lines.Add($"{limb.Name}{vital}  {limb.Durability}/{limb.MaxDurability}{caps}");
 		}
 	}
 
-	// ── Capacity tab ─────────────────────────────────────
-
-	private void BuildCapacityRows(Actor player)
+	private void BuildCapacityLines(Actor player)
 	{
 		var caps = player.ComputeCapacities();
-		if (caps.Count == 0) { AddRow("无"); return; }
+		if (caps.Count == 0) { _lines.Add("无"); return; }
 		foreach (var (capId, val) in caps)
 		{
 			var def = PresetDB.GetCapacity(capId);
@@ -239,25 +213,21 @@ public class StatusPanelModule : IPanel
 					_ => "",
 				};
 			}
-			AddRow($"{name}: {pct}%{effect}");
+			_lines.Add($"{name}: {pct}%{effect}");
 		}
 	}
 
-	// ── Tag tab ──────────────────────────────────────────
-
-	private void BuildTagRows(Actor player)
+	private void BuildTagLines(Actor player)
 	{
 		var tags = player.ComputeTags();
-		if (tags.Count == 0) { AddRow("无"); return; }
+		if (tags.Count == 0) { _lines.Add("无"); return; }
 		foreach (var (key, val) in tags)
-			AddRow($"{key}: {val}");
+			_lines.Add($"{key}: {val}");
 	}
 
-	// ── Buff tab ─────────────────────────────────────────
-
-	private void BuildBuffRows(Actor player)
+	private void BuildBuffLines(Actor player)
 	{
-		if (player.Buffs.Count == 0) { AddRow("无"); return; }
+		if (player.Buffs.Count == 0) { _lines.Add("无"); return; }
 		foreach (var buff in player.Buffs)
 		{
 			var turns = buff.RemainingTurns < 0 ? "永久" : $"{buff.RemainingTurns}回合";
@@ -265,13 +235,11 @@ public class StatusPanelModule : IPanel
 			foreach (var (key, val) in buff.Tags)
 				tagParts.Add($"{key}{(val >= 0 ? "+" : "")}{val}");
 			var tagStr = tagParts.Count > 0 ? $" {string.Join(" ", tagParts)}" : "";
-			AddRow($"{buff.Name} ({turns}){tagStr}");
+			_lines.Add($"{buff.Name} ({turns}){tagStr}");
 		}
 	}
 
-	// ── Equip tab ────────────────────────────────────────
-
-	private void BuildEquipRows(Actor player)
+	private void BuildEquipLines(Actor player)
 	{
 		var hasAny = false;
 		foreach (var limb in player.Limbs)
@@ -286,7 +254,7 @@ public class StatusPanelModule : IPanel
 
 				if (!limbHasEquip)
 				{
-					AddRow($"── {limb.Name} ──");
+					_lines.Add($"── {limb.Name} ──");
 					limbHasEquip = true;
 				}
 				hasAny = true;
@@ -297,45 +265,24 @@ public class StatusPanelModule : IPanel
 				if (item.SharpArmor > 0) stats.Add($"锐防{item.SharpArmor:F0}");
 				if (item.BluntArmor > 0) stats.Add($"钝防{item.BluntArmor:F0}");
 				var statStr = stats.Count > 0 ? $" {string.Join(" ", stats)}" : "";
-				AddRow($"  {item.Name} ({slot.Layer}){statStr}");
+				_lines.Add($"  {item.Name} ({slot.Layer}){statStr}");
 			}
 		}
 
-		if (!hasAny)
-		{
-			AddRow("无装备");
-			return;
-		}
+		if (!hasAny) { _lines.Add("无装备"); return; }
 
 		var weight = $"负重: {player.CarryWeight:F1}/{player.MaxCarryWeight:F1}kg";
 		if (player.IsOverweight) weight += " 超重！";
-		AddRow(weight);
+		_lines.Add(weight);
 	}
-
-	// ── Visual helpers ───────────────────────────────────
-
-	private void UpdateTabHighlight()
-	{
-		for (var i = 0; i < _tabButtons.Count; i++)
-			_tabButtons[i].ButtonPressed = Tabs[i] == _currentTab;
-	}
-
-	private void UpdateRowVisuals()
-	{
-		for (var i = 0; i < _usedRows; i++)
-			RowStyleHelper.Apply(_rows[i], i == _cursor, i == _hoverIndex);
-	}
-
-	// ── Name info (header) ───────────────────────────────
 
 	private static string BuildNameInfo(Actor player, int floor, int turn)
 	{
-		var name = $"[b]{player.DisplayName}[/b]";
-		if (player.Race != null)
-			name += $"  {player.Race.Name}";
-		if (player.Profession != null)
-			name += $" · {player.Profession.Name}";
-		name += $"\n[color=#ffcc00]金币: {player.Gold}G[/color]  深度: Z{floor}  回合: {turn}";
-		return name;
+		var sb = new StringBuilder();
+		sb.Append(player.DisplayName);
+		if (player.Race != null) sb.Append($"  {player.Race.Name}");
+		if (player.Profession != null) sb.Append($" · {player.Profession.Name}");
+		sb.Append($"\n金币: {player.Gold}G  深度: Z{floor}  回合: {turn}");
+		return sb.ToString();
 	}
 }

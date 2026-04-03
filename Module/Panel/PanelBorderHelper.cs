@@ -3,38 +3,20 @@ using Godot;
 namespace MiniRPG.Module.Panel;
 
 /// <summary>
-/// 统一的面板边框样式：焦点面板用绿色粗边框，非焦点用暗灰细边框。
-/// 缓存两个 StyleBoxFlat 实例避免每帧重建。
+/// 统一的面板边框样式：通过 ThemeTypeVariation 切换焦点/空闲外观，
+/// 避免每次调用 AddThemeStyleboxOverride 触发重绘。
+/// Theme 中 "FocusedPanel" variation 定义绿色粗边框，
+/// 默认 PanelContainer 样式为暗灰细边框。
 /// </summary>
 public static class PanelBorderHelper
 {
-	private static StyleBoxFlat? _focused;
-	private static StyleBoxFlat? _idle;
+	private const string FocusedVariation = "FocusedPanel";
 
 	public static void Apply(PanelContainer panel, bool focused)
 	{
 		if (panel == null) return;
-		panel.AddThemeStyleboxOverride("panel", focused ? GetFocused() : GetIdle());
+		var desired = focused ? FocusedVariation : "";
+		if (panel.ThemeTypeVariation != desired)
+			panel.ThemeTypeVariation = desired;
 	}
-
-	private static StyleBoxFlat GetFocused() => _focused ??= Build(UIColors.FocusBorder);
-	private static StyleBoxFlat GetIdle() => _idle ??= Build(UIColors.IdleBorder);
-
-	private static StyleBoxFlat Build(Color border) => new()
-	{
-		BgColor = UIColors.PanelBg,
-		BorderColor = border,
-		BorderWidthTop = 2,
-		BorderWidthBottom = 2,
-		BorderWidthLeft = 2,
-		BorderWidthRight = 2,
-		CornerRadiusTopLeft = 4,
-		CornerRadiusTopRight = 4,
-		CornerRadiusBottomLeft = 4,
-		CornerRadiusBottomRight = 4,
-		ContentMarginLeft = 2,
-		ContentMarginTop = 2,
-		ContentMarginRight = 2,
-		ContentMarginBottom = 2,
-	};
 }

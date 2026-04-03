@@ -37,7 +37,7 @@ public class SkillManagerModule : IPanel
 	private readonly ScrollContainer _leftScroll;
 	private readonly VBoxContainer _skillList;
 	private readonly RichTextLabel _detailText;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 
 	private readonly List<Button> _tabButtons = [];
 	private readonly List<Button> _rows = [];
@@ -50,6 +50,15 @@ public class SkillManagerModule : IPanel
 
 	private static readonly SkillTab[] Tabs = [SkillTab.All, SkillTab.Combat, SkillTab.Utility, SkillTab.Social];
 	private static readonly string[] TabLabels = ["全部", "战斗", "工具", "社交"];
+
+	public bool Dirty { get; set; }
+
+	public void FlushIfDirty()
+	{
+		if (!Dirty) return;
+		Dirty = false;
+		Refresh();
+	}
 
 	public bool Visible
 	{
@@ -67,11 +76,9 @@ public class SkillManagerModule : IPanel
 		_leftScroll = content.GetNode<ScrollContainer>("LeftColumn");
 		_skillList = _leftScroll.GetNode<VBoxContainer>("SkillList");
 		_detailText = content.GetNode("RightColumn").GetNode<RichTextLabel>("DetailText");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 
 		BuildTabButtons();
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择 ←→分类 K/Esc关闭[/color]");
 	}
 
 	private void BuildTabButtons()
@@ -199,7 +206,7 @@ public class SkillManagerModule : IPanel
 		{
 			_rows[0].Text = "  暂无技能";
 			_rows[0].Disabled = true;
-			_rows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+			_rows[0].ThemeTypeVariation = "DisabledRowButton";
 		}
 		else
 		{
@@ -217,14 +224,14 @@ public class SkillManagerModule : IPanel
 				_rows[i].Text = $" {icon} {skill.Name}{power}";
 				_rows[i].Disabled = false;
 
-				var color = skill.Category switch
+				var variation = skill.Category switch
 				{
-					"combat" => new Color(1f, 0.4f, 0.4f),
-					"utility" => new Color(0.4f, 0.8f, 1f),
-					"social" => new Color(0.4f, 1f, 0.53f),
-					_ => UIColors.TextNormal,
+					"combat" => "CombatRowButton",
+					"utility" => "UtilityRowButton",
+					"social" => "SocialRowButton",
+					_ => "RowButton",
 				};
-				_rows[i].AddThemeColorOverride("font_color", color);
+				_rows[i].ThemeTypeVariation = variation;
 			}
 		}
 	}
@@ -253,7 +260,23 @@ public class SkillManagerModule : IPanel
 	{
 		var count = _filtered.Count;
 		for (var i = 0; i < _rows.Count && i < count; i++)
-			RowStyleHelper.Apply(_rows[i], i == _cursor, i == _hoverIndex, transparentBg: true);
+		{
+			if (i == _cursor)
+				_rows[i].ThemeTypeVariation = "SelectedRowButton";
+			else if (i == _hoverIndex)
+				_rows[i].ThemeTypeVariation = "HoveredRowButton";
+			else
+			{
+				var variation = _filtered[i].Category switch
+				{
+					"combat" => "CombatRowButton",
+					"utility" => "UtilityRowButton",
+					"social" => "SocialRowButton",
+					_ => "RowButton",
+				};
+				_rows[i].ThemeTypeVariation = variation;
+			}
+		}
 	}
 
 	private void UpdateTabHighlight()

@@ -45,7 +45,10 @@ public class PanelManager
 		prev?.OnBlur();
 		_focused?.OnFocus();
 		_switching = false;
-		RefreshBorders();
+
+		if (prev != null) PanelBorderHelper.Apply(prev.PanelNode, false);
+		if (_focused != null) PanelBorderHelper.Apply(_focused.PanelNode, true);
+
 		FocusChanged?.Invoke();
 	}
 
@@ -75,7 +78,8 @@ public class PanelManager
 		if (cmd == "close"
 			|| (cmd == "toggle_inv" && _focused?.PanelId == "inventory")
 			|| (cmd == "toggle_quest" && _focused?.PanelId == "quest")
-			|| (cmd == "toggle_skills" && _focused?.PanelId == "skill_mgr"))
+			|| (cmd == "toggle_skills" && _focused?.PanelId == "skill_mgr")
+			|| (cmd == "toggle_status" && _focused?.PanelId == "status"))
 		{
 			ClearFocus();
 			return true;
@@ -120,6 +124,7 @@ public class PanelManager
 		Key.P              => "action4",
 		Key.U              => "action5",
 		Key.Tab            => key.ShiftPressed ? "tab_prev" : "tab_next",
+		Key.H              => "toggle_status",
 		Key.I              => "toggle_inv",
 		Key.J              => "toggle_quest",
 		Key.K              => "toggle_skills",

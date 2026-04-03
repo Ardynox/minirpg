@@ -35,4 +35,10 @@ public interface IPanel
 
 	/// <summary>面板失去焦点时调用。</summary>
 	void OnBlur() { }
+
+	/// <summary>脏标记：数据已变化，下次 _Process 时需要刷新 UI。</summary>
+	bool Dirty { get; set; }
+
+	/// <summary>若 Dirty 为 true，执行刷新并清除标记。</summary>
+	void FlushIfDirty() { }
 }

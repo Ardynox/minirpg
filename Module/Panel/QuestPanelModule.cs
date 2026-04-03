@@ -37,7 +37,7 @@ public class QuestPanelModule : IPanel
 	private readonly ScrollContainer _leftScroll;
 	private readonly VBoxContainer _questList;
 	private readonly RichTextLabel _detailText;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 
 	private readonly List<Button> _tabButtons = [];
 	private readonly List<Button> _rows = [];
@@ -49,6 +49,15 @@ public class QuestPanelModule : IPanel
 
 	private static readonly QuestTab[] Tabs = [QuestTab.Active, QuestTab.Completed, QuestTab.Failed];
 	private static readonly string[] TabLabels = ["进行中", "已完成", "已失败"];
+
+	public bool Dirty { get; set; }
+
+	public void FlushIfDirty()
+	{
+		if (!Dirty) return;
+		Dirty = false;
+		Refresh();
+	}
 
 	public bool Visible
 	{
@@ -66,11 +75,9 @@ public class QuestPanelModule : IPanel
 		_leftScroll = content.GetNode<ScrollContainer>("LeftColumn");
 		_questList = _leftScroll.GetNode<VBoxContainer>("QuestList");
 		_detailText = content.GetNode("RightColumn").GetNode<RichTextLabel>("DetailText");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 
 		BuildTabButtons();
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择任务 ←→切换分类 J/Esc关闭[/color]");
 	}
 
 	private void BuildTabButtons()
@@ -201,7 +208,7 @@ public class QuestPanelModule : IPanel
 				_ => "  暂无已失败的任务",
 			};
 			_rows[0].Disabled = true;
-			_rows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+			_rows[0].ThemeTypeVariation = "DisabledRowButton";
 		}
 		else
 		{

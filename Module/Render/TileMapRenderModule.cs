@@ -198,6 +198,7 @@ public class TileMapRenderModule
 		layer.Name     = name;
 		layer.TileSet  = ts;
 		layer.ZIndex   = zIndex;
+		layer.SortByTextureId = true;
 		parent.AddChild(layer);
 
 		if (name == "GroundLayer")

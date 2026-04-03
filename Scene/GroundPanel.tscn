@@ -17,23 +17,16 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 2
 
-[node name="Header" type="RichTextLabel" parent="MarginContainer/VBox"]
+[node name="Header" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
+text = "── 脚下 ──"
+
+[node name="ContentText" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 脚下 ──"
-
-[node name="ItemScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-custom_minimum_size = Vector2(0, 24)
-
-[node name="ItemList" type="VBoxContainer" parent="MarginContainer/VBox/ItemScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 0
 
 [node name="ActionBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2

@@ -4,28 +4,41 @@ namespace MiniRPG.Module;
 
 /// <summary>
 /// 游戏日志管理 + 事件日志翻译。
-/// Add/Clear 管理日志行列表，DispatchEvent 将 GameEvent 翻译为日志文本并写入。
+/// 使用 AppendText 增量追加，超过 MaxLines 时用 RemoveParagraph 批量裁剪头部。
 /// </summary>
 public class LogModule
 {
-	private const int MaxLines = 30;
-	private readonly List<string> _lines = [];
+	private const int MaxLines = 200;
+	private const int TrimBatch = 50;
+
 	private readonly RichTextLabel _panel;
+	private int _lineCount;
 
 	public LogModule(RichTextLabel panel) => _panel = panel;
 
 	public void Add(string msg)
 	{
-		_lines.Add(msg);
-		if (_lines.Count > MaxLines)
-			_lines.RemoveRange(0, _lines.Count - MaxLines);
-		_panel.Text = string.Join("\n", _lines);
+		if (_lineCount > 0)
+			_panel.AppendText("\n");
+		_panel.AppendText(msg);
+		_lineCount++;
+
+		if (_lineCount > MaxLines)
+			TrimOldLines();
 	}
 
 	public void Clear()
 	{
-		_lines.Clear();
-		_panel.Text = "";
+		_panel.Clear();
+		_lineCount = 0;
+	}
+
+	private void TrimOldLines()
+	{
+		var toRemove = TrimBatch;
+		for (var i = 0; i < toRemove; i++)
+			_panel.RemoveParagraph(0);
+		_lineCount -= toRemove;
 	}
 
 	/// <summary>

@@ -44,7 +44,7 @@ public class TradePanelModule : IPanel
 	private readonly ScrollContainer _itemScroll;
 	private readonly VBoxContainer _itemList;
 	private readonly RichTextLabel _detailBox;
-	private readonly RichTextLabel _hintBar;
+	private readonly Label _hintBar;
 	private readonly Button _buyBtn;
 	private readonly Button _sellBtn;
 	private readonly Button _closeBtn;
@@ -54,6 +54,9 @@ public class TradePanelModule : IPanel
 	private int _cursor;
 	private int _hoverIndex = -1;
 	private TradeTab _currentTab = TradeTab.Buy;
+
+	public bool Dirty { get; set; }
+	public void FlushIfDirty() { }
 
 	private List<TradeGood> _buyGoods = [];
 	private List<(int InvIndex, Item Item)> _sellItems = [];
@@ -76,7 +79,7 @@ public class TradePanelModule : IPanel
 		_itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
 		_itemList = _itemScroll.GetNode<VBoxContainer>("ItemList");
 		_detailBox = vbox.GetNode<RichTextLabel>("DetailBox");
-		_hintBar = vbox.GetNode<RichTextLabel>("HintBar");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_buyBtn = actionBar.GetNode<Button>("BuyBtn");
 		_sellBtn = actionBar.GetNode<Button>("SellBtn");
@@ -91,8 +94,6 @@ public class TradePanelModule : IPanel
 		_closeBtn.Pressed += () => OnTradeClosed?.Invoke();
 
 		BuildTabButtons();
-		_hintBar.Clear();
-		_hintBar.AppendText("[color=#666666]↑↓选择 ←→切换买/卖 E确认 Esc关闭[/color]");
 	}
 
 	private void BuildTabButtons()
@@ -232,7 +233,7 @@ public class TradePanelModule : IPanel
 		{
 			_itemRows[0].Text = _currentTab == TradeTab.Buy ? "  (对方没有可交易的商品)" : "  (没有可出售的物品)";
 			_itemRows[0].Disabled = true;
-			_itemRows[0].AddThemeColorOverride("font_disabled_color", UIColors.TextDim);
+			_itemRows[0].ThemeTypeVariation = "DisabledRowButton";
 		}
 		else if (_currentTab == TradeTab.Buy)
 		{

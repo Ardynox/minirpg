@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://dbw8hh2am6yoj"]
+[gd_scene load_steps=13 format=3 uid="uid://dbw8hh2am6yoj"]
 
 [ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
 [ext_resource type="PackedScene" path="res://Scene/MapPanel.tscn" id="2_map"]
@@ -11,10 +11,7 @@
 [ext_resource type="PackedScene" path="res://Scene/SkillManager.tscn" id="8b_skillmgr"]
 [ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
 [ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
-[ext_resource type="PackedScene" path="res://Scene/ChestPanel.tscn" id="11_chest"]
-[ext_resource type="PackedScene" path="res://Scene/DialogPanel.tscn" id="12_dialog"]
-[ext_resource type="PackedScene" path="res://Scene/TradePanel.tscn" id="13_trade"]
-[ext_resource type="PackedScene" path="res://Scene/QuestPanel.tscn" id="14_quest"]
+[ext_resource type="Theme" path="res://UITheme.tres" id="15_theme"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -30,6 +27,7 @@ offset_right = -8.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("15_theme")
 theme_override_constants/separation = 6
 
 [node name="TopRow" type="HBoxContainer" parent="UI"]
@@ -45,14 +43,6 @@ theme_override_constants/separation = 6
 [node name="SkillManager" parent="UI/TopRow" instance=ExtResource("8b_skillmgr")]
 
 [node name="InventoryPanel" parent="UI/TopRow" instance=ExtResource("9_inv")]
-
-[node name="ChestPanel" parent="UI/TopRow" instance=ExtResource("11_chest")]
-
-[node name="DialogPanel" parent="UI/TopRow" instance=ExtResource("12_dialog")]
-
-[node name="TradePanel" parent="UI/TopRow" instance=ExtResource("13_trade")]
-
-[node name="QuestPanel" parent="UI/TopRow" instance=ExtResource("14_quest")]
 
 [node name="GroundPanel" parent="UI" instance=ExtResource("10_ground")]
 
