@@ -27,6 +27,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private LogModule _log = null!;
 	private Button _watchModeBtn = null!;
 	private InputModule _inputModule = null!;
+	private InputBindingService _inputBindings = null!;
+	private KeyBindingsUIModule _keyBindingsUI = null!;
 	private TileMapRenderModule _mapRender = null!;
 	private double _watchTimer;
 
@@ -229,7 +231,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.Register(_inventoryPanel);
 		_panels.Register(_groundPanel);
 
-		_inputModule = new InputModule(lineEdit);
+		_inputBindings = new InputBindingService();
+		_inputModule = new InputModule(lineEdit, _inputBindings);
+		_keyBindingsUI = new KeyBindingsUIModule(this, _inputBindings);
 		_inputModule.CommandReceived += OnCommand;
 
 		_combatUI = new CombatUIModule(this);
@@ -246,6 +250,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu.OnAutoTest += HandleAutoTest;
 		_menu.OnQuit += () => GetTree().Quit();
 		_menu.OnBackToMenu += HandleBackToMenu;
+		_menu.OnOpenKeyBindings += () => _keyBindingsUI.Open();
+		_menu.OnSettingsClosed += () => _keyBindingsUI.Close();
 
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
@@ -272,8 +278,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (_menu.InMenu) return;
 		if (@event is not InputEventKey key) return;
+
+		if (_keyBindingsUI.IsOpen)
+		{
+			if (_keyBindingsUI.HandleKey(key) || key.Pressed)
+				GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (_menu.InMenu) return;
 		if (_panels.HandleKey(key) || _inputModule.HandleKeyInput(key))
 			GetViewport().SetInputAsHandled();
 	}
@@ -281,6 +295,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>全局输入：检测鼠标点击落在哪个面板内，切换焦点。</summary>
 	public override void _Input(InputEvent @event)
 	{
+		if (_keyBindingsUI.IsOpen)
+		{
+			if (_keyBindingsUI.HandleMouseInput(@event))
+				GetViewport().SetInputAsHandled();
+			return;
+		}
+
 		if (_menu.InMenu || !_session.GameStarted) return;
 		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
 		if (mb.ButtonIndex == MouseButton.Right)
@@ -365,6 +386,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
+		_keyBindingsUI.Close();
 		_inputModule.CancelSelection();
 		_panels.ClearFocus();
 		if (_dialogUI != null && _dialogUI.InDialog) _dialogUI.CloseDialog();
@@ -377,6 +399,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_log.Clear();
 		PlayerDead = false;
+		_keyBindingsUI.Close();
 		_session.NewGame();
 		_mapRender.ResetOverlays();
 		_skillBar.Visible = true;
@@ -434,6 +457,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		switch (cmd)
 		{
 			case ":settings" or "settings":
+				_keyBindingsUI.Close();
 				if (_mapRender.FogMapVisible) { _mapRender.FogMapVisible = false; _log.Add("大地图: 关闭"); FlushMap(); return; }
 				_menu.ToggleSettings(_session.GameStarted); return;
 			case ":quicksave": DoSave(GameSessionModule.QuickSavePath, "快速存档"); return;

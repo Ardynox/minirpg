@@ -16,6 +16,7 @@ public partial class InputModule
 	public event Action<string>? CommandReceived;
 
 	private readonly LineEdit _lineEdit;
+	private readonly InputBindingService _bindings;
 	private InputFocus _focus = InputFocus.Action;
 	private string _directionPrefix = "";
 	private Action<int>? _selectionCallback;
@@ -39,9 +40,10 @@ public partial class InputModule
 
 	private Action? _onSelectionCancel;
 
-	public InputModule(LineEdit lineEdit)
+	public InputModule(LineEdit lineEdit, InputBindingService bindings)
 	{
 		_lineEdit = lineEdit;
+		_bindings = bindings;
 		_lineEdit.TextSubmitted += OnTextSubmitted;
 		_lineEdit.FocusExited += () =>
 		{
@@ -81,31 +83,37 @@ public partial class InputModule
 
 	private bool HandleTypingKey(InputEventKey key)
 	{
-		if (key.Keycode == Key.Escape)
+		if (!_bindings.Resolve(InputBindingContext.Typing, key, out var actionId, out _))
+			return false;
+
+		if (actionId == "typing_cancel")
 		{
 			SetFocus(InputFocus.Action);
 			return true;
 		}
+
 		return false;
 	}
 
 	private bool HandleSelectionKey(InputEventKey key)
 	{
-		if (key.Keycode == Key.Escape)
+		if (!_bindings.Resolve(InputBindingContext.Selection, key, out var actionId, out _))
+			return false;
+
+		if (actionId == "selection_cancel")
 		{
 			var cancel = _onSelectionCancel;
 			CancelSelection();
 			cancel?.Invoke();
 			return true;
 		}
-		var num = key.Keycode switch
-		{
-			Key.Key0 => 0,
-			Key.Key1 => 1, Key.Key2 => 2, Key.Key3 => 3,
-			Key.Key4 => 4, Key.Key5 => 5, Key.Key6 => 6,
-			Key.Key7 => 7, Key.Key8 => 8, Key.Key9 => 9,
-			_ => -1,
-		};
+
+		if (!actionId.StartsWith("selection_"))
+			return false;
+
+		if (!int.TryParse(actionId["selection_".Length..], out var num))
+			return false;
+
 		if (num >= 0 && _selectionCallback != null)
 		{
 			var cb = _selectionCallback;
@@ -115,25 +123,31 @@ public partial class InputModule
 			cb(num);
 			return true;
 		}
-		return false;
+
+		return true;
 	}
 
 	private bool HandleDirectionKey(InputEventKey key)
 	{
-		if (key.Keycode == Key.Escape)
+		if (!_bindings.Resolve(InputBindingContext.Direction, key, out var actionId, out _))
+			return false;
+
+		if (actionId == "direction_cancel")
 		{
 			SetFocus(InputFocus.Action);
 			CommandReceived?.Invoke(":dir_cancel");
 			return true;
 		}
-		var dir = key.Keycode switch
+
+		var dir = actionId switch
 		{
-			Key.W or Key.Up    => "n",
-			Key.S or Key.Down  => "s",
-			Key.A or Key.Left  => "w",
-			Key.D or Key.Right => "e",
-			_ => (string?)null,
+			"direction_n" => "n",
+			"direction_s" => "s",
+			"direction_w" => "w",
+			"direction_e" => "e",
+			_ => null,
 		};
+
 		if (dir != null)
 		{
 			var prefix = _directionPrefix;
@@ -141,45 +155,22 @@ public partial class InputModule
 			CommandReceived?.Invoke($":{prefix}_{dir}");
 			return true;
 		}
-		return false;
+
+		return true;
 	}
 
 	private bool HandleActionKey(InputEventKey key)
 	{
-		var cmd = key.Keycode switch
-		{
-			Key.W      => "w",
-			Key.S      => "s",
-			Key.A      => "a",
-			Key.D      => "d",
-			Key.L      => "look",
-			Key.R      => ":render",
-			Key.F or Key.O => ":interact",
-			Key.I      => ":inventory",
-			Key.G      => ":dig",
-			Key.K      => ":skills",
-			Key.H      => ":toggle_status",
-			Key.J      => ":quests",
-			Key.Tab    => ":minimap",
-			Key.M      => ":fogmap",
-			Key.C      => ":fogmap_center",
-			Key.Space  => "enter",
-			Key.Escape => ":settings",
-			Key.Enter  => ":typing",
-			Key.T      => ":typing",
-			Key.F5     => ":quicksave",
-			Key.F9     => ":quickload",
-			Key.Comma  => ":status_prev",
-			Key.Period => ":status_next",
-			_          => null,
-		};
-
-		if (cmd is null)
+		if (!_bindings.Resolve(InputBindingContext.Action, key, out var actionId, out var cmd))
 			return false;
 
-		if (cmd == ":typing")
+		if (actionId == "open_typing")
+		{
 			SetFocus(InputFocus.Typing);
-		else
+			return true;
+		}
+
+		if (!string.IsNullOrEmpty(cmd))
 			CommandReceived?.Invoke(cmd);
 
 		return true;

@@ -19,6 +19,7 @@ public class MenuModule
 	private readonly Button _settingSaveBtn;
 	private readonly Button _settingLoadBtn;
 	private readonly Button _settingBackToMenuBtn;
+	private readonly Button _settingKeyBindingsBtn;
 
 	private bool _settingsFromMenu;
 
@@ -33,6 +34,8 @@ public class MenuModule
 	public event Action? OnQuit;
 	public event Action? OnAutoTest;
 	public event Action? OnBackToMenu;
+	public event Action? OnOpenKeyBindings;
+	public event Action? OnSettingsClosed;
 
 	public MenuModule(Node root)
 	{
@@ -44,6 +47,7 @@ public class MenuModule
 		_settingSaveBtn = root.GetNode<Button>("SettingsPanel/VBox/SaveBtn");
 		_settingLoadBtn = root.GetNode<Button>("SettingsPanel/VBox/LoadBtn");
 		_settingBackToMenuBtn = root.GetNode<Button>("SettingsPanel/VBox/BackToMenuBtn");
+		_settingKeyBindingsBtn = root.GetNode<Button>("SettingsPanel/VBox/KeyBindingsBtn");
 
 		root.GetNode<Button>("MainMenu/Center/VBox/ContinueBtn").Pressed += () => OnContinue?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += () => OnNewGame?.Invoke();
@@ -54,6 +58,7 @@ public class MenuModule
 
 		root.GetNode<Button>("SettingsPanel/VBox/CloseBtn").Pressed += CloseSettings;
 		_settingBackToMenuBtn.Pressed += () => OnBackToMenu?.Invoke();
+		_settingKeyBindingsBtn.Pressed += () => OnOpenKeyBindings?.Invoke();
 	}
 
 	/// <summary>切换到主菜单画面。</summary>
@@ -64,6 +69,7 @@ public class MenuModule
 		_gameUI.Visible = false;
 		_settingsPanel.Visible = false;
 		SettingsOpen = false;
+		OnSettingsClosed?.Invoke();
 		_continueBtn.Visible = hasSave;
 	}
 
@@ -82,6 +88,7 @@ public class MenuModule
 		SettingsOpen = !SettingsOpen;
 		_settingsPanel.Visible = SettingsOpen;
 		if (SettingsOpen) UpdateSettingsContext(gameStarted);
+		else OnSettingsClosed?.Invoke();
 	}
 
 	private void OpenSettingsFromMenu()
@@ -99,12 +106,14 @@ public class MenuModule
 		{
 			_settingsFromMenu = false;
 			_settingsPanel.Visible = false;
+			OnSettingsClosed?.Invoke();
 			OnBackToMenu?.Invoke();
 		}
 		else
 		{
 			SettingsOpen = false;
 			_settingsPanel.Visible = false;
+			OnSettingsClosed?.Invoke();
 		}
 	}
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://dbw8hh2am6yoj"]
+[gd_scene load_steps=14 format=3 uid="uid://dbw8hh2am6yoj"]
 
 [ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
 [ext_resource type="PackedScene" path="res://Scene/MapPanel.tscn" id="2_map"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://Scene/SkillManager.tscn" id="8b_skillmgr"]
 [ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
 [ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
+[ext_resource type="PackedScene" path="res://Scene/KeyBindingsPanel.tscn" id="11_keybindings"]
 [ext_resource type="Theme" path="res://UITheme.tres" id="15_theme"]
 
 [node name="Main" type="Node"]
@@ -51,6 +52,8 @@ theme_override_constants/separation = 6
 [node name="InputBar" parent="UI" instance=ExtResource("5_input")]
 
 [node name="SettingsPanel" parent="." instance=ExtResource("6_settings")]
+
+[node name="KeyBindingsPanel" parent="." instance=ExtResource("11_keybindings")]
 
 [node name="MainMenu" parent="." instance=ExtResource("7_menu")]
 
