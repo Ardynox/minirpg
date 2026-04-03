@@ -1,27 +1,13 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+
 namespace MiniRPG.Module.Panel;
 
-public class ChestPanelModule : IPanel
+public class ChestPanelModule : ListPanelBase
 {
-	public string PanelId => "chest";
-	public PanelContainer PanelNode => _panel;
-	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
-
-	bool IPanel.HandleCommand(string cmd)
-	{
-		switch (cmd)
-		{
-			case "up": MoveCursor(-1); return true;
-			case "down": MoveCursor(1); return true;
-			case "action1": TryTake(); return true;
-			case "action4": TryPut(); return true;
-		}
-		return false;
-	}
-
-	void IPanel.OnBlur() => _host.CloseChestPanel();
+	public override string PanelId => "chest";
+	public override PanelContainer PanelNode => _panel;
 
 	public interface IHost
 	{
@@ -34,37 +20,34 @@ public class ChestPanelModule : IPanel
 
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _header;
-	private readonly ScrollContainer _itemScroll;
-	private readonly VBoxContainer _itemList;
 	private readonly RichTextLabel _detailBox;
-	private readonly Label _hintBar;
 	private readonly Button _takeBtn;
 	private readonly Button _takeAllBtn;
-	private readonly Button _putBtn;
-	private readonly Button _closeBtn;
 	private readonly IHost _host;
 
-	private readonly List<Button> _itemRows = [];
 	private Item? _chestItem;
-	private int _cursor;
-	private int _hoverIndex = -1;
 
-	public bool Dirty { get; set; }
+	public Item? CurrentChest => _chestItem;
 
-	public void FlushIfDirty()
-	{
-		if (!Dirty) return;
-		Dirty = false;
-		Refresh();
-	}
-
-	public bool Visible
+	public override bool Visible
 	{
 		get => _panel.Visible;
 		set => _panel.Visible = value;
 	}
 
-	public Item? CurrentChest => _chestItem;
+	public override bool HandleCommand(string cmd)
+	{
+		switch (cmd)
+		{
+			case "up": MoveCursor(-1, GetRowDataCount()); return true;
+			case "down": MoveCursor(1, GetRowDataCount()); return true;
+			case "action1": TryTake(); return true;
+			case "action4": TryPut(); return true;
+		}
+		return false;
+	}
+
+	public override void OnBlur() => _host.CloseChestPanel();
 
 	public ChestPanelModule(PanelContainer panel, IHost host)
 	{
@@ -72,25 +55,25 @@ public class ChestPanelModule : IPanel
 		_host = host;
 		var vbox = panel.GetNode("MarginContainer/VBox");
 		_header = vbox.GetNode<RichTextLabel>("Header");
-		_itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
-		_itemList = _itemScroll.GetNode<VBoxContainer>("ItemList");
+		var itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
+		var itemList = itemScroll.GetNode<VBoxContainer>("ItemList");
+		BindListNodes(itemScroll, itemList);
 		_detailBox = vbox.GetNode<RichTextLabel>("DetailBox");
-		_hintBar = vbox.GetNode<Label>("HintBar");
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_takeBtn = actionBar.GetNode<Button>("TakeBtn");
 		_takeAllBtn = actionBar.GetNode<Button>("TakeAllBtn");
-		_putBtn = actionBar.GetNode<Button>("PutBtn");
-		_closeBtn = actionBar.GetNode<Button>("CloseBtn");
+		var putBtn = actionBar.GetNode<Button>("PutBtn");
+		var closeBtn = actionBar.GetNode<Button>("CloseBtn");
 
 		_takeBtn.FocusMode = Control.FocusModeEnum.None;
 		_takeAllBtn.FocusMode = Control.FocusModeEnum.None;
-		_putBtn.FocusMode = Control.FocusModeEnum.None;
-		_closeBtn.FocusMode = Control.FocusModeEnum.None;
+		putBtn.FocusMode = Control.FocusModeEnum.None;
+		closeBtn.FocusMode = Control.FocusModeEnum.None;
 
 		_takeBtn.Pressed += () => TryTake();
 		_takeAllBtn.Pressed += () => TryTakeAll();
-		_putBtn.Pressed += () => TryPut();
-		_closeBtn.Pressed += () => _host.CloseChestPanel();
+		putBtn.Pressed += () => TryPut();
+		closeBtn.Pressed += () => _host.CloseChestPanel();
 	}
 
 	public void Open(Item chestItem)
@@ -107,42 +90,49 @@ public class ChestPanelModule : IPanel
 		Visible = false;
 	}
 
-	public void Refresh()
+	public override void Refresh()
 	{
-		if (_chestItem?.Contents == null) return;
-		var contents = _chestItem.Contents;
-		if (_cursor >= contents.Count)
-			_cursor = Math.Max(0, contents.Count - 1);
-
-		RebuildItemNodes();
+		var count = GetRowDataCount();
+		if (_cursor >= count) _cursor = Math.Max(0, count - 1);
+		RebuildRows(count, ApplyRowContent, "  (空)");
 		RenderHeader();
-		UpdateRowVisuals();
+		OnSelectionChanged();
+		UpdateActionButtons();
+	}
+
+	protected override int GetRowDataCount() => _chestItem?.Contents?.Count ?? 0;
+
+	protected override void OnSelectionChanged()
+	{
+		UpdateRowVisuals(GetRowDataCount());
 		RenderDetail();
 		UpdateActionButtons();
 	}
 
-	public void MoveCursor(int delta)
+	protected override void OnRowPressed(int index)
 	{
-		if (_chestItem?.Contents == null || _chestItem.Contents.Count == 0) return;
-		_cursor = Math.Clamp(_cursor + delta, 0, _chestItem.Contents.Count - 1);
-		UpdateRowVisuals();
-		RenderDetail();
-		UpdateActionButtons();
-		if (_cursor >= 0 && _cursor < _itemRows.Count)
-			RowStyleHelper.EnsureVisible(_itemScroll, _itemRows[_cursor]);
+		if (index < 0 || index >= GetRowDataCount()) return;
+		_cursor = index;
+		TryTake();
+	}
+
+	private void ApplyRowContent(Button row, int i)
+	{
+		var item = _chestItem!.Contents![i];
+		var stats = ItemFormatHelper.InlineStats(item);
+		var weight = $" {item.EffectiveWeight:F1}kg";
+		row.Text = $"{item.Name}  {stats}{weight}";
 	}
 
 	public void TryTake()
 	{
 		if (_chestItem?.Contents == null) return;
-		var contents = _chestItem.Contents;
-		if (_cursor < 0 || _cursor >= contents.Count) return;
-
+		if (_cursor < 0 || _cursor >= _chestItem.Contents.Count) return;
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null) return;
 
-		var item = contents[_cursor];
-		contents.RemoveAt(_cursor);
+		var item = _chestItem.Contents[_cursor];
+		_chestItem.Contents.RemoveAt(_cursor);
 		InventoryModule.Add(player, item);
 		_host.AddLog($"从{_chestItem.Name}中取出了 {item.Name}");
 		Refresh();
@@ -154,10 +144,8 @@ public class ChestPanelModule : IPanel
 		if (_chestItem?.Contents == null) return;
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null) return;
-
 		var count = _chestItem.Contents.Count;
-		foreach (var item in _chestItem.Contents)
-			InventoryModule.Add(player, item);
+		foreach (var item in _chestItem.Contents) InventoryModule.Add(player, item);
 		_chestItem.Contents.Clear();
 		_host.AddLog($"从{_chestItem.Name}中取出了 {count} 件物品");
 		Refresh();
@@ -178,97 +166,9 @@ public class ChestPanelModule : IPanel
 		_header.AppendText($"[center]── {name} ({count}件) ──[/center]");
 	}
 
-	private void RebuildItemNodes()
-	{
-		var contents = _chestItem?.Contents;
-		var count = contents?.Count ?? 0;
-		var needed = Math.Max(count, 1);
-
-		while (_itemRows.Count > needed)
-		{
-			_itemRows[^1].QueueFree();
-			_itemRows.RemoveAt(_itemRows.Count - 1);
-		}
-		while (_itemRows.Count < needed)
-		{
-			var row = CreateEmptyRow(_itemRows.Count);
-			_itemList.AddChild(row);
-			_itemRows.Add(row);
-		}
-
-		if (count == 0)
-		{
-			_itemRows[0].Text = "  (空)";
-			_itemRows[0].Disabled = true;
-			_itemRows[0].ThemeTypeVariation = "DisabledRowButton";
-		}
-		else
-		{
-			for (var i = 0; i < count; i++)
-			{
-				var item = contents![i];
-				var stats = ItemFormatHelper.InlineStats(item);
-				var weight = $" {item.EffectiveWeight:F1}kg";
-				_itemRows[i].Text = $"{item.Name}  {stats}{weight}";
-				_itemRows[i].Disabled = false;
-			}
-		}
-	}
-
-	private Button CreateEmptyRow(int index)
-	{
-		var row = new Button
-		{
-			Flat = true,
-			FocusMode = Control.FocusModeEnum.None,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 26),
-			Alignment = HorizontalAlignment.Left,
-			ClipText = true,
-		};
-
-		var idx = index;
-		row.GuiInput += ev => OnRowInput(ev, idx);
-		row.MouseEntered += () => OnRowHover(idx);
-		row.MouseExited += () => OnRowHoverExit(idx);
-
-		return row;
-	}
-
-	private void OnRowInput(InputEvent ev, int index)
-	{
-		if (ev is not InputEventMouseButton mb || !mb.Pressed) return;
-		if (mb.ButtonIndex == MouseButton.Left)
-		{
-			_cursor = index;
-			TryTake();
-		}
-	}
-
-	private void OnRowHover(int index)
-	{
-		_hoverIndex = index;
-		UpdateRowVisuals();
-	}
-
-	private void OnRowHoverExit(int index)
-	{
-		if (_hoverIndex == index) _hoverIndex = -1;
-		UpdateRowVisuals();
-	}
-
-	private void UpdateRowVisuals()
-	{
-		var contents = _chestItem?.Contents;
-		if (contents == null) return;
-
-		for (var i = 0; i < _itemRows.Count && i < contents.Count; i++)
-			RowStyleHelper.Apply(_itemRows[i], i == _cursor, i == _hoverIndex, transparentBg: true);
-	}
-
 	private void UpdateActionButtons()
 	{
-		var hasItems = _chestItem?.Contents != null && _chestItem.Contents.Count > 0;
+		var hasItems = GetRowDataCount() > 0;
 		_takeBtn.Disabled = !hasItems;
 		_takeAllBtn.Disabled = !hasItems;
 	}

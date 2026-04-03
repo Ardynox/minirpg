@@ -223,7 +223,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
 
 		_panels = new PanelManager();
-		_panels.RegisterPassive(_mapPanelNode);
+		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false);
 		_panels.Register(_statusPanelModule);
 		_panels.Register(_skillMgr);
 		_panels.Register(_inventoryPanel);
@@ -283,24 +283,27 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_menu.InMenu || !_session.GameStarted) return;
 		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
+		if (mb.ButtonIndex == MouseButton.Right)
+		{
+			if (_panels.CloseFocused())
+			{
+				FlushMap();
+				GetViewport().SetInputAsHandled();
+			}
+			return;
+		}
+
 		if (mb.ButtonIndex != MouseButton.Left) return;
 
 		var hit = _panels.HitTest(mb.GlobalPosition);
-		if (hit != null)
+		if (hit == null) return;
+		if (hit == _panels.Focused) return;
+		if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
 		{
-			if (hit == _panels.Focused) return;
-			if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
-			{
-				_inventoryPanel.Visible = true;
-				FlushMap();
-			}
-			_panels.SetFocus(hit);
-		}
-		else if (_panels.HasFocus)
-		{
-			_panels.ClearFocus();
+			_inventoryPanel.Visible = true;
 			FlushMap();
 		}
+		_panels.SetFocus(hit);
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -960,7 +963,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_statusPanelModule.Dirty = true;
 		_skillBarDirty = true;
-		if (InventoryOpen) _inventoryPanel.Dirty = true;
+		if (_inventoryPanel.Visible) _inventoryPanel.Dirty = true;
 		_groundPanel.Dirty = true;
 	}
 
@@ -977,7 +980,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_skillBar.Refresh(ActorModule.GetPlayer(_state));
 			_skillBarDirty = false;
 		}
-		if (InventoryOpen && _inventoryPanel.Dirty)
+		if (_inventoryPanel.Visible && _inventoryPanel.Dirty)
 			_inventoryPanel.FlushIfDirty();
 		if (_groundPanel.Dirty)
 			_groundPanel.FlushIfDirty();

@@ -33,6 +33,17 @@ public class PanelManager
 		_allNodes.Add(node);
 	}
 
+	public void RegisterPassive(PanelContainer node, string panelId, bool canFocus, bool consumeUnhandledKeys = true)
+	{
+		if (!canFocus)
+		{
+			_allNodes.Add(node);
+			return;
+		}
+
+		Register(new PassivePanel(panelId, node, consumeUnhandledKeys));
+	}
+
 	private bool _switching;
 
 	/// <summary>聚焦到指定面板。null = 取消焦点（回到 Action 模式）。</summary>
@@ -64,29 +75,38 @@ public class PanelManager
 	public void ClearFocus() => SetFocus((IPanel?)null);
 
 	/// <summary>
+	/// 关闭当前聚焦面板：优先让面板自行处理 close；否则仅清焦点。
+	/// </summary>
+	public bool CloseFocused()
+	{
+		var focused = _focused;
+		if (focused == null) return false;
+		focused.HandleCommand("close");
+		if (_focused == focused) ClearFocus();
+		return true;
+	}
+
+	/// <summary>
 	/// 将键盘事件转为命令字符串，转发给当前聚焦面板。
 	/// 返回 true 表示已消费。如果无面板聚焦返回 false。
 	/// </summary>
 	public bool HandleKey(InputEventKey key)
 	{
-		if (_focused == null) return false;
+		var focused = _focused;
+		if (focused == null) return false;
 		if (!key.Pressed) return false;
 
 		var cmd = MapKeyToCommand(key);
-		if (cmd == null) return true;
+		if (cmd == null) return focused.ConsumeUnhandledKeys;
 
-		if (cmd == "close"
-			|| (cmd == "toggle_inv" && _focused?.PanelId == "inventory")
-			|| (cmd == "toggle_quest" && _focused?.PanelId == "quest")
-			|| (cmd == "toggle_skills" && _focused?.PanelId == "skill_mgr")
-			|| (cmd == "toggle_status" && _focused?.PanelId == "status"))
+		if (cmd == "close")
 		{
-			ClearFocus();
+			CloseFocused();
 			return true;
 		}
 
-		_focused?.HandleCommand(cmd);
-		return true;
+		var handled = focused.HandleCommand(cmd);
+		return handled || focused.ConsumeUnhandledKeys;
 	}
 
 	/// <summary>鼠标点击命中测试：返回被点击的面板，如果不是可聚焦面板返回 null。</summary>
@@ -124,13 +144,21 @@ public class PanelManager
 		Key.P              => "action4",
 		Key.U              => "action5",
 		Key.Tab            => key.ShiftPressed ? "tab_prev" : "tab_next",
-		Key.H              => "toggle_status",
-		Key.I              => "toggle_inv",
-		Key.J              => "toggle_quest",
-		Key.K              => "toggle_skills",
 		Key.Key1 => "1", Key.Key2 => "2", Key.Key3 => "3",
 		Key.Key4 => "4", Key.Key5 => "5", Key.Key6 => "6",
 		Key.Key7 => "7", Key.Key8 => "8", Key.Key9 => "9",
 		_ => null,
 	};
+
+	private sealed class PassivePanel(string panelId, PanelContainer panelNode, bool consumeUnhandledKeys) : IPanel
+	{
+		public string PanelId => panelId;
+		public PanelContainer PanelNode => panelNode;
+		public bool Visible { get => panelNode.Visible; set => panelNode.Visible = value; }
+		public bool CanFocus => true;
+		public bool ConsumeUnhandledKeys => consumeUnhandledKeys;
+		public bool Dirty { get; set; }
+
+		public bool HandleCommand(string cmd) => false;
+	}
 }

@@ -24,6 +24,12 @@ public interface IPanel
 	bool CanFocus => true;
 
 	/// <summary>
+	/// 当面板有焦点时，是否吞掉未处理按键。
+	/// 默认 false：未处理按键继续回落给 InputModule，让全局快捷键持续生效。
+	/// </summary>
+	bool ConsumeUnhandledKeys => false;
+
+	/// <summary>
 	/// 处理键盘命令字符串。返回 true 表示已消费，false 表示未处理。
 	/// 通用命令由 PanelManager 预处理（W/S→"up"/"down"，Esc→"close"，数字→"1"-"9"），
 	/// 面板只需处理自己关心的命令。

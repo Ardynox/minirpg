@@ -25,6 +25,7 @@ public class StatusPanelModule : IPanel
 			case "down": MoveCursor(1); return true;
 			case "left" or "tab_prev": CycleTab(-1); return true;
 			case "right" or "tab_next": CycleTab(1); return true;
+			case "close": _panel.Visible = false; return true;
 		}
 		return false;
 	}
@@ -90,7 +91,10 @@ public class StatusPanelModule : IPanel
 			case "down": MoveCursor(1); break;
 			case "prev": CycleTab(-1); break;
 			case "next": CycleTab(1); break;
-			case "close": onClose?.Invoke(); break;
+			case "close":
+				_panel.Visible = false;
+				onClose?.Invoke();
+				break;
 		}
 	}
 
