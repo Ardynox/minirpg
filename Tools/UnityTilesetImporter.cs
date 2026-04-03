@@ -11,26 +11,20 @@ namespace MiniRPG.Tools;
 /// Fantasy Kingdom Tileset → Godot TileSet 导入器（Atlas 合图版）。
 ///
 /// 架构：
-///   后台线程 — 收集 PNG、拼合 Atlas Image（CPU 密集）
-///   主线程 _Process — 状态机分帧执行（每帧处理 1 个 atlas source），
-///     包括 ImageTexture 上传、TileSet 组装、保存。
-///     每步之间让出控制权，保证 UI 不卡死。
+///   后台线程 — 收集 PNG → 拼合 Atlas Image → 保存 atlas .png 到磁盘
+///   主线程 _Process — 分帧加载 atlas .png 引用 → 组装 TileSet → 保存
 ///
-/// 使用方法：
-///   在 Godot 编辑器中打开 Tools/TilesetImporter.tscn，按 F6 运行当前场景。
+/// 关键优化：atlas 纹理以 .png 文件存在磁盘上，TileSet 只引用路径，
+/// ResourceSaver.Save 不再内嵌像素数据，保存瞬间完成。
 /// </summary>
 public partial class UnityTilesetImporter : Node
 {
 	private const string SpritesDir   = "res://FantasyKingdomTileset_Godot/Environment/Sprites";
 	private const string AnimDir      = "res://FantasyKingdomTileset_Godot/Animations";
+	private const string AtlasDir     = "res://FantasyKingdomTileset_Godot/Atlas";
 	private const string TileSetPath  = "res://FantasyKingdomTileSet.tres";
 	private const string IdMapPath    = "res://Tools/tile_name_to_id.json";
 	private const int    MaxAtlasSize = 4096;
-
-	/// <summary>
-	/// 单张 atlas 最多容纳的 tile 数。控制主线程每帧 CreateFromImage 的数据量，
-	/// 64 tiles × 256×256 = 2048×2048 ≈ 16MB RGBA8，上传耗时可控。
-	/// </summary>
 	private const int    MaxTilesPerAtlas = 64;
 
 	// ── UI ───────────────────────────────────────────────
@@ -51,8 +45,6 @@ public partial class UnityTilesetImporter : Node
 	// ── 主线程状态机 ────────────────────────────────────
 	private enum Phase { BgRunning, AssembleTileSet, AnimScan, SaveTileSet, SaveJson, Done }
 	private Phase _phase = Phase.BgRunning;
-
-	// 分帧组装用
 	private TileSet? _tileSet;
 	private int _assembleIdx;
 	private int _nextSourceId;
@@ -79,7 +71,6 @@ public partial class UnityTilesetImporter : Node
 			case Phase.BgRunning:
 				if (!_bgDone) return;
 				if (_bgError != null) { ShowError(_bgError); return; }
-				// 准备分帧组装
 				_tileSet = new TileSet { TileSize = new Vector2I(128, 128) };
 				_assembleIdx = 0;
 				_phase = Phase.AssembleTileSet;
@@ -103,8 +94,7 @@ public partial class UnityTilesetImporter : Node
 
 			case Phase.Done:
 				_doneTimer += delta;
-				if (_doneTimer >= 3.0)
-					GetTree().Quit();
+				if (_doneTimer >= 3.0) GetTree().Quit();
 				break;
 		}
 	}
@@ -113,7 +103,10 @@ public partial class UnityTilesetImporter : Node
 	//  分帧步骤
 	// ═══════════════════════════════════════════════════
 
-	/// <summary>每帧处理 1 个 atlas source：CreateFromImage + AddSource + CreateTile。</summary>
+	/// <summary>
+	/// 每帧处理 1 个 atlas source：
+	/// 从磁盘加载 .png 引用（不内嵌像素）→ 创建 TileSetAtlasSource → CreateTile。
+	/// </summary>
 	private void StepAssembleOneSource()
 	{
 		var results = _atlasResults!;
@@ -125,23 +118,25 @@ public partial class UnityTilesetImporter : Node
 		}
 
 		var ar = results[_assembleIdx];
-		int texW = ar.AtlasImg?.GetWidth() ?? 0;
-		int texH = ar.AtlasImg?.GetHeight() ?? 0;
-		int mb = texW * texH * 4 / (1024 * 1024);
-		_status = $"上传纹理：source {_assembleIdx + 1} / {results.Count}" +
-			$"（{ar.Tiles.Count} tiles, {texW}×{texH}, ~{mb}MB）";
+		_status = $"加载 atlas：{_assembleIdx + 1} / {results.Count}" +
+			$"（{ar.Tiles.Count} tiles, {ar.TileW}×{ar.TileH}）";
 
-		var atlasTex = ImageTexture.CreateFromImage(ar.AtlasImg);
+		// 通过 ResourceLoader 加载 .png → CompressedTexture2D（外部引用，不内嵌）
+		var tex = ResourceLoader.Load<Texture2D>(ar.AtlasPngPath);
+		if (tex == null)
+		{
+			GD.PrintErr($"[TilesetImporter] 无法加载 atlas 纹理：{ar.AtlasPngPath}");
+			_assembleIdx++;
+			return;
+		}
+
 		var source = new TileSetAtlasSource();
-		source.Texture = atlasTex;
+		source.Texture = tex;
 		source.TextureRegionSize = new Vector2I(ar.TileW, ar.TileH);
 		_tileSet!.AddSource(source, ar.SourceId);
 
 		foreach (var (_, col, row) in ar.Tiles)
 			source.CreateTile(new Vector2I(col, row));
-
-		// 释放后台持有的大 Image，减少内存
-		ar.AtlasImg = null!;
 
 		_assembleIdx++;
 		_progress = 0.80f + (float)_assembleIdx / results.Count * 0.10f;
@@ -160,7 +155,7 @@ public partial class UnityTilesetImporter : Node
 
 	private void StepSaveTileSet()
 	{
-		_status = "保存 TileSet（可能需要几秒）…";
+		_status = "保存 TileSet…";
 		_progress = 0.94f;
 
 		var err = ResourceSaver.Save(_tileSet!, TileSetPath);
@@ -184,7 +179,6 @@ public partial class UnityTilesetImporter : Node
 		_bar.Modulate = Colors.Green;
 		_phase = Phase.Done;
 		_doneTimer = 0;
-
 		GD.Print($"=== 导入完成：{atlasCount} atlas sources ===");
 	}
 
@@ -193,7 +187,7 @@ public partial class UnityTilesetImporter : Node
 		_status = $"错误：{msg}";
 		_bar.Modulate = Colors.Red;
 		_phase = Phase.Done;
-		_doneTimer = -9999; // 不自动退出
+		_doneTimer = -9999;
 	}
 
 	// ═══════════════════════════════════════════════════
@@ -241,13 +235,14 @@ public partial class UnityTilesetImporter : Node
 	}
 
 	// ═══════════════════════════════════════════════════
-	//  后台线程：收集 PNG + 拼合 Atlas Image
+	//  后台线程
 	// ═══════════════════════════════════════════════════
 
 	private void BackgroundWork()
 	{
 		try
 		{
+			// ── 阶段 1：收集 PNG ────────────────────────────
 			_status = "扫描 PNG 文件…";
 			var files = ListPngFiles(SpritesDir);
 			_totalStatic = files.Count;
@@ -258,27 +253,30 @@ public partial class UnityTilesetImporter : Node
 				var file = files[i];
 				var img = Image.LoadFromFile(ProjectSettings.GlobalizePath($"{SpritesDir}/{file}"));
 				if (img == null) continue;
-
 				if (img.GetFormat() != Image.Format.Rgba8)
 					img.Convert(Image.Format.Rgba8);
 
 				entries.Add(new TileEntry
 				{
-					Name   = file[..^4],
-					Img    = img,
-					Width  = img.GetWidth(),
-					Height = img.GetHeight(),
+					Name = file[..^4], Img = img,
+					Width = img.GetWidth(), Height = img.GetHeight(),
 				});
 
-				_progress = (float)(i + 1) / files.Count * 0.3f;
+				_progress = (float)(i + 1) / files.Count * 0.25f;
 				_status = $"加载图片：{i + 1} / {_totalStatic}";
 			}
 
+			// ── 阶段 2：分组 + 拼合 + 保存 atlas .png ──────
 			_status = "按尺寸分组拼合…";
 			var groups = entries
 				.GroupBy(e => (e.Width, e.Height))
 				.OrderByDescending(g => g.Count())
 				.ToList();
+
+			// 确保 Atlas 输出目录存在
+			var globalAtlasDir = ProjectSettings.GlobalizePath(AtlasDir);
+			if (!DirAccess.DirExistsAbsolute(globalAtlasDir))
+				DirAccess.MakeDirRecursiveAbsolute(globalAtlasDir);
 
 			var results = new List<AtlasResult>();
 			var nameToRef = new Dictionary<string, TileRef>();
@@ -293,8 +291,7 @@ public partial class UnityTilesetImporter : Node
 				var tiles = group.ToList();
 
 				var maxCols = Math.Max(1, MaxAtlasSize / tileW);
-				var maxRows = Math.Max(1, MaxAtlasSize / tileH);
-				int tilesPerAtlas = Math.Min(maxCols * maxRows, MaxTilesPerAtlas);
+				int tilesPerAtlas = Math.Min(maxCols * Math.Max(1, MaxAtlasSize / tileH), MaxTilesPerAtlas);
 
 				for (int batch = 0; batch < tiles.Count; batch += tilesPerAtlas)
 				{
@@ -314,14 +311,22 @@ public partial class UnityTilesetImporter : Node
 							new Vector2I(c * tileW, r * tileH));
 
 						blitted++;
-						_progress = 0.3f + (float)blitted / totalToBlit * 0.5f;
+						_progress = 0.25f + (float)blitted / totalToBlit * 0.35f;
 						_status = $"拼合 Atlas：{blitted} / {totalToBlit}（{tileW}×{tileH}）";
 					}
 
-					// 释放小图 Image，后面不再需要
 					foreach (var t in chunk) t.Img = null!;
 
 					int sid = nextSourceId++;
+
+					// 保存 atlas 图集到磁盘 .png
+					var pngName = $"atlas_{sid}.png";
+					var pngGlobalPath = $"{globalAtlasDir}/{pngName}";
+					var pngResPath = $"{AtlasDir}/{pngName}";
+
+					_status = $"保存 atlas PNG：{sid + 1}（{atlasImg.GetWidth()}×{atlasImg.GetHeight()}）";
+					atlasImg.SavePng(pngGlobalPath);
+
 					var tileCoords = new List<(string Name, int Col, int Row)>();
 					for (int i = 0; i < chunk.Count; i++)
 					{
@@ -337,14 +342,17 @@ public partial class UnityTilesetImporter : Node
 					results.Add(new AtlasResult
 					{
 						SourceId = sid, TileW = tileW, TileH = tileH,
-						AtlasImg = atlasImg, Tiles = tileCoords,
+						AtlasPngPath = pngResPath, Tiles = tileCoords,
 					});
+
+					_progress = 0.25f + (float)blitted / totalToBlit * 0.35f +
+						(float)(sid + 1) / (tiles.Count / tilesPerAtlas + 1) * 0.05f;
 				}
 			}
 
 			_atlasResults = results;
 			_nameToRef = nameToRef;
-			_status = "拼合完成，准备上传纹理…";
+			_status = $"拼合完成：{results.Count} 张 atlas PNG 已保存，准备组装 TileSet…";
 			_progress = 0.80f;
 		}
 		catch (Exception ex)
@@ -456,10 +464,10 @@ public partial class UnityTilesetImporter : Node
 
 	private class AtlasResult
 	{
-		public int   SourceId;
-		public int   TileW;
-		public int   TileH;
-		public Image AtlasImg = null!;
+		public int    SourceId;
+		public int    TileW;
+		public int    TileH;
+		public string AtlasPngPath = "";
 		public List<(string Name, int Col, int Row)> Tiles = [];
 	}
 }
