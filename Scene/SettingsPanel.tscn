@@ -1,4 +1,4 @@
-﻿[gd_scene format=3]
+[gd_scene format=3]
 
 [node name="SettingsPanel" type="PanelContainer"]
 visible = false
