@@ -71,7 +71,12 @@ public partial class UnityTilesetImporter : Node
 			case Phase.BgRunning:
 				if (!_bgDone) return;
 				if (_bgError != null) { ShowError(_bgError); return; }
-				_tileSet = new TileSet { TileSize = new Vector2I(128, 128) };
+				_tileSet = new TileSet
+			{
+				TileShape  = TileSet.TileShapeEnum.Isometric,
+				TileLayout = TileSet.TileLayoutEnum.DiamondDown,
+				TileSize   = new Vector2I(128, 64),
+			};
 				_assembleIdx = 0;
 				_phase = Phase.AssembleTileSet;
 				break;
@@ -105,7 +110,8 @@ public partial class UnityTilesetImporter : Node
 
 	/// <summary>
 	/// 每帧处理 1 个 atlas source：
-	/// 从磁盘加载 .png 引用（不内嵌像素）→ 创建 TileSetAtlasSource → CreateTile。
+	/// 从磁盘读 PNG → ImageTexture → TileSetAtlasSource → CreateTile。
+	/// 用 Image.LoadFromFile 绕过 Godot 导入系统（运行时新文件没有 .import）。
 	/// </summary>
 	private void StepAssembleOneSource()
 	{
@@ -121,14 +127,17 @@ public partial class UnityTilesetImporter : Node
 		_status = $"加载 atlas：{_assembleIdx + 1} / {results.Count}" +
 			$"（{ar.Tiles.Count} tiles, {ar.TileW}×{ar.TileH}）";
 
-		// 通过 ResourceLoader 加载 .png → CompressedTexture2D（外部引用，不内嵌）
-		var tex = ResourceLoader.Load<Texture2D>(ar.AtlasPngPath);
-		if (tex == null)
+		var globalPath = ProjectSettings.GlobalizePath(ar.AtlasPngPath);
+		var img = Image.LoadFromFile(globalPath);
+		if (img == null)
 		{
-			GD.PrintErr($"[TilesetImporter] 无法加载 atlas 纹理：{ar.AtlasPngPath}");
+			GD.PrintErr($"[TilesetImporter] 无法从磁盘读取：{globalPath}");
 			_assembleIdx++;
 			return;
 		}
+
+		var tex = ImageTexture.CreateFromImage(img);
+		tex.ResourcePath = ar.AtlasPngPath;
 
 		var source = new TileSetAtlasSource();
 		source.Texture = tex;
@@ -273,10 +282,9 @@ public partial class UnityTilesetImporter : Node
 				.OrderByDescending(g => g.Count())
 				.ToList();
 
-			// 确保 Atlas 输出目录存在
+			// 确保 Atlas 输出目录存在（用 C# IO，线程安全）
 			var globalAtlasDir = ProjectSettings.GlobalizePath(AtlasDir);
-			if (!DirAccess.DirExistsAbsolute(globalAtlasDir))
-				DirAccess.MakeDirRecursiveAbsolute(globalAtlasDir);
+			System.IO.Directory.CreateDirectory(globalAtlasDir);
 
 			var results = new List<AtlasResult>();
 			var nameToRef = new Dictionary<string, TileRef>();
@@ -319,13 +327,14 @@ public partial class UnityTilesetImporter : Node
 
 					int sid = nextSourceId++;
 
-					// 保存 atlas 图集到磁盘 .png
+					// 保存 atlas 图集到磁盘 .png（用 C# IO 写二进制，线程安全）
 					var pngName = $"atlas_{sid}.png";
-					var pngGlobalPath = $"{globalAtlasDir}/{pngName}";
 					var pngResPath = $"{AtlasDir}/{pngName}";
 
 					_status = $"保存 atlas PNG：{sid + 1}（{atlasImg.GetWidth()}×{atlasImg.GetHeight()}）";
-					atlasImg.SavePng(pngGlobalPath);
+					var pngBytes = atlasImg.SavePngToBuffer();
+					System.IO.File.WriteAllBytes(
+						$"{globalAtlasDir}/{pngName}", pngBytes);
 
 					var tileCoords = new List<(string Name, int Col, int Row)>();
 					for (int i = 0; i < chunk.Count; i++)

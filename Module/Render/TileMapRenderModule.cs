@@ -199,6 +199,18 @@ public class TileMapRenderModule
 		layer.TileSet  = ts;
 		layer.ZIndex   = zIndex;
 		parent.AddChild(layer);
+
+		if (name == "GroundLayer")
+		{
+			var shape = ts.TileShape;
+			var size  = ts.TileSize;
+			var p00   = layer.MapToLocal(new Vector2I(0, 0));
+			var p10   = layer.MapToLocal(new Vector2I(1, 0));
+			var p01   = layer.MapToLocal(new Vector2I(0, 1));
+			GD.Print($"[TileMapRender] TileShape={shape} TileSize={size}");
+			GD.Print($"[TileMapRender] MapToLocal (0,0)={p00}  (1,0)={p10}  (0,1)={p01}");
+		}
+
 		return layer;
 	}
 
