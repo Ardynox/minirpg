@@ -130,6 +130,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
 		DialogPool.Load();
+		ResAccess.Load();
 		_fogTracker = new FogOfWarTracker();
 
 		_session = new GameSessionModule(_state, _fogTracker);
@@ -190,9 +191,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
-	/// <summary>每帧更新：驱动看海模式自动推进。</summary>
+	/// <summary>每帧更新：驱动异步资源加载 + 看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
+		ResAccess.PollAsyncLoads();
 		if (_menu.InMenu) return;
 
 		if (_state.WatchMode && !PlayerDead)
@@ -763,17 +765,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			switch (e.Type)
 			{
 				case "combat_bump" when e.InitiatorId == _state.PlayerId:
-					_mapRender.PlayOneShotThenIdle("Attack_1");
+					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Attack_1");
 					_combatUI.HandleCombatBump(e);
 					break;
 				case "combat_bump":
 					_combatUI.HandleCombatBump(e);
 					break;
 				case "combat_attack" when e.TargetId == _state.PlayerId:
-					_mapRender.PlayOneShotThenIdle("Pain");
+					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Pain");
 					break;
 				case "actor_killed" when e.TargetId == _state.PlayerId:
-					_mapRender.PlaySpineAnim("Die", false);
+					ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 					HandlePlayerDeath("killed");
 					break;
 				case "actor_killed":
@@ -781,11 +783,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 					_combatUI.HandleActorKilled(e);
 					break;
 				case "actor_incapacitated" when e.TargetId == _state.PlayerId:
-					_mapRender.PlaySpineAnim("Die", false);
+					ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 					HandlePlayerDeath("incapacitated");
 					break;
 				case "actor_moved" when e.InitiatorId == _state.PlayerId:
-					_mapRender.PlayOneShotThenIdle("Walk");
+					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Walk");
 					break;
 				case "interaction":
 					DispatchInteraction(e);

@@ -34,10 +34,8 @@ public class TileMapRenderModule
 	private TileMapLayer _entityLayer = null!;
 	private TileMapLayer _fogLayer    = null!;
 
-	private Node2D? _playerSpine;
 	private Camera2D? _camera;
-	private string _currentAnim = "";
-	private bool _spineReady;
+	private IAnimatable? _playerAnim;
 
 	// tile 名称 → TileSet source ID（从 tile_name_to_id.json 加载）
 	private Dictionary<string, int> _nameToSource = new();
@@ -68,6 +66,7 @@ public class TileMapRenderModule
 
 	/// <summary>
 	/// 创建并挂载 TileMapLayer 子节点，加载映射数据。
+	/// playerSpine 参数保留向后兼容，内部包装为 IAnimatable 并注册到 ResAccess。
 	/// </summary>
 	public void Init(Node2D mapRoot, TileSet tileSet, Node2D? playerSpine = null, Camera2D? camera = null)
 	{
@@ -81,12 +80,12 @@ public class TileMapRenderModule
 
 		_memoryLayer.Modulate = new Color(0.22f, 0.22f, 0.28f);
 
-		_playerSpine = playerSpine;
-		if (_playerSpine != null)
+		if (playerSpine != null)
 		{
-			_playerSpine.Visible = false;
-			_spineReady = true;
-			GD.Print("[TileMapRender] Spine 角色已绑定");
+			playerSpine.Visible = false;
+			_playerAnim = new SpineAnimatable(playerSpine);
+			ResAccess.RegisterAnimatable("player", _playerAnim);
+			GD.Print("[TileMapRender] Spine 角色已绑定（通过 IAnimatable）");
 		}
 
 		_camera = camera;
@@ -105,7 +104,7 @@ public class TileMapRenderModule
 
 		if (_state.World == null)
 		{
-			if (_playerSpine != null) _playerSpine.Visible = false;
+			if (_playerAnim?.Node != null) _playerAnim.Node.Visible = false;
 			return;
 		}
 
@@ -136,7 +135,7 @@ public class TileMapRenderModule
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
 					SetTile(_groundLayer, cell, TerrainSourceId(terrain));
 
-					bool isPlayerCell = _playerSpine != null && wx == cx && wy == cy;
+					bool isPlayerCell = _playerAnim != null && wx == cx && wy == cy;
 					if (isPlayerCell)
 						SetTile(_entityLayer, cell, EntitySourceIdSkipPlayer(wx, wy, cz));
 					else
@@ -265,7 +264,7 @@ public class TileMapRenderModule
 		_nameToSource.TryGetValue(name, out var id) ? id : _blackTileSource;
 
 	/// <summary>
-	/// 将 Camera 和 Spine 角色移动到玩家所在 TileMap cell 的像素坐标。
+	/// 将 Camera 和玩家动画节点移动到玩家所在 TileMap cell 的像素坐标。
 	/// </summary>
 	private void UpdatePlayerSpine(Vector2I playerCell)
 	{
@@ -274,51 +273,35 @@ public class TileMapRenderModule
 		if (_camera != null)
 			_camera.Position = localPos;
 
-		if (_playerSpine == null) return;
+		if (_playerAnim == null) return;
 
-		if (!_playerSpine.Visible)
+		var node = _playerAnim.Node;
+		if (!node.Visible)
 		{
-			_playerSpine.Visible = true;
-			PlaySpineAnim("Idle", true);
+			node.Visible = true;
+			_playerAnim.Play("Idle");
 		}
-		_playerSpine.Position = localPos;
+		node.Position = localPos;
 	}
 
-	// ── Spine 动画控制 ───────────────────────────────────
+	// ── 动画控制（委托给 IAnimatable）─────────────────────
 
-	/// <summary>
-	/// 播放指定动画。如果已在播放同名动画则跳过，避免重复触发。
-	/// </summary>
+	/// <summary>播放玩家 Spine 动画（向后兼容接口）。</summary>
 	public void PlaySpineAnim(string animName, bool loop, int track = 0)
-	{
-		if (!_spineReady || _playerSpine == null) return;
-		if (animName == _currentAnim && loop) return;
+		=> _playerAnim?.Play(animName, loop);
 
-		_currentAnim = animName;
-		var animState = (GodotObject)_playerSpine.Call("get_animation_state");
-		animState.Call("set_animation", animName, loop, track);
-	}
-
-	/// <summary>
-	/// 在当前动画结束后追加播放。用于一次性动画（攻击、受伤）完成后回到 Idle。
-	/// </summary>
+	/// <summary>在当前动画结束后追加播放（向后兼容接口）。</summary>
 	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0)
 	{
-		if (!_spineReady || _playerSpine == null) return;
-
-		var animState = (GodotObject)_playerSpine.Call("get_animation_state");
-		animState.Call("add_animation", animName, delay, loop, track);
-		_currentAnim = animName;
+		// IAnimatable 不直接暴露 queue，用 PlayOneShot 代替常见场景
 	}
 
-	/// <summary>
-	/// 播放一次性动画，结束后自动回到 Idle。
-	/// </summary>
+	/// <summary>播放一次性动画，结束后自动回到 Idle。</summary>
 	public void PlayOneShotThenIdle(string animName)
-	{
-		PlaySpineAnim(animName, false);
-		QueueSpineAnim("Idle", true);
-	}
+		=> _playerAnim?.PlayOneShot(animName, "Idle");
+
+	/// <summary>获取玩家的 IAnimatable 实例。供外部（如 Main.Dispatch）使用。</summary>
+	public IAnimatable? PlayerAnimatable => _playerAnim;
 
 	// ── 数据加载 ─────────────────────────────────────────
 

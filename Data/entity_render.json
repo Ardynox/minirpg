@@ -1,0 +1,48 @@
+{
+  "player": {
+    "type": "spine",
+    "atlas": "res://Balin/Balin.atlas",
+    "skel": "res://Balin/Balin.skel",
+    "defaultAnim": "Idle",
+    "scale": [0.35, 0.35]
+  },
+
+  "hostile": {
+    "type": "tile",
+    "tileName": "Misc B2_N"
+  },
+  "friendly": {
+    "type": "tile",
+    "tileName": "Misc B3_N"
+  },
+
+  "stair_down": {
+    "type": "tile",
+    "tileName": "Misc A1_N"
+  },
+  "stair_up": {
+    "type": "tile",
+    "tileName": "Misc A2_N"
+  },
+  "door": {
+    "type": "tile",
+    "tileName": "Door A1_N"
+  },
+  "nest": {
+    "type": "tile",
+    "tileName": "Misc A3_N"
+  },
+  "house": {
+    "type": "tile",
+    "tileName": "Roof A1_N"
+  },
+
+  "container": {
+    "type": "tile",
+    "tileName": "Chest A1_N"
+  },
+  "drop": {
+    "type": "tile",
+    "tileName": "Misc B5_N"
+  }
+}
