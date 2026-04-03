@@ -43,11 +43,12 @@ public class ChestPanelModule : ListPanelBase
 			case "down": MoveCursor(1, GetRowDataCount()); return true;
 			case "action1": TryTake(); return true;
 			case "action4": TryPut(); return true;
+			case "close": _host.CloseChestPanel(); return true;
 		}
 		return false;
 	}
 
-	public override void OnBlur() => _host.CloseChestPanel();
+	public override void OnBlur() { }
 
 	public ChestPanelModule(PanelContainer panel, IHost host)
 	{

@@ -32,10 +32,11 @@ public class QuestPanelModule : ListPanelBase
 			case "down": MoveCursor(1, _filtered.Count); return true;
 			case "left" or "tab_prev": CycleTab(-1); return true;
 			case "right" or "tab_next": CycleTab(1); return true;
+			case "close": Close(); return true;
 		}
 		return false;
 	}
-	public override void OnBlur() => Close();
+	public override void OnBlur() { }
 
 	public QuestPanelModule(PanelContainer panel)
 	{

@@ -672,15 +672,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_openChestPos = (_state.PlayerX, _state.PlayerY);
 		var chest = EnsureChestPanel();
 		chest.Open(chestItem);
-		_panels.SetFocus(chest);
+		_panels.PushFocus(chest);
 	}
 
 	/// <summary>关闭宝箱面板。</summary>
 	private void CloseChestPanel()
 	{
 		_openChestPos = null;
-		_chestPanel?.Close();
-		_panels.ClearFocus();
+		if (_chestPanel != null)
+		{
+			_chestPanel.Close();
+			_panels.OnPanelClosed(_chestPanel);
+		}
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 		FlushMap();
@@ -1017,10 +1020,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void ToggleStatusPanel()
 	{
 		var node = _statusPanelModule.PanelNode;
-		node.Visible = !node.Visible;
-		if (!node.Visible && _panels.FocusedId == "status")
-			_panels.ClearFocus();
-		else if (node.Visible && _statusPanelModule.Dirty)
+		if (node.Visible)
+		{
+			node.Visible = false;
+			_panels.OnPanelClosed(_statusPanelModule);
+		}
+		else
+		{
+			node.Visible = true;
+			_panels.PushFocus(_statusPanelModule);
+		}
+
+		if (node.Visible && _statusPanelModule.Dirty)
 		{
 			var player = ActorModule.GetPlayer(_state);
 			_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
@@ -1033,15 +1044,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleSkillManager()
 	{
-		if (_panels.FocusedId == "skill_mgr")
+		if (_skillMgr.Visible)
 		{
-			_panels.ClearFocus();
+			_skillMgr.Close();
+			_panels.OnPanelClosed(_skillMgr);
 		}
 		else
 		{
 			var player = ActorModule.GetPlayer(_state);
 			_skillMgr.Open(player);
-			_panels.SetFocus(_skillMgr);
+			_panels.PushFocus(_skillMgr);
 		}
 	}
 
@@ -1051,15 +1063,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleQuestPanel()
 	{
-		if (_panels.FocusedId == "quest")
+		var quest = EnsureQuestPanel();
+		if (quest.Visible)
 		{
-			_panels.ClearFocus();
+			quest.Close();
+			_panels.OnPanelClosed(quest);
 		}
 		else
 		{
-			var quest = EnsureQuestPanel();
 			quest.Open(_state);
-			_panels.SetFocus(quest);
+			_panels.PushFocus(quest);
 		}
 	}
 
@@ -1069,15 +1082,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleInventory()
 	{
-		if (InventoryOpen)
+		if (_inventoryPanel.Visible)
 		{
 			_inventoryPanel.Visible = false;
-			_panels.ClearFocus();
+			_panels.OnPanelClosed(_inventoryPanel);
 		}
 		else
 		{
 			_inventoryPanel.Visible = true;
-			_panels.SetFocus(_inventoryPanel);
+			_panels.PushFocus(_inventoryPanel);
 		}
 		FlushMap();
 	}

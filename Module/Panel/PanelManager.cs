@@ -5,8 +5,7 @@ using Godot;
 namespace MiniRPG.Module.Panel;
 
 /// <summary>
-/// 面板管理器：统一管理所有 IPanel 的注册、焦点切换、边框刷新、键盘路由、鼠标点击。
-/// Main.cs 和 InputModule 不再需要为每个面板写专门的代码。
+/// Centralized panel focus manager with stack-based restore.
 /// </summary>
 public class PanelManager
 {
@@ -14,20 +13,20 @@ public class PanelManager
 
 	private readonly List<IPanel> _panels = [];
 	private readonly List<PanelContainer> _allNodes = [];
+	private readonly List<IPanel> _focusStack = [];
 	private IPanel? _focused;
+	private bool _switching;
 
 	public IPanel? Focused => _focused;
 	public bool HasFocus => _focused != null;
 	public string? FocusedId => _focused?.PanelId;
 
-	/// <summary>注册一个面板。可聚焦面板参与焦点切换和键盘路由。</summary>
 	public void Register(IPanel panel)
 	{
 		_panels.Add(panel);
 		_allNodes.Add(panel.PanelNode);
 	}
 
-	/// <summary>注册一个只参与边框刷新但不参与焦点切换的 PanelContainer（如 MapPanel）。</summary>
 	public void RegisterPassive(PanelContainer node)
 	{
 		_allNodes.Add(node);
@@ -44,60 +43,101 @@ public class PanelManager
 		Register(new PassivePanel(panelId, node, consumeUnhandledKeys));
 	}
 
-	private bool _switching;
+	/// <summary>
+	/// Directly switch focus and clear focus stack.
+	/// </summary>
+	public void SetFocus(IPanel? panel) => SwitchFocus(panel, clearStack: true);
 
-	/// <summary>聚焦到指定面板。null = 取消焦点（回到 Action 模式）。</summary>
-	public void SetFocus(IPanel? panel)
-	{
-		if (panel == _focused || _switching) return;
-		_switching = true;
-		var prev = _focused;
-		_focused = panel;
-		prev?.OnBlur();
-		_focused?.OnFocus();
-		_switching = false;
-
-		if (prev != null) PanelBorderHelper.Apply(prev.PanelNode, false);
-		if (_focused != null) PanelBorderHelper.Apply(_focused.PanelNode, true);
-
-		FocusChanged?.Invoke();
-	}
-
-	/// <summary>按 PanelId 聚焦。</summary>
 	public void SetFocus(string? panelId)
 	{
-		if (panelId == null) { SetFocus((IPanel?)null); return; }
+		if (panelId == null)
+		{
+			ClearFocus();
+			return;
+		}
+
 		var panel = _panels.Find(p => p.PanelId == panelId);
-		if (panel != null) SetFocus(panel);
+		if (panel != null)
+			SetFocus(panel);
 	}
 
-	/// <summary>取消焦点（回到 Action 模式）。</summary>
-	public void ClearFocus() => SetFocus((IPanel?)null);
+	public void ClearFocus() => SwitchFocus(null, clearStack: true);
 
 	/// <summary>
-	/// 关闭当前聚焦面板：优先让面板自行处理 close；否则仅清焦点。
+	/// Push current focus and focus target panel.
+	/// </summary>
+	public void PushFocus(IPanel? panel)
+	{
+		if (_switching || panel == null || !IsFocusable(panel))
+			return;
+
+		if (_focused == panel)
+			return;
+
+		if (_focused != null)
+			_focusStack.Add(_focused);
+
+		SwitchFocus(panel, clearStack: false);
+	}
+
+	/// <summary>
+	/// Restore previous focus from stack. If no valid previous panel exists, focus is cleared.
+	/// </summary>
+	public bool RestorePreviousFocus()
+	{
+		if (_switching)
+			return false;
+
+		var next = PopPreviousFocusable();
+		SwitchFocus(next, clearStack: false);
+		return next != null;
+	}
+
+	/// <summary>
+	/// Notify manager that panel has been closed externally.
+	/// </summary>
+	public void OnPanelClosed(IPanel panel)
+	{
+		RemoveFromStack(panel);
+
+		if (_focused == panel)
+			RestorePreviousFocus();
+	}
+
+	/// <summary>
+	/// Close current focused panel, then restore previous focus from stack.
 	/// </summary>
 	public bool CloseFocused()
 	{
 		var focused = _focused;
-		if (focused == null) return false;
+		if (focused == null)
+			return false;
+
 		focused.HandleCommand("close");
-		if (_focused == focused) ClearFocus();
+		if (_focused == focused)
+			OnPanelClosed(focused);
+
 		return true;
 	}
 
-	/// <summary>
-	/// 将键盘事件转为命令字符串，转发给当前聚焦面板。
-	/// 返回 true 表示已消费。如果无面板聚焦返回 false。
-	/// </summary>
 	public bool HandleKey(InputEventKey key)
 	{
 		var focused = _focused;
-		if (focused == null) return false;
-		if (!key.Pressed) return false;
+		if (focused == null || !key.Pressed)
+			return false;
+
+		// Recover when panel visibility changed without explicit OnPanelClosed call.
+		if (!focused.Visible)
+		{
+			OnPanelClosed(focused);
+			focused = _focused;
+			if (focused == null)
+				return false;
+		}
 
 		var cmd = MapKeyToCommand(key);
-		if (cmd == null) return focused.ConsumeUnhandledKeys;
+		if (cmd == null)
+			return focused.ConsumeUnhandledKeys;
 
 		if (cmd == "close")
 		{
@@ -109,19 +149,20 @@ public class PanelManager
 		return handled || focused.ConsumeUnhandledKeys;
 	}
 
-	/// <summary>鼠标点击命中测试：返回被点击的面板，如果不是可聚焦面板返回 null。</summary>
 	public IPanel? HitTest(Vector2 globalPos)
 	{
 		foreach (var p in _panels)
 		{
-			if (!p.Visible || !p.CanFocus) continue;
+			if (!p.Visible || !p.CanFocus)
+				continue;
+
 			if (p.PanelNode.GetGlobalRect().HasPoint(globalPos))
 				return p;
 		}
+
 		return null;
 	}
 
-	/// <summary>刷新所有已注册面板的边框样式。</summary>
 	public void RefreshBorders()
 	{
 		var focusedNode = _focused?.PanelNode;
@@ -129,24 +170,88 @@ public class PanelManager
 			PanelBorderHelper.Apply(node, node == focusedNode);
 	}
 
-	/// <summary>通用键盘→命令映射。各面板共享：W/S=上下，Esc=关闭，数字=选择，Enter=确认。</summary>
+	private void SwitchFocus(IPanel? panel, bool clearStack)
+	{
+		if (_switching)
+			return;
+
+		if (panel != null && !IsFocusable(panel))
+			return;
+
+		var prev = _focused;
+		if (prev == panel)
+		{
+			if (clearStack && panel == null)
+				_focusStack.Clear();
+			return;
+		}
+
+		_switching = true;
+		_focused = panel;
+		prev?.OnBlur();
+		_focused?.OnFocus();
+		_switching = false;
+
+		if (clearStack)
+			_focusStack.Clear();
+
+		if (prev != null)
+			PanelBorderHelper.Apply(prev.PanelNode, false);
+		if (_focused != null)
+			PanelBorderHelper.Apply(_focused.PanelNode, true);
+
+		FocusChanged?.Invoke();
+	}
+
+	private bool IsFocusable(IPanel panel) => panel.CanFocus && panel.Visible;
+
+	private IPanel? PopPreviousFocusable()
+	{
+		while (_focusStack.Count > 0)
+		{
+			var idx = _focusStack.Count - 1;
+			var panel = _focusStack[idx];
+			_focusStack.RemoveAt(idx);
+
+			if (panel != _focused && IsFocusable(panel))
+				return panel;
+		}
+
+		return null;
+	}
+
+	private void RemoveFromStack(IPanel panel)
+	{
+		for (var i = _focusStack.Count - 1; i >= 0; i--)
+		{
+			if (_focusStack[i] == panel)
+				_focusStack.RemoveAt(i);
+		}
+	}
+
 	private static string? MapKeyToCommand(InputEventKey key) => key.Keycode switch
 	{
-		Key.W or Key.Up    => "up",
-		Key.S or Key.Down  => "down",
-		Key.A or Key.Left  => "left",
+		Key.W or Key.Up => "up",
+		Key.S or Key.Down => "down",
+		Key.A or Key.Left => "left",
 		Key.D or Key.Right => "right",
-		Key.Enter          => "confirm",
-		Key.Escape         => "close",
-		Key.E              => "action1",
-		Key.Q              => "action2",
-		Key.R              => "action3",
-		Key.P              => "action4",
-		Key.U              => "action5",
-		Key.Tab            => key.ShiftPressed ? "tab_prev" : "tab_next",
-		Key.Key1 => "1", Key.Key2 => "2", Key.Key3 => "3",
-		Key.Key4 => "4", Key.Key5 => "5", Key.Key6 => "6",
-		Key.Key7 => "7", Key.Key8 => "8", Key.Key9 => "9",
+		Key.Enter => "confirm",
+		Key.Escape => "close",
+		Key.E => "action1",
+		Key.Q => "action2",
+		Key.R => "action3",
+		Key.P => "action4",
+		Key.U => "action5",
+		Key.Tab => key.ShiftPressed ? "tab_prev" : "tab_next",
+		Key.Key1 => "1",
+		Key.Key2 => "2",
+		Key.Key3 => "3",
+		Key.Key4 => "4",
+		Key.Key5 => "5",
+		Key.Key6 => "6",
+		Key.Key7 => "7",
+		Key.Key8 => "8",
+		Key.Key9 => "9",
 		_ => null,
 	};
 
