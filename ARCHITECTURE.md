@@ -4,6 +4,15 @@
 
 ---
 
+## 文档定位
+
+- 这份文档记录“当前代码已经怎样组织”，是架构事实文档。
+- 如果项目约定、非目标、开发原则和默认开发方式有变化，请更新 [`minirpg.md`](./minirpg.md)，而不是只改这里。
+- 如果只需要快速找目录、看模块依赖或数据流概览，请先看 [`Docs/CODEBASE_MAP.md`](./Docs/CODEBASE_MAP.md)。
+- 如果某次改动改变了模块职责、调用链或分层边界，应同步更新本文件。
+
+---
+
 ## 一、各类职责说明
 
 ### 入口层
@@ -72,9 +81,9 @@ Godot 场景入口节点，充当胶水层。上游：Godot 引擎（`_Ready`/`_
 
 状态面板。上游：`Main.RefreshStatus` 每次地图刷新后调用 `Refresh`，`InputModule.OnStatusCommand` 驱动键盘导航。下游：读取 `Actor` 数据和 `PresetDB` 查询能力/种族信息。本身职责是多 Tab 页显示玩家肢体、能力、标记、Buff、装备详情。
 
-#### SkillPanelModule（`Module/SkillPanelModule.cs`）
+#### SkillBarModule（`Module/Panel/SkillBarModule.cs`）
 
-技能面板。上游：`Main.RefreshStatus` 调用 `Refresh`。下游：调用 `SkillQuery.GetAll` 获取玩家所有技能。本身职责是按战斗/实用/社交分类渲染技能列表。
+技能快捷栏。上游：`Main` 通过快捷键 B 切换显示。下游：调用 `SkillQuery` 获取玩家技能并渲染到快捷栏中。
 
 #### InventoryPanelModule（`Module/InventoryPanelModule.cs`）
 
@@ -173,7 +182,7 @@ Actor 增删查改。上游：几乎所有需要查找/移动 Actor 的模块。
 
 #### SkillQuery（`Core/SkillQuery.cs`）
 
-技能查询引擎。上游：`CombatUIModule`/`CombatModule`/`SkillPanelModule`/`Main.StartDig` 调用。下游：读取 `Actor` 的 Tag 和 `InteractionDefs` 注册表。本身职责是根据 Actor 的 Tag/能力/装备筛选可用交互技能。
+技能查询引擎。上游：`CombatUIModule`/`CombatModule`/`SkillBarModule`/`Main.StartDig` 调用。下游：读取 `Actor` 的 Tag 和 `InteractionDefs` 注册表。本身职责是根据 Actor 的 Tag/能力/装备筛选可用交互技能。
 
 #### DebugModule（`Core/DebugModule.cs`）
 
@@ -289,7 +298,7 @@ Godot Engine
   │    ├─ new MenuModule(this)
   │    ├─ new MapRenderModule(state, fogTracker, renderModule, ...)
   │    ├─ new InputModule(lineEdit)
-  │    ├─ new StatusPanelModule / SkillPanelModule / InventoryPanelModule / ...
+  │    ├─ new StatusPanelModule / SkillBarModule / InventoryPanelModule / ...
   │    ├─ new CombatUIModule / TradeUIModule / InventoryUIModule
   │    └─ MenuModule.ShowMainMenu()
   │
@@ -379,7 +388,7 @@ Main.FlushMap()
   │
   └─ Main.RefreshStatus()
        ├─ StatusPanelModule.Refresh()
-       ├─ SkillPanelModule.Refresh()
+       ├─ SkillBarModule.Refresh()
        ├─ InventoryPanelModule.Refresh()
        ├─ GroundPanelModule.Refresh()
        └─ PanelBorderHelper.Apply() × N

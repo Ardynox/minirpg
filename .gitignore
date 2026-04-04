@@ -1,6 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+.codex/review/
+__pycache__/
 
 # 大型美术资源包（体积过大，不进版本库）
 Fantasy kingdom Tileset/
@@ -11,6 +13,14 @@ craftpix-net-169442-free-2d-top-down-pixel-dungeon-asset-pack/
 Tools/tileset_mapping.json
 Tools/tile_name_to_id.json
 
+# Godot 自动生成的 UID 文件
+*.uid
+
+# 导出配置（含机器相关路径）
+export_presets.cfg
+
+# Claude Code 本地配置
+.claude/settings.local.json
+
 # Godot 编辑器在项目根目录生成的临时脚本文件
 new_c_sharp_script.cs
-new_c_sharp_script.cs.uid
