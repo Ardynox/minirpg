@@ -30,7 +30,8 @@
 
 - UI 面板遵守 `IPanel` + `PanelManager` + `PanelDragService`。
 - 输入遵守 `InputBindingService` + `InputModule`。
-- 渲染遵守 `TileMapRenderModule` + `FogOfWarTracker` + `IViewMode`。
+- 渲染与玩家视觉遵守 `TileMapRenderModule` + `FogOfWarTracker`；如果改动影响信息暴露，要同步检查 `LookModule`。
+- AI 感知遵守 `AIDispatcher` + `PerceptionBuilder` + `AIVisionBatch`，先走 CPU 批处理，不默认引入 GPU 路线。
 - 会话与存档遵守 `GameSessionModule` + `SaveModule`。
 - 世界与运行时状态遵守 `GameState` + `WorldMap` + `Actor` 字典。
 - 事件反馈遵守 `GameEvent` + `Main.Dispatch` + `LogModule` / 流程 UI。

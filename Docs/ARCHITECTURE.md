@@ -60,15 +60,14 @@ App/Main.tscn / App/Main.cs
 - [`Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs)
   按键绑定面板与输入绑定编辑。
 - [`Module/LookModule.cs`](../Module/LookModule.cs)
-  环境查看文本构建。
+  环境查看文本构建；当前会根据玩家视野分级限制信息暴露。
 
 ## 3. 渲染框架
 
 - [`Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)
-  Updated layering: `GroundLayer`, `MemoryLayer`, `OverlayLayer`, `MemoryOverlayLayer`, `EntityLayer`, `FogLayer`, with terrain rendered as `base + optional overlay`.
-  当前地图渲染主路径。负责 `GroundLayer`、`MemoryLayer`、`OverlayLayer`、`MemoryOverlayLayer`、`EntityLayer`、`FogLayer` 六层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
+  当前地图渲染主路径。负责 `Focused / Peripheral / Memory` 三态玩家视觉的多层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
 - [`Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs)
-  负责方向视野、周边感知、已探索状态和迷雾缓存。
+  负责玩家 `Focused / Peripheral / Memory / Unknown` 四态视野、朝向裁剪、已探索缓存，并通过 `WorldMap.BlocksSight` 共享遮挡真相。
 - [`Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)
   `SingleLayerViewMode` 和 `MultiLayerViewMode` 的当前实现。
 - [`Module/Render`](../Module/Render)
@@ -88,18 +87,18 @@ App/Main.tscn / App/Main.cs
 - [`Core/Dialog`](../Core/Dialog)
   对话池、规则和模板渲染。
 - [`Core/AI`](../Core/AI)
-  AI 调度、感知构建和当前大脑实现。
+  AI 调度、批量视觉感知构建和当前大脑实现。当前入口包括 `AIDispatcher`、`PerceptionBuilder`、`AIVisionBatch`、`SimpleBrain`。
 - [`Core/Debug`](../Core/Debug)
   调试命令实际执行逻辑。
 - [`Core/World`](../Core/World)
-  世界与 chunk 基础设施，包括 `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、`ShadowcastFOV`、`Pathfinding`、`DigModule`、生成器等。
+  世界与 chunk 基础设施，包括 `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、`ShadowcastFOV`、`VisibilityUtil`、`Pathfinding`、`DigModule`、生成器等。
 
 ## 5. 运行时事实与所有权
 
 - [`Core/Data/GameState.cs`](../Core/Data/GameState.cs)
   唯一运行时事实源。持有玩家坐标、Actor 字典、Quest 列表、设置状态和 `WorldMap` 引用。
 - [`Core/World/WorldMap.cs`](../Core/World/WorldMap.cs)
-  世界访问统一入口，内部通过 `ChunkManager` 路由到具体 chunk。
+  世界访问统一入口，内部通过 `ChunkManager` 路由到具体 chunk；当前还负责 `BlocksSight` 这一层共享视线遮挡真相。
 - `Actor` 在 `GameState.Actors` 字典中维护，不直接写进格子栈。
 - 格子里的地形、设施、掉落物等在 `WorldMap` / `ChunkData` / `CellEntity` 里维护。
 - Core 产出 `GameEvent`；UI 层由 [`App/Main.cs`](../App/Main.cs) 的 `Dispatch` 路由到日志、流程 UI 和面板刷新。
@@ -132,7 +131,7 @@ App/Main.tscn / App/Main.cs
 ### 地图刷新
 
 - `Main.FlushMap` 负责触发 TileMap 渲染和各面板刷新。
-- 渲染主路径是 `FogOfWarTracker.Update` + `TileMapRenderModule.Flush`。
+- 渲染主路径是 `FogOfWarTracker.Update` + `TileMapRenderModule.Flush`；`LookModule` 则复用同一套玩家视野分级控制信息暴露。
 
 ## 7. 当前扩展入口
 

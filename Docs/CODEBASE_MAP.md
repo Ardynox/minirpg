@@ -5,7 +5,7 @@
 ---
 ## Render Notes
 
-- `TileMapRenderModule` now renders six TileMap layers: `GroundLayer`, `MemoryLayer`, `OverlayLayer`, `MemoryOverlayLayer`, `EntityLayer`, `FogLayer`.
+- `TileMapRenderModule` now renders focused/peripheral/memory player vision using multiple TileMap layers.
 - Terrain tile mappings may provide a single base tile or `base + optional overlay`.
 
 
@@ -53,7 +53,7 @@ mini-rpg/
 | 输入、快捷键、输入焦点 | [`../Module/InputModule.cs`](../Module/InputModule.cs), [`../Module/InputBindingService.cs`](../Module/InputBindingService.cs), [`../Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs) |
 | 面板焦点、拖拽、布局 | [`../Module/Panel/IPanel.cs`](../Module/Panel/IPanel.cs), [`../Module/Panel/PanelManager.cs`](../Module/Panel/PanelManager.cs), [`../Module/Panel/PanelDragService.cs`](../Module/Panel/PanelDragService.cs), [`../Module/Panel/PanelLayoutStore.cs`](../Module/Panel/PanelLayoutStore.cs) |
 | 状态、背包、地面、宝箱、技能等面板 | [`../Module/Panel`](../Module/Panel) |
-| 地图渲染、迷雾、视图模式 | [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs), [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs), [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs) |
+| 地图渲染、迷雾、视图模式 | [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs), [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs), [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs), [`../Module/LookModule.cs`](../Module/LookModule.cs) |
 | 战斗、交互、回合、AI | [`../Core/Combat`](../Core/Combat), [`../Core/AI`](../Core/AI), [`../Module/CombatUIModule.cs`](../Module/CombatUIModule.cs) |
 | 世界数据、地图代理、chunk、生成器 | [`../Core/Map`](../Core/Map), [`../Core/World`](../Core/World) |
 | 运行时状态、Actor、Item、任务、预设数据 | [`../Core/Data`](../Core/Data) |
@@ -72,8 +72,8 @@ mini-rpg/
 - `Data/`: `GameState`、`Actor`、`GameEvent`、`PresetDB`、`Item`、`InteractionDef`、`Quest`、`TagSystem` 等运行时核心数据与数据驱动入口。
 - `Combat/`: `ActionModule`、`CombatModule`、`TurnModule`、`NestModule`。
 - `Map/`: `MapModule`、`MapGenModule`、`SaveModule`。
-- `World/`: `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、视野、寻路、挖掘、生成器。
-- `AI/`: `AIDispatcher`、`SimpleBrain`、`PerceptionBuilder`。
+- `World/`: `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、视野、LOS、寻路、挖掘、生成器。
+- `AI/`: `AIDispatcher`、`AIVisionBatch`、`SimpleBrain`、`PerceptionBuilder`。
 - `Trade/`: 交易逻辑。
 - `Dialog/`: 对话规则与模板渲染。
 - `Debug/`: 调试命令实际执行。
@@ -123,7 +123,7 @@ mini-rpg/
 
 1. 改 [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)。
 2. 改 [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs) 或 [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)。
-3. 必要时同步资源映射文件。
+3. 如果改动影响玩家信息暴露，同时检查 [`../Module/LookModule.cs`](../Module/LookModule.cs)。
 
 ### 改玩法逻辑
 

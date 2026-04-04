@@ -10,11 +10,10 @@ namespace MiniRPG.Module.Render;
 /// <summary>
 /// TileMapLayer 渲染模块。
 ///
-/// 4 层架构：
-///   GroundLayer  — 可见/周边感知的地形 tile（正常亮度）
-///   MemoryLayer  — 已探索但不可见的地形 tile（暗色，仅地形无实体）
-///   EntityLayer  — 可见/周边感知的实体 tile（玩家、怪物、道具、设施）
-///   FogLayer     — 未探索格子用纯黑 tile 遮盖
+/// 三态玩家视觉：
+///   Focused     — 主视野，完整信息
+///   Peripheral  — 周边感知，灰显地形 + 低保真实体占位
+///   Memory      — 已探索但当前不可感知，仅保留地形记忆
 ///
 /// Atlas 合图模式：tile_name_to_id.json 存储 (source_id, atlas_x, atlas_y)，
 /// 同一 atlas source 内的 tile 共享纹理，大幅减少 draw call。
@@ -25,7 +24,9 @@ public class TileMapRenderModule
 	private const string MappingResPath = "res://Data/tile_mapping.json";
 	private const string IdMapResPath = "res://Tools/tile_name_to_id.json";
 	private const string FallbackFixtureTile = "Misc A4_N";
+	private const string PeripheralFixtureTile = "Misc A4_N";
 	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
+	private static readonly Color PeripheralTint = new(0.50f, 0.50f, 0.56f);
 
 	/// <summary>无效 tile 标识，sourceId = -1 表示跳过渲染。</summary>
 	private static readonly TileLoc InvalidTile = new(-1, Vector2I.Zero);
@@ -41,6 +42,9 @@ public class TileMapRenderModule
 	private TileMapLayer _memoryLayer = null!;
 	private TileMapLayer _overlayLayer = null!;
 	private TileMapLayer _memoryOverlayLayer = null!;
+	private TileMapLayer _peripheralLayer = null!;
+	private TileMapLayer _peripheralOverlayLayer = null!;
+	private TileMapLayer _peripheralEntityLayer = null!;
 	private TileMapLayer _entityLayer = null!;
 	private TileMapLayer _fogLayer    = null!;
 
@@ -88,11 +92,17 @@ public class TileMapRenderModule
 		_memoryLayer = MakeLayer(mapRoot, "MemoryLayer", tileSet, 0);
 		_overlayLayer = MakeLayer(mapRoot, "OverlayLayer", tileSet, 1);
 		_memoryOverlayLayer = MakeLayer(mapRoot, "MemoryOverlayLayer", tileSet, 1);
+		_peripheralLayer = MakeLayer(mapRoot, "PeripheralLayer", tileSet, 0);
+		_peripheralOverlayLayer = MakeLayer(mapRoot, "PeripheralOverlayLayer", tileSet, 1);
+		_peripheralEntityLayer = MakeLayer(mapRoot, "PeripheralEntityLayer", tileSet, 2);
 		_entityLayer = MakeLayer(mapRoot, "EntityLayer", tileSet, 2);
 		_fogLayer    = MakeLayer(mapRoot, "FogLayer",    tileSet, 3);
 
 		_memoryLayer.Modulate = MemoryTint;
 		_memoryOverlayLayer.Modulate = MemoryTint;
+		_peripheralLayer.Modulate = PeripheralTint;
+		_peripheralOverlayLayer.Modulate = PeripheralTint;
+		_peripheralEntityLayer.Modulate = PeripheralTint;
 
 		if (playerSpine != null)
 		{
@@ -115,6 +125,9 @@ public class TileMapRenderModule
 		_memoryLayer.Clear();
 		_overlayLayer.Clear();
 		_memoryOverlayLayer.Clear();
+		_peripheralLayer.Clear();
+		_peripheralOverlayLayer.Clear();
+		_peripheralEntityLayer.Clear();
 		_entityLayer.Clear();
 		_fogLayer.Clear();
 
@@ -142,11 +155,8 @@ public class TileMapRenderModule
 
 				var cell = new Vector2I(sx, sy);
 
-				bool visible    = _fogTracker.IsVisible(wx, wy, cz);
-				bool peripheral = _fogTracker.IsPeripheral(wx, wy, cz);
-				bool hasSeen    = _fogTracker.HasSeen(wx, wy, cz);
-
-				if (visible || peripheral)
+				var visionBand = _fogTracker.GetVisionBand(wx, wy, cz);
+				if (visionBand == PlayerVisionBand.Focused)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
 					SetTerrain(cell, terrain, _groundLayer, _overlayLayer);
@@ -157,7 +167,13 @@ public class TileMapRenderModule
 					else
 						SetTile(_entityLayer, cell, EntityLoc(wx, wy, cz));
 				}
-				else if (hasSeen)
+				else if (visionBand == PlayerVisionBand.Peripheral)
+				{
+					var terrain = _state.World.GetTerrain(wx, wy, cz);
+					SetTerrain(cell, terrain, _peripheralLayer, _peripheralOverlayLayer);
+					SetTile(_peripheralEntityLayer, cell, PeripheralEntityLoc(wx, wy, cz));
+				}
+				else if (visionBand == PlayerVisionBand.Memory)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
 					SetTerrain(cell, terrain, _memoryLayer, _memoryOverlayLayer);
@@ -287,6 +303,32 @@ public class TileMapRenderModule
 		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
 		if (fixture != null)
 			return Resolve(_fixtureMap.GetValueOrDefault(fixture.EntityId, FallbackFixtureTile));
+
+		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
+		if (container != null)
+			return Resolve(_itemMap.GetValueOrDefault("container", FallbackTile));
+
+		var item = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Item);
+		if (item != null)
+			return Resolve(_itemMap.GetValueOrDefault("drop", FallbackTile));
+
+		return InvalidTile;
+	}
+
+	private TileLoc PeripheralEntityLoc(int wx, int wy, int cz)
+	{
+		foreach (var actor in _state.Actors.Values)
+		{
+			if (actor.X != wx || actor.Y != wy || actor.Z != cz) continue;
+			if (actor.Id == _state.PlayerId) continue;
+
+			var key = actor.Faction == Factions.Hostile ? "hostile" : "friendly";
+			return Resolve(_entityMap.GetValueOrDefault(key, FallbackTile));
+		}
+
+		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
+		if (fixture != null)
+			return Resolve(PeripheralFixtureTile);
 
 		var container = _state.World.GetFirstEntity(wx, wy, cz, CellEntityType.Container);
 		if (container != null)

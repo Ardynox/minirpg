@@ -1084,7 +1084,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 	}
 
-	private void DoLook() => _log.Add(LookModule.BuildLookText(_state));
+	private void DoLook() => _log.Add(LookModule.BuildLookText(_state, _fogTracker));
 
 	// ══════════════════════════════════════════════════════
 	//  存档 / 读档

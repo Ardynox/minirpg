@@ -27,6 +27,8 @@ public static class AIDispatcher
 		GameState state, int viewCenterX, int viewCenterY, int viewRange)
 	{
 		var events = new List<GameEvent>();
+		var requests = new List<AIVisionRequest>();
+		var activeActors = new List<Actor>();
 
 		var actors = state.Actors.Values
 			.Where(a => a.BrainId != null && a.Id != state.PlayerId)
@@ -43,7 +45,19 @@ public static class AIDispatcher
 
 			if (!_brains.TryGetValue(actor.BrainId!, out var brain)) continue;
 
-			var perception = PerceptionBuilder.Build(state, actor, detail);
+			requests.Add(new AIVisionRequest(actor, detail));
+			activeActors.Add(actor);
+		}
+
+		var perceptions = PerceptionBuilder.BuildBatch(state, requests);
+
+		foreach (var actor in activeActors)
+		{
+			if (!state.Actors.ContainsKey(actor.Id)) continue;
+			if (CombatModule.IsDead(actor)) continue;
+			if (!_brains.TryGetValue(actor.BrainId!, out var brain)) continue;
+			if (!perceptions.TryGetValue(actor.Id, out var perception)) continue;
+
 			var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
 			var decision = brain.Decide(perception, rng);
 			events.AddRange(ExecuteDecision(state, actor, decision));

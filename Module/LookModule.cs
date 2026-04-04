@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using MiniRPG.Core.AI;
 namespace MiniRPG.Module;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace MiniRPG.Module;
 /// </summary>
 public static class LookModule
 {
-	public static string BuildLookText(GameState state)
+	public static string BuildLookText(GameState state, FogOfWarTracker fogTracker)
 	{
 		var sb = new StringBuilder();
 		var player = ActorModule.GetPlayer(state);
@@ -52,12 +53,24 @@ public static class LookModule
 		{
 			var tx = state.PlayerX + dx;
 			var ty = state.PlayerY + dy;
-			sb.Append($"  {name}: {CellLabel(state, tx, ty)}");
+			sb.Append($"  {name}: {CellLabel(state, fogTracker, tx, ty)}");
 		}
 		return sb.ToString();
 	}
 
-	private static string CellLabel(GameState state, int x, int y)
+	private static string CellLabel(GameState state, FogOfWarTracker fogTracker, int x, int y)
+	{
+		var band = fogTracker.GetVisionBand(x, y, state.PlayerZ);
+		return band switch
+		{
+			PlayerVisionBand.Focused => FocusedCellLabel(state, x, y),
+			PlayerVisionBand.Peripheral => PeripheralCellLabel(state, x, y),
+			PlayerVisionBand.Memory => MemoryCellLabel(state, x, y),
+			_ => "未知",
+		};
+	}
+
+	private static string FocusedCellLabel(GameState state, int x, int y)
 	{
 		if (MapModule.IsWall(state, x, y)) return "墙 🚧";
 		var actors = ActorModule.GetAllAt(state, x, y);
@@ -72,6 +85,31 @@ public static class LookModule
 		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
 		return "空地";
 	}
+
+	private static string PeripheralCellLabel(GameState state, int x, int y)
+	{
+		if (state.World!.BlocksSight(x, y, state.PlayerZ)) return "障碍";
+
+		var actors = ActorModule.GetAllAt(state, x, y);
+		if (actors.Count > 0)
+		{
+			foreach (var actor in actors)
+			{
+				if (actor.Id == state.PlayerId) continue;
+				if (FactionRelation.IsHostile(Factions.Player, actor.Faction))
+					return "敌对身影";
+			}
+
+			return "活动身影";
+		}
+
+		if (MapModule.GetGroundItems(state, x, y).Count > 0) return "有东西";
+		if (!string.IsNullOrEmpty(MapModule.GetFixtureId(state, x, y))) return "有东西";
+		return "空地";
+	}
+
+	private static string MemoryCellLabel(GameState state, int x, int y) =>
+		state.World!.GetTerrain(x, y, state.PlayerZ).Solid ? "记忆中的墙" : "记忆中的空地";
 
 	public static string FixtureLabel(string id) => id switch
 	{

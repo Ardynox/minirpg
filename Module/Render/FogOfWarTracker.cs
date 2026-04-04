@@ -3,11 +3,19 @@ using MiniRPG.Core.World;
 
 namespace MiniRPG.Module.Render;
 
+public enum PlayerVisionBand
+{
+	Unknown,
+	Memory,
+	Peripheral,
+	Focused,
+}
+
 /// <summary>
 /// 迷雾追踪器：使用 Shadowcasting FOV 计算视线，维护四态：
-/// - 朝向可见（IsVisible）：在朝向视野锥内，正常亮色
-/// - 周边感知（IsPeripheral）：在全向视野内但不在朝向锥内，灰色但显示实时内容
-/// - 已探索（HasSeen）：曾经进入过任何视野，只显示地形记忆
+/// - Focused：主视野，完整信息
+/// - Peripheral：周边感知，低保真实时信息
+/// - Memory：已探索但当前不可感知，只保留地形记忆
 /// - 未探索：从未见过，黑色迷雾
 /// 朝向视野和全向视野都会破开迷雾（写入已探索）。
 /// </summary>
@@ -61,7 +69,7 @@ public class FogOfWarTracker
 		var cx = state.PlayerX;
 		var cy = state.PlayerY;
 		var world = state.World;
-		bool isOpaque(int x, int y) => world.IsSolid(x, y, z);
+		bool isOpaque(int x, int y) => world.BlocksSight(x, y, z);
 
 		_fullVisible = ShadowcastFOV.Compute(cx, cy, frontRadius, isOpaque);
 
@@ -74,18 +82,25 @@ public class FogOfWarTracker
 			seenSet.Add(Pack(vx, vy));
 	}
 
-	/// <summary>在朝向视野锥内 → 正常亮色渲染。</summary>
-	public bool IsVisible(int x, int y, int z)
+	public PlayerVisionBand GetVisionBand(int x, int y, int z)
 	{
-		if (z != _currentZ) return false;
-		return _directionalVisible.Contains((x, y));
+		if (z != _currentZ) return PlayerVisionBand.Unknown;
+		if (_directionalVisible.Contains((x, y))) return PlayerVisionBand.Focused;
+		if (_fullVisible.Contains((x, y))) return PlayerVisionBand.Peripheral;
+		if (HasSeen(x, y, z)) return PlayerVisionBand.Memory;
+		return PlayerVisionBand.Unknown;
 	}
 
-	/// <summary>在全向视野内但不在朝向锥内 → 灰色但显示实时内容。</summary>
+	/// <summary>在朝向视野锥内 → 完整信息。</summary>
+	public bool IsVisible(int x, int y, int z)
+	{
+		return GetVisionBand(x, y, z) == PlayerVisionBand.Focused;
+	}
+
+	/// <summary>在全向视野内但不在朝向锥内 → 低保真实时信息。</summary>
 	public bool IsPeripheral(int x, int y, int z)
 	{
-		if (z != _currentZ) return false;
-		return !_directionalVisible.Contains((x, y)) && _fullVisible.Contains((x, y));
+		return GetVisionBand(x, y, z) == PlayerVisionBand.Peripheral;
 	}
 
 	/// <summary>曾经进入过视野。</summary>

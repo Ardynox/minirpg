@@ -109,6 +109,25 @@ public class WorldMap
 	public bool IsSolid(int x, int y, int z) =>
 		GetTerrain(x, y, z).Solid;
 
+	/// <summary>
+	/// 共享视线遮挡真相：地形沿用 Solid，fixture 可覆写是否挡视线。
+	/// 当前约定：房屋挡视线；门/楼梯/巢穴默认视为可透视的开口或低矮设施。
+	/// </summary>
+	public bool BlocksSight(int x, int y, int z)
+	{
+		if (GetTerrain(x, y, z).Solid)
+			return true;
+
+		foreach (var entity in GetEntities(x, y, z))
+		{
+			if (entity.Type != CellEntityType.Fixture) continue;
+			if (FixtureBlocksSight(entity.EntityId))
+				return true;
+		}
+
+		return false;
+	}
+
 	public bool IsWalkable(int x, int y, int z) =>
 		!IsSolid(x, y, z);
 
@@ -154,6 +173,12 @@ public class WorldMap
 
 	public bool HasFixture(int x, int y, int z, string fixtureId) =>
 		GetEntities(x, y, z).Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId);
+
+	private static bool FixtureBlocksSight(string fixtureId) => fixtureId switch
+	{
+		Entities.House => true,
+		_ => false,
+	};
 
 	public string GetFixtureId(int x, int y, int z)
 	{
