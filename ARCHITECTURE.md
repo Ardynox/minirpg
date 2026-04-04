@@ -14,7 +14,7 @@
 ## 当前架构总览
 
 ```text
-Main.tscn / Main.cs
+App/Main.tscn / App/Main.cs
   -> Menu / Session / Input / Log
   -> Panel UI framework
   -> TileMap render framework
@@ -24,9 +24,9 @@ Main.tscn / Main.cs
 
 ## 1. 入口与胶水层
 
-- [`Main.tscn`](./Main.tscn)
+- [`App/Main.tscn`](./App/Main.tscn)
   入口场景。当前由 `MapPanel`、`StatusPanel`、`SkillManager`、`InventoryPanel`、`GroundPanel`、`LogPanel`、`InputBar`、`SettingsPanel`、`KeyBindingsPanel`、`MainMenu`、`SkillBar` 等子场景组成。
-- [`Main.cs`](./Main.cs)
+- [`App/Main.cs`](./App/Main.cs)
   胶水层。负责 `_Ready` 初始化、模块持有、命令路由、事件分发、面板注册、脏标记刷新、调试命令入口和地图刷新。
 - [`Module/MenuModule.cs`](./Module/MenuModule.cs)
   主菜单与设置菜单切换。
@@ -101,7 +101,7 @@ Main.tscn / Main.cs
   世界访问统一入口，内部通过 `ChunkManager` 路由到具体 chunk。
 - `Actor` 在 `GameState.Actors` 字典中维护，不直接写进格子栈。
 - 格子里的地形、设施、掉落物等在 `WorldMap` / `ChunkData` / `CellEntity` 里维护。
-- Core 产出 `GameEvent`；UI 层由 [`Main.cs`](./Main.cs) 的 `Dispatch` 路由到日志、流程 UI 和面板刷新。
+- Core 产出 `GameEvent`；UI 层由 [`App/Main.cs`](./App/Main.cs) 的 `Dispatch` 路由到日志、流程 UI 和面板刷新。
 
 ## 6. 关键运行路径
 

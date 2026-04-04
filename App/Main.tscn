@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dbw8hh2am6yoj"]
 
-[ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://Main.cs" id="1_main"]
+[ext_resource type="Script" uid="uid://c5cghjprc2gj7" path="res://App/Main.cs" id="1_main"]
 [ext_resource type="PackedScene" path="res://Scene/MapPanel.tscn" id="2_map"]
 [ext_resource type="PackedScene" path="res://Scene/StatusPanel.tscn" id="3_status"]
 [ext_resource type="PackedScene" path="res://Scene/LogPanel.tscn" id="4_log"]

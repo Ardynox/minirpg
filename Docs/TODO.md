@@ -59,7 +59,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Main.cs` → `_mapDirty` / `_Process()` |
+| 文件 | `App/Main.cs` → `_mapDirty` / `_Process()` |
 | 问题 | `_mapDirty` 从未被赋值为 `true`，`_Process` 中的脏标记渲染分支永远不触发。所有渲染都通过直接调用 `FlushMap()` 完成。 |
 | 建议 | 如果需要帧率节流渲染，应在状态变化处设 `_mapDirty = true` 并去掉直接 `FlushMap()` 调用；否则删除 `_mapDirty` 和 `_renderTimer` 相关代码。 |
 
@@ -99,7 +99,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Main.cs` → `OnCommand()` |
+| 文件 | `App/Main.cs` → `OnCommand()` |
 | 问题 | `":interact"` 和 `"interact"` 分别在两处 switch 中处理，`":render"` 和 `"render"` 同理。快捷键和文本命令走不同路径但效果相同，增加维护成本。 |
 | 建议 | 统一命令格式或合并处理路径。 |
 
@@ -115,7 +115,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Main.cs` → `EnsurePlayerActor()` |
+| 文件 | `App/Main.cs` → `EnsurePlayerActor()` |
 | 问题 | 当玩家 Actor 缺失时，用 `ActorTemplates.Spawn` 创建全新实例，丢失了之前的肢体损伤、背包、Buff 等状态。 |
 | 建议 | 楼层切换应确保 player Actor 在切换时从旧层 Actors 移出并保留引用，新层恢复后放入。`EnsurePlayerActor` 仅作为异常情况的防御性 fallback，加日志警告。 |
 
@@ -231,15 +231,15 @@
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Main.cs` → `Dispatch()` |
+| 文件 | `App/Main.cs` → `Dispatch()` |
 | 问题 | 事件 Type 使用字符串匹配，无编译期完整性检查。新增事件类型时容易遗漏 case。 |
 | 归类 | 架构优化——改为枚举或增加 default 分支日志警告。 |
 
-### 3.14 Main.cs 类过大
+### 3.14 App/Main.cs 类过大
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Main.cs` |
+| 文件 | `App/Main.cs` |
 | 问题 | ~980 行，承担输入路由、事件分发、楼层切换、菜单管理、渲染等多个职责。 |
 | 归类 | 架构优化——可将楼层切换、查看、交互等流程提取为独立的 Module 类。 |
 
@@ -247,7 +247,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| 文件 | `Core/GameState.cs` + `Main.cs` |
+| 文件 | `Core/GameState.cs` + `App/Main.cs` |
 | 问题 | `WatchMode` 是运行时 UI 状态，但放在 `GameState` 中会被序列化。加载存档后 `WatchMode` 可能为 true，但 UI 端的按钮文字和 `BrainId` 未同步。 |
 | 归类 | 架构优化——考虑将 `WatchMode` 移出 `GameState`，放到 `Main` 的 UI 状态中。 |
 

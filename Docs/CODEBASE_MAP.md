@@ -14,8 +14,10 @@
 
 ```text
 mini-rpg/
-├── Main.cs
-├── Main.tscn
+├── App/
+│   ├── GlobalUsings.cs
+│   ├── Main.cs
+│   └── Main.tscn
 ├── project.godot
 ├── Core/
 │   ├── AI/
@@ -41,7 +43,7 @@ mini-rpg/
 
 | 任务类型 | 先看这些文件 |
 |---|---|
-| 项目入口、初始化、命令路由 | [`../Main.cs`](../Main.cs), [`../Main.tscn`](../Main.tscn) |
+| 项目入口、初始化、命令路由 | [`../App/Main.cs`](../App/Main.cs), [`../App/Main.tscn`](../App/Main.tscn) |
 | 菜单、继续、读档、楼层切换 | [`../Module/GameSessionModule.cs`](../Module/GameSessionModule.cs), [`../Module/MenuModule.cs`](../Module/MenuModule.cs), [`../Core/Map/SaveModule.cs`](../Core/Map/SaveModule.cs) |
 | 输入、快捷键、输入焦点 | [`../Module/InputModule.cs`](../Module/InputModule.cs), [`../Module/InputBindingService.cs`](../Module/InputBindingService.cs), [`../Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs) |
 | 面板焦点、拖拽、布局 | [`../Module/Panel/IPanel.cs`](../Module/Panel/IPanel.cs), [`../Module/Panel/PanelManager.cs`](../Module/Panel/PanelManager.cs), [`../Module/Panel/PanelDragService.cs`](../Module/Panel/PanelDragService.cs), [`../Module/Panel/PanelLayoutStore.cs`](../Module/Panel/PanelLayoutStore.cs) |
@@ -51,10 +53,14 @@ mini-rpg/
 | 世界数据、地图代理、chunk、生成器 | [`../Core/Map`](../Core/Map), [`../Core/World`](../Core/World) |
 | 运行时状态、Actor、Item、任务、预设数据 | [`../Core/Data`](../Core/Data) |
 | 交易、对话 | [`../Core/Trade`](../Core/Trade), [`../Core/Dialog`](../Core/Dialog), [`../Module/TradeUIModule.cs`](../Module/TradeUIModule.cs), [`../Module/DialogUIModule.cs`](../Module/DialogUIModule.cs) |
-| 调试命令 | [`../Main.cs`](../Main.cs), [`../Core/Debug/DebugModule.cs`](../Core/Debug/DebugModule.cs) |
+| 调试命令 | [`../App/Main.cs`](../App/Main.cs), [`../Core/Debug/DebugModule.cs`](../Core/Debug/DebugModule.cs) |
 | Tile 映射和资源数据 | [`../Data`](../Data), [`../Assets/README.md`](../Assets/README.md), [`../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres), [`../Tools/tile_name_to_id.json`](../Tools/tile_name_to_id.json) |
 
 ## 当前目录分工
+
+### `App/`
+
+- 启动入口层。当前包含 `Main.tscn`、`Main.cs` 和 `GlobalUsings.cs`，负责项目启动场景、主脚本胶水层和全局 using 声明。
 
 ### `Core/`
 
@@ -75,7 +81,7 @@ mini-rpg/
 
 ### `Scene/`
 
-- 各个 Godot 子场景资源。`Main.tscn` 通过实例化这些场景拼装当前 UI。
+- 各个 Godot 子场景资源。`App/Main.tscn` 通过实例化这些场景拼装当前 UI。
 
 ### `Data/`
 
@@ -100,13 +106,13 @@ mini-rpg/
 
 1. 改 [`../Scene`](../Scene) 里的对应 `.tscn`。
 2. 改 [`../Module/Panel`](../Module/Panel) 里的对应模块。
-3. 必要时在 [`../Main.cs`](../Main.cs) 注册面板、拖拽或焦点行为。
+3. 必要时在 [`../App/Main.cs`](../App/Main.cs) 注册面板、拖拽或焦点行为。
 
 ### 改输入或快捷键
 
 1. 改 [`../Module/InputBindingService.cs`](../Module/InputBindingService.cs)。
 2. 改 [`../Module/InputModule.cs`](../Module/InputModule.cs)。
-3. 必要时补 [`../Main.cs`](../Main.cs) 的命令路由。
+3. 必要时补 [`../App/Main.cs`](../App/Main.cs) 的命令路由。
 
 ### 改地图渲染
 
@@ -118,7 +124,7 @@ mini-rpg/
 
 1. 优先看 [`../Core/Combat`](../Core/Combat)、[`../Core/Data`](../Core/Data)、[`../Core/Map`](../Core/Map)。
 2. 如果需要 UI 反馈，再补 `Module/*`。
-3. 不要先从 `Main.cs` 里堆玩法细节。
+3. 不要先从 `App/Main.cs` 里堆玩法细节。
 
 ### 改存档或世界数据
 
