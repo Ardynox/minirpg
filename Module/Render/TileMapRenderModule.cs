@@ -27,7 +27,7 @@ public class TileMapRenderModule
 	private const string PeripheralFixtureTile = "Misc A4_N";
 	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
 	private static readonly Color PeripheralTint = new(0.50f, 0.50f, 0.56f);
-	private static readonly Vector2 PlayerSpriteOffset = new(64, 32);
+	private static readonly Vector2 PlayerSpriteOffset = new(0, 64);
 
 	/// <summary>无效 tile 标识，sourceId = -1 表示跳过渲染。</summary>
 	private static readonly TileLoc InvalidTile = new(-1, Vector2I.Zero);
