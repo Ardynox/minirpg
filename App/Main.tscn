@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
 [ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
 [ext_resource type="PackedScene" path="res://Scene/KeyBindingsPanel.tscn" id="11_keybindings"]
+[ext_resource type="PackedScene" path="res://Scene/LayoutEditBar.tscn" id="12_layoutbar"]
 [ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="15_theme"]
 
 [node name="Main" type="Node"]
@@ -58,3 +59,5 @@ theme_override_constants/separation = 6
 [node name="MainMenu" parent="." instance=ExtResource("7_menu")]
 
 [node name="SkillBar" parent="." instance=ExtResource("8_skillbar")]
+
+[node name="LayoutEditBar" parent="." instance=ExtResource("12_layoutbar")]

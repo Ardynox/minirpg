@@ -13,6 +13,7 @@ public sealed class SettingsPanelModule : IPanel
 {
 	private readonly PanelContainer _panel;
 	private readonly Button _watchModeButton;
+	private readonly Button _layoutEditButton;
 	private readonly Button _saveButton;
 	private readonly Button _loadButton;
 	private readonly Button _backToMenuButton;
@@ -27,6 +28,7 @@ public sealed class SettingsPanelModule : IPanel
 
 	public event Action? RenderToggleRequested;
 	public event Action? WatchModeToggleRequested;
+	public event Action? LayoutEditRequested;
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? KeyBindingsRequested;
@@ -41,6 +43,8 @@ public sealed class SettingsPanelModule : IPanel
 		vbox.GetNode<Button>("RenderToggle").Pressed += () => RenderToggleRequested?.Invoke();
 		_watchModeButton = vbox.GetNode<Button>("WatchModeToggle");
 		_watchModeButton.Pressed += () => WatchModeToggleRequested?.Invoke();
+		_layoutEditButton = vbox.GetNode<Button>("LayoutEditBtn");
+		_layoutEditButton.Pressed += () => LayoutEditRequested?.Invoke();
 		vbox.GetNode<Button>("KeyBindingsBtn").Pressed += () => KeyBindingsRequested?.Invoke();
 
 		_saveButton = vbox.GetNode<Button>("SaveBtn");
@@ -90,6 +94,7 @@ public sealed class SettingsPanelModule : IPanel
 
 	private void ApplyContext(bool inGame)
 	{
+		_layoutEditButton.Visible = inGame;
 		_saveButton.Visible = inGame;
 		_loadButton.Visible = inGame;
 		_backToMenuButton.Visible = inGame;

@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[node name="LayoutEditBar" type="PanelContainer"]
+visible = false
+z_index = 60
+layout_mode = 3
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -280.0
+offset_top = 12.0
+offset_right = 280.0
+offset_bottom = 102.0
+grow_horizontal = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+text = "布局编辑模式"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+text = "拖动面板调整位置，游戏输入已暂停。"
+horizontal_alignment = 1
+theme_type_variation = &"HintLabel"
+
+[node name="ActionBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ApplyBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "应用"
+
+[node name="CancelBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "取消"
+
+[node name="ResetBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "重置"

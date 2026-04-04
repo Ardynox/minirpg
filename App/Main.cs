@@ -20,6 +20,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 {
 	private const int ViewW = 21;
 	private const int ViewH = 11;
+	private static readonly string[] LayoutEditablePanelIds =
+		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "dialog", "trade", "quest"];
 
 	private readonly GameState _state = new();
 
@@ -32,6 +34,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private double _watchTimer;
 
 	private bool _skillBarDirty;
+	private bool _layoutResetPending;
 
 	private GameSessionModule _session = null!;
 	private MenuModule _menu = null!;
@@ -41,6 +44,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PanelManager _panels = null!;
 	private PanelDragService _panelDrag = null!;
 	private SettingsPanelModule _settingsPanelModule = null!;
+	private LayoutEditBarModule _layoutEditBar = null!;
 	private StatusPanelModule _statusPanelModule = null!;
 	private SkillBarModule _skillBar = null!;
 	private SkillManagerModule _skillMgr = null!;
@@ -57,6 +61,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
 	private bool ChestOpen => _panels?.FocusedId == "chest";
+	private bool LayoutEditActive => _panelDrag?.EditModeActive == true;
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule? _tradeUI;
@@ -75,7 +80,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_chestPanel = new ChestPanelModule(node, this);
 		_panels.Register(_chestPanel);
-		RegisterPanelDrag(_chestPanel);
+		RegisterLayoutEditable(_chestPanel);
 		return _chestPanel;
 	}
 
@@ -87,7 +92,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_dialogPanel = new DialogPanelModule(node);
 		_panels.Register(_dialogPanel);
-		RegisterPanelDrag(_dialogPanel);
+		RegisterLayoutEditable(_dialogPanel);
 		return _dialogPanel;
 	}
 
@@ -99,7 +104,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_tradePanel = new TradePanelModule(node);
 		_panels.Register(_tradePanel);
-		RegisterPanelDrag(_tradePanel);
+		RegisterLayoutEditable(_tradePanel);
 		return _tradePanel;
 	}
 
@@ -111,7 +116,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_questPanel = new QuestPanelModule(node);
 		_panels.Register(_questPanel);
-		RegisterPanelDrag(_questPanel);
+		RegisterLayoutEditable(_questPanel);
 		return _questPanel;
 	}
 
@@ -129,13 +134,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		return _dialogUI;
 	}
 
-	private void RegisterPanelDrag(IPanel panel, bool makeTopLevel = true)
+	private void RegisterLayoutEditable(IPanel panel, bool defaultFloating = true)
 	{
 		_panelDrag.Register(new DraggablePanelRegistration(
 			panel.PanelId,
 			panel.PanelNode,
-			makeTopLevel
+			defaultFloating
 		));
+	}
+
+	private void RegisterLayoutEditable(string panelId, PanelContainer panelNode, bool defaultFloating)
+	{
+		_panelDrag.Register(new DraggablePanelRegistration(panelId, panelNode, defaultFloating));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -181,6 +191,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (PlayerDead) return;
 		PlayerDead = true;
+		CancelLayoutEditMode();
 
 		if (_state.WatchMode)
 		{
@@ -237,6 +248,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
 		_settingsPanelModule = new SettingsPanelModule(GetNode<PanelContainer>("SettingsPanel"));
+		var layoutEditBarNode = GetNode<PanelContainer>("LayoutEditBar");
+		layoutEditBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
+		_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
 
 		var skillBarNode = GetNode<PanelContainer>("SkillBar");
 		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
@@ -260,10 +274,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		AddChild(floatingRoot);
 		_panelDrag = new PanelDragService(new PanelLayoutStore(), floatingRoot);
 		_panelDrag.Initialize();
-		RegisterPanelDrag(_statusPanelModule);
-		RegisterPanelDrag(_skillBar);
-		RegisterPanelDrag(_skillMgr);
-		RegisterPanelDrag(_inventoryPanel);
+		RegisterLayoutEditable(_statusPanelModule);
+		RegisterLayoutEditable(_skillBar);
+		RegisterLayoutEditable(_skillMgr);
+		RegisterLayoutEditable(_inventoryPanel);
+		RegisterLayoutEditable("ground", _groundPanel.PanelNode, defaultFloating: false);
+		RegisterLayoutEditable("log", logPanelNode, defaultFloating: false);
 
 		_inputBindings = new InputBindingService();
 		_inputModule = new InputModule(lineEdit, _inputBindings);
@@ -275,12 +291,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_combatUI = new CombatUIModule(this);
 		_settingsPanelModule.RenderToggleRequested += ToggleRender;
 		_settingsPanelModule.WatchModeToggleRequested += ToggleWatchMode;
+		_settingsPanelModule.LayoutEditRequested += OpenLayoutEditMode;
 		_settingsPanelModule.SaveRequested += () => DoSave(GameSessionModule.ManualSavePath);
 		_settingsPanelModule.LoadRequested += () => DoLoad(GameSessionModule.ManualSavePath);
 		_settingsPanelModule.KeyBindingsRequested += OpenKeyBindingsPanel;
 		_settingsPanelModule.ReturnToMenuRequested += HandleSettingsReturnToMenuRequested;
 		_settingsPanelModule.CloseRequested += CloseSettingsPanel;
 		_keyBindingsUI.CloseRequested += CloseKeyBindingsPanel;
+		_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
+		_layoutEditBar.CancelRequested += CancelLayoutEditMode;
+		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
 
 		_menu.OnContinue += HandleMenuContinue;
 		_menu.OnNewGame += HandleMenuNewGame;
@@ -299,6 +319,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_menu.InMenu) return;
 
 		ProcessDirtyPanels();
+		if (LayoutEditActive) return;
 
 		if (_state.WatchMode && !PlayerDead)
 		{
@@ -316,6 +337,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (@event is not InputEventKey key) return;
 
+		if (LayoutEditActive)
+		{
+			if (key.Pressed && key.Keycode == Key.Escape)
+				CancelLayoutEditMode();
+
+			if (key.Pressed)
+				GetViewport().SetInputAsHandled();
+			return;
+		}
+
 		if (_keyBindingsUI.IsOpen)
 		{
 			if (_keyBindingsUI.HandleKey(key) || key.Pressed)
@@ -331,6 +362,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Input(InputEvent @event)
 	{
+		if (LayoutEditActive)
+		{
+			if (@event is InputEventMouseButton editMouse
+				&& editMouse.Pressed
+				&& editMouse.ButtonIndex == MouseButton.Right)
+			{
+				GetViewport().SetInputAsHandled();
+			}
+			return;
+		}
+
 		if (_keyBindingsUI.IsOpen)
 		{
 			if (_keyBindingsUI.HandleMouseInput(@event))
@@ -448,6 +490,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void HandleBackToMenu()
 	{
+		CancelLayoutEditMode();
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
 		HideSettingsPanels();
@@ -461,6 +504,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void DoStartNewGame()
 	{
+		CancelLayoutEditMode();
 		_log.Clear();
 		PlayerDead = false;
 		HideSettingsPanels();
@@ -557,6 +601,58 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		HideSettingsPanels();
 		if (openedFromMenu)
 			_menu.ShowMainMenu(_session.HasAnySave());
+	}
+
+	private void OpenLayoutEditMode()
+	{
+		if (_menu.InMenu || !_session.GameStarted || LayoutEditActive)
+			return;
+
+		_layoutResetPending = false;
+		HideSettingsPanels();
+		_inputModule.CancelSelection();
+		_inputModule.EnterActionMode();
+		_panels.ClearFocus();
+		_panelDrag.BeginEditSession();
+		_layoutEditBar.Open();
+	}
+
+	private void ApplyLayoutEditMode()
+	{
+		if (!LayoutEditActive)
+			return;
+
+		if (_layoutResetPending)
+		{
+			foreach (var panelId in LayoutEditablePanelIds)
+				_panelDrag.RemovePersistedLayout(panelId);
+		}
+
+		_panelDrag.ApplyEditSession();
+		_layoutResetPending = false;
+		_layoutEditBar.Close();
+		FlushMap();
+	}
+
+	private void CancelLayoutEditMode()
+	{
+		if (!LayoutEditActive)
+			return;
+
+		_panelDrag.CancelEditSession();
+		_layoutResetPending = false;
+		_layoutEditBar.Close();
+		FlushMap();
+	}
+
+	private void ResetLayoutEditMode()
+	{
+		if (!LayoutEditActive)
+			return;
+
+		_layoutResetPending = true;
+		_panelDrag.ResetToDefaults();
+		FlushMap();
 	}
 
 	private void HandleSettingsReturnToMenuRequested()

@@ -7,27 +7,39 @@ namespace MiniRPG.Module.Panel;
 public readonly record struct DraggablePanelRegistration(
 	string PanelId,
 	PanelContainer Panel,
-	bool MakeTopLevel = true
+	bool DefaultFloating = true
 );
 
 public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoot)
 {
+	private const float PositionEpsilon = 1f;
+
 	private readonly PanelLayoutStore _store = store;
 	private readonly Control _floatingRoot = floatingRoot;
 	private readonly Dictionary<string, DragState> _states = [];
+	private bool _editModeActive;
+
+	public bool EditModeActive => _editModeActive;
 
 	public void Initialize() => _store.Load();
+
+	public void RemovePersistedLayout(string panelId) => _store.Remove(panelId);
 
 	public void Register(DraggablePanelRegistration registration)
 	{
 		Unregister(registration.PanelId);
 
+		var panel = registration.Panel;
 		var state = new DragState(registration)
 		{
+			OriginalParent = panel.GetParent(),
+			OriginalIndex = panel.GetIndex(),
 			PanelVisibilityChanged = () => OnPanelVisibilityChanged(registration.PanelId),
+			DefaultGlobalPosition = panel.GlobalPosition,
+			DefaultPositionCaptured = true,
 		};
 
-		foreach (var handle in CollectDragHandles(registration.Panel))
+		foreach (var handle in CollectDragHandles(panel))
 		{
 			var currentHandle = handle;
 			Control.GuiInputEventHandler handler = ev => OnHandleGuiInput(registration.PanelId, currentHandle, ev);
@@ -35,14 +47,10 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			state.HandleBindings.Add(new HandleBinding(currentHandle, handler));
 		}
 
-		registration.Panel.VisibilityChanged += state.PanelVisibilityChanged;
+		panel.VisibilityChanged += state.PanelVisibilityChanged;
 		_states[registration.PanelId] = state;
 
-		if (registration.MakeTopLevel)
-			ReparentToFloating(registration.PanelId);
-
-		if (registration.Panel.Visible)
-			ApplySavedPosition(registration.PanelId);
+		ApplyPersistedLayout(state);
 	}
 
 	public void Unregister(string panelId)
@@ -56,19 +64,134 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		if (state.PanelVisibilityChanged != null)
 			state.Registration.Panel.VisibilityChanged -= state.PanelVisibilityChanged;
 
+		RemovePlaceholder(state);
 		_states.Remove(panelId);
 	}
 
-	public bool ApplySavedPosition(string panelId)
+	public void BeginEditSession()
 	{
-		if (!_states.TryGetValue(panelId, out var state))
-			return false;
+		if (_editModeActive)
+			return;
 
-		if (!_store.TryGet(panelId, out var saved))
-			return false;
+		_editModeActive = true;
+		foreach (var state in _states.Values)
+		{
+			state.SessionFloating = IsFloating(state);
+			state.SessionPosition = state.Registration.Panel.GlobalPosition;
+			state.HasSessionSnapshot = true;
+		}
+	}
 
-		state.Registration.Panel.GlobalPosition = saved;
-		return true;
+	public void ApplyEditSession()
+	{
+		if (!_editModeActive)
+			return;
+
+		foreach (var state in _states.Values)
+		{
+			var panel = state.Registration.Panel;
+			var isFloating = IsFloating(state);
+
+			if (isFloating)
+			{
+				RemovePlaceholder(state);
+
+				if (!state.Registration.DefaultFloating)
+				{
+					_store.Set(state.Registration.PanelId, panel.GlobalPosition);
+				}
+				else if (IsNear(panel.GlobalPosition, state.DefaultGlobalPosition))
+				{
+					_store.Remove(state.Registration.PanelId);
+				}
+				else
+				{
+					_store.Set(state.Registration.PanelId, panel.GlobalPosition);
+				}
+			}
+			else
+			{
+				_store.Remove(state.Registration.PanelId);
+			}
+		}
+
+		_store.Save();
+		ClearSessionState();
+	}
+
+	public void CancelEditSession()
+	{
+		if (!_editModeActive)
+			return;
+
+		foreach (var state in _states.Values)
+		{
+			if (!state.HasSessionSnapshot)
+				continue;
+
+			if (state.SessionFloating)
+			{
+				EnsureFloating(state);
+				state.Registration.Panel.GlobalPosition = state.SessionPosition;
+				RemovePlaceholder(state);
+			}
+			else
+			{
+				EnsureDocked(state);
+			}
+		}
+
+		ClearSessionState();
+	}
+
+	public void ResetToDefaults()
+	{
+		if (!_editModeActive)
+			return;
+
+		foreach (var state in _states.Values)
+		{
+			if (state.Registration.DefaultFloating)
+			{
+				EnsureFloating(state);
+				RemovePlaceholder(state);
+				state.Registration.Panel.GlobalPosition = state.DefaultGlobalPosition;
+			}
+			else
+			{
+				EnsureDocked(state);
+			}
+		}
+	}
+
+	private void ClearSessionState()
+	{
+		_editModeActive = false;
+		foreach (var state in _states.Values)
+		{
+			state.Dragging = false;
+			state.HasSessionSnapshot = false;
+		}
+	}
+
+	private void ApplyPersistedLayout(DragState state)
+	{
+		if (_store.TryGet(state.Registration.PanelId, out var saved))
+		{
+			EnsureFloating(state);
+			state.Registration.Panel.GlobalPosition = saved;
+			return;
+		}
+
+		if (state.Registration.DefaultFloating)
+		{
+			EnsureFloating(state);
+			state.Registration.Panel.GlobalPosition = state.DefaultGlobalPosition;
+		}
+		else
+		{
+			EnsureDocked(state);
+		}
 	}
 
 	private void OnPanelVisibilityChanged(string panelId)
@@ -76,64 +199,139 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		if (!_states.TryGetValue(panelId, out var state))
 			return;
 
-		if (!state.Registration.Panel.Visible)
+		if (!state.Registration.Panel.Visible || _editModeActive)
 			return;
 
-		ApplySavedPosition(panelId);
+		ApplyPersistedLayout(state);
 	}
 
-	private void ReparentToFloating(string panelId)
+	private void OnHandleGuiInput(string panelId, Control sourceHandle, InputEvent ev)
 	{
-		if (!_states.TryGetValue(panelId, out var state))
+		if (!_editModeActive || !_states.TryGetValue(panelId, out var state) || !state.Registration.Panel.Visible)
 			return;
 
-		if (state.FloatingPrepared)
+		switch (ev)
+		{
+			case InputEventMouseButton mb when mb.ButtonIndex == MouseButton.Left:
+				sourceHandle.AcceptEvent();
+				if (mb.Pressed)
+				{
+					PrepareForEditing(state);
+					BringToFront(state.Registration.Panel);
+					state.Dragging = true;
+					state.DragOffset = state.Registration.Panel.GlobalPosition - mb.GlobalPosition;
+				}
+				else
+				{
+					state.Dragging = false;
+				}
+				break;
+
+			case InputEventMouseMotion mm:
+				sourceHandle.AcceptEvent();
+				if (state.Dragging)
+					state.Registration.Panel.GlobalPosition = mm.GlobalPosition + state.DragOffset;
+				break;
+
+			case InputEventMouseButton:
+				sourceHandle.AcceptEvent();
+				break;
+		}
+	}
+
+	private void PrepareForEditing(DragState state)
+	{
+		if (IsFloating(state))
+			return;
+
+		var panel = state.Registration.Panel;
+		var parent = panel.GetParent() as Control;
+		if (parent == null)
+			return;
+
+		var keepPos = panel.GlobalPosition;
+		state.OriginalParent = parent;
+		state.OriginalIndex = panel.GetIndex();
+
+		if (state.Placeholder == null)
+		{
+			var placeholder = new Control
+			{
+				Name = $"__layout_placeholder_{state.Registration.PanelId}",
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				CustomMinimumSize = panel.Size,
+				SizeFlagsHorizontal = panel.SizeFlagsHorizontal,
+				SizeFlagsVertical = panel.SizeFlagsVertical,
+			};
+			parent.RemoveChild(panel);
+			parent.AddChild(placeholder);
+			parent.MoveChild(placeholder, Math.Clamp(state.OriginalIndex, 0, parent.GetChildCount() - 1));
+			state.Placeholder = placeholder;
+		}
+
+		_floatingRoot.AddChild(panel);
+		panel.GlobalPosition = keepPos;
+	}
+
+	private void EnsureFloating(DragState state)
+	{
+		if (IsFloating(state))
 			return;
 
 		var panel = state.Registration.Panel;
 		if (!panel.IsInsideTree())
 			return;
 
-		var parent = panel.GetParent();
-		if (parent != null && parent != _floatingRoot)
-		{
-			var keepPos = panel.GlobalPosition;
-			parent.RemoveChild(panel);
-			_floatingRoot.AddChild(panel);
-			panel.GlobalPosition = keepPos;
-		}
-
-		state.FloatingPrepared = true;
+		var keepPos = panel.GlobalPosition;
+		panel.GetParent()?.RemoveChild(panel);
+		_floatingRoot.AddChild(panel);
+		panel.GlobalPosition = keepPos;
 	}
 
-	private void OnHandleGuiInput(string panelId, Control sourceHandle, InputEvent ev)
+	private void EnsureDocked(DragState state)
 	{
-		if (!_states.TryGetValue(panelId, out var state))
-			return;
-
-		if (ev is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+		var panel = state.Registration.Panel;
+		if (state.Placeholder?.GetParent() is Control placeholderParent)
 		{
-			if (mb.Pressed)
-			{
-				if (IsInButtonTree(sourceHandle) || IsHoveringButton(state.Registration.Panel))
-					return;
-
-				state.Dragging = true;
-				state.DragOffset = state.Registration.Panel.GlobalPosition - mb.GlobalPosition;
-				return;
-			}
-
-			if (!state.Dragging)
-				return;
-
-			state.Dragging = false;
-			_store.Set(panelId, state.Registration.Panel.GlobalPosition);
-			_store.Save();
+			var targetIndex = state.Placeholder.GetIndex();
+			panel.GetParent()?.RemoveChild(panel);
+			placeholderParent.AddChild(panel);
+			placeholderParent.MoveChild(panel, targetIndex);
+			RemovePlaceholder(state);
 			return;
 		}
 
-		if (ev is InputEventMouseMotion mm && state.Dragging)
-			state.Registration.Panel.GlobalPosition = mm.GlobalPosition + state.DragOffset;
+		if (state.OriginalParent is not Control originalParent || panel.GetParent() == originalParent)
+			return;
+
+		panel.GetParent()?.RemoveChild(panel);
+		originalParent.AddChild(panel);
+		originalParent.MoveChild(panel, Math.Clamp(state.OriginalIndex, 0, originalParent.GetChildCount() - 1));
+	}
+
+	private void RemovePlaceholder(DragState state)
+	{
+		if (state.Placeholder == null)
+			return;
+
+		var placeholder = state.Placeholder;
+		placeholder.GetParent()?.RemoveChild(placeholder);
+		placeholder.QueueFree();
+		state.Placeholder = null;
+	}
+
+	private bool IsFloating(DragState state) => state.Registration.Panel.GetParent() == _floatingRoot;
+
+	private void BringToFront(Control panel)
+	{
+		if (panel.GetParent() == _floatingRoot)
+			_floatingRoot.MoveChild(panel, _floatingRoot.GetChildCount() - 1);
+	}
+
+	private static bool IsNear(Vector2 a, Vector2 b)
+	{
+		return Math.Abs(a.X - b.X) <= PositionEpsilon
+			&& Math.Abs(a.Y - b.Y) <= PositionEpsilon;
 	}
 
 	private static List<Control> CollectDragHandles(PanelContainer panel)
@@ -153,34 +351,9 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			if (ctrl.Name.ToString().StartsWith("__drag_", StringComparison.Ordinal))
 				continue;
 
-			// Non-button region is draggable; button subtree is excluded.
-			if (ctrl is BaseButton)
-				continue;
-
 			handles.Add(ctrl);
 			CollectRecursive(ctrl, handles);
 		}
-	}
-
-	private static bool IsInButtonTree(Control ctrl)
-	{
-		Control? current = ctrl;
-		while (current != null)
-		{
-			if (current is BaseButton)
-				return true;
-			current = current.GetParent() as Control;
-		}
-
-		return false;
-	}
-
-	private static bool IsHoveringButton(Control panel)
-	{
-		var hovered = panel.GetViewport()?.GuiGetHoveredControl();
-		if (hovered == null)
-			return false;
-		return IsInButtonTree(hovered);
 	}
 
 	private sealed class HandleBinding(Control handle, Control.GuiInputEventHandler handler)
@@ -194,8 +367,15 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		public readonly DraggablePanelRegistration Registration = registration;
 		public readonly List<HandleBinding> HandleBindings = [];
 		public bool Dragging;
-		public bool FloatingPrepared;
 		public Vector2 DragOffset;
 		public Action? PanelVisibilityChanged;
+		public Node? OriginalParent;
+		public int OriginalIndex;
+		public Control? Placeholder;
+		public bool HasSessionSnapshot;
+		public bool SessionFloating;
+		public Vector2 SessionPosition;
+		public bool DefaultPositionCaptured;
+		public Vector2 DefaultGlobalPosition;
 	}
 }

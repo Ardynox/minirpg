@@ -55,6 +55,11 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 		_positions[panelId] = new PanelPos(position.X, position.Y);
 	}
 
+	public void Remove(string panelId)
+	{
+		_positions.Remove(panelId);
+	}
+
 	public void Save()
 	{
 		try
