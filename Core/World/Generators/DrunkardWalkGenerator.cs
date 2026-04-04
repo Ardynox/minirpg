@@ -12,10 +12,6 @@ public class DrunkardWalkGenerator : IMapGenerator
 	public string Id => "drunkard_walk";
 	public string Name => "醉汉漫步";
 
-	private const int WalkersPerChunk = 6;
-	private const int StepsPerWalker = 200;
-	private const double TargetOpenRatio = 0.40;
-
 	private static readonly (int Dx, int Dy)[] Dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)];
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
@@ -34,15 +30,16 @@ public class DrunkardWalkGenerator : IMapGenerator
 
 		var seed = HashSeed(worldSeed, chunk.Coord);
 		var rng = new Random(seed);
-		var targetCells = (int)(ChunkData.Area * TargetOpenRatio);
+		var config = GameConfig.Generation.DrunkardWalk;
+		var targetCells = (int)(ChunkData.Area * config.TargetOpenRatio);
 		var openCount = 0;
 
-		for (var w = 0; w < WalkersPerChunk && openCount < targetCells; w++)
+		for (var w = 0; w < config.WalkersPerChunk && openCount < targetCells; w++)
 		{
 			var x = rng.Next(2, ChunkData.Size - 2);
 			var y = rng.Next(2, ChunkData.Size - 2);
 
-			for (var step = 0; step < StepsPerWalker && openCount < targetCells; step++)
+			for (var step = 0; step < config.StepsPerWalker && openCount < targetCells; step++)
 			{
 				if (chunk.GetTerrainId(x, y) != floorId)
 				{
@@ -68,6 +65,7 @@ public class DrunkardWalkGenerator : IMapGenerator
 	{
 		if (chunk.Coord.Cz <= 0) return;
 
+		var config = GameConfig.Generation.DrunkardWalk;
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xD1D2D3D4);
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
@@ -80,19 +78,19 @@ public class DrunkardWalkGenerator : IMapGenerator
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
 			if (chunk.GetEntities(lx, ly).Count > 0) continue;
 
-			if (!downPlaced && rng.Next(100) < 2)
+			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				downPlaced = true;
 			}
-			else if (!upPlaced && rng.Next(100) < 2)
+			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
 				upPlaced = true;
 			}
-			else if (rng.Next(100) < 1)
+			else if (rng.Next(100) < Math.Clamp(config.NestChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -100,7 +98,8 @@ public class DrunkardWalkGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = 7, MaxSpawned = 2,
+					SpawnInterval = config.NestSpawnInterval,
+					MaxSpawned = config.NestMaxSpawned,
 				});
 			}
 		}

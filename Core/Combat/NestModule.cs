@@ -25,6 +25,7 @@ public static class NestModule
 		var rng = new Random(state.WorldSeed + state.Turn);
 		var monsterTemplates = ActorTemplates.MonsterIds.ToArray();
 		if (monsterTemplates.Length == 0) return events;
+		var nearbyRadius = Math.Max(0, GameConfig.WorldRuntime.NestNearbyCountRadius);
 
 		var playerChunk = CoordUtil.WorldToChunk(state.PlayerX, state.PlayerY, state.PlayerZ);
 		var r = state.World.Chunks.LoadRadiusXY;
@@ -41,7 +42,7 @@ public static class NestModule
 				nest.TurnsSinceSpawn++;
 				if (nest.TurnsSinceSpawn < nest.SpawnInterval) continue;
 
-				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, 3);
+				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, nearbyRadius);
 				if (nearby >= nest.MaxSpawned) continue;
 
 				var slot = FindSpawnSlot(state, nest, rng);

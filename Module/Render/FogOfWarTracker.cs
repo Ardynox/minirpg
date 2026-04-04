@@ -40,7 +40,24 @@ public class FogOfWarTracker
 	/// <summary>环境光照等级：0=完全黑暗，1=正常光照。</summary>
 	public float AmbientLight { get; set; } = 1.0f;
 
+	public int MinimumVisionRadius { get; set; } = 2;
+
+	public int MinimumRearVisionRadius { get; set; } = 2;
+
 	private static long Pack(int x, int y) => ((long)x << 32) | (uint)y;
+
+	public FogOfWarTracker()
+	{
+	}
+
+	public FogOfWarTracker(PlayerVisionConfig config)
+	{
+		BaseVisionRadius = config.BaseVisionRadius;
+		RearVisionRatio = config.RearVisionRatio;
+		AmbientLight = config.AmbientLight;
+		MinimumVisionRadius = config.MinimumVisionRadius;
+		MinimumRearVisionRadius = config.MinimumRearVisionRadius;
+	}
 
 	/// <summary>
 	/// 更新迷雾。计算两套视野：
@@ -63,8 +80,8 @@ public class FogOfWarTracker
 		var player = ActorModule.GetPlayer(state);
 		var sight = player?.GetCapacity(Caps.Sight) ?? 1.0f;
 		var frontRadius = (int)(BaseVisionRadius * sight * AmbientLight);
-		if (frontRadius < 2) frontRadius = 2;
-		var rearRadius = System.Math.Max(2, (int)(frontRadius * RearVisionRatio));
+		if (frontRadius < MinimumVisionRadius) frontRadius = MinimumVisionRadius;
+		var rearRadius = System.Math.Max(MinimumRearVisionRadius, (int)(frontRadius * RearVisionRatio));
 
 		var cx = state.PlayerX;
 		var cy = state.PlayerY;

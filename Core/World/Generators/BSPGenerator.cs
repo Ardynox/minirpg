@@ -14,12 +14,9 @@ public class BSPGenerator : IMapGenerator
 	public string Id => "bsp";
 	public string Name => "BSP 空间分割";
 
-	private const int MinLeafSize = 6;
-	private const int MinRoomSize = 3;
-	private const int MaxDepth = 5;
-
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
+		var config = GameConfig.Generation.Bsp;
 		if (chunk.Coord.Cz == 0)
 		{
 			SurfaceGenerator.Generate(chunk, worldSeed);
@@ -36,15 +33,15 @@ public class BSPGenerator : IMapGenerator
 		var rng = new Random(seed);
 
 		var root = new BSPNode(1, 1, ChunkData.Size - 2, ChunkData.Size - 2);
-		Split(root, rng, 0);
+		Split(root, rng, 0, config);
 
 		var leaves = new List<BSPNode>();
 		CollectLeaves(root, leaves);
 
 		foreach (var leaf in leaves)
 		{
-			var rw = rng.Next(MinRoomSize, leaf.W - 1);
-			var rh = rng.Next(MinRoomSize, leaf.H - 1);
+			var rw = rng.Next(config.MinRoomSize, leaf.W - 1);
+			var rh = rng.Next(config.MinRoomSize, leaf.H - 1);
 			var rx = leaf.X + rng.Next(0, leaf.W - rw);
 			var ry = leaf.Y + rng.Next(0, leaf.H - rh);
 			leaf.RoomX = rx; leaf.RoomY = ry;
@@ -67,6 +64,7 @@ public class BSPGenerator : IMapGenerator
 	{
 		if (chunk.Coord.Cz <= 0) return;
 
+		var config = GameConfig.Generation.Bsp;
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xB5B5B5B5);
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
@@ -79,19 +77,19 @@ public class BSPGenerator : IMapGenerator
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
 			if (chunk.GetEntities(lx, ly).Count > 0) continue;
 
-			if (!downPlaced && rng.Next(100) < 2)
+			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				downPlaced = true;
 			}
-			else if (!upPlaced && rng.Next(100) < 2)
+			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
 				upPlaced = true;
 			}
-			else if (rng.Next(100) < 1)
+			else if (rng.Next(100) < Math.Clamp(config.NestChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -99,37 +97,38 @@ public class BSPGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = 6, MaxSpawned = 3,
+					SpawnInterval = config.NestSpawnInterval,
+					MaxSpawned = config.NestMaxSpawned,
 				});
 			}
 		}
 	}
 
-	private static void Split(BSPNode node, Random rng, int depth)
+	private static void Split(BSPNode node, Random rng, int depth, BspGenerationConfig config)
 	{
-		if (depth >= MaxDepth || node.W < MinLeafSize * 2 && node.H < MinLeafSize * 2) return;
+		if (depth >= config.MaxDepth || node.W < config.MinLeafSize * 2 && node.H < config.MinLeafSize * 2) return;
 
 		var splitH = node.W >= node.H ? rng.Next(2) == 0 : true;
-		if (node.W < MinLeafSize * 2) splitH = true;
-		if (node.H < MinLeafSize * 2) splitH = false;
+		if (node.W < config.MinLeafSize * 2) splitH = true;
+		if (node.H < config.MinLeafSize * 2) splitH = false;
 
 		if (splitH)
 		{
-			if (node.H < MinLeafSize * 2) return;
-			var split = rng.Next(MinLeafSize, node.H - MinLeafSize + 1);
+			if (node.H < config.MinLeafSize * 2) return;
+			var split = rng.Next(config.MinLeafSize, node.H - config.MinLeafSize + 1);
 			node.Left = new BSPNode(node.X, node.Y, node.W, split);
 			node.Right = new BSPNode(node.X, node.Y + split, node.W, node.H - split);
 		}
 		else
 		{
-			if (node.W < MinLeafSize * 2) return;
-			var split = rng.Next(MinLeafSize, node.W - MinLeafSize + 1);
+			if (node.W < config.MinLeafSize * 2) return;
+			var split = rng.Next(config.MinLeafSize, node.W - config.MinLeafSize + 1);
 			node.Left = new BSPNode(node.X, node.Y, split, node.H);
 			node.Right = new BSPNode(node.X + split, node.Y, node.W - split, node.H);
 		}
 
-		Split(node.Left, rng, depth + 1);
-		Split(node.Right, rng, depth + 1);
+		Split(node.Left, rng, depth + 1, config);
+		Split(node.Right, rng, depth + 1, config);
 	}
 
 	private static void CollectLeaves(BSPNode node, List<BSPNode> leaves)

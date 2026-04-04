@@ -1,0 +1,12 @@
+{
+  "iterations": 4,
+  "initial_fill_chance": 0.48,
+  "noise_scale": 0.12,
+  "birth_threshold": 5,
+  "survive_threshold": 4,
+  "stair_down_chance_percent": 1,
+  "stair_up_chance_percent": 1,
+  "nest_chance_percent": 1,
+  "nest_spawn_interval": 6,
+  "nest_max_spawned": 3
+}

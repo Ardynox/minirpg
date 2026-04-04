@@ -14,12 +14,6 @@ public class CellularAutomataGenerator : IMapGenerator
 	public string Id => "cellular_automata";
 	public string Name => "细胞自动机洞穴";
 
-	private const int Iterations = 4;
-	private const double InitialFillChance = 0.48;
-	private const double NoiseScale = 0.12;
-	private const int BirthThreshold = 5;
-	private const int SurviveThreshold = 4;
-
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
 		if (chunk.Coord.Cz == 0)
@@ -38,6 +32,7 @@ public class CellularAutomataGenerator : IMapGenerator
 
 	private void GenerateCaves(ChunkData chunk, int worldSeed)
 	{
+		var config = GameConfig.Generation.Cellular;
 		var wallId = GetWallForDepth(chunk.Coord.Cz);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var noise = new PerlinNoise(worldSeed ^ chunk.Coord.Cz * 99991);
@@ -49,11 +44,11 @@ public class CellularAutomataGenerator : IMapGenerator
 		{
 			var wx = chunk.Coord.Cx * ChunkData.Size + lx;
 			var wy = chunk.Coord.Cy * ChunkData.Size + ly;
-			var n = noise.Noise2D(wx * NoiseScale, wy * NoiseScale);
-			grid[lx, ly] = (n + 1.0) / 2.0 < InitialFillChance;
+			var n = noise.Noise2D(wx * config.NoiseScale, wy * config.NoiseScale);
+			grid[lx, ly] = (n + 1.0) / 2.0 < config.InitialFillChance;
 		}
 
-		for (var iter = 0; iter < Iterations; iter++)
+		for (var iter = 0; iter < config.Iterations; iter++)
 		{
 			var next = new bool[ChunkData.Size, ChunkData.Size];
 			for (var ly = 0; ly < ChunkData.Size; ly++)
@@ -61,8 +56,8 @@ public class CellularAutomataGenerator : IMapGenerator
 			{
 				var neighbors = CountNeighbors(grid, lx, ly);
 				next[lx, ly] = grid[lx, ly]
-					? neighbors >= SurviveThreshold
-					: neighbors >= BirthThreshold;
+					? neighbors >= config.SurviveThreshold
+					: neighbors >= config.BirthThreshold;
 			}
 			grid = next;
 		}
@@ -99,6 +94,7 @@ public class CellularAutomataGenerator : IMapGenerator
 
 	private static void PlaceFixtures(ChunkData chunk, int worldSeed)
 	{
+		var config = GameConfig.Generation.Cellular;
 		var seed = worldSeed ^ 0xCA1234 ^ chunk.Coord.Cx * 7193 ^ chunk.Coord.Cy * 5437 ^ chunk.Coord.Cz * 3119;
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
@@ -111,19 +107,19 @@ public class CellularAutomataGenerator : IMapGenerator
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
 			if (chunk.GetEntities(lx, ly).Count > 0) continue;
 
-			if (!downPlaced && rng.Next(100) < 1)
+			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				downPlaced = true;
 			}
-			else if (!upPlaced && rng.Next(100) < 1)
+			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
 				upPlaced = true;
 			}
-			else if (rng.Next(100) < 1)
+			else if (rng.Next(100) < Math.Clamp(config.NestChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -131,7 +127,8 @@ public class CellularAutomataGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = 6, MaxSpawned = 3,
+					SpawnInterval = config.NestSpawnInterval,
+					MaxSpawned = config.NestMaxSpawned,
 				});
 			}
 		}

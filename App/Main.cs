@@ -212,11 +212,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Ready()
 	{
+		GameConfig.Load();
 		PresetDB.Load();
 		TerrainRegistry.Load("res://Data/terrains.json");
 		DialogPool.Load();
 		ResAccess.Load();
-		_fogTracker = new FogOfWarTracker();
+		_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 
 		_session = new GameSessionModule(_state, _fogTracker);
 		_menu = new MenuModule(this);
@@ -432,8 +433,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoStartNewGame();
 		DoEnterGame();
 		var test = new AutoTestModule();
+		var debugConfig = GameConfig.Debug;
 		test.RunAll(this, _state, _session, _fogTracker, _mapRender, _log,
-			RunTestCommand, FlushMap, delay: 0.05f, stopOnFail: false);
+			RunTestCommand, FlushMap,
+			delay: debugConfig.AutoTestStepDelay,
+			stopOnFail: debugConfig.AutoTestStopOnFail);
 	}
 
 	/// <summary>供 AutoTestModule 转发命令到 OnCommand。</summary>

@@ -1,0 +1,9 @@
+{
+  "cave_scale": 0.08,
+  "cave_density_threshold": 0.1,
+  "stair_down_chance_percent": 1,
+  "stair_up_chance_percent": 1,
+  "nest_chance_percent": 1,
+  "nest_spawn_interval": 8,
+  "nest_max_spawned": 2
+}

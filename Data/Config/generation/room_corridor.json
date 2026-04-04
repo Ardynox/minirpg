@@ -1,0 +1,11 @@
+{
+  "min_room_size": 4,
+  "max_room_size": 8,
+  "max_attempts": 30,
+  "surface_house_chance_percent": 3,
+  "dungeon_nest_chance_percent": 2,
+  "dungeon_nest_spawn_interval": 5,
+  "dungeon_nest_max_spawned": 3,
+  "stair_down_chance_percent": 3,
+  "stair_up_chance_percent": 3
+}

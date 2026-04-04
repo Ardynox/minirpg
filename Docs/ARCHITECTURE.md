@@ -78,6 +78,8 @@ App/Main.tscn / App/Main.cs
 
 - [`Core/Data`](../Core/Data)
   运行时核心数据与数据驱动入口。包括 `GameState`、`Actor`、`GameEvent`、`Item`、`InteractionDef`、`PresetDB`、`SkillQuery`、`Quest`、`TagSystem`、`InventoryModule`、`InteractionModule` 等。
+- [`Core/Config`](../Core/Config)
+  统一运行时调参入口。`GameConfig` 在启动时读取 `Data/Config/*.json`，并向玩家视野、AI 视野、chunk 运行时、自动测试和地图生成器提供配置对象。
 - [`Core/Combat`](../Core/Combat)
   战斗与回合主干。包括 `ActionModule`、`CombatModule`、`TurnModule`、`NestModule`。
 - [`Core/Map`](../Core/Map)
@@ -107,7 +109,7 @@ App/Main.tscn / App/Main.cs
 
 ### 启动
 
-- `Main._Ready` 负责加载数据、创建 `GameSessionModule`、创建渲染模块、创建面板模块、注册拖拽和焦点管理、接入输入和菜单事件。
+- `Main._Ready` 先调用 `GameConfig.Load()`，再加载 `PresetDB`、`TerrainRegistry`、`DialogPool`、`ResAccess`，然后创建 `GameSessionModule`、渲染模块、面板模块，并接入输入和菜单事件。
 - `Main._Ready` 当前直接加载 [`Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres)；角色 Spine 资源路径则来自 [`Data/entity_render.json`](../Data/entity_render.json)。
 
 ### 输入到命令

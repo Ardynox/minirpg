@@ -42,6 +42,13 @@ public class ChunkManager
 
 	public void SetGenerator(IMapGenerator gen) => _generator = gen;
 
+	public void ApplyRuntimeConfig(WorldRuntimeConfig config)
+	{
+		LoadRadiusXY = config.ChunkLoadRadiusXy;
+		LoadRadiusZ = config.ChunkLoadRadiusZ;
+		MaxCachedChunks = config.MaxCachedChunks;
+	}
+
 	/// <summary>获取 chunk。已缓存则直接返回，否则尝试从存档加载或重新生成。</summary>
 	public ChunkData GetOrLoad(ChunkCoord coord)
 	{
@@ -82,7 +89,7 @@ public class ChunkManager
 	{
 		if (_loaded.Count <= MaxCachedChunks) return;
 
-		var evictRadius = LoadRadiusXY + 2;
+		var evictRadius = LoadRadiusXY + Math.Max(0, GameConfig.WorldRuntime.ChunkEvictPaddingXy);
 		var toEvict = new List<ChunkCoord>();
 
 		foreach (var (coord, chunk) in _loaded)
@@ -120,11 +127,12 @@ public class ChunkManager
 	public void TickSimulation(WorldCoord playerPos, GameState state)
 	{
 		var pc = CoordUtil.WorldToChunk(playerPos);
+		var nearRadius = Math.Max(0, GameConfig.WorldRuntime.ChunkSimulationNearRadiusXy);
 		foreach (var (coord, chunk) in _loaded)
 		{
 			var dx = Math.Abs(coord.Cx - pc.Cx);
 			var dy = Math.Abs(coord.Cy - pc.Cy);
-			if (dx > 1 || dy > 1)
+			if (dx > nearRadius || dy > nearRadius)
 				Simulator.TickChunk(chunk, state);
 		}
 	}

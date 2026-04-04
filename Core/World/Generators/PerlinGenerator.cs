@@ -14,9 +14,6 @@ public class PerlinGenerator : IMapGenerator
 	public string Id => "perlin";
 	public string Name => "自然地形";
 
-	private const double CaveScale = 0.08;
-	private const double CaveDensityThreshold = 0.1;
-
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
 		if (chunk.Coord.Cz == 0)
@@ -31,6 +28,7 @@ public class PerlinGenerator : IMapGenerator
 	{
 		if (chunk.Coord.Cz <= 0) return;
 
+		var config = GameConfig.Generation.Perlin;
 		var seed = worldSeed ^ unchecked((int)0xDEAD0001) ^ chunk.Coord.Cz * 31337;
 		var rng = new Random(seed ^ chunk.Coord.Cx * 7919 ^ chunk.Coord.Cy * 6563);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
@@ -43,19 +41,19 @@ public class PerlinGenerator : IMapGenerator
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
 			if (chunk.GetEntities(lx, ly).Count > 0) continue;
 
-			if (!downPlaced && rng.Next(100) < 1)
+			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				downPlaced = true;
 			}
-			else if (!upPlaced && rng.Next(100) < 1)
+			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
 				upPlaced = true;
 			}
-			else if (rng.Next(100) < 1)
+			else if (rng.Next(100) < Math.Clamp(config.NestChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -63,7 +61,8 @@ public class PerlinGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = 8, MaxSpawned = 2,
+					SpawnInterval = config.NestSpawnInterval,
+					MaxSpawned = config.NestMaxSpawned,
 				});
 			}
 		}
@@ -71,6 +70,7 @@ public class PerlinGenerator : IMapGenerator
 
 	private void GenerateUnderground(ChunkData chunk, int worldSeed)
 	{
+		var config = GameConfig.Generation.Perlin;
 		var caveNoise = new PerlinNoise(worldSeed ^ 0xCAFE);
 		var oreNoise = new PerlinNoise(worldSeed ^ 0xBEEF);
 		var wallId = GetWallForDepth(chunk.Coord.Cz);
@@ -86,9 +86,9 @@ public class PerlinGenerator : IMapGenerator
 			var wz = chunk.Coord.Cz;
 
 			var density = caveNoise.FBM3D(
-				wx * CaveScale, wy * CaveScale, wz * CaveScale * 0.5, 4, 0.5);
+				wx * config.CaveScale, wy * config.CaveScale, wz * config.CaveScale * 0.5, 4, 0.5);
 
-			if (density < CaveDensityThreshold)
+			if (density < config.CaveDensityThreshold)
 				chunk.SetTerrain(lx, ly, floorId);
 		}
 	}

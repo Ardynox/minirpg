@@ -23,13 +23,6 @@ public sealed class AIVisionMetrics
 
 public static class AIVisionBatch
 {
-	private const int LocalContextRadius = 1;
-	private const int FullRange = 8;
-	private const int SimplifiedRange = 5;
-	private const int FullShortlistLimit = 8;
-	private const int SimplifiedShortlistLimit = 4;
-	private const float RearVisionRatio = 0.5f;
-
 	public static AIVisionMetrics LastMetrics { get; private set; } = new();
 
 	public static Dictionary<string, Perception> Build(GameState state, IReadOnlyList<AIVisionRequest> requests)
@@ -43,6 +36,8 @@ public static class AIVisionBatch
 		}
 
 		var sw = Stopwatch.StartNew();
+		var config = GameConfig.AIVision;
+		var localContextRadius = Math.Max(0, config.LocalContextRadius);
 		int candidateCount = 0;
 		int shortlistCount = 0;
 		int losChecks = 0;
@@ -52,17 +47,17 @@ public static class AIVisionBatch
 		{
 			var observer = request.Observer;
 			var visibleActors = new List<Actor>();
-			var nearbyWalkable = BuildLocalWalkable(state, observer);
-			var nearbyFixtures = BuildLocalFixtures(state, observer);
+			var nearbyWalkable = BuildLocalWalkable(state, observer, localContextRadius);
+			var nearbyFixtures = BuildLocalFixtures(state, observer, localContextRadius);
 
 			if (request.Detail != SimDetail.Summary)
 			{
-				var candidates = CollectCandidates(state, observer, request.Detail);
+				var candidates = CollectCandidates(state, observer, request.Detail, config);
 				candidateCount += candidates.Count;
 
 				var shortlist = candidates
 					.OrderBy(target => CandidateScore(observer, target))
-					.Take(ShortlistLimitFor(request.Detail))
+					.Take(ShortlistLimitFor(request.Detail, config))
 					.ToList();
 
 				shortlistCount += shortlist.Count;
@@ -105,11 +100,14 @@ public static class AIVisionBatch
 		return result;
 	}
 
-	private static Dictionary<(int X, int Y), bool> BuildLocalWalkable(GameState state, Actor observer)
+	private static Dictionary<(int X, int Y), bool> BuildLocalWalkable(
+		GameState state,
+		Actor observer,
+		int localContextRadius)
 	{
 		var nearbyWalkable = new Dictionary<(int, int), bool>();
-		for (int dy = -LocalContextRadius; dy <= LocalContextRadius; dy++)
-		for (int dx = -LocalContextRadius; dx <= LocalContextRadius; dx++)
+		for (int dy = -localContextRadius; dy <= localContextRadius; dy++)
+		for (int dx = -localContextRadius; dx <= localContextRadius; dx++)
 		{
 			var x = observer.X + dx;
 			var y = observer.Y + dy;
@@ -119,11 +117,14 @@ public static class AIVisionBatch
 		return nearbyWalkable;
 	}
 
-	private static Dictionary<(int X, int Y), string> BuildLocalFixtures(GameState state, Actor observer)
+	private static Dictionary<(int X, int Y), string> BuildLocalFixtures(
+		GameState state,
+		Actor observer,
+		int localContextRadius)
 	{
 		var nearbyFixtures = new Dictionary<(int, int), string>();
-		for (int dy = -LocalContextRadius; dy <= LocalContextRadius; dy++)
-		for (int dx = -LocalContextRadius; dx <= LocalContextRadius; dx++)
+		for (int dy = -localContextRadius; dy <= localContextRadius; dy++)
+		for (int dx = -localContextRadius; dx <= localContextRadius; dx++)
 		{
 			var x = observer.X + dx;
 			var y = observer.Y + dy;
@@ -135,11 +136,15 @@ public static class AIVisionBatch
 		return nearbyFixtures;
 	}
 
-	private static List<Actor> CollectCandidates(GameState state, Actor observer, SimDetail detail)
+	private static List<Actor> CollectCandidates(
+		GameState state,
+		Actor observer,
+		SimDetail detail,
+		AIVisionConfig config)
 	{
 		var result = new List<Actor>();
-		int frontRange = RangeFor(detail);
-		int rearRange = Math.Max(2, (int)(frontRange * RearVisionRatio));
+		int frontRange = RangeFor(detail, config);
+		int rearRange = Math.Max(2, (int)(frontRange * config.RearVisionRatio));
 		long frontSq = (long)frontRange * frontRange;
 		long rearSq = (long)rearRange * rearRange;
 
@@ -174,17 +179,17 @@ public static class AIVisionBatch
 		return hostilityPenalty + rearPenalty + (int)Math.Min(distSq, int.MaxValue / 4);
 	}
 
-	private static int RangeFor(SimDetail detail) => detail switch
+	private static int RangeFor(SimDetail detail, AIVisionConfig config) => detail switch
 	{
-		SimDetail.Full => FullRange,
-		SimDetail.Simplified => SimplifiedRange,
+		SimDetail.Full => Math.Max(0, config.FullRange),
+		SimDetail.Simplified => Math.Max(0, config.SimplifiedRange),
 		_ => 0,
 	};
 
-	private static int ShortlistLimitFor(SimDetail detail) => detail switch
+	private static int ShortlistLimitFor(SimDetail detail, AIVisionConfig config) => detail switch
 	{
-		SimDetail.Full => FullShortlistLimit,
-		SimDetail.Simplified => SimplifiedShortlistLimit,
+		SimDetail.Full => Math.Max(0, config.FullShortlistLimit),
+		SimDetail.Simplified => Math.Max(0, config.SimplifiedShortlistLimit),
 		_ => 0,
 	};
 }

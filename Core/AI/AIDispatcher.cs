@@ -41,7 +41,8 @@ public static class AIDispatcher
 
 			var detail = Classify(actor, viewCenterX, viewCenterY, viewRange);
 			if (detail == SimDetail.Summary) continue;
-			if (detail == SimDetail.Simplified && state.Turn % 3 != 0) continue;
+			var simplifiedUpdateInterval = Math.Max(1, GameConfig.AIVision.SimplifiedUpdateIntervalTurns);
+			if (detail == SimDetail.Simplified && state.Turn % simplifiedUpdateInterval != 0) continue;
 
 			if (!_brains.TryGetValue(actor.BrainId!, out var brain)) continue;
 
@@ -98,9 +99,10 @@ public static class AIDispatcher
 
 	private static SimDetail Classify(Actor actor, int cx, int cy, int range)
 	{
+		var simplifiedMultiplier = Math.Max(1, GameConfig.AIVision.SimplifiedActivationRangeMultiplier);
 		var dist = Math.Abs(actor.X - cx) + Math.Abs(actor.Y - cy);
 		if (dist <= range) return SimDetail.Full;
-		if (dist <= range * 3) return SimDetail.Simplified;
+		if (dist <= range * simplifiedMultiplier) return SimDetail.Simplified;
 		return SimDetail.Summary;
 	}
 

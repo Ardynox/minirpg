@@ -1,0 +1,10 @@
+{
+  "walkers_per_chunk": 6,
+  "steps_per_walker": 200,
+  "target_open_ratio": 0.4,
+  "stair_down_chance_percent": 2,
+  "stair_up_chance_percent": 2,
+  "nest_chance_percent": 1,
+  "nest_spawn_interval": 7,
+  "nest_max_spawned": 2
+}

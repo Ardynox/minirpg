@@ -17,6 +17,7 @@ public class WorldMap
 	{
 		WorldSeed = worldSeed;
 		Chunks = new ChunkManager(worldSeed, generator);
+		Chunks.ApplyRuntimeConfig(GameConfig.WorldRuntime);
 	}
 
 	// ══════════════════════════════════════════════════════

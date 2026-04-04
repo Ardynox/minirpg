@@ -1,0 +1,7 @@
+{
+  "base_vision_radius": 12,
+  "rear_vision_ratio": 0.4,
+  "ambient_light": 1.0,
+  "minimum_vision_radius": 2,
+  "minimum_rear_vision_radius": 2
+}

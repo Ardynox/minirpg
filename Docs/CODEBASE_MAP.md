@@ -8,6 +8,13 @@
 - `TileMapRenderModule` now renders focused/peripheral/memory player vision using multiple TileMap layers.
 - Terrain tile mappings may provide a single base tile or `base + optional overlay`.
 
+## Config Notes
+
+- `Core/Config/GameConfig.cs` is the single startup loader for runtime tuning JSON.
+- `Data/Config/` now holds restart-to-apply tuning files for player vision, AI vision, world runtime, auto-test, and map generators.
+- `Data/` root still holds authored content presets and resource mappings such as `actors.json`, `terrains.json`, `tile_mapping.json`, and `entity_render.json`.
+- Placement rules for new data files live in [`../Data/README.md`](../Data/README.md).
+
 
 ## 文档定位
 
@@ -69,6 +76,7 @@ mini-rpg/
 
 ### `Core/`
 
+- `Config/`: startup-time runtime tuning loader and DTOs. `GameConfig.Load()` reads `Data/Config/*.json` once, and gameplay/render systems consume the resulting config objects.
 - `Data/`: `GameState`、`Actor`、`GameEvent`、`PresetDB`、`Item`、`InteractionDef`、`Quest`、`TagSystem` 等运行时核心数据与数据驱动入口。
 - `Combat/`: `ActionModule`、`CombatModule`、`TurnModule`、`NestModule`。
 - `Map/`: `MapModule`、`MapGenModule`、`SaveModule`。
@@ -90,7 +98,9 @@ mini-rpg/
 
 ### `Data/`
 
-- JSON 预设、tile 映射、地形等运行时数据文件。
+- `Data/` root keeps authored presets and resource mappings such as `actors.json`, `items.json`, `terrains.json`, `dialogs.json`, `tile_mapping.json`, and `entity_render.json`.
+- `Data/Config/` is only for runtime tuning JSON that is expected to change frequently during balancing and debugging.
+- See [`../Data/README.md`](../Data/README.md) for the split between root data files and `Data/Config/`.
 
 ### `Assets/`
 

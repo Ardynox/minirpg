@@ -13,10 +13,6 @@ public class RoomCorridorGenerator : IMapGenerator
 	public string Id => "room_corridor";
 	public string Name => "房间走廊";
 
-	private const int MinRoomSize = 4;
-	private const int MaxRoomSize = 8;
-	private const int MaxAttempts = 30;
-
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
 		if (chunk.Coord.Cz == 0)
@@ -63,11 +59,12 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static List<Room> PlaceRooms(ChunkData chunk, Random rng, ushort floorId)
 	{
+		var config = GameConfig.Generation.RoomCorridor;
 		var rooms = new List<Room>();
-		for (var i = 0; i < MaxAttempts; i++)
+		for (var i = 0; i < config.MaxAttempts; i++)
 		{
-			var w = rng.Next(MinRoomSize, MaxRoomSize + 1);
-			var h = rng.Next(MinRoomSize, MaxRoomSize + 1);
+			var w = rng.Next(config.MinRoomSize, config.MaxRoomSize + 1);
+			var h = rng.Next(config.MinRoomSize, config.MaxRoomSize + 1);
 			var x = rng.Next(1, ChunkData.Size - w - 1);
 			var y = rng.Next(1, ChunkData.Size - h - 1);
 			var room = new Room { X = x, Y = y, W = w, H = h };
@@ -133,11 +130,12 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static void PopulateSurface(ChunkData chunk, Random rng)
 	{
+		var config = GameConfig.Generation.RoomCorridor;
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
 		{
 			if (chunk.GetTerrainId(lx, ly) != TerrainRegistry.GetId(Terrains.Floor)) continue;
-			if (rng.Next(100) < 3)
+			if (rng.Next(100) < Math.Clamp(config.SurfaceHouseChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "H", EntityId = Entities.House });
@@ -147,12 +145,13 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static void PopulateDungeon(ChunkData chunk, Random rng)
 	{
+		var config = GameConfig.Generation.RoomCorridor;
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
 		{
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
-			if (rng.Next(100) < 2)
+			if (rng.Next(100) < Math.Clamp(config.DungeonNestChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -160,7 +159,8 @@ public class RoomCorridorGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = 5, MaxSpawned = 3,
+					SpawnInterval = config.DungeonNestSpawnInterval,
+					MaxSpawned = config.DungeonNestMaxSpawned,
 				});
 			}
 		}
@@ -168,6 +168,7 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	private static void PlaceStairs(ChunkData chunk, Random rng, ushort floorId)
 	{
+		var config = GameConfig.Generation.RoomCorridor;
 		var downPlaced = false;
 		var upPlaced = false;
 		for (var ly = 0; ly < ChunkData.Size && (!downPlaced || !upPlaced); ly++)
@@ -176,13 +177,13 @@ public class RoomCorridorGenerator : IMapGenerator
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
 			if (chunk.GetEntities(lx, ly).Count > 0) continue;
 
-			if (!downPlaced && rng.Next(100) < 3)
+			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
 				downPlaced = true;
 			}
-			else if (!upPlaced && rng.Next(100) < 3 && chunk.Coord.Cz > 0)
+			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100) && chunk.Coord.Cz > 0)
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });

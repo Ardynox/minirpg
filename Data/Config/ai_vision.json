@@ -1,0 +1,14 @@
+{
+  "activation_view_range": 10,
+  "simplified_activation_range_multiplier": 3,
+  "simplified_update_interval_turns": 3,
+  "local_context_radius": 1,
+  "full_range": 8,
+  "simplified_range": 5,
+  "full_shortlist_limit": 8,
+  "simplified_shortlist_limit": 4,
+  "rear_vision_ratio": 0.5,
+  "gpu_observer_threshold": 200,
+  "gpu_turn_budget_ms": 4.0,
+  "gpu_usage_ratio_threshold": 0.25
+}

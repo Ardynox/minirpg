@@ -1,0 +1,10 @@
+{
+  "min_leaf_size": 6,
+  "min_room_size": 3,
+  "max_depth": 5,
+  "stair_down_chance_percent": 2,
+  "stair_up_chance_percent": 2,
+  "nest_chance_percent": 1,
+  "nest_spawn_interval": 6,
+  "nest_max_spawned": 3
+}

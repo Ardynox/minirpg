@@ -1,0 +1,10 @@
+{
+  "auto_test_step_delay": 0.05,
+  "auto_test_stop_on_fail": false,
+  "auto_test_render_arena_radius": 4,
+  "auto_test_ai_arena_radius": 10,
+  "auto_test_benchmark_arena_radius": 12,
+  "auto_test_benchmark_counts": [10, 50, 200],
+  "auto_test_ai_vision_warn_ms": 4.0,
+  "auto_test_tick_warn_ms": 16.0
+}

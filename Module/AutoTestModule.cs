@@ -16,7 +16,7 @@ namespace MiniRPG.Module;
 /// </summary>
 public class AutoTestModule
 {
-	private float _stepDelay = 0.05f;
+	private float _stepDelay;
 	private bool _stopOnFail;
 	private int _pass, _fail;
 	private bool _aborted;
@@ -26,10 +26,11 @@ public class AutoTestModule
 		Node main, GameState state, GameSessionModule session,
 		FogOfWarTracker fogTracker, TileMapRenderModule mapRender,
 		LogModule log, Action<string> runCommand, Action flushMap,
-		float delay = 0.05f, bool stopOnFail = false)
+		float? delay = null, bool? stopOnFail = null)
 	{
-		_stepDelay = delay;
-		_stopOnFail = stopOnFail;
+		var config = GameConfig.Debug;
+		_stepDelay = delay ?? config.AutoTestStepDelay;
+		_stopOnFail = stopOnFail ?? config.AutoTestStopOnFail;
 		_pass = 0;
 		_fail = 0;
 		_aborted = false;
@@ -116,7 +117,7 @@ public class AutoTestModule
 		Log("── Chain 2: 渲染管线 ──");
 
 		var player = ActorModule.GetPlayer(state)!;
-		PrepareVisionArena(state, radius: 4);
+		PrepareVisionArena(state, radius: GameConfig.Debug.AutoTestRenderArenaRadius);
 		player.FacingX = 1;
 		player.FacingY = 0;
 
@@ -247,7 +248,7 @@ public class AutoTestModule
 		Log("── Chain 5: AI 回合 ──");
 
 		var player = ActorModule.GetPlayer(state)!;
-		PrepareVisionArena(state, radius: 10);
+		PrepareVisionArena(state, radius: GameConfig.Debug.AutoTestAiArenaRadius);
 		RemoveActorsByPrefix(state, "test_ai_");
 
 		var observer = SpawnTestActor(state, "goblin", "test_ai_observer", player.X - 2, player.Y, player.Z);
@@ -361,9 +362,10 @@ public class AutoTestModule
 	private async Task TestChain7_AIVisionBenchmark(SceneTree tree, GameState state)
 	{
 		Log("── Chain 7: AI 视觉基准 ──");
-		PrepareVisionArena(state, radius: 12);
+		var config = GameConfig.Debug;
+		PrepareVisionArena(state, radius: config.AutoTestBenchmarkArenaRadius);
 
-		foreach (var count in new[] { 10, 50, 200 })
+		foreach (var count in config.AutoTestBenchmarkCounts)
 		{
 			var prefix = $"bench_ai_{count}_";
 			RemoveActorsByPrefix(state, prefix);
@@ -378,6 +380,11 @@ public class AutoTestModule
 				$"vision={metrics.ElapsedMs:F3}ms observers={metrics.ObserverCount} " +
 				$"candidates={metrics.CandidateCount} shortlist={metrics.ShortlistCount} " +
 				$"los={metrics.LosChecks} visible={metrics.VisibleActorCount}");
+			if (metrics.ElapsedMs > config.AutoTestAiVisionWarnMs || sw.Elapsed.TotalMilliseconds > config.AutoTestTickWarnMs)
+			{
+				Log($"  [WARN] bench thresholds exceeded for count={count} " +
+					$"(tick>{config.AutoTestTickWarnMs:F1}ms or vision>{config.AutoTestAiVisionWarnMs:F1}ms)");
+			}
 			Assert(metrics.ObserverCount >= count, $"AI bench {count}: metrics captured");
 
 			RemoveActorsByPrefix(state, prefix);

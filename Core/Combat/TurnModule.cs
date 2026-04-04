@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MiniRPG.Core.AI;
 
@@ -9,19 +10,18 @@ namespace MiniRPG.Core.Combat;
 /// </summary>
 public static class TurnModule
 {
-	private const int DefaultViewRange = 10;
-
 	/// <summary>
 	/// 推进一个回合：Turn++，巢穴刷怪，AI 行动。
 	/// </summary>
 	public static List<GameEvent> Tick(GameState state)
 	{
 		state.Turn++;
+		var viewRange = Math.Max(0, GameConfig.AIVision.ActivationViewRange);
 
 		var events = new List<GameEvent>();
 		events.AddRange(NestModule.Tick(state));
 		events.AddRange(AIDispatcher.TickAll(
-			state, state.PlayerX, state.PlayerY, DefaultViewRange));
+			state, state.PlayerX, state.PlayerY, viewRange));
 
 		return events;
 	}
