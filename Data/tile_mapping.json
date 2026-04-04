@@ -18,7 +18,10 @@
     "swamp": "Ground C1_N",
     "marsh": "Ground C3_N",
     "gravel": "Ground H1_N",
-    "tree": "Tree A1_N",
+    "tree": {
+      "base": "Ground B1_N",
+      "overlay": "Tree A1_N"
+    },
     "fungus": "Flora A1_N",
     "crystal_vein": "Wall F1_N"
   },

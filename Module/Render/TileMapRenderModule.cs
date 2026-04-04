@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,6 +25,7 @@ public class TileMapRenderModule
 	private const string MappingResPath = "res://Data/tile_mapping.json";
 	private const string IdMapResPath = "res://Tools/tile_name_to_id.json";
 	private const string FallbackFixtureTile = "Misc A4_N";
+	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
 
 	/// <summary>无效 tile 标识，sourceId = -1 表示跳过渲染。</summary>
 	private static readonly TileLoc InvalidTile = new(-1, Vector2I.Zero);
@@ -37,6 +39,8 @@ public class TileMapRenderModule
 
 	private TileMapLayer _groundLayer = null!;
 	private TileMapLayer _memoryLayer = null!;
+	private TileMapLayer _overlayLayer = null!;
+	private TileMapLayer _memoryOverlayLayer = null!;
 	private TileMapLayer _entityLayer = null!;
 	private TileMapLayer _fogLayer    = null!;
 
@@ -48,10 +52,10 @@ public class TileMapRenderModule
 	private TileLoc _blackTile;
 
 	// 从 tile_mapping.json 加载的映射表
-	private Dictionary<string, string> _terrainMap = new();
-	private Dictionary<string, string> _entityMap  = new();
-	private Dictionary<string, string> _fixtureMap = new();
-	private Dictionary<string, string> _itemMap    = new();
+	private Dictionary<string, TerrainTileMapping> _terrainMap = new();
+	private Dictionary<string, string> _entityMap              = new();
+	private Dictionary<string, string> _fixtureMap             = new();
+	private Dictionary<string, string> _itemMap                = new();
 
 	// ── 公开属性（与 MapRenderModule 接口兼容） ──────────────
 
@@ -82,10 +86,13 @@ public class TileMapRenderModule
 
 		_groundLayer = MakeLayer(mapRoot, "GroundLayer", tileSet, 0);
 		_memoryLayer = MakeLayer(mapRoot, "MemoryLayer", tileSet, 0);
-		_entityLayer = MakeLayer(mapRoot, "EntityLayer", tileSet, 1);
-		_fogLayer    = MakeLayer(mapRoot, "FogLayer",    tileSet, 2);
+		_overlayLayer = MakeLayer(mapRoot, "OverlayLayer", tileSet, 1);
+		_memoryOverlayLayer = MakeLayer(mapRoot, "MemoryOverlayLayer", tileSet, 1);
+		_entityLayer = MakeLayer(mapRoot, "EntityLayer", tileSet, 2);
+		_fogLayer    = MakeLayer(mapRoot, "FogLayer",    tileSet, 3);
 
-		_memoryLayer.Modulate = new Color(0.22f, 0.22f, 0.28f);
+		_memoryLayer.Modulate = MemoryTint;
+		_memoryOverlayLayer.Modulate = MemoryTint;
 
 		if (playerSpine != null)
 		{
@@ -106,6 +113,8 @@ public class TileMapRenderModule
 
 		_groundLayer.Clear();
 		_memoryLayer.Clear();
+		_overlayLayer.Clear();
+		_memoryOverlayLayer.Clear();
 		_entityLayer.Clear();
 		_fogLayer.Clear();
 
@@ -140,7 +149,7 @@ public class TileMapRenderModule
 				if (visible || peripheral)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
-					SetTile(_groundLayer, cell, TerrainLoc(terrain));
+					SetTerrain(cell, terrain, _groundLayer, _overlayLayer);
 
 					bool isPlayerCell = _playerAnim != null && wx == cx && wy == cy;
 					if (isPlayerCell)
@@ -151,7 +160,7 @@ public class TileMapRenderModule
 				else if (hasSeen)
 				{
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
-					SetTile(_memoryLayer, cell, TerrainLoc(terrain));
+					SetTerrain(cell, terrain, _memoryLayer, _memoryOverlayLayer);
 				}
 				else
 				{
@@ -221,11 +230,23 @@ public class TileMapRenderModule
 			layer.SetCell(cell, loc.SourceId, loc.Coord);
 	}
 
-	private TileLoc TerrainLoc(TerrainDef terrain)
+	private void SetTerrain(Vector2I cell, TerrainDef terrain, TileMapLayer baseLayer, TileMapLayer overlayLayer)
 	{
-		if (_terrainMap.TryGetValue(terrain.StringId, out var tileName))
-			return Resolve(tileName);
-		return _blackTile;
+		var terrainLoc = TerrainLoc(terrain);
+		SetTile(baseLayer, cell, terrainLoc.Base);
+		SetTile(overlayLayer, cell, terrainLoc.Overlay);
+	}
+
+	private TerrainTileLoc TerrainLoc(TerrainDef terrain)
+	{
+		if (_terrainMap.TryGetValue(terrain.StringId, out var tileNames))
+		{
+			return new TerrainTileLoc(
+				Resolve(tileNames.Base),
+				ResolveOptional(tileNames.Overlay));
+		}
+
+		return new TerrainTileLoc(_blackTile, InvalidTile);
 	}
 
 	/// <summary>
@@ -280,6 +301,14 @@ public class TileMapRenderModule
 
 	private TileLoc Resolve(string name) =>
 		_nameToLoc.TryGetValue(name, out var loc) ? loc : _blackTile;
+
+	private TileLoc ResolveOptional(string? name)
+	{
+		if (string.IsNullOrEmpty(name))
+			return InvalidTile;
+
+		return _nameToLoc.TryGetValue(name, out var loc) ? loc : InvalidTile;
+	}
 
 	/// <summary>
 	/// 将 Camera 和玩家动画节点移动到玩家所在 TileMap cell 的像素坐标。
@@ -360,7 +389,7 @@ public class TileMapRenderModule
 		}
 
 		var json = Godot.FileAccess.GetFileAsString(resPath);
-		var root = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
+		var root = JsonSerializer.Deserialize<TileMappingConfig>(json);
 
 		if (root == null)
 		{
@@ -368,10 +397,10 @@ public class TileMapRenderModule
 			return;
 		}
 
-		_terrainMap = root.GetValueOrDefault("terrain") ?? new();
-		_entityMap  = root.GetValueOrDefault("entity")  ?? new();
-		_fixtureMap = root.GetValueOrDefault("fixture") ?? new();
-		_itemMap    = root.GetValueOrDefault("item")     ?? new();
+		_terrainMap = root.Terrain ?? new();
+		_entityMap  = root.Entity ?? new();
+		_fixtureMap = root.Fixture ?? new();
+		_itemMap    = root.Item ?? new();
 
 		GD.Print($"[TileMapRender] tile 映射已加载：" +
 			$"terrain={_terrainMap.Count} entity={_entityMap.Count} " +
@@ -383,10 +412,97 @@ public class TileMapRenderModule
 	/// <summary>atlas 内一个 tile 的定位：sourceId + 网格坐标。</summary>
 	private readonly record struct TileLoc(int SourceId, Vector2I Coord);
 
+	private readonly record struct TerrainTileLoc(TileLoc Base, TileLoc Overlay);
+
+	[JsonConverter(typeof(TerrainTileMappingConverter))]
+	private readonly record struct TerrainTileMapping(string Base, string? Overlay);
+
 	private class TileSourceEntry
 	{
 		[JsonPropertyName("source_id")] public int SourceId { get; set; }
 		[JsonPropertyName("atlas_x")]   public int AtlasX   { get; set; }
 		[JsonPropertyName("atlas_y")]   public int AtlasY   { get; set; }
+	}
+
+	private sealed class TerrainTileMappingConverter : JsonConverter<TerrainTileMapping>
+	{
+		public override TerrainTileMapping Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			if (reader.TokenType == JsonTokenType.String)
+			{
+				var baseTile = reader.GetString();
+				if (string.IsNullOrEmpty(baseTile))
+					throw new JsonException("Terrain mapping string cannot be empty.");
+				return new TerrainTileMapping(baseTile, null);
+			}
+
+			if (reader.TokenType != JsonTokenType.StartObject)
+				throw new JsonException("Terrain mapping must be a string or object.");
+
+			string? baseTileName = null;
+			string? overlayTileName = null;
+
+			while (reader.Read())
+			{
+				if (reader.TokenType == JsonTokenType.EndObject)
+					break;
+
+				if (reader.TokenType != JsonTokenType.PropertyName)
+					throw new JsonException("Invalid terrain mapping property.");
+
+				var propertyName = reader.GetString();
+				if (!reader.Read())
+					throw new JsonException("Unexpected end of terrain mapping.");
+
+				switch (propertyName)
+				{
+					case "base":
+						if (reader.TokenType != JsonTokenType.String)
+							throw new JsonException("Terrain mapping 'base' must be a string.");
+						baseTileName = reader.GetString();
+						break;
+					case "overlay":
+						if (reader.TokenType == JsonTokenType.Null)
+						{
+							overlayTileName = null;
+							break;
+						}
+						if (reader.TokenType != JsonTokenType.String)
+							throw new JsonException("Terrain mapping 'overlay' must be a string.");
+						overlayTileName = reader.GetString();
+						break;
+					default:
+						using (JsonDocument.ParseValue(ref reader)) { }
+						break;
+				}
+			}
+
+			if (string.IsNullOrEmpty(baseTileName))
+				throw new JsonException("Terrain mapping object requires a 'base' tile.");
+
+			return new TerrainTileMapping(baseTileName, string.IsNullOrEmpty(overlayTileName) ? null : overlayTileName);
+		}
+
+		public override void Write(Utf8JsonWriter writer, TerrainTileMapping value, JsonSerializerOptions options)
+		{
+			if (string.IsNullOrEmpty(value.Overlay))
+			{
+				writer.WriteStringValue(value.Base);
+				return;
+			}
+
+			writer.WriteStartObject();
+			writer.WriteString("base", value.Base);
+			writer.WriteString("overlay", value.Overlay);
+			writer.WriteEndObject();
+		}
+	}
+
+	private sealed class TileMappingConfig
+	{
+		[JsonPropertyName("terrain")] public Dictionary<string, TerrainTileMapping>? Terrain { get; set; }
+		[JsonPropertyName("entity")] public Dictionary<string, string>? Entity { get; set; }
+		[JsonPropertyName("fixture")] public Dictionary<string, string>? Fixture { get; set; }
+		[JsonPropertyName("item")] public Dictionary<string, string>? Item { get; set; }
 	}
 }

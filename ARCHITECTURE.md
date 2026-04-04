@@ -65,6 +65,7 @@ App/Main.tscn / App/Main.cs
 ## 3. 渲染框架
 
 - [`Module/Render/TileMapRenderModule.cs`](./Module/Render/TileMapRenderModule.cs)
+  Updated layering: `GroundLayer`, `MemoryLayer`, `OverlayLayer`, `MemoryOverlayLayer`, `EntityLayer`, `FogLayer`, with terrain rendered as `base + optional overlay`.
   当前地图渲染主路径。负责 `GroundLayer`、`MemoryLayer`、`EntityLayer`、`FogLayer` 四层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
 - [`Module/Render/FogOfWarTracker.cs`](./Module/Render/FogOfWarTracker.cs)
   负责方向视野、周边感知、已探索状态和迷雾缓存。

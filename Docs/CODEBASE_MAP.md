@@ -3,6 +3,11 @@
 > 这份文档只回答“代码在哪、主入口在哪、改某类功能先看什么文件”。它不是约定文档，也不是逐类架构说明。
 
 ---
+## Render Notes
+
+- `TileMapRenderModule` now renders six TileMap layers: `GroundLayer`, `MemoryLayer`, `OverlayLayer`, `MemoryOverlayLayer`, `EntityLayer`, `FogLayer`.
+- Terrain tile mappings may provide a single base tile or `base + optional overlay`.
+
 
 ## 文档定位
 
