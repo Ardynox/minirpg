@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://tbk1687kygh5"
-path="res://.godot/imported/hand_L.png-f8d2bacac96d61a34b6dff9dfa230f03.ctex"
+path="res://.godot/imported/hand_L.png-f56d0add8860a9304642b8a03a3d7026.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/hand_L.png"
-dest_files=["res://.godot/imported/hand_L.png-f8d2bacac96d61a34b6dff9dfa230f03.ctex"]
+dest_files=["res://.godot/imported/hand_L.png-f56d0add8860a9304642b8a03a3d7026.ctex"]
 
 [params]
 

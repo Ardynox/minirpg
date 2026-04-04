@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dg5kafs80uk8v"
-path="res://.godot/imported/eye_R.png-872796d6428eab28ef863f69725ba793.ctex"
+path="res://.godot/imported/eye_R.png-290b9a8e48d1c95388e38ad2448def96.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/eye_R.png"
-dest_files=["res://.godot/imported/eye_R.png-872796d6428eab28ef863f69725ba793.ctex"]
+dest_files=["res://.godot/imported/eye_R.png-290b9a8e48d1c95388e38ad2448def96.ctex"]
 
 [params]
 

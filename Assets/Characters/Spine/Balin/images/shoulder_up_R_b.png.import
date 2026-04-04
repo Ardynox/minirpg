@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://p1inwjbnxris"
-path="res://.godot/imported/shoulder_up_R_b.png-7306b411879b6b42af98e828b982968a.ctex"
+path="res://.godot/imported/shoulder_up_R_b.png-5be5d5a4ee56a5ac5b3f04b0a807d4bf.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/shoulder_up_R_b.png"
-dest_files=["res://.godot/imported/shoulder_up_R_b.png-7306b411879b6b42af98e828b982968a.ctex"]
+dest_files=["res://.godot/imported/shoulder_up_R_b.png-5be5d5a4ee56a5ac5b3f04b0a807d4bf.ctex"]
 
 [params]
 

@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c35glwsia2wsh"
-path="res://.godot/imported/S_neck.png-40a1ef800c3ce99f20e33a79847551c7.ctex"
+path="res://.godot/imported/S_neck.png-2d50c04e1ca9d92665200a4c4a05588c.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/S_neck.png"
-dest_files=["res://.godot/imported/S_neck.png-40a1ef800c3ce99f20e33a79847551c7.ctex"]
+dest_files=["res://.godot/imported/S_neck.png-2d50c04e1ca9d92665200a4c4a05588c.ctex"]
 
 [params]
 

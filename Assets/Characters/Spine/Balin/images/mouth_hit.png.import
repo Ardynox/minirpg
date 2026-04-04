@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byvlo47qj4gyo"
-path="res://.godot/imported/mouth_hit.png-35758e8eb0b835101a427c7fb96db586.ctex"
+path="res://.godot/imported/mouth_hit.png-67320af96c0d811746d1d83a1efa6e74.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/mouth_hit.png"
-dest_files=["res://.godot/imported/mouth_hit.png-35758e8eb0b835101a427c7fb96db586.ctex"]
+dest_files=["res://.godot/imported/mouth_hit.png-67320af96c0d811746d1d83a1efa6e74.ctex"]
 
 [params]
 

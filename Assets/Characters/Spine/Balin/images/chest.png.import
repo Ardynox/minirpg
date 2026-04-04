@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cnf63hrxwsivv"
-path="res://.godot/imported/chest.png-fc64e784778883825d6a09714d371056.ctex"
+path="res://.godot/imported/chest.png-80566be04288118bd0a4f40f69e2f259.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/chest.png"
-dest_files=["res://.godot/imported/chest.png-fc64e784778883825d6a09714d371056.ctex"]
+dest_files=["res://.godot/imported/chest.png-80566be04288118bd0a4f40f69e2f259.ctex"]
 
 [params]
 

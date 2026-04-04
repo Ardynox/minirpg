@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b7dekrt0l5e4y"
-path="res://.godot/imported/S_leg_L_1.png-de0be1c4990a21e9e0af25073fb8b884.ctex"
+path="res://.godot/imported/S_leg_L_1.png-b0d06e99a74765e4c6051cb1c3a9dfbf.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/S_leg_L_1.png"
-dest_files=["res://.godot/imported/S_leg_L_1.png-de0be1c4990a21e9e0af25073fb8b884.ctex"]
+dest_files=["res://.godot/imported/S_leg_L_1.png-b0d06e99a74765e4c6051cb1c3a9dfbf.ctex"]
 
 [params]
 

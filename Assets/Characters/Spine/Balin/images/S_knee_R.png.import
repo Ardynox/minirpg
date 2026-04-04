@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bmbv2v07vfbaq"
-path="res://.godot/imported/S_knee_R.png-7d2fb808f9aec4d4d23998c539e4b2d8.ctex"
+path="res://.godot/imported/S_knee_R.png-ab606618525d957b093b71251254ca3d.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/S_knee_R.png"
-dest_files=["res://.godot/imported/S_knee_R.png-7d2fb808f9aec4d4d23998c539e4b2d8.ctex"]
+dest_files=["res://.godot/imported/S_knee_R.png-ab606618525d957b093b71251254ca3d.ctex"]
 
 [params]
 

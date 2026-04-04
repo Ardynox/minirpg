@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dvf7vynwqubyo"
-path="res://.godot/imported/hair_B.png-71bc163210425468c1f058e8e976cf94.ctex"
+path="res://.godot/imported/hair_B.png-d4ebb35e583dde6dfb85ffa0093d77ba.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/hair_B.png"
-dest_files=["res://.godot/imported/hair_B.png-71bc163210425468c1f058e8e976cf94.ctex"]
+dest_files=["res://.godot/imported/hair_B.png-d4ebb35e583dde6dfb85ffa0093d77ba.ctex"]
 
 [params]
 

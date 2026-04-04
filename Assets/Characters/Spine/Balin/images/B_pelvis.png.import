@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://imabkgq24hs0"
-path="res://.godot/imported/B_pelvis.png-f7823dabf23e36df0626635084b6100c.ctex"
+path="res://.godot/imported/B_pelvis.png-78261bfea39d6067c413712ab3a5ace1.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/B_pelvis.png"
-dest_files=["res://.godot/imported/B_pelvis.png-f7823dabf23e36df0626635084b6100c.ctex"]
+dest_files=["res://.godot/imported/B_pelvis.png-78261bfea39d6067c413712ab3a5ace1.ctex"]
 
 [params]
 

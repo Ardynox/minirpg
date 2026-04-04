@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://csfbcl2xqg67p"
-path="res://.godot/imported/robe_R.png-7e45307c21ab7b09c1251d9f3ba4b0fa.ctex"
+path="res://.godot/imported/robe_R.png-8d8228eb1bb6da3ff23b18c73d5862aa.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/robe_R.png"
-dest_files=["res://.godot/imported/robe_R.png-7e45307c21ab7b09c1251d9f3ba4b0fa.ctex"]
+dest_files=["res://.godot/imported/robe_R.png-8d8228eb1bb6da3ff23b18c73d5862aa.ctex"]
 
 [params]
 

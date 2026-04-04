@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://iqqkor13f6o"
-path="res://.godot/imported/nose.png-fcfd241cd0c64fa42be5d54528624152.ctex"
+path="res://.godot/imported/nose.png-ebe6416b50f0b2e28e7dd47b853c46de.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/nose.png"
-dest_files=["res://.godot/imported/nose.png-fcfd241cd0c64fa42be5d54528624152.ctex"]
+dest_files=["res://.godot/imported/nose.png-ebe6416b50f0b2e28e7dd47b853c46de.ctex"]
 
 [params]
 

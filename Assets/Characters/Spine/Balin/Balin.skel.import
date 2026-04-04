@@ -3,12 +3,12 @@
 importer="spine.skel"
 type="SpineSkeletonFileResource"
 uid="uid://cy5gkra27g7d7"
-path="res://.godot/imported/Balin.skel-4d96dba1667a6f2ccf4f0ffe40efd24f.spskel"
+path="res://.godot/imported/Balin.skel-2a8cef428231f21a04c7bfae95dc9618.spskel"
 
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/Balin.skel"
-dest_files=["res://.godot/imported/Balin.skel-4d96dba1667a6f2ccf4f0ffe40efd24f.spskel"]
+dest_files=["res://.godot/imported/Balin.skel-2a8cef428231f21a04c7bfae95dc9618.spskel"]
 
 [params]
 

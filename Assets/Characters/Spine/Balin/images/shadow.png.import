@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dqnq5ch2kvaxn"
-path="res://.godot/imported/shadow.png-eeacca2bad19d6e4a4f1aaa6592c28b3.ctex"
+path="res://.godot/imported/shadow.png-139afd381d1d643dd711356cfcf6081f.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/shadow.png"
-dest_files=["res://.godot/imported/shadow.png-eeacca2bad19d6e4a4f1aaa6592c28b3.ctex"]
+dest_files=["res://.godot/imported/shadow.png-139afd381d1d643dd711356cfcf6081f.ctex"]
 
 [params]
 

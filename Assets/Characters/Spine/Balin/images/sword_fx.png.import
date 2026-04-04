@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtqikl2kypp1s"
-path="res://.godot/imported/sword_fx.png-722bf343176e3fd4e0bc5e1204092a0d.ctex"
+path="res://.godot/imported/sword_fx.png-2d89bb8d77fbea0ddfbc4e9db74de221.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/sword_fx.png"
-dest_files=["res://.godot/imported/sword_fx.png-722bf343176e3fd4e0bc5e1204092a0d.ctex"]
+dest_files=["res://.godot/imported/sword_fx.png-2d89bb8d77fbea0ddfbc4e9db74de221.ctex"]
 
 [params]
 

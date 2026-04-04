@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bc7xy2xkoktxk"
-path="res://.godot/imported/B_elbow_R.png-2ce245565286d5bce781d2cade548d13.ctex"
+path="res://.godot/imported/B_elbow_R.png-9933db6eac78d92ecfe7b228c7d1257f.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://Assets/Characters/Spine/Balin/images/B_elbow_R.png"
-dest_files=["res://.godot/imported/B_elbow_R.png-2ce245565286d5bce781d2cade548d13.ctex"]
+dest_files=["res://.godot/imported/B_elbow_R.png-9933db6eac78d92ecfe7b228c7d1257f.ctex"]
 
 [params]
 
