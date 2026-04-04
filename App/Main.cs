@@ -223,7 +223,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu = new MenuModule(this);
 
 		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
-		_log = new LogModule(GetNode<RichTextLabel>("UI/LogPanel"));
+		var logPanelNode = GetNode<PanelContainer>("UI/LogPanel");
+		var logContent = logPanelNode.GetNode<RichTextLabel>("MarginContainer/VBox/ContentText");
+		_log = new LogModule(logContent);
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
 		var mapRoot = GetNode<Node2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/MapRoot");
@@ -251,6 +253,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.Register(_skillMgr);
 		_panels.Register(_inventoryPanel);
 		_panels.Register(_groundPanel);
+		_panels.RegisterPassive(logPanelNode, "log", canFocus: false);
 
 		var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
 		floatingRoot.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
