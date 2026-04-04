@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
 [ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
 [ext_resource type="PackedScene" path="res://Scene/KeyBindingsPanel.tscn" id="11_keybindings"]
-[ext_resource type="Theme" path="res://UITheme.tres" id="15_theme"]
+[ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="15_theme"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")

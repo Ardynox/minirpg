@@ -236,7 +236,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_settingsPanelModule = new SettingsPanelModule(GetNode<PanelContainer>("SettingsPanel"));
 
 		var skillBarNode = GetNode<PanelContainer>("SkillBar");
-		skillBarNode.Theme = GD.Load<Theme>("res://UITheme.tres");
+		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
 		_skillBar = new SkillBarModule(skillBarNode);
 		_skillBar.CloseRequested += CloseSkillBarPanel;
 		_skillMgr = new SkillManagerModule(GetNode<PanelContainer>("UI/TopRow/SkillManager"));
@@ -252,7 +252,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.Register(_groundPanel);
 
 		var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
-		floatingRoot.Theme = GD.Load<Theme>("res://UITheme.tres");
+		floatingRoot.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
 		AddChild(floatingRoot);
 		_panelDrag = new PanelDragService(new PanelLayoutStore(), floatingRoot);
 		_panelDrag.Initialize();

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Theme" path="res://UITheme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="1_theme"]
 
 [node name="KeyBindingsPanel" type="PanelContainer"]
 visible = false

@@ -32,6 +32,7 @@ mini-rpg/
 ├── Scene/
 ├── Data/
 ├── Assets/
+├── Artifacts/
 ├── Docs/
 └── Tools/
 ```
@@ -82,8 +83,12 @@ mini-rpg/
 
 ### `Assets/`
 
-- 外部美术资源统一入口。当前 `Art/Tilesets/FantasyKingdom/` 放 Fantasy Kingdom tileset 包和 `FantasyKingdomTileSet.tres`，`Characters/Spine/Balin/` 放 Balin Spine 角色资源。
+- 项目资源统一入口。当前 `Branding/` 放项目图标，`UI/Themes/` 放共用主题，`Art/Tilesets/FantasyKingdom/` 放 Fantasy Kingdom tileset 包和 `FantasyKingdomTileSet.tres`，`Characters/Spine/Balin/` 放 Balin Spine 角色资源。
 - 更细的资源分层、哪些资源故意不进版本库、哪些项目内资源暂时仍留在根目录，统一写在 [`../Assets/README.md`](../Assets/README.md)。
+
+### `Artifacts/`
+
+- 非运行时源文件的产物目录。`Recovery/` 预留给人工保留的恢复快照压缩包，避免以后继续堆在项目根目录。
 
 ### `Tools/`
 
