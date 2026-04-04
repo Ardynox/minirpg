@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="SpineAtlasResource" path="res://Balin/Balin.atlas" id="spine_atlas"]
-[ext_resource type="SpineSkeletonFileResource" path="res://Balin/Balin.skel" id="spine_skel"]
+[ext_resource type="SpineAtlasResource" path="res://Assets/Characters/Spine/Balin/Balin.atlas" id="spine_atlas"]
+[ext_resource type="SpineSkeletonFileResource" path="res://Assets/Characters/Spine/Balin/Balin.skel" id="spine_skel"]
 
 [sub_resource type="SpineSkeletonDataResource" id="spine_data"]
 atlas_res = ExtResource("spine_atlas")

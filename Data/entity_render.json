@@ -1,8 +1,8 @@
 {
   "player": {
     "type": "spine",
-    "atlas": "res://Balin/Balin.atlas",
-    "skel": "res://Balin/Balin.skel",
+    "atlas": "res://Assets/Characters/Spine/Balin/Balin.atlas",
+    "skel": "res://Assets/Characters/Spine/Balin/Balin.skel",
     "defaultAnim": "Idle",
     "scale": [0.35, 0.35]
   },

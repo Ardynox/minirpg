@@ -31,6 +31,7 @@ mini-rpg/
 │   └── Render/
 ├── Scene/
 ├── Data/
+├── Assets/
 ├── Docs/
 └── Tools/
 ```
@@ -50,7 +51,7 @@ mini-rpg/
 | 运行时状态、Actor、Item、任务、预设数据 | [`../Core/Data`](../Core/Data) |
 | 交易、对话 | [`../Core/Trade`](../Core/Trade), [`../Core/Dialog`](../Core/Dialog), [`../Module/TradeUIModule.cs`](../Module/TradeUIModule.cs), [`../Module/DialogUIModule.cs`](../Module/DialogUIModule.cs) |
 | 调试命令 | [`../Main.cs`](../Main.cs), [`../Core/Debug/DebugModule.cs`](../Core/Debug/DebugModule.cs) |
-| Tile 映射和资源数据 | [`../Data`](../Data), [`../FantasyKingdomTileSet.tres`](../FantasyKingdomTileSet.tres), [`../Tools/tile_name_to_id.json`](../Tools/tile_name_to_id.json) |
+| Tile 映射和资源数据 | [`../Data`](../Data), [`../Assets/README.md`](../Assets/README.md), [`../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres), [`../Tools/tile_name_to_id.json`](../Tools/tile_name_to_id.json) |
 
 ## 当前目录分工
 
@@ -78,6 +79,11 @@ mini-rpg/
 ### `Data/`
 
 - JSON 预设、tile 映射、地形等运行时数据文件。
+
+### `Assets/`
+
+- 外部美术资源统一入口。当前 `Art/Tilesets/FantasyKingdom/` 放 Fantasy Kingdom tileset 包和 `FantasyKingdomTileSet.tres`，`Characters/Spine/Balin/` 放 Balin Spine 角色资源。
+- 更细的资源分层、哪些资源故意不进版本库、哪些项目内资源暂时仍留在根目录，统一写在 [`../Assets/README.md`](../Assets/README.md)。
 
 ### `Tools/`
 

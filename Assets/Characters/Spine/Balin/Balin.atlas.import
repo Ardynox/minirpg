@@ -1,0 +1,16 @@
+[remap]
+
+importer="spine.atlas"
+type="SpineAtlasResource"
+uid="uid://buneu8q7m73we"
+path="res://.godot/imported/Balin.atlas-6860f5e9b6d6b173d3aec0ebbd2e4614.spatlas"
+
+[deps]
+
+source_file="res://Assets/Characters/Spine/Balin/Balin.atlas"
+dest_files=["res://.godot/imported/Balin.atlas-6860f5e9b6d6b173d3aec0ebbd2e4614.spatlas"]
+
+[params]
+
+normal_map_prefix="n"
+specular_map_prefix="s"

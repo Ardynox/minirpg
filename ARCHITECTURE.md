@@ -72,6 +72,7 @@ Main.tscn / Main.cs
   `SingleLayerViewMode` 和 `MultiLayerViewMode` 的当前实现。
 - [`Module/Render`](./Module/Render)
   同时包含 `IAnimatable`、`SpineAnimatable`、`TileAnimatable`、`ResAccess` 等渲染支持类。
+- 渲染相关外部资源当前集中在 [`Assets/Art/Tilesets/FantasyKingdom`](./Assets/Art/Tilesets/FantasyKingdom) 和 [`Assets/Characters/Spine/Balin`](./Assets/Characters/Spine/Balin)。
 
 ## 4. Core 逻辑分层
 
@@ -107,6 +108,7 @@ Main.tscn / Main.cs
 ### 启动
 
 - `Main._Ready` 负责加载数据、创建 `GameSessionModule`、创建渲染模块、创建面板模块、注册拖拽和焦点管理、接入输入和菜单事件。
+- `Main._Ready` 当前直接加载 [`Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](./Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres)；角色 Spine 资源路径则来自 [`Data/entity_render.json`](./Data/entity_render.json)。
 
 ### 输入到命令
 

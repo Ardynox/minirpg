@@ -6,7 +6,7 @@ __pycache__/
 
 # 大型美术资源包（体积过大，不进版本库）
 Fantasy kingdom Tileset/
-FantasyKingdomTileset_Godot/
+Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/
 craftpix-net-169442-free-2d-top-down-pixel-dungeon-asset-pack/
 
 # 转换工具生成的中间文件

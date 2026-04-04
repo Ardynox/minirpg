@@ -19,10 +19,10 @@ namespace MiniRPG.Tools;
 /// </summary>
 public partial class UnityTilesetImporter : Node
 {
-	private const string SpritesDir   = "res://FantasyKingdomTileset_Godot/Environment/Sprites";
-	private const string AnimDir      = "res://FantasyKingdomTileset_Godot/Animations";
-	private const string AtlasDir     = "res://FantasyKingdomTileset_Godot/Atlas";
-	private const string TileSetPath  = "res://FantasyKingdomTileSet.tres";
+	private const string SpritesDir   = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Environment/Sprites";
+	private const string AnimDir      = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Animations";
+	private const string AtlasDir     = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Atlas";
+	private const string TileSetPath  = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres";
 	private const string IdMapPath    = "res://Tools/tile_name_to_id.json";
 	private const int    MaxAtlasSize = 4096;
 	private const int    MaxTilesPerAtlas = 64;

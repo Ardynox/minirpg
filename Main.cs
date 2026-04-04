@@ -1,4 +1,4 @@
-﻿using Godot;
+using Godot;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -226,7 +226,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
 		var mapRoot = GetNode<Node2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/MapRoot");
-		var tileSet = GD.Load<TileSet>("res://FantasyKingdomTileSet.tres");
+		var tileSet = GD.Load<TileSet>("res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres");
 		var playerSpine = mapRoot.GetNodeOrNull<Node2D>("PlayerSpine");
 		var camera = GetNode<Camera2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/Camera2D");
 		_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
