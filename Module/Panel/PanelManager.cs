@@ -168,6 +168,9 @@ public class PanelManager
 		}
 
 		var handled = focused.HandleCommand(cmd);
+		if (!handled && ShouldTrapDirectionalInput(focused, cmd))
+			return true;
+
 		return handled || focused.ConsumeUnhandledKeys;
 	}
 
@@ -306,6 +309,14 @@ public class PanelManager
 		Key.Key9 => "9",
 		_ => null,
 	};
+
+	private static bool ShouldTrapDirectionalInput(IPanel focused, string cmd)
+	{
+		if (focused.PanelId == "map")
+			return false;
+
+		return cmd is "up" or "down" or "left" or "right";
+	}
 
 	private sealed class PassivePanel(string panelId, PanelContainer panelNode, bool consumeUnhandledKeys) : IPanel
 	{
