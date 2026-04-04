@@ -9,7 +9,7 @@
 - 这份文档回答“当前代码是怎么组织的、入口在哪里、主路径怎么走”。
 - 如果某次改动改变了职责边界、入口、模块关系或主调用链，应同步更新本文件。
 - 如果你要看项目约定和默认决策规则，请先读 [`minirpg.md`](./minirpg.md)。
-- 如果你只想快速找文件，请看 [`Docs/CODEBASE_MAP.md`](./Docs/CODEBASE_MAP.md)。
+- 如果你只想快速找文件，请看 [`CODEBASE_MAP.md`](./CODEBASE_MAP.md)。
 
 ## 当前架构总览
 
@@ -24,92 +24,92 @@ App/Main.tscn / App/Main.cs
 
 ## 1. 入口与胶水层
 
-- [`App/Main.tscn`](./App/Main.tscn)
+- [`App/Main.tscn`](../App/Main.tscn)
   入口场景。当前由 `MapPanel`、`StatusPanel`、`SkillManager`、`InventoryPanel`、`GroundPanel`、`LogPanel`、`InputBar`、`SettingsPanel`、`KeyBindingsPanel`、`MainMenu`、`SkillBar` 等子场景组成。
-- [`App/Main.cs`](./App/Main.cs)
+- [`App/Main.cs`](../App/Main.cs)
   胶水层。负责 `_Ready` 初始化、模块持有、命令路由、事件分发、面板注册、脏标记刷新、调试命令入口和地图刷新。
-- [`Module/MenuModule.cs`](./Module/MenuModule.cs)
+- [`Module/MenuModule.cs`](../Module/MenuModule.cs)
   主菜单与设置菜单切换。
-- [`Module/GameSessionModule.cs`](./Module/GameSessionModule.cs)
+- [`Module/GameSessionModule.cs`](../Module/GameSessionModule.cs)
   新开游戏、继续、读档、存档、楼层切换、视图模式同步。
-- [`Module/InputModule.cs`](./Module/InputModule.cs)
+- [`Module/InputModule.cs`](../Module/InputModule.cs)
   输入焦点状态机，负责 Action / Typing / Selection / Direction 四类输入模式。
-- [`Module/InputBindingService.cs`](./Module/InputBindingService.cs)
+- [`Module/InputBindingService.cs`](../Module/InputBindingService.cs)
   输入绑定解析，给 `InputModule` 和按键面板提供统一绑定表。
-- [`Module/LogModule.cs`](./Module/LogModule.cs)
+- [`Module/LogModule.cs`](../Module/LogModule.cs)
   日志写入和 `GameEvent` 到文本日志的翻译。
 
 ## 2. Panel/UI 框架
 
-- [`Module/Panel/IPanel.cs`](./Module/Panel/IPanel.cs)
+- [`Module/Panel/IPanel.cs`](../Module/Panel/IPanel.cs)
   所有可聚焦面板的统一接口。
-- [`Module/Panel/PanelManager.cs`](./Module/Panel/PanelManager.cs)
+- [`Module/Panel/PanelManager.cs`](../Module/Panel/PanelManager.cs)
   管理面板注册、焦点切换、焦点栈恢复、键盘路由和边框刷新。
-- [`Module/Panel/PanelDragService.cs`](./Module/Panel/PanelDragService.cs)
+- [`Module/Panel/PanelDragService.cs`](../Module/Panel/PanelDragService.cs)
   管理可拖拽面板、浮动层重挂载和布局持久化。
-- [`Module/Panel/PanelLayoutStore.cs`](./Module/Panel/PanelLayoutStore.cs)
+- [`Module/Panel/PanelLayoutStore.cs`](../Module/Panel/PanelLayoutStore.cs)
   负责拖拽布局保存和恢复。
-- [`Module/Panel`](./Module/Panel)
+- [`Module/Panel`](../Module/Panel)
   当前主要面板模块目录。包括 `StatusModule`、`SkillBarModule`、`SkillManagerModule`、`InventoryPanelModule`、`GroundPanelModule`、`ChestPanelModule`、`DialogPanelModule`、`TradePanelModule`、`QuestPanelModule`、`SettingsPanelModule` 以及若干 UI 辅助类。
-- [`Module/CombatUIModule.cs`](./Module/CombatUIModule.cs)
+- [`Module/CombatUIModule.cs`](../Module/CombatUIModule.cs)
   战斗交互流程 UI。
-- [`Module/TradeUIModule.cs`](./Module/TradeUIModule.cs)
+- [`Module/TradeUIModule.cs`](../Module/TradeUIModule.cs)
   交易交互流程 UI。
-- [`Module/DialogUIModule.cs`](./Module/DialogUIModule.cs)
+- [`Module/DialogUIModule.cs`](../Module/DialogUIModule.cs)
   对话流程 UI。
-- [`Module/KeyBindingsUIModule.cs`](./Module/KeyBindingsUIModule.cs)
+- [`Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs)
   按键绑定面板与输入绑定编辑。
-- [`Module/LookModule.cs`](./Module/LookModule.cs)
+- [`Module/LookModule.cs`](../Module/LookModule.cs)
   环境查看文本构建。
 
 ## 3. 渲染框架
 
-- [`Module/Render/TileMapRenderModule.cs`](./Module/Render/TileMapRenderModule.cs)
+- [`Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)
   Updated layering: `GroundLayer`, `MemoryLayer`, `OverlayLayer`, `MemoryOverlayLayer`, `EntityLayer`, `FogLayer`, with terrain rendered as `base + optional overlay`.
-  当前地图渲染主路径。负责 `GroundLayer`、`MemoryLayer`、`EntityLayer`、`FogLayer` 四层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
-- [`Module/Render/FogOfWarTracker.cs`](./Module/Render/FogOfWarTracker.cs)
+  当前地图渲染主路径。负责 `GroundLayer`、`MemoryLayer`、`OverlayLayer`、`MemoryOverlayLayer`、`EntityLayer`、`FogLayer` 六层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
+- [`Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs)
   负责方向视野、周边感知、已探索状态和迷雾缓存。
-- [`Module/Render/ViewModes.cs`](./Module/Render/ViewModes.cs)
+- [`Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)
   `SingleLayerViewMode` 和 `MultiLayerViewMode` 的当前实现。
-- [`Module/Render`](./Module/Render)
+- [`Module/Render`](../Module/Render)
   同时包含 `IAnimatable`、`SpineAnimatable`、`TileAnimatable`、`ResAccess` 等渲染支持类。
-- 渲染相关外部资源当前集中在 [`Assets/Art/Tilesets/FantasyKingdom`](./Assets/Art/Tilesets/FantasyKingdom) 和 [`Assets/Characters/Spine/Balin`](./Assets/Characters/Spine/Balin)。
+- 渲染相关外部资源当前集中在 [`Assets/Art/Tilesets/FantasyKingdom`](../Assets/Art/Tilesets/FantasyKingdom) 和 [`Assets/Characters/Spine/Balin`](../Assets/Characters/Spine/Balin)。
 
 ## 4. Core 逻辑分层
 
-- [`Core/Data`](./Core/Data)
+- [`Core/Data`](../Core/Data)
   运行时核心数据与数据驱动入口。包括 `GameState`、`Actor`、`GameEvent`、`Item`、`InteractionDef`、`PresetDB`、`SkillQuery`、`Quest`、`TagSystem`、`InventoryModule`、`InteractionModule` 等。
-- [`Core/Combat`](./Core/Combat)
+- [`Core/Combat`](../Core/Combat)
   战斗与回合主干。包括 `ActionModule`、`CombatModule`、`TurnModule`、`NestModule`。
-- [`Core/Map`](./Core/Map)
+- [`Core/Map`](../Core/Map)
   地图代理、世界初始化和存档入口。包括 `MapModule`、`MapGenModule`、`SaveModule`。
-- [`Core/Trade`](./Core/Trade)
+- [`Core/Trade`](../Core/Trade)
   交易逻辑。
-- [`Core/Dialog`](./Core/Dialog)
+- [`Core/Dialog`](../Core/Dialog)
   对话池、规则和模板渲染。
-- [`Core/AI`](./Core/AI)
+- [`Core/AI`](../Core/AI)
   AI 调度、感知构建和当前大脑实现。
-- [`Core/Debug`](./Core/Debug)
+- [`Core/Debug`](../Core/Debug)
   调试命令实际执行逻辑。
-- [`Core/World`](./Core/World)
+- [`Core/World`](../Core/World)
   世界与 chunk 基础设施，包括 `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、`ShadowcastFOV`、`Pathfinding`、`DigModule`、生成器等。
 
 ## 5. 运行时事实与所有权
 
-- [`Core/Data/GameState.cs`](./Core/Data/GameState.cs)
+- [`Core/Data/GameState.cs`](../Core/Data/GameState.cs)
   唯一运行时事实源。持有玩家坐标、Actor 字典、Quest 列表、设置状态和 `WorldMap` 引用。
-- [`Core/World/WorldMap.cs`](./Core/World/WorldMap.cs)
+- [`Core/World/WorldMap.cs`](../Core/World/WorldMap.cs)
   世界访问统一入口，内部通过 `ChunkManager` 路由到具体 chunk。
 - `Actor` 在 `GameState.Actors` 字典中维护，不直接写进格子栈。
 - 格子里的地形、设施、掉落物等在 `WorldMap` / `ChunkData` / `CellEntity` 里维护。
-- Core 产出 `GameEvent`；UI 层由 [`App/Main.cs`](./App/Main.cs) 的 `Dispatch` 路由到日志、流程 UI 和面板刷新。
+- Core 产出 `GameEvent`；UI 层由 [`App/Main.cs`](../App/Main.cs) 的 `Dispatch` 路由到日志、流程 UI 和面板刷新。
 
 ## 6. 关键运行路径
 
 ### 启动
 
 - `Main._Ready` 负责加载数据、创建 `GameSessionModule`、创建渲染模块、创建面板模块、注册拖拽和焦点管理、接入输入和菜单事件。
-- `Main._Ready` 当前直接加载 [`Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](./Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres)；角色 Spine 资源路径则来自 [`Data/entity_render.json`](./Data/entity_render.json)。
+- `Main._Ready` 当前直接加载 [`Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres)；角色 Spine 资源路径则来自 [`Data/entity_render.json`](../Data/entity_render.json)。
 
 ### 输入到命令
 
@@ -119,7 +119,7 @@ App/Main.tscn / App/Main.cs
 
 ### 行动到事件
 
-- 玩家和 AI 共用 [`Core/Combat/ActionModule.cs`](./Core/Combat/ActionModule.cs)。
+- 玩家和 AI 共用 [`Core/Combat/ActionModule.cs`](../Core/Combat/ActionModule.cs)。
 - `ActionModule` 调 `MapModule`、`CombatModule`、`InteractionModule` 等 Core 模块并产出 `GameEvent`。
 - `TurnModule` 负责推进回合，并驱动巢穴刷新和 AI 行动。
 

@@ -11,8 +11,8 @@
 
 ## 文档定位
 
-- 看项目约定和默认决策规则，请先读 [`../minirpg.md`](../minirpg.md)。
-- 看当前职责边界和主路径，请读 [`../ARCHITECTURE.md`](../ARCHITECTURE.md)。
+- 看项目约定和默认决策规则，请先读 [`./minirpg.md`](./minirpg.md)。
+- 看当前职责边界和主路径，请读 [`./ARCHITECTURE.md`](./ARCHITECTURE.md)。
 - 看遗留问题和技术债，请读 [`./TODO.md`](./TODO.md)。
 
 ## 顶层目录
@@ -95,7 +95,7 @@ mini-rpg/
 ### `Assets/`
 
 - 项目资源统一入口。当前 `Branding/` 放项目图标，`UI/Themes/` 放共用主题，`Art/Tilesets/FantasyKingdom/` 放 Fantasy Kingdom tileset 包和 `FantasyKingdomTileSet.tres`，`Characters/Spine/Balin/` 放 Balin Spine 角色资源。
-- 更细的资源分层、哪些资源故意不进版本库、哪些项目内资源暂时仍留在根目录，统一写在 [`../Assets/README.md`](../Assets/README.md)。
+- 更细的资源分层、哪些资源故意不进版本库、以及新增资源时的落点规则，统一写在 [`../Assets/README.md`](../Assets/README.md)。
 
 ### `Artifacts/`
 

@@ -8,8 +8,8 @@
 
 - 先读这份文档，再决定要不要新增实体、模块、抽象层或框架。
 - 如果要看当前代码事实、职责边界和调用链，请转到 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
-- 如果要快速定位目录、入口文件和主路径，请转到 [`Docs/CODEBASE_MAP.md`](./Docs/CODEBASE_MAP.md)。
-- 如果要看遗留问题和技术债，请转到 [`Docs/TODO.md`](./Docs/TODO.md)。
+- 如果要快速定位目录、入口文件和主路径，请转到 [`CODEBASE_MAP.md`](./CODEBASE_MAP.md)。
+- 如果要看遗留问题和技术债，请转到 [`TODO.md`](./TODO.md)。
 
 ## 当前项目目标
 
@@ -51,12 +51,12 @@
 
 - 改约定、非目标、默认策略：更新本文件。
 - 改当前职责边界、入口、模块关系：更新 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
-- 改目录、入口文件、快速导航信息：更新 [`Docs/CODEBASE_MAP.md`](./Docs/CODEBASE_MAP.md)。
+- 改目录、入口文件、快速导航信息：更新 [`CODEBASE_MAP.md`](./CODEBASE_MAP.md)。
 - 如果一次改动同时改了约定和事实边界，这三份文档一起改。
 
 ## AI 默认工作方式
 
-- 在提出方案前先读 `minirpg.md`、`ARCHITECTURE.md`、`Docs/CODEBASE_MAP.md`。
+- 在提出方案前先读 `Docs/minirpg.md`、`Docs/ARCHITECTURE.md`、`Docs/CODEBASE_MAP.md`。
 - 回复时优先说明本次改动受哪些现有约束。
 - 遇到新增实体、模块、抽象层、框架的方案，默认先给出最小改动路径。
 - 如果文档与代码冲突，以代码为准，并把文档失配点名出来。
