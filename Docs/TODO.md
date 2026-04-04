@@ -13,30 +13,6 @@
 
 ---
 
-## ~~一、立即修复~~ ✅ 已全部完成
-
-### ~~1.1 SaveModule.CopyActor 未拷贝 BrainId~~ ✅
-
-在 `CopyActor` 中补上 `BrainId = a.BrainId`。
-
-### ~~1.2 GameState.Reset() 未重置设置字段~~ ✅
-
-在 `Reset()` 中补上 `BumpAttack = true; WatchMode = false;`。
-
-### ~~1.3 SaveModule.SaveGame 未保存设置字段~~ ✅
-
-在 `FullSaveData` 中增加 `BumpAttack` / `WatchMode` 字段，`SaveGame` / `LoadGame` 中读写。
-
-### ~~1.4 NestModule.FindSpawnSlot 使用 GetAt 可能漏判~~ ✅
-
-改为 `ActorModule.GetAllAt(state, nx, ny).Count == 0`。
-
-### ~~1.5 SaveModule.SnapshotToSaveData 的 Nests 未深拷贝~~ ✅
-
-统一改为 `Nests = CopyNests(s.Nests)`。
-
----
-
 ## 二、近期优化（不影响正确性，但影响可维护性和健壮性）
 
 ### 2.1 Glyph 与 EntityId 混用做逻辑判断
