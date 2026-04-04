@@ -2,56 +2,95 @@
 
 [node name="SkillBar" type="PanelContainer"]
 anchors_preset = 0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 400.0
-offset_bottom = 68.0
-mouse_filter = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 488.0
+offset_bottom = 388.0
+custom_minimum_size = Vector2(476, 320)
+visible = false
 
-[node name="VBox" type="VBoxContainer" parent="."]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="DragHandle" type="Panel" parent="VBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 16)
-mouse_filter = 0
-mouse_default_cursor_shape = 13
-
-[node name="HandleLabel" type="Label" parent="VBox/DragHandle"]
+[node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "· · · 技能 · · ·"
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
-[node name="SkillGrid" type="HFlowContainer" parent="VBox"]
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/h_separation = 2
-theme_override_constants/v_separation = 2
+theme_override_constants/separation = 4
 
-[node name="Tooltip" type="PanelContainer" parent="."]
-visible = false
-z_index = 100
-offset_left = 0.0
-offset_top = 70.0
-offset_right = 200.0
-offset_bottom = 130.0
-
-[node name="TooltipMargin" type="MarginContainer" parent="Tooltip"]
-layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 4
-
-[node name="TooltipText" type="RichTextLabel" parent="Tooltip/TooltipMargin"]
+[node name="Header" type="RichTextLabel" parent="MarginContainer/VBox"]
 layout_mode = 2
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+text = "── 技能栏 ──"
+
+[node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Sep1" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="GridScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="GridHost" type="VBoxContainer" parent="MarginContainer/VBox/GridScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="EmptyLabel" type="Label" parent="MarginContainer/VBox/GridScroll/GridHost"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = "HintLabel"
+horizontal_alignment = 1
+text = "当前分类暂无技能"
+
+[node name="SkillGrid" type="GridContainer" parent="MarginContainer/VBox/GridScroll/GridHost"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 6
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="Sep2" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="DetailScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="DetailText" type="RichTextLabel" parent="MarginContainer/VBox/DetailScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="ActionBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "关闭 [Esc]"
+
+[node name="HintBar" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "方向键/滚轮选择  Tab切分类  Esc关闭  B切换技能栏"

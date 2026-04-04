@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Godot;
+using MiniRPG.Module.Panel;
 
 namespace MiniRPG.Module;
 
-public sealed class KeyBindingsUIModule
+public sealed class KeyBindingsUIModule : IPanel
 {
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _bindingsText;
@@ -32,8 +33,14 @@ public sealed class KeyBindingsUIModule
 		InputBindingContext.Direction,
 	];
 
+	public string PanelId => "key_bindings";
+	public PanelContainer PanelNode => _panel;
+	public bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	public bool ConsumeUnhandledKeys => true;
+	public bool Dirty { get; set; }
 	public bool IsOpen => _panel.Visible;
 	public bool IsCapturing => _captureSlot >= 0;
+	public event Action? CloseRequested;
 
 	public KeyBindingsUIModule(Node root, InputBindingService bindings)
 	{
@@ -68,7 +75,7 @@ public sealed class KeyBindingsUIModule
 		_bindSecondaryBtn.Pressed += () => StartCapture(1);
 		_resetContextBtn.Pressed += ResetCurrentContext;
 		_resetAllBtn.Pressed += ResetAllContexts;
-		_closeBtn.Pressed += Close;
+		_closeBtn.Pressed += () => CloseRequested?.Invoke();
 
 		_bindings.Changed += () =>
 		{
@@ -80,18 +87,47 @@ public sealed class KeyBindingsUIModule
 
 	public void Open()
 	{
-		_panel.Visible = true;
+		Visible = true;
 		_captureSlot = -1;
 		_statusLabel.Text = "";
-		_hintLabel.Text = "上/下切换条目，左右切换输入态，Enter改主键，Space改备键，ESC关闭";
+		_hintLabel.Text = "上/下切换条目，左右切换输入态，Enter改主键，Space改备键，滚轮也可绑定，ESC关闭";
 		Refresh();
 	}
 
 	public void Close()
 	{
-		_panel.Visible = false;
+		Visible = false;
 		_captureSlot = -1;
 		_statusLabel.Text = "";
+	}
+
+	public bool HandleCommand(string cmd)
+	{
+		switch (cmd)
+		{
+			case "up":
+				MoveSelection(-1);
+				return true;
+			case "down":
+				MoveSelection(1);
+				return true;
+			case "left":
+			case "tab_prev":
+				CycleContext(-1);
+				return true;
+			case "right":
+			case "tab_next":
+				CycleContext(1);
+				return true;
+			case "confirm":
+				StartCapture(0);
+				return true;
+			case "close":
+				CloseRequested?.Invoke();
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	public bool HandleKey(InputEventKey key)
@@ -104,7 +140,7 @@ public sealed class KeyBindingsUIModule
 		switch (key.Keycode)
 		{
 			case Key.Escape:
-				Close();
+				CloseRequested?.Invoke();
 				return true;
 			case Key.W or Key.Up:
 				MoveSelection(-1);
@@ -133,10 +169,9 @@ public sealed class KeyBindingsUIModule
 	{
 		if (!IsOpen) return false;
 		if (@event is not InputEventMouseButton mb || !mb.Pressed) return false;
-		if (mb.ButtonIndex != MouseButton.Right) return false;
-		if (_captureSlot >= 0) return false;
-		Close();
-		return true;
+		if (_captureSlot >= 0)
+			return HandleCaptureMouseButton(mb);
+		return false;
 	}
 
 	private void SetContext(InputBindingContext context)
@@ -251,14 +286,30 @@ public sealed class KeyBindingsUIModule
 			return true;
 		}
 
-		if (!KeyChord.TryFromEvent(key, out var chord))
+		if (!InputGesture.TryFromEvent(key, out var gesture))
 			return true;
 
 		if (_selectedActionId == null) return true;
 		var slot = _captureSlot;
 		_captureSlot = -1;
-		if (_bindings.Rebind(_context, _selectedActionId, slot, chord))
-			_statusLabel.Text = $"已绑定: {chord.ToDisplayString()}";
+		if (_bindings.Rebind(_context, _selectedActionId, slot, gesture))
+			_statusLabel.Text = $"已绑定: {gesture.ToDisplayString()}";
+		else
+			_statusLabel.Text = "绑定失败";
+		Refresh();
+		return true;
+	}
+
+	private bool HandleCaptureMouseButton(InputEventMouseButton button)
+	{
+		if (!InputGesture.TryFromEvent(button, out var gesture))
+			return true;
+
+		if (_selectedActionId == null) return true;
+		var slot = _captureSlot;
+		_captureSlot = -1;
+		if (_bindings.Rebind(_context, _selectedActionId, slot, gesture))
+			_statusLabel.Text = $"已绑定: {gesture.ToDisplayString()}";
 		else
 			_statusLabel.Text = "绑定失败";
 		Refresh();

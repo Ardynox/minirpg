@@ -30,14 +30,7 @@ public class DialogUIModule
 		_panels = panels;
 
 		_panel.OnOptionSelected += OnOptionSelected;
-		_panel.OnDialogClosed += () =>
-		{
-			_panel.Close();
-			_ctx = null;
-			_npc = null;
-			_currentOptions = null;
-			_currentEntry = null;
-		};
+		_panel.OnDialogClosed += CloseDialog;
 	}
 
 	/// <summary>开始与 NPC 对话。</summary>
@@ -59,18 +52,20 @@ public class DialogUIModule
 		}
 
 		ShowEntry(entry);
-		_panels.SetFocus(_panel);
+		_panels.PushFocus(_panel);
 	}
 
 	/// <summary>关闭对话面板，恢复正常输入。</summary>
 	public void CloseDialog()
 	{
+		var wasOpen = _panel.Visible;
 		_panel.Close();
 		_ctx = null;
 		_npc = null;
 		_currentOptions = null;
 		_currentEntry = null;
-		_panels.ClearFocus();
+		if (wasOpen)
+			_panels.OnPanelClosed(_panel);
 	}
 
 	private void ShowEntry(DialogEntry entry)

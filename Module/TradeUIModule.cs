@@ -4,9 +4,7 @@ using MiniRPG.Module.Panel;
 namespace MiniRPG.Module;
 
 /// <summary>
-/// 交易 UI 流程编排：连接 TradeModule / TradePanelModule / PanelManager。
-/// 任何有物品的生物都可以交易，货源来自对方的 ShopSlots + Inventory。
-/// </summary>
+/// 浜ゆ槗 UI 娴佺▼缂栨帓锛氳繛鎺?TradeModule / TradePanelModule / PanelManager銆?/// 浠讳綍鏈夌墿鍝佺殑鐢熺墿閮藉彲浠ヤ氦鏄擄紝璐ф簮鏉ヨ嚜瀵规柟鐨?ShopSlots + Inventory銆?/// </summary>
 public class TradeUIModule
 {
 	private readonly IGameUI _ui;
@@ -35,7 +33,7 @@ public class TradeUIModule
 
 		_trader = trader;
 		_panel.Open(player, trader);
-		_panels.SetFocus(_panel);
+		_panels.PushFocus(_panel);
 		_ui.AddLog($"开始与 {trader.DisplayName} 交易");
 	}
 
@@ -43,6 +41,8 @@ public class TradeUIModule
 	{
 		var wasOpen = _panel.Visible;
 		_panel.Close();
+		if (wasOpen)
+			_panels.OnPanelClosed(_panel);
 		if (_trader != null && wasOpen)
 			_ui.AddLog($"结束与 {_trader.DisplayName} 的交易");
 		_trader = null;
@@ -62,7 +62,7 @@ public class TradeUIModule
 			var result = TradeModule.Buy(player, _trader, good);
 			_ui.AddLog(result.Message);
 			if (result.Ok)
-				_ui.AddLog($"  💰 剩余金币: {player.Gold}G");
+				_ui.AddLog($"  馃挵 鍓╀綑閲戝竵: {player.Gold}G");
 		}
 		else
 		{
@@ -73,7 +73,7 @@ public class TradeUIModule
 			var result = TradeModule.Sell(player, _trader, invIdx);
 			_ui.AddLog(result.Message);
 			if (result.Ok)
-				_ui.AddLog($"  💰 剩余金币: {player.Gold}G");
+				_ui.AddLog($"  馃挵 鍓╀綑閲戝竵: {player.Gold}G");
 		}
 
 		_panel.RefreshData(player, _trader);

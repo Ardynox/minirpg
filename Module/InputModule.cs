@@ -81,6 +81,20 @@ public partial class InputModule
 		};
 	}
 
+	public bool HandleMouseButtonInput(InputEventMouseButton button)
+	{
+		if (!button.Pressed || _focus != InputFocus.Action)
+			return false;
+
+		if (!_bindings.Resolve(InputBindingContext.Action, button, out _, out var cmd))
+			return false;
+
+		if (!string.IsNullOrEmpty(cmd))
+			CommandReceived?.Invoke(cmd);
+
+		return true;
+	}
+
 	private bool HandleTypingKey(InputEventKey key)
 	{
 		if (!_bindings.Resolve(InputBindingContext.Typing, key, out var actionId, out _))

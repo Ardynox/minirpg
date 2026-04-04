@@ -49,13 +49,14 @@ public class TradePanelModule : ListPanelBase
 			case "left" or "tab_prev": SetTab(TradeTab.Buy); return true;
 			case "right" or "tab_next": SetTab(TradeTab.Sell); return true;
 			case "confirm": DoAction(); return true;
+			case "close": OnTradeClosed?.Invoke(); return true;
 			default:
 				if (int.TryParse(cmd, out var num) && num >= 1) { SelectByNumber(num); return true; }
 				return false;
 		}
 	}
 
-	public override void OnBlur() => OnTradeClosed?.Invoke();
+	public override void OnBlur() { }
 
 	public TradePanelModule(PanelContainer panel)
 	{

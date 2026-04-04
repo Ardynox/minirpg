@@ -21,6 +21,7 @@ public class DialogPanelModule : IPanel
 			case "up": MoveCursor(-1); return true;
 			case "down": MoveCursor(1); return true;
 			case "confirm": Confirm(); return true;
+			case "close": OnDialogClosed?.Invoke(); return true;
 			default:
 				if (int.TryParse(cmd, out var num)) { SelectByNumber(num); return true; }
 				return false;
@@ -29,7 +30,7 @@ public class DialogPanelModule : IPanel
 
 	/// <summary>面板失焦时通知 DialogUIModule 清理对话状态。</summary>
 	public event Action? OnDialogClosed;
-	void IPanel.OnBlur() => OnDialogClosed?.Invoke();
+	void IPanel.OnBlur() { }
 
 	public event Action<int>? OnOptionSelected;
 

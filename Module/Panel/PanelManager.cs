@@ -81,6 +81,28 @@ public class PanelManager
 	}
 
 	/// <summary>
+	/// Focus change from pointer interaction: push previous focus into stack without clearing history.
+	/// </summary>
+	public void FocusFromPointer(IPanel? panel)
+	{
+		if (_switching || panel == null || !IsFocusable(panel))
+			return;
+
+		if (_focused == panel)
+			return;
+
+		RemoveFromStack(panel);
+
+		if (_focused != null)
+		{
+			RemoveFromStack(_focused);
+			_focusStack.Add(_focused);
+		}
+
+		SwitchFocus(panel, clearStack: false);
+	}
+
+	/// <summary>
 	/// Restore previous focus from stack. If no valid previous panel exists, focus is cleared.
 	/// </summary>
 	public bool RestorePreviousFocus()
@@ -151,8 +173,21 @@ public class PanelManager
 
 	public IPanel? HitTest(Vector2 globalPos)
 	{
-		foreach (var p in _panels)
+		// Prefer Godot's actual topmost hovered control when panels overlap.
+		var hovered = _panels.Count > 0 ? _panels[0].PanelNode.GetViewport()?.GuiGetHoveredControl() : null;
+		var hoveredPanel = FindPanelForControl(hovered);
+		if (hoveredPanel != null
+			&& hoveredPanel.Visible
+			&& hoveredPanel.CanFocus
+			&& hoveredPanel.PanelNode.GetGlobalRect().HasPoint(globalPos))
 		{
+			return hoveredPanel;
+		}
+
+		// Fallback to reverse registration order, which better matches draw order than forward scan.
+		for (var i = _panels.Count - 1; i >= 0; i--)
+		{
+			var p = _panels[i];
 			if (!p.Visible || !p.CanFocus)
 				continue;
 
@@ -204,6 +239,23 @@ public class PanelManager
 	}
 
 	private bool IsFocusable(IPanel panel) => panel.CanFocus && panel.Visible;
+
+	private IPanel? FindPanelForControl(Control? control)
+	{
+		Control? current = control;
+		while (current != null)
+		{
+			foreach (var panel in _panels)
+			{
+				if (panel.PanelNode == current)
+					return panel;
+			}
+
+			current = current.GetParent() as Control;
+		}
+
+		return null;
+	}
 
 	private IPanel? PopPreviousFocusable()
 	{
