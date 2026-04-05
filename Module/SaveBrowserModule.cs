@@ -27,10 +27,10 @@ public sealed class SaveBrowserModule
 	public SaveBrowserModule(PanelContainer panel)
 	{
 		_panel = panel;
-		_titleLabel = panel.GetNode<Label>("Center/Margin/VBox/Title");
-		_subtitleLabel = panel.GetNode<Label>("Center/Margin/VBox/Subtitle");
-		_listRoot = panel.GetNode<VBoxContainer>("Center/Margin/VBox/Scroll/List");
-		_backButton = panel.GetNode<Button>("Center/Margin/VBox/Actions/BackBtn");
+		_titleLabel = panel.GetNode<Label>("Margin/VBox/Title");
+		_subtitleLabel = panel.GetNode<Label>("Margin/VBox/Subtitle");
+		_listRoot = panel.GetNode<VBoxContainer>("Margin/VBox/Scroll/List");
+		_backButton = panel.GetNode<Button>("Margin/VBox/Actions/BackBtn");
 		_backButton.Pressed += () => CloseRequested?.Invoke();
 	}
 
@@ -67,8 +67,8 @@ public sealed class SaveBrowserModule
 		if (_slots.Count == 0)
 		{
 			var row = _rows[0];
-			row.Text = "没有可读取的存档";
 			row.Disabled = true;
+			row.Text = "No saves available";
 			return;
 		}
 
@@ -89,7 +89,9 @@ public sealed class SaveBrowserModule
 			Alignment = HorizontalAlignment.Left,
 			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 60),
+			CustomMinimumSize = new Vector2(0, 72),
+			ClipText = false,
+			TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
 		};
 
 		row.Pressed += () =>
