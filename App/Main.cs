@@ -400,17 +400,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_saveBrowser.Visible)
 			return;
 
-		if (LayoutEditActive)
-		{
-			if (@event is InputEventMouseButton editMouse
-				&& editMouse.Pressed
-				&& editMouse.ButtonIndex == MouseButton.Right)
-			{
-				GetViewport().SetInputAsHandled();
-			}
-			return;
-		}
-
 		if (_keyBindingsUI.IsOpen)
 		{
 			if (_keyBindingsUI.HandleMouseInput(@event))
@@ -425,6 +414,23 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				&& keyBindingsMouse.ButtonIndex == MouseButton.Right)
 			{
 				CloseKeyBindingsPanel();
+				GetViewport().SetInputAsHandled();
+			}
+			return;
+		}
+
+		if (_panelDrag.HandleGlobalInput(@event))
+		{
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (LayoutEditActive)
+		{
+			if (@event is InputEventMouseButton editMouse
+				&& editMouse.Pressed
+				&& editMouse.ButtonIndex == MouseButton.Right)
+			{
 				GetViewport().SetInputAsHandled();
 			}
 			return;

@@ -21,17 +21,36 @@ public readonly record struct DraggablePanelRegistration(
 public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoot)
 {
 	private const float PositionEpsilon = 1f;
+	private const float DragStartThreshold = 4f;
 
 	private readonly PanelLayoutStore _store = store;
 	private readonly Control _floatingRoot = floatingRoot;
 	private readonly Dictionary<string, DragState> _states = [];
 	private bool _editModeActive;
+	private DragState? _pendingDragState;
+	private DragState? _activeDragState;
 
 	public bool EditModeActive => _editModeActive;
 
 	public void Initialize() => _store.Load();
 
 	public void RemovePersistedLayout(string panelId) => _store.Remove(panelId);
+
+	public bool HandleGlobalInput(InputEvent ev)
+	{
+		if (_activeDragState != null && !CanTrack(_activeDragState))
+			AbortDrag(_activeDragState);
+
+		if (_pendingDragState != null && !CanTrack(_pendingDragState))
+			AbortDrag(_pendingDragState);
+
+		return ev switch
+		{
+			InputEventMouseMotion mm => HandleGlobalMouseMotion(mm),
+			InputEventMouseButton mb when mb.ButtonIndex == MouseButton.Left => HandleGlobalLeftButton(mb),
+			_ => false,
+		};
+	}
 
 	public void Register(DraggablePanelRegistration registration)
 	{
@@ -65,6 +84,8 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	{
 		if (!_states.TryGetValue(panelId, out var state))
 			return;
+
+		AbortDrag(state);
 
 		foreach (var binding in state.HandleBindings)
 			binding.Handle.GuiInput -= binding.Handler;
@@ -161,8 +182,11 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	private void ClearSessionState()
 	{
 		_editModeActive = false;
+		_pendingDragState = null;
+		_activeDragState = null;
 		foreach (var state in _states.Values)
 		{
+			state.PendingDrag = false;
 			state.Dragging = false;
 			state.HasSessionSnapshot = false;
 		}
@@ -194,7 +218,10 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			return;
 
 		if (!state.Registration.Panel.Visible)
+		{
+			AbortDrag(state);
 			return;
+		}
 
 		if (state.Registration.Availability == PanelDragAvailability.EditModeOnly && _editModeActive)
 			return;
@@ -208,53 +235,119 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			return;
 
 		var swallowInput = state.Registration.Availability == PanelDragAvailability.EditModeOnly;
+		if (swallowInput && ev is InputEventMouseButton or InputEventMouseMotion)
+			sourceHandle.AcceptEvent();
 
-		switch (ev)
+		if (ev is not InputEventMouseButton mb
+			|| mb.ButtonIndex != MouseButton.Left
+			|| !mb.Pressed
+			|| _pendingDragState != null
+			|| _activeDragState != null)
+			return;
+
+		state.PendingDrag = true;
+		state.PressGlobalPosition = mb.GlobalPosition;
+		state.DragOffset = state.Registration.Panel.GlobalPosition - mb.GlobalPosition;
+		_pendingDragState = state;
+	}
+
+	private bool HandleGlobalMouseMotion(InputEventMouseMotion mm)
+	{
+		if (_activeDragState != null)
 		{
-			case InputEventMouseButton mb when mb.ButtonIndex == MouseButton.Left:
-				if (swallowInput)
-					sourceHandle.AcceptEvent();
+			if (!IsLeftButtonPressed(mm.ButtonMask))
+			{
+				FinishDrag(_activeDragState, mm.GlobalPosition);
+				return true;
+			}
 
-				if (mb.Pressed)
-				{
-					PrepareForDragging(state);
-					BringToFront(state.Registration.Panel);
-					state.Dragging = true;
-					state.DragOffset = state.Registration.Panel.GlobalPosition - mb.GlobalPosition;
-					return;
-				}
-
-				if (!state.Dragging)
-					return;
-
-				state.Dragging = false;
-				if (state.Registration.Availability == PanelDragAvailability.Always)
-				{
-					PersistCurrentPosition(state);
-					_store.Save();
-				}
-				return;
-
-			case InputEventMouseMotion mm:
-				if (!state.Dragging)
-					return;
-
-				if (swallowInput)
-					sourceHandle.AcceptEvent();
-
-				state.Registration.Panel.GlobalPosition = mm.GlobalPosition + state.DragOffset;
-				return;
-
-			case InputEventMouseButton:
-				if (swallowInput)
-					sourceHandle.AcceptEvent();
-				return;
+			_activeDragState.Registration.Panel.GlobalPosition = mm.GlobalPosition + _activeDragState.DragOffset;
+			return true;
 		}
+
+		if (_pendingDragState == null)
+			return false;
+
+		if (!IsLeftButtonPressed(mm.ButtonMask))
+		{
+			ClearPendingDrag(_pendingDragState);
+			return true;
+		}
+
+		if (mm.GlobalPosition.DistanceSquaredTo(_pendingDragState.PressGlobalPosition) < DragStartThreshold * DragStartThreshold)
+			return true;
+
+		StartDrag(_pendingDragState, mm.GlobalPosition);
+		return true;
+	}
+
+	private bool HandleGlobalLeftButton(InputEventMouseButton mb)
+	{
+		if (mb.Pressed)
+			return _activeDragState != null || _pendingDragState != null;
+
+		if (_activeDragState != null)
+		{
+			FinishDrag(_activeDragState, mb.GlobalPosition);
+			return true;
+		}
+
+		if (_pendingDragState != null)
+		{
+			ClearPendingDrag(_pendingDragState);
+			return true;
+		}
+
+		return false;
+	}
+
+	private void StartDrag(DragState state, Vector2 pointerPosition)
+	{
+		_pendingDragState = null;
+		state.PendingDrag = false;
+		PrepareForDragging(state);
+		BringToFront(state.Registration.Panel);
+		state.Dragging = true;
+		_activeDragState = state;
+		state.Registration.Panel.GlobalPosition = pointerPosition + state.DragOffset;
+	}
+
+	private void FinishDrag(DragState state, Vector2 pointerPosition)
+	{
+		state.Registration.Panel.GlobalPosition = pointerPosition + state.DragOffset;
+		state.Dragging = false;
+		_activeDragState = null;
+		if (state.Registration.Availability == PanelDragAvailability.Always)
+		{
+			PersistCurrentPosition(state);
+			_store.Save();
+		}
+	}
+
+	private void ClearPendingDrag(DragState state)
+	{
+		state.PendingDrag = false;
+		if (_pendingDragState == state)
+			_pendingDragState = null;
+	}
+
+	private void AbortDrag(DragState state)
+	{
+		ClearPendingDrag(state);
+		if (_activeDragState == state)
+			_activeDragState = null;
+		state.Dragging = false;
+		RemovePlaceholder(state);
 	}
 
 	private bool CanDrag(DragState state)
 	{
 		return state.Registration.Availability == PanelDragAvailability.Always || _editModeActive;
+	}
+
+	private bool CanTrack(DragState state)
+	{
+		return state.Registration.Panel.Visible && CanDrag(state);
 	}
 
 	private void PersistCurrentPosition(DragState state)
@@ -380,6 +473,11 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			&& Math.Abs(a.Y - b.Y) <= PositionEpsilon;
 	}
 
+	private static bool IsLeftButtonPressed(MouseButtonMask buttonMask)
+	{
+		return (buttonMask & MouseButtonMask.Left) != 0;
+	}
+
 	private sealed class HandleBinding(Control handle, Control.GuiInputEventHandler handler)
 	{
 		public Control Handle { get; } = handle;
@@ -390,7 +488,9 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	{
 		public readonly DraggablePanelRegistration Registration = registration;
 		public readonly List<HandleBinding> HandleBindings = [];
+		public bool PendingDrag;
 		public bool Dragging;
+		public Vector2 PressGlobalPosition;
 		public Vector2 DragOffset;
 		public Action? PanelVisibilityChanged;
 		public Node? OriginalParent;
