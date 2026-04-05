@@ -20,8 +20,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 {
 	private const int ViewW = 21;
 	private const int ViewH = 11;
-	private static readonly string[] LayoutEditablePanelIds =
-		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "dialog", "trade", "quest"];
+	private static readonly string[] EditModeOnlyPanelIds = ["ground", "log"];
 
 	private readonly GameState _state = new();
 
@@ -88,7 +87,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_chestPanel = new ChestPanelModule(node, this);
 		_panels.Register(_chestPanel);
-		RegisterLayoutEditable(_chestPanel);
+		RegisterAlwaysDraggable(_chestPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
 		return _chestPanel;
 	}
 
@@ -100,7 +99,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_dialogPanel = new DialogPanelModule(node);
 		_panels.Register(_dialogPanel);
-		RegisterLayoutEditable(_dialogPanel);
+		RegisterAlwaysDraggable(_dialogPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
 		return _dialogPanel;
 	}
 
@@ -112,7 +111,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_tradePanel = new TradePanelModule(node);
 		_panels.Register(_tradePanel);
-		RegisterLayoutEditable(_tradePanel);
+		RegisterAlwaysDraggable(_tradePanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
 		return _tradePanel;
 	}
 
@@ -124,7 +123,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_questPanel = new QuestPanelModule(node);
 		_panels.Register(_questPanel);
-		RegisterLayoutEditable(_questPanel);
+		RegisterAlwaysDraggable(_questPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
 		return _questPanel;
 	}
 
@@ -142,18 +141,26 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		return _dialogUI;
 	}
 
-	private void RegisterLayoutEditable(IPanel panel, bool defaultFloating = true)
+	private void RegisterAlwaysDraggable(IPanel panel, params Control[] dragHandles)
 	{
 		_panelDrag.Register(new DraggablePanelRegistration(
 			panel.PanelId,
 			panel.PanelNode,
-			defaultFloating
+			PanelDragAvailability.Always,
+			dragHandles,
+			DefaultFloating: true
 		));
 	}
 
-	private void RegisterLayoutEditable(string panelId, PanelContainer panelNode, bool defaultFloating)
+	private void RegisterEditModeOnly(string panelId, PanelContainer panelNode, bool defaultFloating, params Control[] dragHandles)
 	{
-		_panelDrag.Register(new DraggablePanelRegistration(panelId, panelNode, defaultFloating));
+		_panelDrag.Register(new DraggablePanelRegistration(
+			panelId,
+			panelNode,
+			PanelDragAvailability.EditModeOnly,
+			dragHandles,
+			defaultFloating
+		));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -267,9 +274,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
 		_skillBar = new SkillBarModule(skillBarNode);
 		_skillBar.CloseRequested += CloseSkillBarPanel;
-		_skillMgr = new SkillManagerModule(GetNode<PanelContainer>("UI/TopRow/SkillManager"));
-		_inventoryPanel = new InventoryPanelModule(GetNode<PanelContainer>("UI/TopRow/InventoryPanel"), this);
-		_groundPanel = new GroundPanelModule(GetNode<PanelContainer>("UI/GroundPanel"), this);
+		var skillManagerNode = GetNode<PanelContainer>("UI/TopRow/SkillManager");
+		_skillMgr = new SkillManagerModule(skillManagerNode);
+		var inventoryNode = GetNode<PanelContainer>("UI/TopRow/InventoryPanel");
+		_inventoryPanel = new InventoryPanelModule(inventoryNode, this);
+		var groundNode = GetNode<PanelContainer>("UI/GroundPanel");
+		_groundPanel = new GroundPanelModule(groundNode, this);
 
 		_panels = new PanelManager();
 		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false);
@@ -285,12 +295,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		AddChild(floatingRoot);
 		_panelDrag = new PanelDragService(new PanelLayoutStore(), floatingRoot);
 		_panelDrag.Initialize();
-		RegisterLayoutEditable(_statusPanelModule);
-		RegisterLayoutEditable(_skillBar);
-		RegisterLayoutEditable(_skillMgr);
-		RegisterLayoutEditable(_inventoryPanel);
-		RegisterLayoutEditable("ground", _groundPanel.PanelNode, defaultFloating: false);
-		RegisterLayoutEditable("log", logPanelNode, defaultFloating: false);
+		RegisterAlwaysDraggable(_statusPanelModule, _statusPanelModule.PanelNode.GetNode<Control>("MarginContainer/VBox/NameInfo"));
+		RegisterAlwaysDraggable(_skillBar, skillBarNode.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_skillMgr, skillManagerNode.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_inventoryPanel, inventoryNode.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterEditModeOnly("log", logPanelNode, defaultFloating: false, logContent);
 
 		_inputBindings = new InputBindingService();
 		_inputModule = new InputModule(lineEdit, _inputBindings);
@@ -659,7 +669,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_layoutResetPending)
 		{
-			foreach (var panelId in LayoutEditablePanelIds)
+			foreach (var panelId in EditModeOnlyPanelIds)
 				_panelDrag.RemovePersistedLayout(panelId);
 		}
 
