@@ -62,7 +62,7 @@ public class TradePanelModule : ListPanelBase
 	{
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_header = vbox.GetNode<RichTextLabel>("Header");
+		_header = vbox.GetNode<RichTextLabel>("HeaderBar/Header");
 		_tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		var itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
 		var itemList = itemScroll.GetNode<VBoxContainer>("ItemList");

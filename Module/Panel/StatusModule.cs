@@ -61,7 +61,7 @@ public class StatusPanelModule : IPanel
 	{
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_nameInfo = vbox.GetNode<Label>("NameInfo");
+		_nameInfo = vbox.GetNode<Label>("HeaderBar/NameInfo");
 		_tabLabel = vbox.GetNode<Label>("TabLabel");
 		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
 

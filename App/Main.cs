@@ -87,7 +87,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_chestPanel = new ChestPanelModule(node, this);
 		_panels.Register(_chestPanel);
-		RegisterAlwaysDraggable(_chestPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_chestPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
 		return _chestPanel;
 	}
 
@@ -99,7 +99,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_dialogPanel = new DialogPanelModule(node);
 		_panels.Register(_dialogPanel);
-		RegisterAlwaysDraggable(_dialogPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_dialogPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
 		return _dialogPanel;
 	}
 
@@ -111,7 +111,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_tradePanel = new TradePanelModule(node);
 		_panels.Register(_tradePanel);
-		RegisterAlwaysDraggable(_tradePanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_tradePanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
 		return _tradePanel;
 	}
 
@@ -123,7 +123,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TopRow.AddChild(node);
 		_questPanel = new QuestPanelModule(node);
 		_panels.Register(_questPanel);
-		RegisterAlwaysDraggable(_questPanel, node.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_questPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
 		return _questPanel;
 	}
 
@@ -295,10 +295,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		AddChild(floatingRoot);
 		_panelDrag = new PanelDragService(new PanelLayoutStore(), floatingRoot);
 		_panelDrag.Initialize();
-		RegisterAlwaysDraggable(_statusPanelModule, _statusPanelModule.PanelNode.GetNode<Control>("MarginContainer/VBox/NameInfo"));
-		RegisterAlwaysDraggable(_skillBar, skillBarNode.GetNode<Control>("MarginContainer/VBox/Header"));
-		RegisterAlwaysDraggable(_skillMgr, skillManagerNode.GetNode<Control>("MarginContainer/VBox/Header"));
-		RegisterAlwaysDraggable(_inventoryPanel, inventoryNode.GetNode<Control>("MarginContainer/VBox/Header"));
+		RegisterAlwaysDraggable(_statusPanelModule, _statusPanelModule.PanelNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDraggable(_skillBar, skillBarNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDraggable(_skillMgr, skillManagerNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDraggable(_inventoryPanel, inventoryNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
 		RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
 		RegisterEditModeOnly("log", logPanelNode, defaultFloating: false, logContent);
 

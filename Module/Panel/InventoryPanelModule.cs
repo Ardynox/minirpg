@@ -89,7 +89,7 @@ public class InventoryPanelModule : ListPanelBase
 		_panel = panel;
 		_host = host;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_header = vbox.GetNode<RichTextLabel>("Header");
+		_header = vbox.GetNode<RichTextLabel>("HeaderBar/Header");
 		_filterBar = vbox.GetNode<HBoxContainer>("FilterBar");
 		var itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
 		var itemList = itemScroll.GetNode<VBoxContainer>("ItemList");

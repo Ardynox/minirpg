@@ -42,7 +42,7 @@ public class QuestPanelModule : ListPanelBase
 	{
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_header = vbox.GetNode<RichTextLabel>("Header");
+		_header = vbox.GetNode<RichTextLabel>("HeaderBar/Header");
 		var tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		var content = vbox.GetNode<HBoxContainer>("Content");
 		var leftScroll = content.GetNode<ScrollContainer>("LeftColumn");

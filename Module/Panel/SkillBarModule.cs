@@ -48,7 +48,7 @@ public sealed class SkillBarModule : IPanel
 	{
 		_panel = panel;
 		var vbox = panel.GetNode<VBoxContainer>("MarginContainer/VBox");
-		_header = vbox.GetNode<RichTextLabel>("Header");
+		_header = vbox.GetNode<RichTextLabel>("HeaderBar/Header");
 		var tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		_gridScroll = vbox.GetNode<ScrollContainer>("GridScroll");
 		_emptyLabel = _gridScroll.GetNode<Label>("GridHost/EmptyLabel");

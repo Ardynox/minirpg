@@ -56,7 +56,7 @@ public class DialogPanelModule : IPanel
 	{
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
-		_header = vbox.GetNode<RichTextLabel>("Header");
+		_header = vbox.GetNode<RichTextLabel>("HeaderBar/Header");
 		_dialogText = vbox.GetNode<RichTextLabel>("DialogText");
 		_optionList = vbox.GetNode<VBoxContainer>("OptionList");
 		_hintBar = vbox.GetNode<Label>("HintBar");
