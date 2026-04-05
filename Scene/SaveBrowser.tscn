@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[node name="SaveBrowser" type="PanelContainer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Center/Margin"]
+layout_mode = 2
+custom_minimum_size = Vector2(760, 0)
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Margin/VBox"]
+layout_mode = 2
+text = "读取存档"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Center/Margin/VBox"]
+layout_mode = 2
+text = "选择一个存档继续游戏"
+horizontal_alignment = 1
+
+[node name="Scroll" type="ScrollContainer" parent="Center/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="List" type="VBoxContainer" parent="Center/Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Actions" type="HBoxContainer" parent="Center/Margin/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="BackBtn" type="Button" parent="Center/Margin/VBox/Actions"]
+layout_mode = 2
+text = "返回"

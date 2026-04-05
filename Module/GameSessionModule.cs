@@ -1,4 +1,7 @@
 using Godot;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module;
@@ -21,6 +24,7 @@ public class GameSessionModule
 	private readonly FogOfWarTracker _fogTracker;
 
 	public bool GameStarted { get; private set; }
+	public string? CurrentSavePath { get; private set; }
 
 	public GameSessionModule(GameState state, FogOfWarTracker fogTracker)
 	{
@@ -38,6 +42,7 @@ public class GameSessionModule
 		_state.WorldSeed = System.Environment.TickCount;
 		_fogTracker.Clear();
 		InitializeWorld();
+		CurrentSavePath = null;
 		GameStarted = true;
 	}
 
@@ -51,6 +56,7 @@ public class GameSessionModule
 		MapGenModule.InitializeWorld(_state);
 		EnsurePlayerActor();
 		SyncViewMode();
+		CurrentSavePath = path;
 		GameStarted = true;
 		return true;
 	}
@@ -70,12 +76,74 @@ public class GameSessionModule
 	public void SaveGame(string path)
 	{
 		SaveModule.SaveGame(_state, path);
+		CurrentSavePath = path;
 	}
 
 	public bool HasAnySave()
 	{
 		return System.IO.File.Exists(QuickSavePath)
 			|| System.IO.File.Exists(ManualSavePath);
+	}
+
+	public void EnsurePresetSavesSeeded()
+	{
+		TestMapSeedModule.EnsureSeeded(SaveDir);
+	}
+
+	public string GetPreferredSavePath() => CurrentSavePath ?? ManualSavePath;
+
+	public string DescribeSavePath(string path)
+	{
+		var fileName = Path.GetFileName(path);
+		return fileName switch
+		{
+			TestMapSeedModule.TestSaveFileName => "测试地图",
+			"quicksave.json" => "快速存档",
+			"save.json" => "手动存档",
+			_ => Path.GetFileNameWithoutExtension(path),
+		};
+	}
+
+	public IReadOnlyList<SaveSlotInfo> ListSaveSlots()
+	{
+		Directory.CreateDirectory(SaveDir);
+
+		var entries = new List<SaveSlotInfo>();
+		foreach (var path in Directory.EnumerateFiles(SaveDir, "*.json", SearchOption.TopDirectoryOnly))
+		{
+			var fileName = Path.GetFileName(path);
+			if (string.Equals(fileName, TestMapSeedModule.SeedMarkerFileName, StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			var modifiedAt = File.GetLastWriteTime(path);
+			var displayName = DescribeSavePath(path);
+			var summary = BuildSummary(path, modifiedAt);
+			var isTestMap = string.Equals(fileName, TestMapSeedModule.TestSaveFileName, StringComparison.OrdinalIgnoreCase);
+
+			entries.Add(new SaveSlotInfo
+			{
+				Path = path,
+				FileName = fileName,
+				DisplayName = displayName,
+				Summary = summary,
+				ModifiedAt = modifiedAt,
+				IsTestMap = isTestMap,
+			});
+		}
+
+		entries.Sort((a, b) =>
+		{
+			if (a.IsTestMap != b.IsTestMap)
+				return a.IsTestMap ? -1 : 1;
+
+			var modifiedCompare = b.ModifiedAt.CompareTo(a.ModifiedAt);
+			if (modifiedCompare != 0)
+				return modifiedCompare;
+
+			return string.Compare(a.FileName, b.FileName, StringComparison.OrdinalIgnoreCase);
+		});
+
+		return entries;
 	}
 
 	/// <summary>
@@ -128,6 +196,15 @@ public class GameSessionModule
 	private IViewMode _viewMode = new SingleLayerViewMode();
 	public IViewMode ViewMode => _viewMode;
 
+	private string BuildSummary(string path, DateTime modifiedAt)
+	{
+		var timestamp = modifiedAt.ToString("yyyy-MM-dd HH:mm");
+		if (!SaveModule.TryReadSaveHeader(path, out var header))
+			return $"无法解析 | {timestamp}";
+
+		return $"Turn {header.Turn} | Z{header.PlayerZ} | {timestamp}";
+	}
+
 	private void SyncViewMode()
 	{
 		_viewMode = _state.ViewModeId switch
@@ -163,4 +240,14 @@ public class GameSessionModule
 		player.Z = _state.PlayerZ;
 		_state.Actors[player.Id] = player;
 	}
+}
+
+public sealed class SaveSlotInfo
+{
+	public string Path { get; init; } = "";
+	public string FileName { get; init; } = "";
+	public string DisplayName { get; init; } = "";
+	public string Summary { get; init; } = "";
+	public DateTime ModifiedAt { get; init; }
+	public bool IsTestMap { get; init; }
 }

@@ -93,6 +93,35 @@ public static class SaveModule
 		return true;
 	}
 
+	public static bool TryReadSaveHeader(string filePath, out SaveHeader header)
+	{
+		header = new SaveHeader();
+		if (!File.Exists(filePath)) return false;
+
+		try
+		{
+			using var doc = JsonDocument.Parse(File.ReadAllText(filePath));
+			var root = doc.RootElement;
+
+			header = new SaveHeader
+			{
+				WorldSeed = ReadInt(root, nameof(WorldSaveData.WorldSeed)),
+				Turn = ReadInt(root, nameof(WorldSaveData.Turn)),
+				PlayerX = ReadInt(root, nameof(WorldSaveData.PlayerX)),
+				PlayerY = ReadInt(root, nameof(WorldSaveData.PlayerY)),
+				PlayerZ = ReadInt(root, nameof(WorldSaveData.PlayerZ)),
+				GeneratorId = ReadString(root, nameof(WorldSaveData.GeneratorId)),
+				ViewModeId = ReadString(root, nameof(WorldSaveData.ViewModeId)),
+			};
+			return true;
+		}
+		catch
+		{
+			header = new SaveHeader();
+			return false;
+		}
+	}
+
 	// ══════════════════════════════════════════════════════
 	//  Dirty Chunk 缓存（存档加载后供 ChunkManager 使用）
 	// ══════════════════════════════════════════════════════
@@ -271,6 +300,24 @@ public static class SaveModule
 		if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
 			Directory.CreateDirectory(dir);
 	}
+
+	private static int ReadInt(JsonElement root, string propertyName)
+	{
+		if (!root.TryGetProperty(propertyName, out var value)
+			|| value.ValueKind != JsonValueKind.Number)
+			return 0;
+
+		return value.GetInt32();
+	}
+
+	private static string? ReadString(JsonElement root, string propertyName)
+	{
+		if (!root.TryGetProperty(propertyName, out var value)
+			|| value.ValueKind != JsonValueKind.String)
+			return null;
+
+		return value.GetString();
+	}
 }
 
 // ══════════════════════════════════════════════════════
@@ -292,6 +339,17 @@ public class WorldSaveData
 	public Dictionary<string, Actor>? Actors { get; set; }
 	public List<Quest>? Quests { get; set; }
 	public List<ChunkSaveData> DirtyChunks { get; set; } = [];
+}
+
+public class SaveHeader
+{
+	public int WorldSeed { get; set; }
+	public int Turn { get; set; }
+	public int PlayerX { get; set; }
+	public int PlayerY { get; set; }
+	public int PlayerZ { get; set; }
+	public string? GeneratorId { get; set; }
+	public string? ViewModeId { get; set; }
 }
 
 public class ChunkSaveData

@@ -45,6 +45,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PanelDragService _panelDrag = null!;
 	private SettingsPanelModule _settingsPanelModule = null!;
 	private LayoutEditBarModule _layoutEditBar = null!;
+	private SaveBrowserModule _saveBrowser = null!;
 	private StatusPanelModule _statusPanelModule = null!;
 	private SkillBarModule _skillBar = null!;
 	private SkillManagerModule _skillMgr = null!;
@@ -66,6 +67,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule? _tradeUI;
 	private DialogUIModule? _dialogUI;
+	private SaveBrowserContext _saveBrowserContext = SaveBrowserContext.MainMenu;
+
+	private enum SaveBrowserContext
+	{
+		MainMenu,
+		InGame,
+	}
 
 
 	// ── 懒加载低频面板 ──────────────────────────────────
@@ -251,6 +259,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var layoutEditBarNode = GetNode<PanelContainer>("LayoutEditBar");
 		layoutEditBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
 		_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
+		var saveBrowserNode = GetNode<PanelContainer>("SaveBrowser");
+		saveBrowserNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
+		_saveBrowser = new SaveBrowserModule(saveBrowserNode);
 
 		var skillBarNode = GetNode<PanelContainer>("SkillBar");
 		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
@@ -292,8 +303,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_settingsPanelModule.RenderToggleRequested += ToggleRender;
 		_settingsPanelModule.WatchModeToggleRequested += ToggleWatchMode;
 		_settingsPanelModule.LayoutEditRequested += OpenLayoutEditMode;
-		_settingsPanelModule.SaveRequested += () => DoSave(GameSessionModule.ManualSavePath);
-		_settingsPanelModule.LoadRequested += () => DoLoad(GameSessionModule.ManualSavePath);
+		_settingsPanelModule.SaveRequested += DoSaveCurrent;
+		_settingsPanelModule.LoadRequested += () => OpenSaveBrowser(SaveBrowserContext.InGame);
 		_settingsPanelModule.KeyBindingsRequested += OpenKeyBindingsPanel;
 		_settingsPanelModule.ReturnToMenuRequested += HandleSettingsReturnToMenuRequested;
 		_settingsPanelModule.CloseRequested += CloseSettingsPanel;
@@ -301,6 +312,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
 		_layoutEditBar.CancelRequested += CancelLayoutEditMode;
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
+		_saveBrowser.CloseRequested += CloseSaveBrowser;
+		_saveBrowser.LoadRequested += HandleSaveBrowserLoadRequested;
 
 		_menu.OnContinue += HandleMenuContinue;
 		_menu.OnNewGame += HandleMenuNewGame;
@@ -309,6 +322,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_menu.OnQuit += () => GetTree().Quit();
 		_menu.OnOpenSettings += OpenMenuSettingsPanel;
 
+		_session.EnsurePresetSavesSeeded();
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
@@ -319,6 +333,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_menu.InMenu) return;
 
 		ProcessDirtyPanels();
+		if (_saveBrowser.Visible) return;
 		if (LayoutEditActive) return;
 
 		if (_state.WatchMode && !PlayerDead)
@@ -336,6 +351,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (@event is not InputEventKey key) return;
+
+		if (_saveBrowser.Visible)
+		{
+			if (key.Pressed && key.Keycode == Key.Escape)
+			{
+				CloseSaveBrowser();
+				GetViewport().SetInputAsHandled();
+			}
+			return;
+		}
 
 		if (LayoutEditActive)
 		{
@@ -362,6 +387,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Input(InputEvent @event)
 	{
+		if (_saveBrowser.Visible)
+			return;
+
 		if (LayoutEditActive)
 		{
 			if (@event is InputEventMouseButton editMouse
@@ -456,8 +484,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoEnterGame();
 	}
 
+#pragma warning disable CS0162
 	private void HandleMenuLoadGame()
 	{
+		OpenSaveBrowser(SaveBrowserContext.MainMenu);
+		return;
 		if (_session.TryLoadGame())
 		{
 			_log.Clear();
@@ -473,6 +504,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoEnterGame();
 	}
 
+#pragma warning restore CS0162
 	private void HandleAutoTest()
 	{
 		DoStartNewGame();
@@ -491,6 +523,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void HandleBackToMenu()
 	{
 		CancelLayoutEditMode();
+		CloseSaveBrowser();
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
 		HideSettingsPanels();
@@ -505,6 +538,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void DoStartNewGame()
 	{
 		CancelLayoutEditMode();
+		CloseSaveBrowser();
 		_log.Clear();
 		PlayerDead = false;
 		HideSettingsPanels();
@@ -538,6 +572,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void OpenMenuSettingsPanel()
 	{
 		HideSettingsPanels();
+		CloseSaveBrowser();
 		_settingsPanelModule.OpenFromMenu(_state.WatchMode);
 		_menu.ShowSettingsFromMenu();
 		_panels.SetFocus(_settingsPanelModule);
@@ -657,6 +692,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void HandleSettingsReturnToMenuRequested()
 	{
+		CloseSaveBrowser();
 		if (_settingsPanelModule.OpenedFromMenu)
 		{
 			CloseSettingsPanel();
@@ -746,8 +782,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
-			case "save": DoSave(GameSessionModule.ManualSavePath); break;
-			case "load": DoLoad(GameSessionModule.ManualSavePath); break;
+			case "save": DoSaveCurrent(); break;
+			case "load": OpenSaveBrowser(SaveBrowserContext.InGame); break;
 			case "newmap":
 				_session.NewGame();
 				_log.Add("新地图已生成");
@@ -1219,6 +1255,56 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	// ══════════════════════════════════════════════════════
 	//  渲染
 	// ══════════════════════════════════════════════════════
+
+	private void DoSaveCurrent()
+	{
+		var path = _session.GetPreferredSavePath();
+		DoSave(path, _session.DescribeSavePath(path));
+	}
+
+	private void OpenSaveBrowser(SaveBrowserContext context)
+	{
+		CancelLayoutEditMode();
+		_saveBrowserContext = context;
+
+		var slots = _session.ListSaveSlots();
+		var title = context == SaveBrowserContext.MainMenu ? "读取存档" : "载入存档";
+		var subtitle = slots.Count == 0
+			? "当前没有可读取的存档"
+			: "第一个测试存档是固定测试地图，其余为普通用户存档";
+		_saveBrowser.Open(slots, title, subtitle);
+	}
+
+	private void CloseSaveBrowser()
+	{
+		_saveBrowser.Close();
+	}
+
+	private void HandleSaveBrowserLoadRequested(SaveSlotInfo slot)
+	{
+		if (!_session.LoadGame(slot.Path))
+		{
+			_log.Add($"未找到 {slot.DisplayName}");
+			OpenSaveBrowser(_saveBrowserContext);
+			return;
+		}
+
+		CloseSaveBrowser();
+		_settingsPanelModule.SetWatchMode(_state.WatchMode);
+
+		if (_saveBrowserContext == SaveBrowserContext.MainMenu)
+		{
+			_log.Clear();
+			_log.Add($"{slot.DisplayName} 已加载 📂");
+			ShowGameHints();
+			DoEnterGame();
+			return;
+		}
+
+		HideSettingsPanels();
+		_log.Add($"{slot.DisplayName} 已加载 📂");
+		FlushMap();
+	}
 
 	private void ToggleRender()
 	{
