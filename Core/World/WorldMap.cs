@@ -88,13 +88,19 @@ public class WorldMap
 	public bool RemoveEntity(int x, int y, int z, CellEntityType type, string entityId)
 	{
 		var (chunk, lx, ly) = Resolve(x, y, z);
-		return chunk.RemoveEntity(lx, ly, type, entityId);
+		var removed = chunk.RemoveEntity(lx, ly, type, entityId);
+		if (removed && type == CellEntityType.Fixture)
+			RemoveNestAt(chunk, lx, ly);
+		return removed;
 	}
 
 	public int RemoveEntitiesByType(int x, int y, int z, CellEntityType type)
 	{
 		var (chunk, lx, ly) = Resolve(x, y, z);
-		return chunk.RemoveEntitiesByType(lx, ly, type);
+		var removed = chunk.RemoveEntitiesByType(lx, ly, type);
+		if (removed > 0 && type == CellEntityType.Fixture)
+			RemoveNestAt(chunk, lx, ly);
+		return removed;
 	}
 
 	public List<CellEntity> GetEntitiesByType(int x, int y, int z, CellEntityType type) =>
@@ -189,9 +195,29 @@ public class WorldMap
 
 	public void SetFixture(int x, int y, int z, string glyph, string entityId)
 	{
-		RemoveEntitiesByType(x, y, z, CellEntityType.Fixture);
-		if (!string.IsNullOrEmpty(glyph))
-			PushEntity(x, y, z, new CellEntity { Type = CellEntityType.Fixture, Glyph = glyph, EntityId = entityId });
+		var (chunk, lx, ly) = Resolve(x, y, z);
+		chunk.RemoveEntitiesByType(lx, ly, CellEntityType.Fixture);
+		RemoveNestAt(chunk, lx, ly);
+		if (string.IsNullOrEmpty(glyph))
+			return;
+
+		chunk.PushEntity(lx, ly, new CellEntity { Type = CellEntityType.Fixture, Glyph = glyph, EntityId = entityId });
+		if (entityId == Entities.Nest)
+		{
+			var coord = CoordUtil.LocalToWorld(chunk.Coord, lx, ly);
+			chunk.Nests.Add(new NestData { X = coord.X, Y = coord.Y });
+			chunk.Dirty = true;
+		}
+	}
+
+	private static void RemoveNestAt(ChunkData chunk, int lx, int ly)
+	{
+		if (chunk.Nests.Count == 0)
+			return;
+
+		var coord = CoordUtil.LocalToWorld(chunk.Coord, lx, ly);
+		if (chunk.Nests.RemoveAll(n => n.X == coord.X && n.Y == coord.Y) > 0)
+			chunk.Dirty = true;
 	}
 
 	// ══════════════════════════════════════════════════════

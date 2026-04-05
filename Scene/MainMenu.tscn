@@ -34,6 +34,10 @@ text = "继续游戏"
 layout_mode = 2
 text = "新游戏"
 
+[node name="MapEditorBtn" type="Button" parent="Center/VBox"]
+layout_mode = 2
+text = "地图编辑器"
+
 [node name="LoadGameBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
 text = "读取存档"

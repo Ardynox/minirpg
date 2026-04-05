@@ -49,7 +49,7 @@ public static class MapModule
 	{
 		if (string.IsNullOrEmpty(glyph))
 		{
-			s.World!.RemoveEntitiesByType(x, y, z, CellEntityType.Fixture);
+			s.World!.SetFixture(x, y, z, string.Empty, string.Empty);
 			return;
 		}
 		var id = GlyphToFixtureId(glyph);

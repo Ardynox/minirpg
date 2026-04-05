@@ -7,17 +7,6 @@ using MiniRPG.Core.World;
 
 namespace MiniRPG.Module.Render;
 
-/// <summary>
-/// TileMapLayer 渲染模块。
-///
-/// 三态玩家视觉：
-///   Focused     — 主视野，完整信息
-///   Peripheral  — 周边感知，灰显地形 + 低保真实体占位
-///   Memory      — 已探索但当前不可感知，仅保留地形记忆
-///
-/// Atlas 合图模式：tile_name_to_id.json 存储 (source_id, atlas_x, atlas_y)，
-/// 同一 atlas source 内的 tile 共享纹理，大幅减少 draw call。
-/// </summary>
 public class TileMapRenderModule
 {
 	private const string FallbackTile = "BLACK TILE";
@@ -27,17 +16,14 @@ public class TileMapRenderModule
 	private const string PeripheralFixtureTile = "Misc A4_N";
 	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
 	private static readonly Color PeripheralTint = new(0.50f, 0.50f, 0.56f);
+	private static readonly Color EditorHighlightTint = new(1.0f, 0.95f, 0.55f, 0.55f);
 	private static readonly Vector2 PlayerSpriteOffset = new(0, 64);
-
-	/// <summary>无效 tile 标识，sourceId = -1 表示跳过渲染。</summary>
 	private static readonly TileLoc InvalidTile = new(-1, Vector2I.Zero);
 
-	// ── 字段 ──────────────────────────────────────────────
-
-	private readonly GameState       _state;
+	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
-	private readonly int             _viewW;
-	private readonly int             _viewH;
+	private readonly int _viewW;
+	private readonly int _viewH;
 
 	private TileMapLayer _groundLayer = null!;
 	private TileMapLayer _memoryLayer = null!;
@@ -47,44 +33,48 @@ public class TileMapRenderModule
 	private TileMapLayer _peripheralOverlayLayer = null!;
 	private TileMapLayer _peripheralEntityLayer = null!;
 	private TileMapLayer _entityLayer = null!;
-	private TileMapLayer _fogLayer    = null!;
+	private TileMapLayer _fogLayer = null!;
+	private TileMapLayer _editorHighlightBaseLayer = null!;
+	private TileMapLayer _editorHighlightOverlayLayer = null!;
 
 	private Camera2D? _camera;
 	private IAnimatable? _playerAnim;
+	private SubViewportContainer? _viewportContainer;
+	private SubViewport? _subViewport;
 
-	// tile 名称 → (sourceId, atlasCoord)
 	private Dictionary<string, TileLoc> _nameToLoc = new();
 	private TileLoc _blackTile;
 
-	// 从 tile_mapping.json 加载的映射表
 	private Dictionary<string, TerrainTileMapping> _terrainMap = new();
-	private Dictionary<string, string> _entityMap              = new();
-	private Dictionary<string, string> _fixtureMap             = new();
-	private Dictionary<string, string> _itemMap                = new();
+	private Dictionary<string, string> _entityMap = new();
+	private Dictionary<string, string> _fixtureMap = new();
+	private Dictionary<string, string> _itemMap = new();
 
-	// ── 公开属性（与 MapRenderModule 接口兼容） ──────────────
+	private bool _editorViewActive;
+	private int _viewCenterX;
+	private int _viewCenterY;
+	private int _viewCenterZ;
+	private Vector2I? _editorHoverWorld;
 
-	public bool FogMapVisible  { get; set; }
+	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
-
-	// ── 构造 ──────────────────────────────────────────────
 
 	public TileMapRenderModule(GameState state, FogOfWarTracker fogTracker, int viewW, int viewH)
 	{
-		_state      = state;
+		_state = state;
 		_fogTracker = fogTracker;
-		_viewW      = viewW;
-		_viewH      = viewH;
-		_blackTile  = InvalidTile;
+		_viewW = viewW;
+		_viewH = viewH;
+		_blackTile = InvalidTile;
 	}
 
-	// ── 初始化 ────────────────────────────────────────────
-
-	/// <summary>
-	/// 创建并挂载 TileMapLayer 子节点，加载映射数据。
-	/// playerSpine 参数保留向后兼容，内部包装为 IAnimatable 并注册到 ResAccess。
-	/// </summary>
-	public void Init(Node2D mapRoot, TileSet tileSet, Node2D? playerSpine = null, Camera2D? camera = null)
+	public void Init(
+		Node2D mapRoot,
+		TileSet tileSet,
+		SubViewportContainer? viewportContainer = null,
+		SubViewport? subViewport = null,
+		Node2D? playerSpine = null,
+		Camera2D? camera = null)
 	{
 		LoadIdMap(IdMapResPath);
 		LoadTileMapping(MappingResPath);
@@ -97,63 +87,100 @@ public class TileMapRenderModule
 		_peripheralOverlayLayer = MakeLayer(mapRoot, "PeripheralOverlayLayer", tileSet, 1);
 		_peripheralEntityLayer = MakeLayer(mapRoot, "PeripheralEntityLayer", tileSet, 2);
 		_entityLayer = MakeLayer(mapRoot, "EntityLayer", tileSet, 2);
-		_fogLayer    = MakeLayer(mapRoot, "FogLayer",    tileSet, 3);
+		_fogLayer = MakeLayer(mapRoot, "FogLayer", tileSet, 3);
+		_editorHighlightBaseLayer = MakeLayer(mapRoot, "EditorHighlightBaseLayer", tileSet, 4);
+		_editorHighlightOverlayLayer = MakeLayer(mapRoot, "EditorHighlightOverlayLayer", tileSet, 5);
 
 		_memoryLayer.Modulate = MemoryTint;
 		_memoryOverlayLayer.Modulate = MemoryTint;
 		_peripheralLayer.Modulate = PeripheralTint;
 		_peripheralOverlayLayer.Modulate = PeripheralTint;
 		_peripheralEntityLayer.Modulate = PeripheralTint;
+		_editorHighlightBaseLayer.Modulate = EditorHighlightTint;
+		_editorHighlightOverlayLayer.Modulate = EditorHighlightTint;
 
 		if (playerSpine != null)
 		{
 			playerSpine.Visible = false;
 			_playerAnim = new SpineAnimatable(playerSpine);
 			ResAccess.RegisterAnimatable("player", _playerAnim);
-			GD.Print("[TileMapRender] Spine 角色已绑定（通过 IAnimatable）");
 		}
 
+		_viewportContainer = viewportContainer;
+		_subViewport = subViewport;
 		_camera = camera;
 	}
 
-	// ── 主渲染 ────────────────────────────────────────────
+	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
+	{
+		_editorViewActive = active;
+		_viewCenterX = centerX;
+		_viewCenterY = centerY;
+		_viewCenterZ = centerZ;
+		_editorHoverWorld = active ? hoverWorld : null;
+	}
+
+	public bool TryGetWorldCellFromGlobalPosition(Vector2 globalPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (!_editorViewActive || _viewportContainer == null || _subViewport == null || _camera == null)
+			return false;
+
+		var rect = _viewportContainer.GetGlobalRect();
+		if (!rect.HasPoint(globalPos) || rect.Size.X <= 0 || rect.Size.Y <= 0)
+			return false;
+
+		var localInContainer = globalPos - rect.Position;
+		var viewportPos = new Vector2(
+			localInContainer.X * _subViewport.Size.X / rect.Size.X,
+			localInContainer.Y * _subViewport.Size.Y / rect.Size.Y);
+		var viewportSize = new Vector2(_subViewport.Size.X, _subViewport.Size.Y);
+		var mapLocal = viewportPos + _camera.Position - viewportSize / 2f;
+		var cell = _groundLayer.LocalToMap(mapLocal);
+		if (cell.X < 0 || cell.X >= _viewW || cell.Y < 0 || cell.Y >= _viewH)
+			return false;
+
+		worldCell = new Vector3I(
+			_viewCenterX - _viewW / 2 + cell.X,
+			_viewCenterY - _viewH / 2 + cell.Y,
+			_viewCenterZ);
+		return true;
+	}
 
 	public void Flush()
 	{
-		_fogTracker.Update(_state);
-
-		_groundLayer.Clear();
-		_memoryLayer.Clear();
-		_overlayLayer.Clear();
-		_memoryOverlayLayer.Clear();
-		_peripheralLayer.Clear();
-		_peripheralOverlayLayer.Clear();
-		_peripheralEntityLayer.Clear();
-		_entityLayer.Clear();
-		_fogLayer.Clear();
+		ClearLayers();
 
 		if (_state.World == null)
 		{
-			if (_playerAnim?.Node != null) _playerAnim.Node.Visible = false;
+			HidePlayerSpine();
 			return;
 		}
+
+		if (_editorViewActive)
+		{
+			FlushEditor();
+			return;
+		}
+
+		_fogTracker.Update(_state);
 
 		var cx = _state.PlayerX;
 		var cy = _state.PlayerY;
 		var cz = _state.PlayerZ;
+		_viewCenterX = cx;
+		_viewCenterY = cy;
+		_viewCenterZ = cz;
 
 		var halfW = _viewW / 2;
 		var halfH = _viewH / 2;
 
-		var playerCell = new Vector2I(halfW, halfH);
-
-		for (int sy = 0; sy < _viewH; sy++)
+		for (var sy = 0; sy < _viewH; sy++)
 		{
-			for (int sx = 0; sx < _viewW; sx++)
+			for (var sx = 0; sx < _viewW; sx++)
 			{
-				int wx = cx - halfW + sx;
-				int wy = cy - halfH + sy;
-
+				var wx = cx - halfW + sx;
+				var wy = cy - halfH + sy;
 				var cell = new Vector2I(sx, sy);
 
 				var visionBand = _fogTracker.GetVisionBand(wx, wy, cz);
@@ -162,11 +189,8 @@ public class TileMapRenderModule
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
 					SetTerrain(cell, terrain, _groundLayer, _overlayLayer);
 
-					bool isPlayerCell = _playerAnim != null && wx == cx && wy == cy;
-					if (isPlayerCell)
-						SetTile(_entityLayer, cell, EntityLocSkipPlayer(wx, wy, cz));
-					else
-						SetTile(_entityLayer, cell, EntityLoc(wx, wy, cz));
+					var isPlayerCell = _playerAnim != null && wx == cx && wy == cy;
+					SetTile(_entityLayer, cell, isPlayerCell ? EntityLocSkipPlayer(wx, wy, cz) : EntityLoc(wx, wy, cz));
 				}
 				else if (visionBand == PlayerVisionBand.Peripheral)
 				{
@@ -179,31 +203,29 @@ public class TileMapRenderModule
 					var terrain = _state.World.GetTerrain(wx, wy, cz);
 					SetTerrain(cell, terrain, _memoryLayer, _memoryOverlayLayer);
 				}
-				else
+				else if (_blackTile.SourceId >= 0)
 				{
-					if (_blackTile.SourceId >= 0)
-						_fogLayer.SetCell(cell, _blackTile.SourceId, _blackTile.Coord);
+					_fogLayer.SetCell(cell, _blackTile.SourceId, _blackTile.Coord);
 				}
 			}
 		}
 
-		UpdatePlayerSpine(playerCell);
+		UpdateCamera();
+		UpdatePlayerSpine(cx, cy, cz);
 	}
-
-	// ── 模式切换（与 MapRenderModule 接口兼容） ──────────────
 
 	public string? ToggleRenderMode() => null;
 
 	public string ToggleMinimap()
 	{
 		MinimapVisible = !MinimapVisible;
-		return MinimapVisible ? "小地图: 暂不支持（TileMap 模式）" : "小地图: 关闭";
+		return MinimapVisible ? "小地图: TileMap 模式暂未实现" : "小地图: 关闭";
 	}
 
 	public string ToggleFogMap()
 	{
 		FogMapVisible = !FogMapVisible;
-		return FogMapVisible ? "大地图: 暂不支持（TileMap 模式）" : "大地图: 关闭";
+		return FogMapVisible ? "大地图: TileMap 模式暂未实现" : "大地图: 关闭";
 	}
 
 	public void CenterFogMap() { }
@@ -212,32 +234,136 @@ public class TileMapRenderModule
 
 	public void ResetOverlays()
 	{
-		FogMapVisible  = false;
+		FogMapVisible = false;
 		MinimapVisible = false;
 	}
 
-	// ── 内部工具 ──────────────────────────────────────────
+	public void PlaySpineAnim(string animName, bool loop, int track = 0)
+		=> _playerAnim?.Play(animName, loop);
 
-	private static TileMapLayer MakeLayer(Node2D parent, string name, TileSet ts, int zIndex)
+	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0)
 	{
-		var layer      = new TileMapLayer();
-		layer.Name     = name;
-		layer.TileSet  = ts;
-		layer.ZIndex   = zIndex;
-		layer.SortByTextureId = true;
-		parent.AddChild(layer);
+	}
 
-		if (name == "GroundLayer")
+	public void PlayOneShotThenIdle(string animName)
+		=> _playerAnim?.PlayOneShot(animName, "Idle");
+
+	public IAnimatable? PlayerAnimatable => _playerAnim;
+
+	private void FlushEditor()
+	{
+		var cx = _viewCenterX;
+		var cy = _viewCenterY;
+		var cz = _viewCenterZ;
+		var halfW = _viewW / 2;
+		var halfH = _viewH / 2;
+
+		for (var sy = 0; sy < _viewH; sy++)
 		{
-			var shape = ts.TileShape;
-			var size  = ts.TileSize;
-			var p00   = layer.MapToLocal(new Vector2I(0, 0));
-			var p10   = layer.MapToLocal(new Vector2I(1, 0));
-			var p01   = layer.MapToLocal(new Vector2I(0, 1));
-			GD.Print($"[TileMapRender] TileShape={shape} TileSize={size}");
-			GD.Print($"[TileMapRender] MapToLocal (0,0)={p00}  (1,0)={p10}  (0,1)={p01}");
+			for (var sx = 0; sx < _viewW; sx++)
+			{
+				var wx = cx - halfW + sx;
+				var wy = cy - halfH + sy;
+				var cell = new Vector2I(sx, sy);
+				var terrain = _state.World!.GetTerrain(wx, wy, cz);
+				SetTerrain(cell, terrain, _groundLayer, _overlayLayer);
+
+				var isPlayerCell = _playerAnim != null
+					&& wx == _state.PlayerX
+					&& wy == _state.PlayerY
+					&& cz == _state.PlayerZ;
+				SetTile(_entityLayer, cell, isPlayerCell ? EntityLocSkipPlayer(wx, wy, cz) : EntityLoc(wx, wy, cz));
+			}
 		}
 
+		if (_editorHoverWorld is { } hover)
+		{
+			var sx = hover.X - (cx - halfW);
+			var sy = hover.Y - (cy - halfH);
+			if (sx >= 0 && sx < _viewW && sy >= 0 && sy < _viewH)
+			{
+				var cell = new Vector2I(sx, sy);
+				var terrain = _state.World!.GetTerrain(hover.X, hover.Y, cz);
+				SetTerrain(cell, terrain, _editorHighlightBaseLayer, _editorHighlightOverlayLayer);
+			}
+		}
+
+		UpdateCamera();
+		UpdatePlayerSpine(cx, cy, cz);
+	}
+
+	private void ClearLayers()
+	{
+		_groundLayer.Clear();
+		_memoryLayer.Clear();
+		_overlayLayer.Clear();
+		_memoryOverlayLayer.Clear();
+		_peripheralLayer.Clear();
+		_peripheralOverlayLayer.Clear();
+		_peripheralEntityLayer.Clear();
+		_entityLayer.Clear();
+		_fogLayer.Clear();
+		_editorHighlightBaseLayer.Clear();
+		_editorHighlightOverlayLayer.Clear();
+	}
+
+	private void UpdateCamera()
+	{
+		if (_camera == null)
+			return;
+
+		_camera.Position = _groundLayer.MapToLocal(new Vector2I(_viewW / 2, _viewH / 2));
+	}
+
+	private void UpdatePlayerSpine(int centerWorldX, int centerWorldY, int centerWorldZ)
+	{
+		if (_playerAnim == null)
+			return;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null || player.Z != centerWorldZ)
+		{
+			HidePlayerSpine();
+			return;
+		}
+
+		var halfW = _viewW / 2;
+		var halfH = _viewH / 2;
+		var sx = player.X - (centerWorldX - halfW);
+		var sy = player.Y - (centerWorldY - halfH);
+		if (sx < 0 || sx >= _viewW || sy < 0 || sy >= _viewH)
+		{
+			HidePlayerSpine();
+			return;
+		}
+
+		var localPos = _groundLayer.MapToLocal(new Vector2I(sx, sy));
+		var node = _playerAnim.Node;
+		if (!node.Visible)
+		{
+			node.Visible = true;
+			_playerAnim.Play("Idle");
+		}
+
+		node.Position = localPos + PlayerSpriteOffset;
+	}
+
+	private void HidePlayerSpine()
+	{
+		if (_playerAnim?.Node != null)
+			_playerAnim.Node.Visible = false;
+	}
+
+	private static TileMapLayer MakeLayer(Node2D parent, string name, TileSet tileSet, int zIndex)
+	{
+		var layer = new TileMapLayer
+		{
+			Name = name,
+			TileSet = tileSet,
+			ZIndex = zIndex,
+			SortByTextureId = true,
+		};
+		parent.AddChild(layer);
 		return layer;
 	}
 
@@ -257,18 +383,11 @@ public class TileMapRenderModule
 	private TerrainTileLoc TerrainLoc(TerrainDef terrain)
 	{
 		if (_terrainMap.TryGetValue(terrain.StringId, out var tileNames))
-		{
-			return new TerrainTileLoc(
-				Resolve(tileNames.Base),
-				ResolveOptional(tileNames.Overlay));
-		}
+			return new TerrainTileLoc(Resolve(tileNames.Base), ResolveOptional(tileNames.Overlay));
 
 		return new TerrainTileLoc(_blackTile, InvalidTile);
 	}
 
-	/// <summary>
-	/// 玩家 cell 专用：跳过玩家 tile（由 Spine 替代），但仍渲染 fixture/item。
-	/// </summary>
 	private TileLoc EntityLocSkipPlayer(int wx, int wy, int cz)
 	{
 		var fixture = _state.World!.GetFirstEntity(wx, wy, cz, CellEntityType.Fixture);
@@ -353,65 +472,22 @@ public class TileMapRenderModule
 		return _nameToLoc.TryGetValue(name, out var loc) ? loc : InvalidTile;
 	}
 
-	/// <summary>
-	/// 将 Camera 和玩家动画节点移动到玩家所在 TileMap cell 的像素坐标。
-	/// </summary>
-	private void UpdatePlayerSpine(Vector2I playerCell)
-	{
-		var localPos = _groundLayer.MapToLocal(playerCell);
-
-		if (_camera != null)
-			_camera.Position = localPos;
-
-		if (_playerAnim == null) return;
-
-		var node = _playerAnim.Node;
-		if (!node.Visible)
-		{
-			node.Visible = true;
-			_playerAnim.Play("Idle");
-		}
-		node.Position = localPos + PlayerSpriteOffset;
-	}
-
-	// ── 动画控制（委托给 IAnimatable）─────────────────────
-
-	/// <summary>播放玩家 Spine 动画（向后兼容接口）。</summary>
-	public void PlaySpineAnim(string animName, bool loop, int track = 0)
-		=> _playerAnim?.Play(animName, loop);
-
-	/// <summary>在当前动画结束后追加播放（向后兼容接口）。</summary>
-	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0)
-	{
-	}
-
-	/// <summary>播放一次性动画，结束后自动回到 Idle。</summary>
-	public void PlayOneShotThenIdle(string animName)
-		=> _playerAnim?.PlayOneShot(animName, "Idle");
-
-	/// <summary>获取玩家的 IAnimatable 实例。供外部（如 Main.Dispatch）使用。</summary>
-	public IAnimatable? PlayerAnimatable => _playerAnim;
-
-	// ── 数据加载 ─────────────────────────────────────────
-
 	private void LoadIdMap(string resPath)
 	{
 		_nameToLoc.Clear();
 
 		if (!Godot.FileAccess.FileExists(resPath))
 		{
-			GD.PrintErr($"[TileMapRender] 找不到 ID 映射文件：{resPath}");
-			GD.PrintErr("[TileMapRender] 请先运行 Tools/TilesetImporter.tscn 生成映射");
+			GD.PrintErr($"[TileMapRender] Missing tile id map: {resPath}");
 			return;
 		}
 
-		var json    = Godot.FileAccess.GetFileAsString(resPath);
+		var json = Godot.FileAccess.GetFileAsString(resPath);
 		var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-		var map     = JsonSerializer.Deserialize<Dictionary<string, TileSourceEntry>>(json, options);
-
+		var map = JsonSerializer.Deserialize<Dictionary<string, TileSourceEntry>>(json, options);
 		if (map == null)
 		{
-			GD.PrintErr("[TileMapRender] ID 映射 JSON 解析失败");
+			GD.PrintErr("[TileMapRender] Failed to parse tile id map.");
 			return;
 		}
 
@@ -419,40 +495,30 @@ public class TileMapRenderModule
 			_nameToLoc[name] = new TileLoc(entry.SourceId, new Vector2I(entry.AtlasX, entry.AtlasY));
 
 		_blackTile = _nameToLoc.GetValueOrDefault(FallbackTile, InvalidTile);
-
-		GD.Print($"[TileMapRender] 已加载 {_nameToLoc.Count} 个 tile 映射");
 	}
 
 	private void LoadTileMapping(string resPath)
 	{
 		if (!Godot.FileAccess.FileExists(resPath))
 		{
-			GD.PrintErr($"[TileMapRender] 找不到 tile 映射配置：{resPath}");
+			GD.PrintErr($"[TileMapRender] Missing tile mapping config: {resPath}");
 			return;
 		}
 
 		var json = Godot.FileAccess.GetFileAsString(resPath);
 		var root = JsonSerializer.Deserialize<TileMappingConfig>(json);
-
 		if (root == null)
 		{
-			GD.PrintErr("[TileMapRender] tile 映射配置解析失败");
+			GD.PrintErr("[TileMapRender] Failed to parse tile mapping config.");
 			return;
 		}
 
 		_terrainMap = root.Terrain ?? new();
-		_entityMap  = root.Entity ?? new();
+		_entityMap = root.Entity ?? new();
 		_fixtureMap = root.Fixture ?? new();
-		_itemMap    = root.Item ?? new();
-
-		GD.Print($"[TileMapRender] tile 映射已加载：" +
-			$"terrain={_terrainMap.Count} entity={_entityMap.Count} " +
-			$"fixture={_fixtureMap.Count} item={_itemMap.Count}");
+		_itemMap = root.Item ?? new();
 	}
 
-	// ── 内部数据类型 ─────────────────────────────────────
-
-	/// <summary>atlas 内一个 tile 的定位：sourceId + 网格坐标。</summary>
 	private readonly record struct TileLoc(int SourceId, Vector2I Coord);
 
 	private readonly record struct TerrainTileLoc(TileLoc Base, TileLoc Overlay);
@@ -460,11 +526,11 @@ public class TileMapRenderModule
 	[JsonConverter(typeof(TerrainTileMappingConverter))]
 	private readonly record struct TerrainTileMapping(string Base, string? Overlay);
 
-	private class TileSourceEntry
+	private sealed class TileSourceEntry
 	{
 		[JsonPropertyName("source_id")] public int SourceId { get; set; }
-		[JsonPropertyName("atlas_x")]   public int AtlasX   { get; set; }
-		[JsonPropertyName("atlas_y")]   public int AtlasY   { get; set; }
+		[JsonPropertyName("atlas_x")] public int AtlasX { get; set; }
+		[JsonPropertyName("atlas_y")] public int AtlasY { get; set; }
 	}
 
 	private sealed class TerrainTileMappingConverter : JsonConverter<TerrainTileMapping>

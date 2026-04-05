@@ -17,6 +17,7 @@ public class MenuModule
 	public event Action? OnContinue;
 	public event Action? OnNewGame;
 	public event Action? OnLoadGame;
+	public event Action? OnMapEditor;
 	public event Action? OnQuit;
 	public event Action? OnAutoTest;
 	public event Action? OnOpenSettings;
@@ -29,6 +30,7 @@ public class MenuModule
 
 		root.GetNode<Button>("MainMenu/Center/VBox/ContinueBtn").Pressed += () => OnContinue?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/NewGameBtn").Pressed += () => OnNewGame?.Invoke();
+		root.GetNode<Button>("MainMenu/Center/VBox/MapEditorBtn").Pressed += () => OnMapEditor?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/LoadGameBtn").Pressed += () => OnLoadGame?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/SettingsBtn").Pressed += () => OnOpenSettings?.Invoke();
 		root.GetNode<Button>("MainMenu/Center/VBox/AutoTestBtn").Pressed += () => OnAutoTest?.Invoke();

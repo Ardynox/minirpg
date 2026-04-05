@@ -32,6 +32,10 @@ text = "切换渲染模式 (Emoji / ASCII)"
 layout_mode = 2
 text = "看海模式：关闭"
 
+[node name="MapEditorBtn" type="Button" parent="VBox"]
+layout_mode = 2
+text = "地图编辑模式"
+
 [node name="KeyBindingsBtn" type="Button" parent="VBox"]
 layout_mode = 2
 text = "按键绑定..."

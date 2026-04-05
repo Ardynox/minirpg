@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
+using MiniRPG.Module.Editor;
 using MiniRPG.Module.Panel;
 using MiniRPG.Module.Render;
 
@@ -30,6 +31,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private InputBindingService _inputBindings = null!;
 	private KeyBindingsUIModule _keyBindingsUI = null!;
 	private TileMapRenderModule _mapRender = null!;
+	private MapEditorSession _mapEditor = null!;
+	private MapEditorBarModule _mapEditorBar = null!;
+	private SaveNameDialogModule _saveNameDialog = null!;
 	private double _watchTimer;
 
 	private bool _skillBarDirty;
@@ -62,6 +66,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
 	private bool ChestOpen => _panels?.FocusedId == "chest";
 	private bool LayoutEditActive => _panelDrag?.EditModeActive == true;
+	private bool MapEditorActive => _mapEditor?.Active == true;
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule? _tradeUI;
@@ -254,12 +259,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_log = new LogModule(logContent);
 		var lineEdit = GetNode<LineEdit>("UI/InputBar");
 
-		var mapRoot = GetNode<Node2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/MapRoot");
+		var viewportContainer = GetNode<SubViewportContainer>("UI/TopRow/MapPanel/SubViewportContainer");
+		var subViewport = viewportContainer.GetNode<SubViewport>("SubViewport");
+		var mapRoot = subViewport.GetNode<Node2D>("MapRoot");
 		var tileSet = GD.Load<TileSet>("res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres");
 		var playerSpine = mapRoot.GetNodeOrNull<Node2D>("PlayerSpine");
-		var camera = GetNode<Camera2D>("UI/TopRow/MapPanel/SubViewportContainer/SubViewport/Camera2D");
+		var camera = subViewport.GetNode<Camera2D>("Camera2D");
 		_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
-		_mapRender.Init(mapRoot, tileSet, playerSpine, camera);
+		_mapRender.Init(mapRoot, tileSet, viewportContainer, subViewport, playerSpine, camera);
+		_mapEditor = new MapEditorSession(_state);
 
 		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
 		_settingsPanelModule = new SettingsPanelModule(GetNode<PanelContainer>("SettingsPanel"));
@@ -269,6 +277,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var saveBrowserNode = GetNode<PanelContainer>("SaveBrowser");
 		saveBrowserNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
 		_saveBrowser = new SaveBrowserModule(saveBrowserNode);
+		var mapEditorBarNode = GetNode<PanelContainer>("MapEditorBar");
+		mapEditorBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
+		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
+		var saveNameDialogNode = GetNode<PanelContainer>("SaveNameDialog");
+		saveNameDialogNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
+		_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
 
 		var skillBarNode = GetNode<PanelContainer>("SkillBar");
 		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
@@ -312,6 +326,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_combatUI = new CombatUIModule(this);
 		_settingsPanelModule.RenderToggleRequested += ToggleRender;
 		_settingsPanelModule.WatchModeToggleRequested += ToggleWatchMode;
+		_settingsPanelModule.MapEditorToggleRequested += ToggleMapEditor;
 		_settingsPanelModule.LayoutEditRequested += OpenLayoutEditMode;
 		_settingsPanelModule.SaveRequested += DoSaveCurrent;
 		_settingsPanelModule.LoadRequested += () => OpenSaveBrowser(SaveBrowserContext.InGame);
@@ -324,15 +339,38 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
 		_saveBrowser.CloseRequested += CloseSaveBrowser;
 		_saveBrowser.LoadRequested += HandleSaveBrowserLoadRequested;
+		_mapEditorBar.CategorySelected += category =>
+		{
+			_mapEditor.SelectCategory(category);
+			RefreshMapEditorBar();
+			FlushMap();
+		};
+		_mapEditorBar.BrushSelected += index =>
+		{
+			_mapEditor.SelectBrush(index);
+			RefreshMapEditorBar();
+			FlushMap();
+		};
+		_mapEditorBar.SaveRequested += HandleMapEditorSaveRequested;
+		_mapEditorBar.ExitRequested += () => ExitMapEditor();
+		_mapEditorBar.CenterRequested += () =>
+		{
+			_mapEditor.CenterOnPlayer();
+			FlushMap();
+		};
+		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
+		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 
 		_menu.OnContinue += HandleMenuContinue;
 		_menu.OnNewGame += HandleMenuNewGame;
+		_menu.OnMapEditor += HandleMenuMapEditor;
 		_menu.OnLoadGame += HandleMenuLoadGame;
 		_menu.OnAutoTest += HandleAutoTest;
 		_menu.OnQuit += () => GetTree().Quit();
 		_menu.OnOpenSettings += OpenMenuSettingsPanel;
 
 		_session.EnsurePresetSavesSeeded();
+		_settingsPanelModule.SetMapEditorActive(false);
 		_menu.ShowMainMenu(_session.HasAnySave());
 	}
 
@@ -344,6 +382,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessDirtyPanels();
 		if (_saveBrowser.Visible) return;
+		if (_saveNameDialog.Visible) return;
+		if (MapEditorActive) return;
 		if (LayoutEditActive) return;
 
 		if (_state.WatchMode && !PlayerDead)
@@ -372,12 +412,29 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
+		if (_saveNameDialog.Visible)
+		{
+			if (key.Pressed && key.Keycode == Key.Escape)
+			{
+				CloseSaveNameDialog();
+				GetViewport().SetInputAsHandled();
+			}
+			return;
+		}
+
 		if (LayoutEditActive)
 		{
 			if (key.Pressed && key.Keycode == Key.Escape)
 				CancelLayoutEditMode();
 
 			if (key.Pressed)
+				GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (MapEditorActive)
+		{
+			if (HandleMapEditorKeyInput(key) || key.Pressed)
 				GetViewport().SetInputAsHandled();
 			return;
 		}
@@ -399,6 +456,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_saveBrowser.Visible)
 			return;
+
+		if (_saveNameDialog.Visible)
+			return;
+
+		if (MapEditorActive)
+		{
+			if (HandleMapEditorMouseInput(@event))
+				GetViewport().SetInputAsHandled();
+			return;
+		}
 
 		if (_keyBindingsUI.IsOpen)
 		{
@@ -500,6 +567,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoEnterGame();
 	}
 
+	private void HandleMenuMapEditor()
+	{
+		DoStartBlankEditor();
+		DoEnterGame();
+	}
+
 #pragma warning disable CS0162
 	private void HandleMenuLoadGame()
 	{
@@ -538,8 +611,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void HandleBackToMenu()
 	{
+		ExitMapEditor(silent: true);
 		CancelLayoutEditMode();
 		CloseSaveBrowser();
+		CloseSaveNameDialog();
 		if (_session.GameStarted)
 			DoSave(GameSessionModule.QuickSavePath, "快速存档");
 		HideSettingsPanels();
@@ -553,13 +628,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void DoStartNewGame()
 	{
+		ExitMapEditor(silent: true);
 		CancelLayoutEditMode();
 		CloseSaveBrowser();
+		CloseSaveNameDialog();
 		_log.Clear();
 		PlayerDead = false;
 		HideSettingsPanels();
 		_session.NewGame();
 		_settingsPanelModule.SetWatchMode(_state.WatchMode);
+		_settingsPanelModule.SetMapEditorActive(false);
 		_mapRender.ResetOverlays();
 		_skillBar.Open(ActorModule.GetPlayer(_state));
 		_skillMgr.Close();
@@ -570,6 +648,32 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_questPanel != null) _questPanel.Close();
 		_panels.ClearFocus();
 		_log.Add("新游戏开始");
+	}
+
+	private void DoStartBlankEditor()
+	{
+		ExitMapEditor(silent: true);
+		CancelLayoutEditMode();
+		CloseSaveBrowser();
+		CloseSaveNameDialog();
+		_log.Clear();
+		PlayerDead = false;
+		HideSettingsPanels();
+		_session.NewBlankEditorMap();
+		_settingsPanelModule.SetWatchMode(_state.WatchMode);
+		_settingsPanelModule.SetMapEditorActive(false);
+		_mapRender.ResetOverlays();
+		_skillBar.Close();
+		_skillMgr.Close();
+		_inventoryPanel.Visible = false;
+		if (_chestPanel != null) _chestPanel.Visible = false;
+		if (_dialogPanel != null) _dialogPanel.Close();
+		if (_tradePanel != null) _tradePanel.Close();
+		if (_questPanel != null) _questPanel.Close();
+		_panels.ClearFocus();
+		_log.Add("空白地图编辑已启动");
+		EnterMapEditor(MapEditorEntryMode.MenuBlank);
+		ShowMapEditorHints();
 	}
 
 	private void DoEnterGame()
@@ -585,11 +689,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_log.Add("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
 	}
 
+	private void ShowMapEditorHints()
+	{
+		_log.Add("地图编辑: 左键绘制 | 右键删除当前层 | 滚轮切笔刷 | Tab 切分类");
+		_log.Add("地图编辑: WASD/方向键平移 | ESC 退出编辑 | 空白编辑首次保存会要求命名");
+	}
+
 	private void OpenMenuSettingsPanel()
 	{
 		HideSettingsPanels();
 		CloseSaveBrowser();
+		CloseSaveNameDialog();
 		_settingsPanelModule.OpenFromMenu(_state.WatchMode);
+		_settingsPanelModule.SetMapEditorActive(MapEditorActive);
 		_menu.ShowSettingsFromMenu();
 		_panels.SetFocus(_settingsPanelModule);
 	}
@@ -601,6 +713,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		HideSettingsPanels();
 		_settingsPanelModule.OpenInGame(_state.WatchMode);
+		_settingsPanelModule.SetMapEditorActive(MapEditorActive);
 		_panels.PushFocus(_settingsPanelModule);
 	}
 
@@ -656,7 +769,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void OpenLayoutEditMode()
 	{
-		if (_menu.InMenu || !_session.GameStarted || LayoutEditActive)
+		if (_menu.InMenu || !_session.GameStarted || LayoutEditActive || MapEditorActive)
 			return;
 
 		_layoutResetPending = false;
@@ -706,6 +819,195 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		FlushMap();
 	}
 
+	private void EnterMapEditor(MapEditorEntryMode entryMode)
+	{
+		if (!_session.GameStarted || _state.World == null)
+			return;
+
+		CancelLayoutEditMode();
+		HideSettingsPanels();
+		CloseSaveBrowser();
+		CloseSaveNameDialog();
+		_inputModule.CancelSelection();
+		_inputModule.EnterActionMode();
+		_panels.ClearFocus();
+		_mapEditor.Enter(entryMode, entryMode == MapEditorEntryMode.MenuBlank ? null : _session.CurrentSavePath);
+		_mapEditorBar.Open(_mapEditor.CanCenterOnPlayer);
+		_settingsPanelModule.SetMapEditorActive(true);
+		RefreshMapEditorBar();
+		FlushMap();
+	}
+
+	private void ExitMapEditor(bool silent = false)
+	{
+		if (!MapEditorActive)
+			return;
+
+		var startedFromMenu = _mapEditor.StartedFromMenu;
+		_mapEditor.Exit();
+		_mapEditorBar.Close();
+		CloseSaveNameDialog();
+		_settingsPanelModule.SetMapEditorActive(false);
+		if (startedFromMenu)
+		{
+			if (!silent)
+				_log.Add("已退出地图编辑，返回主菜单");
+			_menu.ShowMainMenu(_session.HasAnySave());
+			return;
+		}
+
+		if (!silent)
+			_log.Add("已退出地图编辑模式");
+		FlushMap();
+	}
+
+	private void ToggleMapEditor()
+	{
+		if (MapEditorActive)
+		{
+			ExitMapEditor();
+			return;
+		}
+
+		if (_menu.InMenu || !_session.GameStarted)
+			return;
+
+		EnterMapEditor(MapEditorEntryMode.InGame);
+		_log.Add("已进入地图编辑模式");
+		ShowMapEditorHints();
+	}
+
+	private void RefreshMapEditorBar()
+	{
+		if (!MapEditorActive)
+			return;
+
+		_mapEditorBar.Render(_mapEditor.CurrentCategory, _mapEditor.CurrentBrushes, _mapEditor.CurrentBrushIndex);
+	}
+
+	private bool HandleMapEditorKeyInput(InputEventKey key)
+	{
+		if (!key.Pressed)
+			return false;
+
+		switch (key.Keycode)
+		{
+			case Key.Escape:
+				ExitMapEditor();
+				return true;
+			case Key.Tab:
+				_mapEditor.ToggleCategory();
+				RefreshMapEditorBar();
+				FlushMap();
+				return true;
+			case Key.W:
+			case Key.Up:
+				_mapEditor.MoveCamera(0, -1);
+				FlushMap();
+				return true;
+			case Key.S:
+			case Key.Down:
+				_mapEditor.MoveCamera(0, 1);
+				FlushMap();
+				return true;
+			case Key.A:
+			case Key.Left:
+				_mapEditor.MoveCamera(-1, 0);
+				FlushMap();
+				return true;
+			case Key.D:
+			case Key.Right:
+				_mapEditor.MoveCamera(1, 0);
+				FlushMap();
+				return true;
+		}
+
+		return false;
+	}
+
+	private bool HandleMapEditorMouseInput(InputEvent @event)
+	{
+		if (@event is InputEventMouseMotion motion)
+		{
+			if (_mapRender.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var hovered))
+			{
+				if (_mapEditor.SetHover(new Vector2I(hovered.X, hovered.Y)))
+					FlushMap();
+				return true;
+			}
+
+			if (_mapEditor.SetHover(null))
+				FlushMap();
+			return false;
+		}
+
+		if (@event is not InputEventMouseButton mb || !mb.Pressed)
+			return false;
+
+		if (mb.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+		{
+			_mapEditor.CycleBrush(mb.ButtonIndex == MouseButton.WheelUp ? -1 : 1);
+			RefreshMapEditorBar();
+			FlushMap();
+			return true;
+		}
+
+		if (mb.ButtonIndex is not MouseButton.Left and not MouseButton.Right)
+			return false;
+
+		if (!_mapRender.TryGetWorldCellFromGlobalPosition(mb.GlobalPosition, out var worldCell))
+			return false;
+
+		_mapEditor.SetHover(new Vector2I(worldCell.X, worldCell.Y));
+		if (mb.ButtonIndex == MouseButton.Left)
+			_mapEditor.ApplyBrush(worldCell.X, worldCell.Y);
+		else
+			_mapEditor.EraseBrush(worldCell.X, worldCell.Y);
+
+		FlushMap();
+		return true;
+	}
+
+	private void HandleMapEditorSaveRequested()
+	{
+		if (!MapEditorActive)
+			return;
+
+		if (_mapEditor.StartedFromMenu && string.IsNullOrEmpty(_mapEditor.SavePath))
+		{
+			OpenSaveNameDialog();
+			return;
+		}
+
+		var path = _mapEditor.SavePath ?? _session.GetPreferredSavePath();
+		DoSave(path, _session.DescribeSavePath(path));
+		_mapEditor.UpdateSavePath(path);
+	}
+
+	private void OpenSaveNameDialog()
+	{
+		if (!MapEditorActive)
+			return;
+
+		_saveNameDialog.Open("editor_map");
+	}
+
+	private void CloseSaveNameDialog()
+	{
+		_saveNameDialog.Close();
+	}
+
+	private void HandleSaveNameConfirmed(string rawName)
+	{
+		if (!MapEditorActive)
+			return;
+
+		var path = _session.BuildNamedSavePath(rawName);
+		CloseSaveNameDialog();
+		DoSave(path, _session.DescribeSavePath(path));
+		_mapEditor.UpdateSavePath(path);
+	}
+
 	private void HandleSettingsReturnToMenuRequested()
 	{
 		CloseSaveBrowser();
@@ -739,6 +1041,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_menu.ShowMainMenu(_session.HasAnySave());
 			return;
 		}
+
+		if (MapEditorActive)
+			return;
 
 		if (cmd.StartsWith(":dig_") && cmd != ":dig")
 		{
@@ -1255,9 +1560,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
 	private void DoLoad(string path, string label = "存档")
 	{
+		ExitMapEditor(silent: true);
+		CloseSaveNameDialog();
 		if (_session.LoadGame(path))
 		{
 			_settingsPanelModule.SetWatchMode(_state.WatchMode);
+			_settingsPanelModule.SetMapEditorActive(false);
 			_log.Add($"{label}宸插姞杞?馃搨 (Z{_state.PlayerZ})");
 			FlushMap();
 		}
@@ -1280,7 +1588,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void OpenSaveBrowser(SaveBrowserContext context)
 	{
+		ExitMapEditor(silent: true);
 		CancelLayoutEditMode();
+		CloseSaveNameDialog();
 		_saveBrowserContext = context;
 
 		var slots = _session.ListSaveSlots();
@@ -1298,6 +1608,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void HandleSaveBrowserLoadRequested(SaveSlotInfo slot)
 	{
+		ExitMapEditor(silent: true);
 		if (!_session.LoadGame(slot.Path))
 		{
 			_log.Add($"未找到 {slot.DisplayName}");
@@ -1307,6 +1618,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		CloseSaveBrowser();
 		_settingsPanelModule.SetWatchMode(_state.WatchMode);
+		_settingsPanelModule.SetMapEditorActive(false);
 
 		if (_saveBrowserContext == SaveBrowserContext.MainMenu)
 		{
@@ -1333,6 +1645,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>立即刷新地图，标记 UI 面板为脏（由 _Process 统一驱动刷新）。</summary>
 	private void FlushMap()
 	{
+		_mapRender.SetEditorView(
+			MapEditorActive,
+			MapEditorActive ? _mapEditor.CameraX : _state.PlayerX,
+			MapEditorActive ? _mapEditor.CameraY : _state.PlayerY,
+			_state.PlayerZ,
+			MapEditorActive ? _mapEditor.HoverWorld : null);
 		_mapRender.Flush();
 		MarkUIDirty();
 	}

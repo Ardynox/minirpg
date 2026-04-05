@@ -56,6 +56,8 @@ public class GameState
 		BumpAttack = true;
 		WatchMode = false;
 		KillCount = 0;
+		GeneratorId = "room_corridor";
+		ViewModeId = "single_layer";
 		World = null;
 	}
 }

@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module;
@@ -46,6 +47,17 @@ public class GameSessionModule
 		GameStarted = true;
 	}
 
+	public void NewBlankEditorMap()
+	{
+		_state.Reset();
+		_state.WorldSeed = System.Environment.TickCount;
+		_state.GeneratorId = "blank_floor";
+		_fogTracker.Clear();
+		InitializeWorld();
+		CurrentSavePath = null;
+		GameStarted = true;
+	}
+
 	/// <summary>
 	/// 从指定路径加载存档。成功返回 true，失败返回 false。
 	/// 成功后世界已重建、玩家已恢复，调用方负责刷新 UI。
@@ -77,6 +89,32 @@ public class GameSessionModule
 	{
 		SaveModule.SaveGame(_state, path);
 		CurrentSavePath = path;
+	}
+
+	public string BuildNamedSavePath(string rawName)
+	{
+		Directory.CreateDirectory(SaveDir);
+		var trimmed = rawName.Trim();
+		if (trimmed.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+			trimmed = trimmed[..^5];
+
+		var builder = new StringBuilder(trimmed.Length);
+		foreach (var ch in trimmed)
+		{
+			if (char.IsWhiteSpace(ch))
+			{
+				builder.Append('_');
+				continue;
+			}
+
+			builder.Append(Array.IndexOf(Path.GetInvalidFileNameChars(), ch) >= 0 ? '_' : ch);
+		}
+
+		var safeName = builder.ToString().Trim('_');
+		if (string.IsNullOrWhiteSpace(safeName))
+			safeName = "editor_map";
+
+		return Path.Combine(SaveDir, safeName + ".json");
 	}
 
 	public bool HasAnySave()

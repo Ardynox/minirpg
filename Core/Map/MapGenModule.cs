@@ -21,6 +21,7 @@ public static class MapGenModule
 		RegisterGenerator(new CellularAutomataGenerator());
 		RegisterGenerator(new DrunkardWalkGenerator());
 		RegisterGenerator(new BSPGenerator());
+		RegisterGenerator(new BlankFloorGenerator());
 	}
 
 	public static void RegisterGenerator(IMapGenerator gen) => Generators[gen.Id] = gen;

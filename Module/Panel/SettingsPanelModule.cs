@@ -13,6 +13,7 @@ public sealed class SettingsPanelModule : IPanel
 {
 	private readonly PanelContainer _panel;
 	private readonly Button _watchModeButton;
+	private readonly Button _mapEditorButton;
 	private readonly Button _layoutEditButton;
 	private readonly Button _saveButton;
 	private readonly Button _loadButton;
@@ -28,6 +29,7 @@ public sealed class SettingsPanelModule : IPanel
 
 	public event Action? RenderToggleRequested;
 	public event Action? WatchModeToggleRequested;
+	public event Action? MapEditorToggleRequested;
 	public event Action? LayoutEditRequested;
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
@@ -43,6 +45,8 @@ public sealed class SettingsPanelModule : IPanel
 		vbox.GetNode<Button>("RenderToggle").Pressed += () => RenderToggleRequested?.Invoke();
 		_watchModeButton = vbox.GetNode<Button>("WatchModeToggle");
 		_watchModeButton.Pressed += () => WatchModeToggleRequested?.Invoke();
+		_mapEditorButton = vbox.GetNode<Button>("MapEditorBtn");
+		_mapEditorButton.Pressed += () => MapEditorToggleRequested?.Invoke();
 		_layoutEditButton = vbox.GetNode<Button>("LayoutEditBtn");
 		_layoutEditButton.Pressed += () => LayoutEditRequested?.Invoke();
 		vbox.GetNode<Button>("KeyBindingsBtn").Pressed += () => KeyBindingsRequested?.Invoke();
@@ -83,6 +87,11 @@ public sealed class SettingsPanelModule : IPanel
 		_watchModeButton.Text = enabled ? "看海模式：开启" : "看海模式：关闭";
 	}
 
+	public void SetMapEditorActive(bool enabled)
+	{
+		_mapEditorButton.Text = enabled ? "退出地图编辑模式" : "地图编辑模式";
+	}
+
 	public bool HandleCommand(string cmd)
 	{
 		if (cmd != "close")
@@ -94,6 +103,7 @@ public sealed class SettingsPanelModule : IPanel
 
 	private void ApplyContext(bool inGame)
 	{
+		_mapEditorButton.Visible = inGame;
 		_layoutEditButton.Visible = inGame;
 		_saveButton.Visible = inGame;
 		_loadButton.Visible = inGame;
