@@ -42,9 +42,9 @@ focus_mode = 0
 [node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
 
-[node name="TabLabel" type="Label" parent="MarginContainer/VBox"]
+[node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_type_variation = "HintLabel"
+theme_override_constants/separation = 2
 
 [node name="ContentText" type="RichTextLabel" parent="MarginContainer/VBox"]
 layout_mode = 2

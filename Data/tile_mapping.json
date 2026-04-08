@@ -23,7 +23,11 @@
       "overlay": "Tree A1_N"
     },
     "fungus": "Flora A1_N",
-    "crystal_vein": "Wall F1_N"
+    "crystal_vein": "Wall F1_N",
+    "air": "BLACK TILE",
+    "dirt": "Wall A1_N",
+    "stone": "Stone A1_N",
+    "grass_block": "Ground B1_N"
   },
   "entity": {
     "player": "Misc B1_N",

@@ -15,22 +15,27 @@ public class RoomCorridorGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
-		if (chunk.Coord.Cz == 0)
+		var cz = chunk.Coord.Cz;
+
+		// 地表附近（Z=-4 到 Z=4）使用 3D 体积填充
+		if (cz >= -4 && cz <= 4)
 		{
 			SurfaceGenerator.Generate(chunk, worldSeed);
+			// 地下层（Z>0）在体积填充基础上叠加房间走廊
+			if (cz > 0)
+				CarveDungeon(chunk, worldSeed);
 			return;
 		}
-		if (chunk.Coord.Cz < 0) { chunk.Fill(TerrainRegistry.GetId(Terrains.Floor)); return; }
 
-		var seed = HashSeed(worldSeed, chunk.Coord);
-		var rng = new Random(seed);
-		var wallId = GetWallTerrain(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		// 高空（Z<-4）：全部填空气
+		if (cz < -4)
+		{
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
+			return;
+		}
 
-		chunk.Fill(wallId);
-
-		var rooms = PlaceRooms(chunk, rng, floorId);
-		ConnectRooms(chunk, rooms, rng, floorId);
+		// 深层地下（Z>4）：纯地城
+		CarveDungeon(chunk, worldSeed);
 	}
 
 	public void PopulateChunk(ChunkData chunk, int worldSeed)
@@ -55,6 +60,28 @@ public class RoomCorridorGenerator : IMapGenerator
 		if (z <= 8) return TerrainRegistry.GetId(Terrains.WallStone);
 		if (z <= 15) return TerrainRegistry.GetId(Terrains.WallGranite);
 		return TerrainRegistry.GetId(Terrains.WallObsidian);
+	}
+
+	/// <summary>
+	/// 在已有地形基础上挖掘地城房间和走廊。
+	/// 对于深层地下（Z>4），先填充实心墙再挖掘。
+	/// 对于浅层地下（Z 1-4），只在实心方块区域挖掘。
+	/// </summary>
+	private void CarveDungeon(ChunkData chunk, int worldSeed)
+	{
+		var seed = HashSeed(worldSeed, chunk.Coord);
+		var rng = new Random(seed);
+		var cz = chunk.Coord.Cz;
+		var wallId = GetWallTerrain(cz);
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+
+		// 深层地下：先填满实心墙
+		if (cz > 4)
+			chunk.Fill(wallId);
+
+		// 在实心区域挖掘房间和走廊
+		var rooms = PlaceRooms(chunk, rng, floorId);
+		ConnectRooms(chunk, rooms, rng, floorId);
 	}
 
 	private static List<Room> PlaceRooms(ChunkData chunk, Random rng, ushort floorId)

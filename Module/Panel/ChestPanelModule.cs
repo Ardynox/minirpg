@@ -26,6 +26,7 @@ public class ChestPanelModule : ListPanelBase
 	private readonly RichTextLabel _detailBox;
 	private readonly Button _takeBtn;
 	private readonly Button _takeAllBtn;
+	private readonly Button _putBtn;
 	private readonly IHost _host;
 
 	private Item? _chestItem;
@@ -66,17 +67,17 @@ public class ChestPanelModule : ListPanelBase
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_takeBtn = actionBar.GetNode<Button>("TakeBtn");
 		_takeAllBtn = actionBar.GetNode<Button>("TakeAllBtn");
-		var putBtn = actionBar.GetNode<Button>("PutBtn");
+		_putBtn = actionBar.GetNode<Button>("PutBtn");
 		var closeBtn = actionBar.GetNode<Button>("CloseBtn");
 
 		_takeBtn.FocusMode = Control.FocusModeEnum.None;
 		_takeAllBtn.FocusMode = Control.FocusModeEnum.None;
-		putBtn.FocusMode = Control.FocusModeEnum.None;
+		_putBtn.FocusMode = Control.FocusModeEnum.None;
 		closeBtn.FocusMode = Control.FocusModeEnum.None;
 
 		_takeBtn.Pressed += () => TryTake();
 		_takeAllBtn.Pressed += () => TryTakeAll();
-		putBtn.Pressed += () => TryPut();
+		_putBtn.Pressed += () => TryPut();
 		closeBtn.Pressed += () => _host.CloseChestPanel();
 	}
 
@@ -212,6 +213,8 @@ public class ChestPanelModule : ListPanelBase
 		var hasItems = GetRowDataCount() > 0;
 		_takeBtn.Disabled = !hasItems;
 		_takeAllBtn.Disabled = !hasItems;
+		_takeBtn.Text = $"[E] {LocalizationService.T("ui.chest.take")}";
+		_putBtn.Text = $"[P] {LocalizationService.T("ui.chest.put")}";
 	}
 
 	private void RenderDetail()
@@ -224,5 +227,6 @@ public class ChestPanelModule : ListPanelBase
 			return;
 		}
 		_detailBox.AppendText(ItemFormatHelper.BuildDetail(_host.State, contents[_cursor]));
+		_detailBox.AppendText($"\n[color=#666666]{LocalizationService.TOrFallback("ui.chest.detail_hint", "双击取出 | 右键更多操作")}[/color]");
 	}
 }

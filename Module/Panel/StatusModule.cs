@@ -32,7 +32,7 @@ public class StatusPanelModule : IPanel
 
 	private readonly PanelContainer _panel;
 	private readonly Label _nameInfo;
-	private readonly Label _tabLabel;
+	private readonly List<Button> _tabButtons;
 	private readonly RichTextLabel _contentText;
 	private readonly List<string> _lines = [];
 
@@ -50,9 +50,15 @@ public class StatusPanelModule : IPanel
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
 		_nameInfo = vbox.GetNode<Label>("HeaderBar/NameInfo");
-		_tabLabel = vbox.GetNode<Label>("TabLabel");
+		var tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
-		UpdateTabLabel();
+
+		var tabLabels = new string[Tabs.Length];
+		for (var i = 0; i < Tabs.Length; i++)
+			tabLabels[i] = ActorStatusTextBuilder.GetTabLabel(Tabs[i]);
+
+		_tabButtons = TabHelper.BuildTabButtons(tabBar, tabLabels, Tabs, SetTab, "status");
+		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
 	}
 
 	public void FlushIfDirty()
@@ -69,7 +75,8 @@ public class StatusPanelModule : IPanel
 	{
 		_currentTab = tab;
 		_cursor = 0;
-		UpdateTabLabel();
+		UpdateTabHighlight();
+		BuildLines();
 		RenderContent();
 	}
 
@@ -130,24 +137,17 @@ public class StatusPanelModule : IPanel
 		}
 
 		_nameInfo.Text = ActorStatusTextBuilder.BuildPlayerHeader(state, player, floor, turn);
-		UpdateTabLabel();
+		UpdateTabHighlight();
 		BuildLines();
 		RenderContent();
 	}
 
-	private void UpdateTabLabel()
+	private void UpdateTabHighlight()
 	{
-		var sb = new StringBuilder();
-		for (var i = 0; i < Tabs.Length; i++)
-		{
-			if (i > 0)
-				sb.Append("  ");
+		for (var i = 0; i < _tabButtons.Count && i < Tabs.Length; i++)
+			_tabButtons[i].Text = ActorStatusTextBuilder.GetTabLabel(Tabs[i]);
 
-			var label = ActorStatusTextBuilder.GetTabLabel(Tabs[i]);
-			sb.Append(Tabs[i] == _currentTab ? $"[{label}]" : label);
-		}
-
-		_tabLabel.Text = sb.ToString();
+		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
 	}
 
 	private void BuildLines()

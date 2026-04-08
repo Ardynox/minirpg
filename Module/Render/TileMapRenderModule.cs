@@ -130,11 +130,17 @@ public class TileMapRenderModule
 	private Vector2I? _editorHoverWorld;
 	private Vector3I? _lastPlayerWorldPosition;
 
+	// ── 等距体素渲染器 ──
+	private IsometricVoxelRenderer? _voxelRenderer;
+	private Node2D? _voxelRoot;
+	private bool _isometricMode;
+
 	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
 	public Vector3I? InspectWorldCell { get; set; }
 	public float Zoom => _zoom;
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot;
+	public bool IsIsometricMode => _isometricMode;
 	public Vector2I MapViewportSize => _subViewport?.Size ?? Vector2I.Zero;
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
 
@@ -232,6 +238,12 @@ public class TileMapRenderModule
 		RefreshWeatherScreenFxTarget();
 		UpdateWeatherScreenFxOverlay(0d);
 		UpdateCamera();
+
+		// 初始化等距体素渲染器
+		_voxelRoot = new Node2D { Name = "VoxelRoot", Visible = false };
+		mapRoot.AddChild(_voxelRoot);
+		_voxelRenderer = new IsometricVoxelRenderer(_state, _fogTracker, _viewW, _viewH);
+		_voxelRenderer.Init(_voxelRoot, tileSet, camera, this);
 	}
 
 	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
@@ -269,6 +281,13 @@ public class TileMapRenderModule
 		var mapLocal = _camera.Position + new Vector2(
 			screenOffset.X / _camera.Zoom.X,
 			screenOffset.Y / _camera.Zoom.Y);
+
+		if (_isometricMode)
+		{
+			// 等距模式：逆变换 + Z 射线扫描
+			return TryPickIsometricCell(mapLocal, out worldCell);
+		}
+
 		var cell = _groundLayer.LocalToMap(mapLocal);
 		if (cell.X < 0 || cell.X >= _viewW || cell.Y < 0 || cell.Y >= _viewH)
 			return false;
@@ -281,6 +300,33 @@ public class TileMapRenderModule
 			centerY - _viewH / 2 + cell.Y,
 			centerZ);
 		return true;
+	}
+
+	/// <summary>
+	/// 等距模式下的点击拾取：从最高 Z 向下扫描，找到第一个实心方块。
+	/// </summary>
+	private bool TryPickIsometricCell(Vector2 screenPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (_state.World == null) return false;
+
+		var cz = _state.PlayerZ;
+		var zMin = cz - 4;
+		var zMax = cz + 2;
+
+		// 从最高层（Z 最小）向下扫描
+		for (var z = zMin; z <= zMax; z++)
+		{
+			var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, z);
+			var terrain = _state.World.GetTerrain(wx, wy, z);
+			if (terrain.StringId != Terrains.Air && terrain.StringId != Terrains.Void)
+			{
+				worldCell = new Vector3I(wx, wy, z);
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public bool IsWorldCellVisible(int wx, int wy, int wz)
@@ -330,6 +376,15 @@ public class TileMapRenderModule
 
 	public void Flush()
 	{
+		// 等距模式：委托给体素渲染器
+		if (_isometricMode && _voxelRenderer != null)
+		{
+			ClearLayers();
+			HidePlayerVisual();
+			_voxelRenderer.Render();
+			return;
+		}
+
 		_animatedTiles.Clear();
 		ClearLayers();
 		BeginGroundItemFrame();
@@ -437,7 +492,19 @@ public class TileMapRenderModule
 		}
 	}
 
-	public string? ToggleRenderMode() => null;
+	public string? ToggleRenderMode()
+	{
+		_isometricMode = !_isometricMode;
+
+		// 切换可见性
+		if (_voxelRoot != null)
+			_voxelRoot.Visible = _isometricMode;
+
+		// 切换 TileMap 层可见性
+		SetTileMapLayersVisible(!_isometricMode);
+
+		return _isometricMode ? "渲染模式: 等距 2.5D" : "渲染模式: 俯视 2D";
+	}
 
 	public string ToggleMinimap()
 	{
@@ -533,6 +600,30 @@ public class TileMapRenderModule
 		_fogLayer.Clear();
 		_editorHighlightBaseLayer.Clear();
 		_editorHighlightOverlayLayer.Clear();
+	}
+
+	private void SetTileMapLayersVisible(bool visible)
+	{
+		_groundLayer.Visible = visible;
+		_memoryLayer.Visible = visible;
+		_overlayLayer.Visible = visible;
+		_memoryOverlayLayer.Visible = visible;
+		_peripheralLayer.Visible = visible;
+		_peripheralOverlayLayer.Visible = visible;
+		_peripheralEntityLayer.Visible = visible;
+		_entityLayer.Visible = visible;
+		_fogLayer.Visible = visible;
+		_editorHighlightBaseLayer.Visible = visible;
+		_editorHighlightOverlayLayer.Visible = visible;
+		_weatherOverlayRoot.Visible = visible;
+		_peripheralWeatherOverlayRoot.Visible = visible;
+		_memoryWeatherOverlayRoot.Visible = visible;
+		_groundItemRoot.Visible = visible;
+		_peripheralGroundItemRoot.Visible = visible;
+		_weatherFxRoot.Visible = visible;
+		_peripheralWeatherFxRoot.Visible = visible;
+		_entitySpriteRoot.Visible = visible;
+		_peripheralEntitySpriteRoot.Visible = visible;
 	}
 
 	private void DrawInspectHighlight(int centerWorldX, int centerWorldY, int centerWorldZ)
@@ -984,6 +1075,17 @@ public class TileMapRenderModule
 				atlasSource.TextureRegionSize.X,
 				atlasSource.TextureRegionSize.Y),
 		};
+	}
+
+	/// <summary>
+	/// 根据地形 stringId 获取对应的 TileSet 贴图。
+	/// 供 IsometricVoxelRenderer 使用。
+	/// </summary>
+	public Texture2D? BuildTerrainTexture(string terrainStringId)
+	{
+		if (!_terrainMap.TryGetValue(terrainStringId, out var mapping))
+			return null;
+		return BuildTileTexture(mapping.Base);
 	}
 
 	private Sprite2D AcquireGroundItemSprite(bool peripheral)

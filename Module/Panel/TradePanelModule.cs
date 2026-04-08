@@ -247,8 +247,8 @@ public class TradePanelModule : ListPanelBase
 		_sellBtn.Visible = _currentTab == TradeTab.Sell;
 		_buyBtn.Disabled = !hasItem;
 		_sellBtn.Disabled = !hasItem;
-		_buyBtn.Text = LocalizationService.T("ui.trade.buy");
-		_sellBtn.Text = LocalizationService.T("ui.trade.sell");
+		_buyBtn.Text = $"[E] {LocalizationService.T("ui.trade.buy")}";
+		_sellBtn.Text = $"[E] {LocalizationService.T("ui.trade.sell")}";
 	}
 
 	private void RenderDetail()

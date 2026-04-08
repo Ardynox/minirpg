@@ -77,6 +77,12 @@ mini-rpg/
 | 运行时状态、Actor、Item、任务、预设数据 | [`../Core/Data`](../Core/Data) |
 | 交易、对话 | [`../Core/Trade`](../Core/Trade), [`../Core/Dialog`](../Core/Dialog), [`../Module/TradeUIModule.cs`](../Module/TradeUIModule.cs), [`../Module/DialogUIModule.cs`](../Module/DialogUIModule.cs) |
 | 调试命令 | [`../App/Main.cs`](../App/Main.cs), [`../Core/Debug/DebugModule.cs`](../Core/Debug/DebugModule.cs) |
+| 工作调度、NPC 自动工作 | [`../Core/Job`](../Core/Job), [`Docs/Systems/01_工作系统.md`](./Systems/01_工作系统.md) |
+| 队伍、多角色控制 | [`../Core/Data/PartyModule.cs`](../Core/Data/PartyModule.cs), [`../Core/AI/FollowerBrain.cs`](../Core/AI/FollowerBrain.cs), [`Docs/Systems/02_队伍系统.md`](./Systems/02_队伍系统.md) |
+| 随机事件、Storyteller | [`../Core/Event`](../Core/Event), [`Docs/Systems/03_事件系统.md`](./Systems/03_事件系统.md) |
+| 社交、好感度、关系 | [`../Core/Social`](../Core/Social), [`Docs/Systems/04_社交系统.md`](./Systems/04_社交系统.md) |
+| 区域划定（种植区/禁区等） | [`../Core/Zone`](../Core/Zone), [`Docs/Systems/05_区域系统.md`](./Systems/05_区域系统.md) |
+| 农业、种植、收获 | [`../Core/Farm`](../Core/Farm), [`Docs/Systems/06_农业系统.md`](./Systems/06_农业系统.md) |
 | Tile 映射和资源数据 | [`../Data`](../Data), [`../Assets/README.md`](../Assets/README.md), [`../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres`](../Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres), [`../Tools/tile_name_to_id.json`](../Tools/tile_name_to_id.json) |
 
 ## 当前目录分工

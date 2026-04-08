@@ -403,24 +403,26 @@ public class InventoryPanelModule : ListPanelBase
 		if (hasItem)
 		{
 			var (_, item) = _displayItems[_cursor];
-			_equipBtn.Text = item.Equipped ? LocalizationService.T("ui.inventory.unequip") : LocalizationService.T("ui.inventory.equip");
+			_equipBtn.Text = item.Equipped
+				? $"[E] {LocalizationService.T("ui.inventory.unequip")}"
+				: $"[E] {LocalizationService.T("ui.inventory.equip")}";
 		}
-		else _equipBtn.Text = LocalizationService.T("ui.inventory.equip");
+		else _equipBtn.Text = $"[E] {LocalizationService.T("ui.inventory.equip")}";
 		if (hasItem)
 		{
 			var (_, item) = _displayItems[_cursor];
 			var canEat = item.Category == ItemCategories.Food || item.Tags.ContainsKey(ItemTags.Nutrition);
 			_useBtn.Disabled = !canEat;
 			_useBtn.Text = canEat
-				? LocalizationService.T("ui.inventory.eat")
-				: LocalizationService.T("ui.inventory.use");
+				? $"[U] {LocalizationService.T("ui.inventory.eat")}"
+				: $"[U] {LocalizationService.T("ui.inventory.use")}";
 		}
 		else
 		{
-			_useBtn.Text = LocalizationService.T("ui.inventory.use");
+			_useBtn.Text = $"[U] {LocalizationService.T("ui.inventory.use")}";
 		}
-		_dropBtn.Text = LocalizationService.T("ui.inventory.drop");
-		_sortBtn.Text = LocalizationService.T("ui.inventory.sort");
+		_dropBtn.Text = $"[Q] {LocalizationService.T("ui.inventory.drop")}";
+		_sortBtn.Text = $"[R] {LocalizationService.T("ui.inventory.sort")}";
 	}
 
 	private void RenderHeader(Actor player)
@@ -451,6 +453,7 @@ public class InventoryPanelModule : ListPanelBase
 		if (_cursor < 0 || _cursor >= _displayItems.Count) { _detailBox.AppendText(LocalizationService.T("ui.common.detail_hint.item")); return; }
 		var (_, item) = _displayItems[_cursor];
 		_detailBox.AppendText(ItemFormatHelper.BuildDetail(_host.State, item));
+		_detailBox.AppendText($"\n[color=#666666]{LocalizationService.TOrFallback("ui.inventory.detail_hint", "双击装备 | 右键更多操作")}[/color]");
 	}
 
 	private static string GetFilterLabel(int index)

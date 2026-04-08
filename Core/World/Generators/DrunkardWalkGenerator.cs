@@ -16,21 +16,36 @@ public class DrunkardWalkGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
-		if (chunk.Coord.Cz == 0)
+		var cz = chunk.Coord.Cz;
+
+		// 地表附近：3D 体积填充
+		if (cz >= -4 && cz <= 4)
 		{
 			SurfaceGenerator.Generate(chunk, worldSeed);
+			if (cz > 0)
+				CarveWalk(chunk, worldSeed);
 			return;
 		}
 
-		var wallId = GetWallForDepth(chunk.Coord.Cz);
-		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		// 高空：空气
+		if (cz < -4)
+		{
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
+			return;
+		}
+
+		// 深层地下
+		var wallId = GetWallForDepth(cz);
 		chunk.Fill(wallId);
+		CarveWalk(chunk, worldSeed);
+	}
 
-		if (chunk.Coord.Cz < 0) { chunk.Fill(floorId); return; }
-
+	private void CarveWalk(ChunkData chunk, int worldSeed)
+	{
 		var seed = HashSeed(worldSeed, chunk.Coord);
 		var rng = new Random(seed);
 		var config = GameConfig.Generation.DrunkardWalk;
+		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var targetCells = (int)(ChunkData.Area * config.TargetOpenRatio);
 		var openCount = 0;
 

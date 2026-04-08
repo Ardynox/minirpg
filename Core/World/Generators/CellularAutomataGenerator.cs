@@ -16,12 +16,26 @@ public class CellularAutomataGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
-		if (chunk.Coord.Cz == 0)
+		var cz = chunk.Coord.Cz;
+
+		// 地表附近：3D 体积填充
+		if (cz >= -4 && cz <= 4)
+		{
 			SurfaceGenerator.Generate(chunk, worldSeed);
-		else if (chunk.Coord.Cz > 0)
-			GenerateCaves(chunk, worldSeed);
-		else
-			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+			if (cz > 0)
+				GenerateCaves(chunk, worldSeed);
+			return;
+		}
+
+		// 高空：空气
+		if (cz < -4)
+		{
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
+			return;
+		}
+
+		// 深层地下
+		GenerateCaves(chunk, worldSeed);
 	}
 
 	public void PopulateChunk(ChunkData chunk, int worldSeed)

@@ -30,6 +30,7 @@ public static class Entities
 public static class Terrains
 {
 	public const string Void = "void";
+	public const string Air = "air";
 	public const string Floor = "floor";
 	public const string WallSoil = "wall_soil";
 	public const string WallStone = "wall_stone";
@@ -50,6 +51,9 @@ public static class Terrains
 	public const string WallIron = "wall_iron";
 	public const string Fungus = "fungus";
 	public const string CrystalVein = "crystal_vein";
+	public const string Dirt = "dirt";
+	public const string Stone = "stone";
+	public const string GrassBlock = "grass_block";
 }
 
 /// <summary>能力 ID 常量，与 capacities.json 保持一致。</summary>

@@ -16,12 +16,26 @@ public class PerlinGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
-		if (chunk.Coord.Cz == 0)
+		var cz = chunk.Coord.Cz;
+
+		// 地表附近：3D 体积填充
+		if (cz >= -4 && cz <= 4)
+		{
 			SurfaceGenerator.Generate(chunk, worldSeed);
-		else if (chunk.Coord.Cz > 0)
-			GenerateUnderground(chunk, worldSeed);
-		else
-			GenerateSky(chunk);
+			if (cz > 0)
+				GenerateUnderground(chunk, worldSeed);
+			return;
+		}
+
+		// 高空：空气
+		if (cz < -4)
+		{
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
+			return;
+		}
+
+		// 深层地下
+		GenerateUnderground(chunk, worldSeed);
 	}
 
 	public void PopulateChunk(ChunkData chunk, int worldSeed)
@@ -103,7 +117,6 @@ public class PerlinGenerator : IMapGenerator
 
 	private static void GenerateSky(ChunkData chunk)
 	{
-		var floorId = TerrainRegistry.GetId(Terrains.Floor);
-		chunk.Fill(floorId);
+		chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
 	}
 }
