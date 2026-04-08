@@ -26,7 +26,6 @@ public sealed class FirearmModuleTests
 				Name = "Test Pistol",
 				Category = ItemCategories.Weapon,
 				Equipped = equipped,
-				RequiresAmmo = true,
 				AmmoType = "bullet",
 				MagazineSize = 6,
 				LoadedAmmo = 6,
@@ -98,7 +97,6 @@ public sealed class FirearmModuleTests
 			Id = "sword",
 			Category = ItemCategories.Weapon,
 			Equipped = true,
-			RequiresAmmo = false,
 		};
 		player.Inventory.Add(weapon);
 		var skill = new InteractionDef { Id = "slash", Name = "Slash" };

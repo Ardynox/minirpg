@@ -252,11 +252,12 @@ public static class JobExecutor
 			return new ActionExecutionResult();
 
 		var events = ActionModule.TryMove(state, actor, step.Value.X - actor.X, step.Value.Y - actor.Y);
-		return new ActionExecutionResult
+		var result = new ActionExecutionResult
 		{
 			Consumed = events.Count > 0,
-			Events = { },
 		};
+		result.Events.AddRange(events);
+		return result;
 	}
 
 	private static ActionExecutionResult TryPickupItem(GameState state, Actor worker, string itemId)
@@ -272,7 +273,7 @@ public static class JobExecutor
 		// 如果在同一格，拾取
 		if (worker.X == bestCell.Value.X && worker.Y == bestCell.Value.Y)
 		{
-			state.World.TryPickupItem(worker.X, worker.Y, worker.Z, bestCell.Value.EntityId, out var pickedItem);
+			var pickedItem = state.World.PickupItem(worker.X, worker.Y, worker.Z, bestCell.Value.EntityId);
 			if (pickedItem != null)
 			{
 				worker.Inventory.Add(pickedItem);
@@ -401,7 +402,7 @@ public static class JobExecutor
 					continue;
 
 				var item = ItemSnapshotMapper.CreateItem(ItemSnapshotMapper.BuildSnapshot(
-					new Item { Id = preset.Id, DisplayName = preset.Name }));
+					new Item { Id = preset.Id, Name = preset.Name }));
 				facility.OutputBuffer.Add(item);
 			}
 		}
@@ -453,7 +454,7 @@ public static class JobExecutor
 				continue;
 
 			worker.Inventory.RemoveAt(i);
-			state.World.DropItem(worker.X, worker.Y, worker.Z, item);
+			state.World.PlaceItem(worker.X, worker.Y, worker.Z, item);
 		}
 	}
 }

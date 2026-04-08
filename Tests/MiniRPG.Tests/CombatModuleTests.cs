@@ -48,9 +48,12 @@ public sealed class CombatModuleTests
 	public void IsDead_NoVitalLimbs_ReturnsTrue()
 	{
 		var (_, _, enemy) = SkillCastingTestHelper.CreateCombatState();
-		// Remove vital tags from all limbs
+		// Remove both vital and legacy vital tags from all limbs
 		foreach (var limb in enemy.Limbs)
+		{
 			limb.Tags.Remove(CombatModule.VitalTag);
+			limb.Tags.Remove("\u8981\u5bb3"); // Legacy vital tag
+		}
 		Assert.True(CombatModule.IsDead(enemy));
 	}
 

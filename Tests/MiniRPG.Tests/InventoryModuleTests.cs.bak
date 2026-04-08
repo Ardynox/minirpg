@@ -1,0 +1,215 @@
+using System.Linq;
+using MiniRPG.Core.Data;
+using Xunit;
+
+namespace MiniRPG.Tests;
+
+public sealed class InventoryModuleTests
+{
+	public InventoryModuleTests()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+	}
+
+	private static Actor MakeActor() => PresetDB.SpawnActor("player", "inv_test");
+
+	private static Item MakeItem(string id = "test_item", int price = 10, int stack = 1) =>
+		new() { Id = id, Name = "Test Item", Price = price, StackCount = stack, MaxStack = 10 };
+
+	// ── Add ──────────────────────────────────────────────
+
+	[Fact]
+	public void Add_AppendsToInventory()
+	{
+		var actor = MakeActor();
+		var before = actor.Inventory.Count;
+		InventoryModule.Add(actor, MakeItem());
+		Assert.Equal(before + 1, actor.Inventory.Count);
+	}
+
+	[Fact]
+	public void Add_SetsEquippedFalse()
+	{
+		var actor = MakeActor();
+		var item = MakeItem();
+		item.Equipped = true;
+		InventoryModule.Add(actor, item);
+		Assert.False(item.Equipped);
+	}
+
+	[Fact]
+	public void Add_MergesStackable()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		var item1 = MakeItem("potion", stack: 3);
+		item1.EnsureRuntimeState();
+		actor.Inventory.Add(item1);
+
+		var item2 = MakeItem("potion", stack: 2);
+		InventoryModule.Add(actor, item2);
+
+		// Should merge into existing stack
+		Assert.Single(actor.Inventory);
+		Assert.Equal(5, actor.Inventory[0].StackCount);
+	}
+
+	[Fact]
+	public void Add_DoesNotMergeDifferentItems()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem("sword"));
+		InventoryModule.Add(actor, MakeItem("shield"));
+		Assert.Equal(2, actor.Inventory.Count);
+	}
+
+	// ── RemoveAt ─────────────────────────────────────────
+
+	[Fact]
+	public void RemoveAt_ValidIndex_RemovesItem()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem());
+		var removed = InventoryModule.RemoveAt(actor, 0);
+		Assert.NotNull(removed);
+		Assert.Empty(actor.Inventory);
+	}
+
+	[Fact]
+	public void RemoveAt_InvalidIndex_ReturnsNull()
+	{
+		var actor = MakeActor();
+		Assert.Null(InventoryModule.RemoveAt(actor, -1));
+		Assert.Null(InventoryModule.RemoveAt(actor, 9999));
+	}
+
+	[Fact]
+	public void RemoveAt_EquippedItem_UnequipsFirst()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		var item = MakeItem();
+		item.BodyPart = "arm";
+		item.Layer = EquipLayer.Shell;
+		InventoryModule.Add(actor, item);
+		item.Equipped = true;
+
+		var removed = InventoryModule.RemoveAt(actor, 0);
+		Assert.NotNull(removed);
+		Assert.False(removed!.Equipped);
+	}
+
+	// ── ConsumeAt ────────────────────────────────────────
+
+	[Fact]
+	public void ConsumeAt_ReducesStack()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem(stack: 5));
+		Assert.True(InventoryModule.ConsumeAt(actor, 0, 2));
+		Assert.Equal(3, actor.Inventory[0].StackCount);
+	}
+
+	[Fact]
+	public void ConsumeAt_EntireStack_RemovesItem()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem(stack: 3));
+		Assert.True(InventoryModule.ConsumeAt(actor, 0, 3));
+		Assert.Empty(actor.Inventory);
+	}
+
+	[Fact]
+	public void ConsumeAt_InsufficientStack_ReturnsFalse()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem(stack: 2));
+		Assert.False(InventoryModule.ConsumeAt(actor, 0, 5));
+	}
+
+	[Fact]
+	public void ConsumeAt_ZeroAmount_ReturnsFalse()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		InventoryModule.Add(actor, MakeItem());
+		Assert.False(InventoryModule.ConsumeAt(actor, 0, 0));
+	}
+
+	[Fact]
+	public void ConsumeAt_InvalidIndex_ReturnsFalse()
+	{
+		var actor = MakeActor();
+		Assert.False(InventoryModule.ConsumeAt(actor, -1));
+		Assert.False(InventoryModule.ConsumeAt(actor, 9999));
+	}
+
+	// ── ToggleEquip ──────────────────────────────────────
+
+	[Fact]
+	public void ToggleEquip_InvalidIndex_ReturnsError()
+	{
+		var actor = MakeActor();
+		var result = InventoryModule.ToggleEquip(actor, -1);
+		Assert.NotEmpty(result.Message);
+	}
+
+	// ── FindBestMatching ─────────────────────────────────
+
+	[Fact]
+	public void FindBestMatching_ByCategory_ReturnsMatch()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		var food = new Item { Id = "bread", Name = "Bread", Category = "food" };
+		food.EnsureRuntimeState();
+		actor.Inventory.Add(food);
+
+		var (idx, item) = InventoryModule.FindBestMatching(actor, category: "food");
+		Assert.True(idx >= 0);
+		Assert.Equal("bread", item!.Id);
+	}
+
+	[Fact]
+	public void FindBestMatching_NoMatch_ReturnsNegative()
+	{
+		var actor = MakeActor();
+		actor.Inventory.Clear();
+		var (idx, item) = InventoryModule.FindBestMatching(actor, category: "nonexistent");
+		Assert.True(idx < 0);
+		Assert.Null(item);
+	}
+
+	// ── OnLimbDestroyed ──────────────────────────────────
+
+	[Fact]
+	public void OnLimbDestroyed_UnequipsItemsOnLimb()
+	{
+		var actor = MakeActor();
+		// Find a limb with equip slots
+		var limb = actor.Limbs.FirstOrDefault(l => l.EquipSlots.Count > 0);
+		if (limb == null) return;
+
+		// Equip an item on that limb
+		var item = new Item
+		{
+			Id = "glove",
+			Name = "Glove",
+			BodyPart = limb.BodyPart,
+			Layer = limb.EquipSlots[0].Layer,
+			Equipped = true,
+		};
+		item.EnsureRuntimeState();
+		actor.Inventory.Add(item);
+		limb.EquipSlots[0].ItemId = item.InstanceId;
+
+		InventoryModule.OnLimbDestroyed(actor, limb);
+		Assert.False(item.Equipped);
+		Assert.Null(limb.EquipSlots[0].ItemId);
+	}
+}
