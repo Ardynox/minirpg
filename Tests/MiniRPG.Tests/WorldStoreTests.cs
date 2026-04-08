@@ -260,6 +260,72 @@ public sealed class WorldStoreTests
 	}
 
 	[Fact]
+	public void MigrateLegacyWorldLayout_SkipsLegacyWorldWhenSplitLayoutDataAlreadyExists()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-migrate-conflict");
+		try
+		{
+			var store = new WorldStore(root);
+			var legacyWorldDirectory = Path.Combine(store.LegacyWorldsDirectory, "alpha-00000001");
+			WriteLegacyWorldManifest(legacyWorldDirectory, "alpha-00000001", "Alpha Legacy");
+			WriteWorldCharacterSave(
+				Path.Combine(legacyWorldDirectory, "characters", "rook-00000001.json"),
+				"alpha-00000001",
+				"Alpha Legacy",
+				"rook-00000001",
+				"Rook");
+
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "alpha-00000001",
+				DisplayName = "Alpha Current",
+				Settings = new WorldSettings
+				{
+					Seed = 777,
+					GeneratorId = "perlin",
+					ClimateId = "tropical",
+					StartSeasonId = "summer",
+					CivilizationLevelId = "city_state",
+					MonsterDensityPercent = 90,
+					NpcDensityPercent = 140,
+					LootAbundancePercent = 120,
+					NestIntensityPercent = 60,
+					WeatherVolatilityPercent = 80,
+				},
+				CreatedAtUtc = new DateTimeOffset(2026, 4, 8, 8, 0, 0, TimeSpan.Zero),
+				LastPlayedAtUtc = new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero),
+				LastPlayedCharacterId = "mage-00000002",
+			});
+			var currentSavePath = store.GetCharacterSavePath("alpha-00000001", "mage-00000002");
+			WriteWorldCharacterSave(
+				currentSavePath,
+				"alpha-00000001",
+				"Alpha Current",
+				"mage-00000002",
+				"Mage");
+
+			var report = store.MigrateLegacyWorldLayout();
+
+			Assert.Equal(0, report.SuccessCount);
+			Assert.Equal(1, report.FailureCount);
+			var failure = Assert.Single(report.Failures);
+			Assert.Equal("alpha-00000001", failure.WorldId);
+			Assert.Contains("left untouched", failure.Message);
+			Assert.True(Directory.Exists(legacyWorldDirectory));
+			Assert.True(store.TryLoadWorld("alpha-00000001", out var manifest));
+			Assert.Equal("Alpha Current", manifest.DisplayName);
+			Assert.Equal(777, manifest.Settings.Seed);
+			Assert.Equal("mage-00000002", manifest.LastPlayedCharacterId);
+			Assert.True(File.Exists(currentSavePath));
+			Assert.False(File.Exists(store.GetCharacterSavePath("alpha-00000001", "rook-00000001")));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void ListWorldCharacters_ReadsHeaderOnlyWithoutDeserializingPayload()
 	{
 		var root = TestSupport.CreateTempDirectory("world-store-characters");

@@ -85,6 +85,8 @@ public class Actor
 	public List<ThoughtState> Thoughts { get; set; } = [];
 	public float MoodValue { get; set; } = 50f;
 	public int NeedsLastUpdatedTurn { get; set; }
+	public MiniRPG.Core.Needs.MentalBreakState? MentalBreak { get; set; }
+	public int LastMentalBreakTurn { get; set; }
 	public List<HealthConditionState> HealthConditions { get; set; } = [];
 	public float PainValue { get; set; }
 	public float BloodLossValue { get; set; }

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "raid_goblin",
+    "name": "哥布林袭击",
+    "category": "Threat",
+    "weight": 2.0,
+    "minTurn": 100,
+    "cooldownTurns": 80,
+    "minPartySize": 0,
+    "threatPoints": 30,
+    "workerId": "raid",
+    "params": { "templateId": "goblin" }
+  },
+  {
+    "id": "raid_bandit",
+    "name": "盗贼袭击",
+    "category": "Threat",
+    "weight": 1.5,
+    "minTurn": 200,
+    "cooldownTurns": 100,
+    "minPartySize": 2,
+    "threatPoints": 50,
+    "workerId": "raid",
+    "params": { "templateId": "bandit" }
+  },
+  {
+    "id": "raid_beast",
+    "name": "野兽袭击",
+    "category": "Threat",
+    "weight": 1.0,
+    "minTurn": 50,
+    "cooldownTurns": 60,
+    "minPartySize": 0,
+    "threatPoints": 20,
+    "workerId": "raid",
+    "params": { "templateId": "wolf" }
+  },
+  {
+    "id": "wanderer_join",
+    "name": "流浪者到访",
+    "category": "Positive",
+    "weight": 1.5,
+    "minTurn": 50,
+    "cooldownTurns": 120,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "wanderer_join",
+    "params": { "templateId": "villager" }
+  },
+  {
+    "id": "trader_visit",
+    "name": "商队到访",
+    "category": "Neutral",
+    "weight": 2.0,
+    "minTurn": 80,
+    "cooldownTurns": 60,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "trader_visit",
+    "params": { "templateId": "trader" }
+  },
+  {
+    "id": "resource_drop",
+    "name": "物资空投",
+    "category": "Positive",
+    "weight": 1.0,
+    "minTurn": 150,
+    "cooldownTurns": 100,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "",
+    "params": {}
+  },
+  {
+    "id": "cold_snap",
+    "name": "寒潮来袭",
+    "category": "Threat",
+    "weight": 0.8,
+    "minTurn": 300,
+    "cooldownTurns": 200,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "",
+    "params": {}
+  },
+  {
+    "id": "heat_wave",
+    "name": "热浪来袭",
+    "category": "Threat",
+    "weight": 0.8,
+    "minTurn": 100,
+    "cooldownTurns": 200,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "",
+    "params": {}
+  },
+  {
+    "id": "traveler_passing",
+    "name": "旅行者路过",
+    "category": "Neutral",
+    "weight": 1.5,
+    "minTurn": 30,
+    "cooldownTurns": 40,
+    "minPartySize": 0,
+    "threatPoints": 0,
+    "workerId": "",
+    "params": {}
+  },
+  {
+    "id": "refugee_arrival",
+    "name": "难民求助",
+    "category": "Neutral",
+    "weight": 0.6,
+    "minTurn": 200,
+    "cooldownTurns": 150,
+    "minPartySize": 2,
+    "threatPoints": 0,
+    "workerId": "wanderer_join",
+    "params": { "templateId": "refugee" }
+  }
+]

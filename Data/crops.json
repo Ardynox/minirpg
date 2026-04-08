@@ -1,0 +1,79 @@
+[
+  {
+    "id": "wheat",
+    "name": "小麦",
+    "growthTurns": 20,
+    "harvestItemId": "wheat_grain",
+    "harvestMin": 2,
+    "harvestMax": 4,
+    "seedItemId": "wheat_seed",
+    "autoReplant": false,
+    "seasons": ["spring", "summer"]
+  },
+  {
+    "id": "potato",
+    "name": "土豆",
+    "growthTurns": 15,
+    "harvestItemId": "potato",
+    "harvestMin": 3,
+    "harvestMax": 6,
+    "seedItemId": "potato_seed",
+    "autoReplant": false,
+    "seasons": []
+  },
+  {
+    "id": "rice",
+    "name": "稻米",
+    "growthTurns": 25,
+    "harvestItemId": "rice_grain",
+    "harvestMin": 3,
+    "harvestMax": 5,
+    "seedItemId": "rice_seed",
+    "autoReplant": false,
+    "seasons": ["spring", "summer"]
+  },
+  {
+    "id": "corn",
+    "name": "玉米",
+    "growthTurns": 22,
+    "harvestItemId": "corn_ear",
+    "harvestMin": 2,
+    "harvestMax": 4,
+    "seedItemId": "corn_seed",
+    "autoReplant": false,
+    "seasons": ["summer"]
+  },
+  {
+    "id": "healroot",
+    "name": "治愈草",
+    "growthTurns": 30,
+    "harvestItemId": "herbal_medicine",
+    "harvestMin": 1,
+    "harvestMax": 2,
+    "seedItemId": "healroot_seed",
+    "autoReplant": true,
+    "seasons": ["spring", "summer", "autumn"]
+  },
+  {
+    "id": "berry_bush",
+    "name": "浆果灌木",
+    "growthTurns": 12,
+    "harvestItemId": "berry",
+    "harvestMin": 4,
+    "harvestMax": 8,
+    "seedItemId": "berry_seed",
+    "autoReplant": true,
+    "seasons": ["spring", "summer", "autumn"]
+  },
+  {
+    "id": "cotton",
+    "name": "棉花",
+    "growthTurns": 18,
+    "harvestItemId": "cotton_fiber",
+    "harvestMin": 2,
+    "harvestMax": 5,
+    "seedItemId": "cotton_seed",
+    "autoReplant": false,
+    "seasons": ["summer", "autumn"]
+  }
+]

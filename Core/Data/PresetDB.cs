@@ -279,6 +279,13 @@ public static class PresetDB
 			.Where(a => a.Faction == Factions.Hostile)
 			.Select(a => a.Id)
 			.ToArray();
+
+		// ── 新系统注册表 ──
+		Farm.CropRegistry.LoadFromJson(
+			GameDataLocator.TryReadText("crops.json", out var cropsJson, out _) ? cropsJson : "[]");
+		Event.StorytellerDefLoader.Load();
+		Social.SocialInteractionLoader.Load();
+
 		_loaded = true;
 	}
 

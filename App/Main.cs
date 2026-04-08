@@ -112,6 +112,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private TargetSummaryHudModule _targetSummaryHud = null!;
 	private NeedsHudModule _needsHud = null!;
 	private HealthAlertsModule _healthAlerts = null!;
+	private PartyHudModule _partyHud = null!;
+	private IncidentAlertModule _incidentAlerts = null!;
 	private Control _startupOverlay = null!;
 	private Label _startupStatusLabel = null!;
 	private ProgressBar _startupProgressBar = null!;
@@ -623,6 +625,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var healthAlertsNode = HealthAlertsModule.CreateControl(uiTheme);
 		overlayLayer.AddChild(healthAlertsNode);
 		_healthAlerts = new HealthAlertsModule(healthAlertsNode);
+		var partyHudNode = PartyHudModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(partyHudNode);
+		_partyHud = new PartyHudModule(partyHudNode);
+		var incidentAlertNode = IncidentAlertModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(incidentAlertNode);
+		_incidentAlerts = new IncidentAlertModule(incidentAlertNode);
 		_lastActiveThreatMode = ThreatHudMode.Hidden;
 
 		var layoutStore = new PanelLayoutStore();
@@ -907,6 +915,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		UpdateTargetSummaryHud(snapshot);
 		_needsHud.Update(ActorModule.GetPlayer(_state), _state.Turn, !snapshot.InMenu);
 		_healthAlerts.Update(_state, ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
+		_partyHud.Update(_state);
+		_incidentAlerts.Update((float)delta);
 		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();
@@ -2888,6 +2898,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":skill_prev": if (_skillBar.Visible) _skillBar.StepSelection(-1); return;
 			case ":skill_next": if (_skillBar.Visible) _skillBar.StepSelection(1); return;
 			case ":toggle_status": ToggleStatusPanel(); return;
+			case ":cycle_party": _partyHud.CycleActive(); FlushMap(); return;
 			case ":quests": ToggleQuestPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
 			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
@@ -3348,11 +3359,13 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 				case "rest_completed" when e.TargetId == _state.PlayerId:
 					_playerRestModeActive = false;
 					break;
-				case "item_picked_up" or "item_dropped":
-					_groundPanel.Invalidate();
-					break;
+			case "item_picked_up" or "item_dropped":
+				_groundPanel.Invalidate();
+				break;
 			}
 		}
+
+		_incidentAlerts.ProcessEvents(events);
 	}
 
 	/// <summary>交互事件路由：流程类（trade/combat）转发到 UI Module，日志类由 LogModule 处理。</summary>

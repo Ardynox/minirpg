@@ -426,6 +426,7 @@ public sealed class InputBindingService
 			new("skill_prev", "input.action.skill_prev", InputBindingContext.Action, ":skill_prev", InputGesture.FromMouseWheel(MouseButton.WheelUp), default),
 			new("skill_next", "input.action.skill_next", InputBindingContext.Action, ":skill_next", InputGesture.FromMouseWheel(MouseButton.WheelDown), default),
 			new("toggle_status", "input.action.toggle_status", InputBindingContext.Action, ":toggle_status", InputGesture.FromKey(Key.H), default),
+			new("cycle_party", "input.action.cycle_party", InputBindingContext.Action, ":cycle_party", InputGesture.FromKey(Key.P), default),
 			new("quests", "input.action.quests", InputBindingContext.Action, ":quests", InputGesture.FromKey(Key.J), default),
 			new("minimap", "input.action.minimap", InputBindingContext.Action, ":minimap", InputGesture.FromKey(Key.Tab), default),
 			new("fogmap", "input.action.fogmap", InputBindingContext.Action, ":fogmap", InputGesture.FromKey(Key.M), default),

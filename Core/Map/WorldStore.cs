@@ -375,6 +375,7 @@ public sealed class WorldStore
 			var sourceDirectory = Path.GetDirectoryName(manifestPath) ?? string.Empty;
 			var sourceWorldId = Path.GetFileName(sourceDirectory);
 			var targetWorldId = sourceWorldId;
+			var migrationOwnsTarget = false;
 			try
 			{
 				if (!TryLoadManifestAtPath(manifestPath, out var manifest))
@@ -394,12 +395,26 @@ public sealed class WorldStore
 					: manifest.WorldId;
 				manifest.WorldId = targetWorldId;
 
+				if (HasSplitWorldLayoutData(targetWorldId))
+				{
+					results.Add(new WorldStorageMigrationItem
+					{
+						WorldId = targetWorldId,
+						SourcePath = sourceDirectory,
+						Success = false,
+						Message = "Split-layout world data already exists for this worldId. Legacy data was left untouched to avoid overwriting newer data.",
+					});
+					continue;
+				}
+
 				CleanupMigratedWorldTargets(targetWorldId);
+				migrationOwnsTarget = true;
 				SaveWorld(manifest);
 				CopyLegacyCharacterSaves(sourceDirectory, targetWorldId);
 				if (!VerifyMigratedWorld(manifest, sourceDirectory))
 				{
-					CleanupMigratedWorldTargets(targetWorldId);
+					if (migrationOwnsTarget)
+						CleanupMigratedWorldTargets(targetWorldId);
 					results.Add(new WorldStorageMigrationItem
 					{
 						WorldId = targetWorldId,
@@ -412,7 +427,8 @@ public sealed class WorldStore
 
 				if (!DeleteDirectoryIfExists(LegacyWorldsDirectory, sourceDirectory))
 				{
-					CleanupMigratedWorldTargets(targetWorldId);
+					if (migrationOwnsTarget)
+						CleanupMigratedWorldTargets(targetWorldId);
 					results.Add(new WorldStorageMigrationItem
 					{
 						WorldId = targetWorldId,
@@ -433,7 +449,8 @@ public sealed class WorldStore
 			}
 			catch (Exception ex)
 			{
-				CleanupMigratedWorldTargets(targetWorldId);
+				if (migrationOwnsTarget)
+					CleanupMigratedWorldTargets(targetWorldId);
 				results.Add(new WorldStorageMigrationItem
 				{
 					WorldId = targetWorldId,
@@ -493,6 +510,14 @@ public sealed class WorldStore
 			var targetPath = Path.Combine(targetSaveDirectory, Path.GetFileName(sourcePath));
 			File.Copy(sourcePath, targetPath, overwrite: true);
 		}
+	}
+
+	private bool HasSplitWorldLayoutData(string worldId)
+	{
+		if (File.Exists(GetWorldManifestPath(worldId)))
+			return true;
+
+		return HasWorldSaveData(worldId);
 	}
 
 	private void CleanupMigratedWorldTargets(string worldId)

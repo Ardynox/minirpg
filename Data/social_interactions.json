@@ -1,0 +1,74 @@
+[
+  {
+    "id": "chat",
+    "name": "闲聊",
+    "initiatorOpinionChange": 5,
+    "recipientOpinionChange": 3,
+    "minOpinion": -30,
+    "maxOpinion": 100,
+    "weight": 3.0
+  },
+  {
+    "id": "deep_talk",
+    "name": "深入交谈",
+    "initiatorOpinionChange": 10,
+    "recipientOpinionChange": 8,
+    "minOpinion": 20,
+    "maxOpinion": 100,
+    "weight": 1.5
+  },
+  {
+    "id": "joke",
+    "name": "讲笑话",
+    "initiatorOpinionChange": 3,
+    "recipientOpinionChange": 6,
+    "minOpinion": -10,
+    "maxOpinion": 100,
+    "weight": 2.0
+  },
+  {
+    "id": "argue",
+    "name": "争吵",
+    "initiatorOpinionChange": -8,
+    "recipientOpinionChange": -10,
+    "minOpinion": -100,
+    "maxOpinion": 10,
+    "weight": 2.0
+  },
+  {
+    "id": "insult",
+    "name": "侮辱",
+    "initiatorOpinionChange": -3,
+    "recipientOpinionChange": -15,
+    "minOpinion": -100,
+    "maxOpinion": -20,
+    "weight": 1.0
+  },
+  {
+    "id": "comfort",
+    "name": "安慰",
+    "initiatorOpinionChange": 4,
+    "recipientOpinionChange": 12,
+    "minOpinion": 10,
+    "maxOpinion": 100,
+    "weight": 1.0
+  },
+  {
+    "id": "gossip",
+    "name": "八卦",
+    "initiatorOpinionChange": 2,
+    "recipientOpinionChange": 2,
+    "minOpinion": -20,
+    "maxOpinion": 60,
+    "weight": 2.5
+  },
+  {
+    "id": "share_meal",
+    "name": "分享食物",
+    "initiatorOpinionChange": 6,
+    "recipientOpinionChange": 10,
+    "minOpinion": 0,
+    "maxOpinion": 100,
+    "weight": 1.0
+  }
+]
