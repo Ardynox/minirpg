@@ -77,6 +77,7 @@ public sealed class SaveBrowserModule
 		{
 			var row = _rows[0];
 			row.Disabled = true;
+			row.ThemeTypeVariation = "OpaqueRowButton";
 			row.Text = LocalizationService.T("ui.save_browser.empty_row");
 			return;
 		}
@@ -86,6 +87,7 @@ public sealed class SaveBrowserModule
 			var slot = _slots[i];
 			var row = _rows[i];
 			row.Disabled = false;
+			row.ThemeTypeVariation = "OpaqueRowButton";
 			row.Text = $"{slot.DisplayName}\n{slot.Summary}";
 		}
 	}
@@ -101,6 +103,17 @@ public sealed class SaveBrowserModule
 			CustomMinimumSize = new Vector2(0, 72),
 			ClipText = false,
 			TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+			ThemeTypeVariation = "OpaqueRowButton",
+		};
+		row.MouseEntered += () =>
+		{
+			if (!row.Disabled)
+				row.ThemeTypeVariation = "OpaqueHoveredRowButton";
+		};
+		row.MouseExited += () =>
+		{
+			if (!row.Disabled)
+				row.ThemeTypeVariation = "OpaqueRowButton";
 		};
 
 		row.Pressed += () =>

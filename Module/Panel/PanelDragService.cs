@@ -31,6 +31,8 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	private DragState? _pendingDragState;
 	private DragState? _activeDragState;
 
+	public event Action? LayoutChanged;
+
 	public bool EditModeActive => _editModeActive;
 	public string? DirectDragPanelId => _directDragPanelId;
 
@@ -458,6 +460,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 
 		_floatingRoot.AddChild(panel);
 		panel.GlobalPosition = keepPos;
+		NotifyLayoutChanged();
 	}
 
 	private void EnsureFloating(DragState state)
@@ -473,6 +476,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		panel.GetParent()?.RemoveChild(panel);
 		_floatingRoot.AddChild(panel);
 		panel.GlobalPosition = keepPos;
+		NotifyLayoutChanged();
 	}
 
 	private void EnsureDocked(DragState state)
@@ -485,6 +489,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			placeholderParent.AddChild(panel);
 			placeholderParent.MoveChild(panel, targetIndex);
 			RemovePlaceholder(state);
+			NotifyLayoutChanged();
 			return;
 		}
 
@@ -494,6 +499,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		panel.GetParent()?.RemoveChild(panel);
 		originalParent.AddChild(panel);
 		originalParent.MoveChild(panel, Math.Clamp(state.OriginalIndex, 0, originalParent.GetChildCount() - 1));
+		NotifyLayoutChanged();
 	}
 
 	private void RemovePlaceholder(DragState state)
@@ -511,6 +517,8 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		_states.TryGetValue(panelId, out var state) && IsFloating(state);
 
 	private bool IsFloating(DragState state) => state.Registration.Panel.GetParent() == _floatingRoot;
+
+	private void NotifyLayoutChanged() => LayoutChanged?.Invoke();
 
 	private void BringToFront(Control panel)
 	{

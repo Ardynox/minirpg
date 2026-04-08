@@ -678,6 +678,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_groundPanel = new GroundPanelModule(groundNode, this);
 
 		_panels = new PanelManager();
+		_panels.SetFloatingCheck(_panelDrag.IsFloating);
+		_panelDrag.LayoutChanged += RefreshAllBorders;
 		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
 		_panels.Register(_statusPanelModule);
 		_panels.Register(_skillBar);

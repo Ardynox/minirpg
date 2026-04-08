@@ -14,6 +14,7 @@ public class PanelManager
 	private readonly List<IPanel> _panels = [];
 	private readonly List<PanelContainer> _allNodes = [];
 	private readonly List<IPanel> _focusStack = [];
+	private readonly Dictionary<PanelContainer, string> _nodePanelIds = [];
 	private IPanel? _focused;
 	private bool _switching;
 	private Func<string, bool>? _isFloatingCheck;
@@ -29,6 +30,7 @@ public class PanelManager
 	{
 		_panels.Add(panel);
 		_allNodes.Add(panel.PanelNode);
+		_nodePanelIds[panel.PanelNode] = panel.PanelId;
 	}
 
 	public void RegisterPassive(PanelContainer node)
@@ -46,6 +48,7 @@ public class PanelManager
 		if (!canFocus)
 		{
 			_allNodes.Add(node);
+			_nodePanelIds[node] = panelId;
 			return;
 		}
 
@@ -265,13 +268,7 @@ public class PanelManager
 
 	private string? FindPanelIdForNode(PanelContainer node)
 	{
-		foreach (var panel in _panels)
-		{
-			if (panel.PanelNode == node)
-				return panel.PanelId;
-		}
-
-		return null;
+		return _nodePanelIds.TryGetValue(node, out var panelId) ? panelId : null;
 	}
 
 	private IPanel? FindPanelForControl(Control? control)

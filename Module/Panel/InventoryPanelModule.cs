@@ -165,6 +165,7 @@ public class InventoryPanelModule : ListPanelBase
 				ToggleMode = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 				FocusMode = Control.FocusModeEnum.None,
+				ThemeTypeVariation = "TabButton",
 			};
 			var idx = i;
 			btn.Pressed += () => SetFilter(idx);
@@ -517,6 +518,7 @@ public class InventoryPanelModule : ListPanelBase
 				ToggleMode = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 				FocusMode = Control.FocusModeEnum.None,
+				ThemeTypeVariation = "TabButton",
 			};
 			button.Pressed += () => SetSecondaryFilter(idx);
 			_secondaryFilterBar.AddChild(button);

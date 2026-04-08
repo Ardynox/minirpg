@@ -461,6 +461,7 @@ public sealed class PanelHoverChromeService
 		{
 			Text = "ui.panel_chrome.popup.title",
 			HorizontalAlignment = HorizontalAlignment.Center,
+			ThemeTypeVariation = "HeaderLabel",
 		});
 		vbox.AddChild(BuildSliderRow("ui.panel_chrome.popup.width", "WidthSlider", min: 0, max: 1600, step: 10, rounded: true));
 		vbox.AddChild(BuildSliderRow("ui.panel_chrome.popup.height", "HeightSlider", min: 0, max: 1200, step: 10, rounded: true));
@@ -471,6 +472,7 @@ public sealed class PanelHoverChromeService
 			Name = "ResetBtn",
 			Text = "ui.panel_chrome.popup.reset",
 			FocusMode = Control.FocusModeEnum.None,
+			ThemeTypeVariation = "ActionButton",
 		};
 		PanelButtonScaleService.MarkIgnored(resetButton);
 		vbox.AddChild(resetButton);
