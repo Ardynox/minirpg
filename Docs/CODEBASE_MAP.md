@@ -35,12 +35,21 @@ mini-rpg/
 ├── Core/
 │   ├── AI/
 │   ├── Combat/
+│   ├── Config/
 │   ├── Data/
 │   ├── Debug/
 │   ├── Dialog/
+│   ├── Event/
+│   ├── Farm/
+│   ├── Health/
+│   ├── Job/
 │   ├── Map/
+│   ├── Needs/
+│   ├── Social/
 │   ├── Trade/
-│   └── World/
+│   ├── Weather/
+│   ├── World/
+│   └── Zone/
 ├── Module/
 │   ├── Panel/
 │   └── Render/
@@ -83,7 +92,12 @@ mini-rpg/
 - `Combat/`: `ActionModule`、`CombatModule`、`TurnModule`、`NestModule`。
 - `Map/`: `MapModule`、`MapGenModule`、`SaveModule`。
 - `World/`: `WorldMap`、`ChunkManager`、`ChunkData`、`TerrainDef`、视野、LOS、寻路、挖掘、生成器。
-- `AI/`: `AIDispatcher`、`AIVisionBatch`、`SimpleBrain`、`PerceptionBuilder`。
+- `AI/`: `AIDispatcher`、`AIVisionBatch`、`SimpleBrain`、`FollowerBrain`、`PerceptionBuilder`。
+- `Job/`: 工作调度系统。`JobScheduler`、`JobExecutor`、`JobBehaviorModule`。
+- `Event/`: 事件调度器。`Storyteller`、`IncidentDef`、`IIncidentWorker`、内置 Workers。
+- `Social/`: 社交系统。`SocialModule`、`RelationEntry`、`SocialInteractionDef`。
+- `Zone/`: 区域管理。`ZoneModule`、`ZoneDef`（6 种区域类型）。
+- `Farm/`: 农业系统。`FarmModule`、`CropDef`、`CropRegistry`。
 - `Trade/`: 交易逻辑。
 - `Dialog/`: 对话规则与模板渲染。
 - `Debug/`: 调试命令实际执行。

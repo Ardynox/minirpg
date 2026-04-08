@@ -36,8 +36,11 @@ public static class MonsterMapAssetGenerator
         var assets = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase)
         {
             ["monster_goblin"] = BuildGoblin(),
+            ["monster_goblin_miner"] = BuildGoblinMiner(),
             ["monster_skeleton"] = BuildSkeleton(),
+            ["monster_elf_ranger"] = BuildElfRanger(),
             ["monster_orc_warrior"] = BuildOrcWarrior(),
+            ["monster_orc_shaman"] = BuildOrcShaman(),
             ["monster_slime"] = BuildSlime(),
             ["monster_spider"] = BuildSpider(),
             ["monster_scorpion"] = BuildScorpion(),
@@ -210,6 +213,48 @@ public static class MonsterMapAssetGenerator
         return bitmap;
     }
 
+    private static Bitmap BuildGoblinMiner()
+    {
+        var bitmap = NewCanvas();
+        using var graphics = CreateGraphics(bitmap);
+        DrawShadow(graphics, 30, 56, 18, 5, 70);
+        var skin = Rgba(86, 148, 56);
+        var skinDark = Rgba(33, 86, 28);
+        var skinLight = Rgba(148, 203, 98);
+        var helmet = Rgba(134, 114, 88);
+        var helmetDark = Rgba(62, 46, 32);
+        var cloth = Rgba(94, 80, 56);
+        var clothDark = Rgba(46, 35, 24);
+        var wood = Rgba(118, 82, 47);
+        var metal = Rgba(152, 156, 160);
+        var soot = Rgba(48, 42, 39);
+
+        FillEllipseOutline(graphics, Box(24, 22, 35, 31), skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(23, 24), P(18, 21), P(22, 28) }, skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(35, 23), P(40, 20), P(35, 28) }, skin, skinDark);
+        FillEllipseOutline(graphics, Box(21, 17, 37, 25), helmet, helmetDark);
+        FillRectangleOutline(graphics, Box(23, 15, 35, 18), helmet, helmetDark);
+        FillRectangleOutline(graphics, Box(28, 11, 30, 16), Rgba(232, 216, 180), helmetDark);
+        FillEllipseOutline(graphics, Box(27, 8, 31, 12), Rgba(255, 176, 64, 220), Rgba(132, 72, 24));
+        FillRectangleOutline(graphics, Box(21, 30, 35, 42), cloth, clothDark);
+        FillPolygonOutline(graphics, new[] { P(20, 41), P(28, 44), P(25, 52), P(17, 48) }, cloth, clothDark);
+        FillPolygonOutline(graphics, new[] { P(27, 41), P(35, 44), P(34, 52), P(26, 50) }, cloth, clothDark);
+        FillRectangleOutline(graphics, Box(22, 42, 25, 56), skin, skinDark);
+        FillRectangleOutline(graphics, Box(29, 43, 32, 56), skin, skinDark);
+        FillRectangleOutline(graphics, Box(18, 33, 22, 40), skin, skinDark);
+        FillRectangleOutline(graphics, Box(31, 34, 35, 39), skin, skinDark);
+        using var handlePen = new Pen(wood, 3f);
+        graphics.DrawLine(handlePen, 33, 35, 48, 22);
+        FillPolygonOutline(graphics, new[] { P(45, 18), P(54, 18), P(51, 24), P(44, 23) }, metal, helmetDark);
+        FillRectangleOutline(graphics, Box(23, 34, 26, 37), soot, clothDark);
+        FillRectangleOutline(graphics, Box(29, 38, 32, 41), soot, clothDark);
+        using var eyeBrush = new SolidBrush(Rgba(246, 219, 80));
+        using var highlightBrush = new SolidBrush(Color.FromArgb(170, skinLight));
+        graphics.FillRectangle(eyeBrush, Box(28, 24, 30, 25));
+        graphics.FillRectangle(highlightBrush, Box(25, 24, 28, 27));
+        return bitmap;
+    }
+
     private static Bitmap BuildSkeleton()
     {
         var bitmap = NewCanvas();
@@ -277,6 +322,98 @@ public static class MonsterMapAssetGenerator
         graphics.FillRectangle(highlightBrush, Box(32, 19, 36, 22));
         graphics.FillPolygon(tuskBrush, new[] { P(39, 25), P(43, 26), P(39, 30) });
         graphics.FillPolygon(tuskBrush, new[] { P(34, 25), P(37, 27), P(35, 30) });
+        return bitmap;
+    }
+
+    private static Bitmap BuildOrcShaman()
+    {
+        var bitmap = NewCanvas();
+        using var graphics = CreateGraphics(bitmap);
+        DrawShadow(graphics, 31, 56, 24, 6, 74);
+        var skin = Rgba(96, 124, 94);
+        var skinDark = Rgba(43, 61, 39);
+        var skinLight = Rgba(152, 176, 138);
+        var cloth = Rgba(104, 78, 58);
+        var clothDark = Rgba(50, 37, 28);
+        var robe = Rgba(88, 100, 72);
+        var robeDark = Rgba(44, 52, 33);
+        var leather = Rgba(122, 86, 51);
+        var bone = Rgba(218, 210, 188);
+        var feather = Rgba(126, 74, 46);
+        var featherDark = Rgba(70, 39, 24);
+        var crystal = Rgba(112, 222, 136);
+        var crystalGlow = Color.FromArgb(120, 92, 201, 114);
+
+        FillPolygonOutline(graphics, new[] { P(28, 18), P(24, 9), P(28, 8), P(32, 16) }, feather, featherDark);
+        FillPolygonOutline(graphics, new[] { P(33, 16), P(31, 6), P(36, 6), P(37, 15) }, Rgba(152, 128, 74), featherDark);
+        FillPolygonOutline(graphics, new[] { P(38, 18), P(39, 8), P(44, 10), P(41, 17) }, feather, featherDark);
+        FillRectangleOutline(graphics, Box(27, 18, 40, 21), leather, clothDark);
+        FillEllipseOutline(graphics, Box(28, 16, 42, 29), skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(22, 28), P(31, 24), P(41, 28), P(40, 44), P(23, 45) }, robe, robeDark);
+        FillPolygonOutline(graphics, new[] { P(24, 43), P(40, 45), P(36, 56), P(22, 55) }, cloth, clothDark);
+        FillRectangleOutline(graphics, Box(22, 44, 27, 59), skin, skinDark);
+        FillRectangleOutline(graphics, Box(31, 45, 35, 59), skin, skinDark);
+        FillRectangleOutline(graphics, Box(18, 30, 22, 42), skin, skinDark);
+        FillRectangleOutline(graphics, Box(38, 31, 42, 40), skin, skinDark);
+        FillEllipseOutline(graphics, Box(27, 29, 30, 32), bone, clothDark);
+        FillEllipseOutline(graphics, Box(31, 30, 34, 33), bone, clothDark);
+        FillEllipseOutline(graphics, Box(35, 29, 38, 32), bone, clothDark);
+        using var staffPen = new Pen(leather, 3f);
+        graphics.DrawLine(staffPen, 39, 34, 54, 16);
+        graphics.DrawLine(staffPen, 46, 24, 52, 10);
+        using var glowBrush = new SolidBrush(crystalGlow);
+        graphics.FillEllipse(glowBrush, Box(50, 8, 60, 18));
+        FillPolygonOutline(graphics, new[] { P(54, 7), P(58, 12), P(54, 17), P(50, 12) }, crystal, Rgba(44, 94, 55));
+        using var eyeBrush = new SolidBrush(Rgba(236, 228, 94));
+        using var highlightBrush = new SolidBrush(Color.FromArgb(150, skinLight));
+        using var tuskBrush = new SolidBrush(bone);
+        graphics.FillRectangle(eyeBrush, Box(35, 20, 37, 21));
+        graphics.FillRectangle(highlightBrush, Box(31, 19, 35, 23));
+        graphics.FillPolygon(tuskBrush, new[] { P(38, 25), P(42, 26), P(38, 30) });
+        graphics.FillPolygon(tuskBrush, new[] { P(33, 25), P(36, 27), P(34, 30) });
+        return bitmap;
+    }
+
+    private static Bitmap BuildElfRanger()
+    {
+        var bitmap = NewCanvas();
+        using var graphics = CreateGraphics(bitmap);
+        DrawShadow(graphics, 31, 56, 18, 5, 68);
+        var skin = Rgba(214, 190, 158);
+        var skinDark = Rgba(108, 82, 64);
+        var hood = Rgba(84, 132, 72);
+        var hoodDark = Rgba(38, 74, 40);
+        var leather = Rgba(114, 83, 54);
+        var leatherDark = Rgba(58, 39, 26);
+        var cloth = Rgba(74, 116, 70);
+        var clothDark = Rgba(34, 63, 35);
+        var bow = Rgba(150, 104, 56);
+        var bowDark = Rgba(72, 48, 24);
+        var feather = Rgba(214, 208, 184);
+
+        FillPolygonOutline(graphics, new[] { P(26, 22), P(31, 14), P(39, 16), P(43, 24), P(40, 30), P(28, 30) }, hood, hoodDark);
+        FillEllipseOutline(graphics, Box(30, 21, 37, 27), skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(28, 22), P(24, 20), P(27, 25) }, skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(38, 22), P(42, 19), P(40, 25) }, skin, skinDark);
+        FillPolygonOutline(graphics, new[] { P(21, 29), P(30, 25), P(40, 28), P(42, 40), P(33, 46), P(22, 43) }, cloth, clothDark);
+        FillRectangleOutline(graphics, Box(28, 29, 36, 39), leather, leatherDark);
+        FillPolygonOutline(graphics, new[] { P(24, 43), P(31, 45), P(29, 56), P(22, 55) }, leather, leatherDark);
+        FillPolygonOutline(graphics, new[] { P(32, 44), P(38, 45), P(37, 56), P(30, 56) }, leather, leatherDark);
+        FillRectangleOutline(graphics, Box(25, 31, 28, 41), skin, skinDark);
+        FillRectangleOutline(graphics, Box(37, 30, 40, 39), skin, skinDark);
+        FillRectangleOutline(graphics, Box(25, 45, 28, 59), skinDark, skinDark);
+        FillRectangleOutline(graphics, Box(32, 45, 35, 59), skinDark, skinDark);
+        FillRectangleOutline(graphics, Box(20, 24, 24, 37), leather, leatherDark);
+        FillPolygonOutline(graphics, new[] { P(20, 22), P(24, 23), P(24, 26), P(20, 25) }, feather, leatherDark);
+        FillPolygonOutline(graphics, new[] { P(19, 18), P(23, 19), P(23, 22), P(19, 21) }, feather, leatherDark);
+        using var strapPen = new Pen(leatherDark, 2f);
+        using var bowPen = new Pen(bowDark, 2f);
+        graphics.DrawLine(strapPen, 22, 28, 35, 38);
+        graphics.DrawLine(bowPen, 42, 22, 50, 38);
+        graphics.DrawLine(bowPen, 45, 21, 53, 39);
+        graphics.DrawLine(new Pen(feather, 1f), 46, 22, 52, 38);
+        using var eyeBrush = new SolidBrush(Rgba(246, 222, 108));
+        graphics.FillRectangle(eyeBrush, Box(34, 23, 35, 24));
         return bitmap;
     }
 

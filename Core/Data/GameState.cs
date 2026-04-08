@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Event;
+using MiniRPG.Core.Farm;
+using MiniRPG.Core.Social;
 using MiniRPG.Core.World;
+using MiniRPG.Core.Zone;
 
 namespace MiniRPG.Core.Data;
 
@@ -65,6 +68,15 @@ public class GameState
 	// ── 故事讲述者 ──
 	public StorytellerState StorytellerState { get; set; } = new();
 
+	// ── 社交 ──
+	public SocialState SocialState { get; set; } = new();
+
+	// ── 区域 ──
+	public Dictionary<string, ZoneDef> Zones { get; set; } = new(StringComparer.Ordinal);
+
+	// ── 农业 ──
+	public Dictionary<string, CropInstance> Crops { get; set; } = new(StringComparer.Ordinal);
+
 	// ── 任务 ──
 	public List<Quest> Quests { get; set; } = [];
 
@@ -103,6 +115,9 @@ public class GameState
 		JobBoardState = new JobBoardState();
 		Party = new PartyState();
 		StorytellerState = new StorytellerState();
+		SocialState = new SocialState();
+		Zones.Clear();
+		Crops.Clear();
 		Quests.Clear();
 		KillCount = 0;
 		Timeline.Reset();

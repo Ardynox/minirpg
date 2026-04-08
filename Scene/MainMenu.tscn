@@ -1,5 +1,8 @@
 [gd_scene format=3]
 
+[ext_resource type="Texture2D" path="res://Assets/Art/Placeholders/branding/menu_background_1920x1080.png" id="bg_tex"]
+[ext_resource type="Texture2D" path="res://Assets/Art/Placeholders/branding/logo_main.png" id="logo_tex"]
+
 [node name="MainMenu" type="PanelContainer"]
 visible = false
 layout_mode = 3
@@ -9,55 +12,80 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 2
+texture = ExtResource("bg_tex")
+expand_mode = 1
+stretch_mode = 6
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 0
+
+[node name="TopSpacer" type="Control" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch_ratio = 0.25
+
+[node name="Logo" type="TextureRect" parent="Content"]
+layout_mode = 2
+texture = ExtResource("logo_tex")
+expand_mode = 3
+stretch_mode = 5
+custom_minimum_size = Vector2(400, 150)
+size_flags_horizontal = 4
+mouse_filter = 2
+
+[node name="LogoSpacer" type="Control" parent="Content"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 32)
+
+[node name="Center" type="CenterContainer" parent="Content"]
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="Center"]
+[node name="VBox" type="VBoxContainer" parent="Content/Center"]
 layout_mode = 2
 custom_minimum_size = Vector2(360, 0)
 theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="Center/VBox"]
-layout_mode = 2
-theme_type_variation = "HeaderLabel"
-text = "ui.main_menu.title"
-horizontal_alignment = 1
-
-[node name="Spacer" type="Control" parent="Center/VBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 16)
-
-[node name="ContinueBtn" type="Button" parent="Center/VBox"]
+[node name="ContinueBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.continue"
 
-[node name="WorldsBtn" type="Button" parent="Center/VBox"]
+[node name="WorldsBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.worlds"
 
-[node name="MapEditorBtn" type="Button" parent="Center/VBox"]
+[node name="MapEditorBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.map_editor"
 
-[node name="WeatherLabBtn" type="Button" parent="Center/VBox"]
+[node name="WeatherLabBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.weather_lab"
 
-[node name="SettingsBtn" type="Button" parent="Center/VBox"]
+[node name="SettingsBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.settings"
 
-[node name="AutoTestBtn" type="Button" parent="Center/VBox"]
+[node name="AutoTestBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.auto_test"
 
-[node name="QuitBtn" type="Button" parent="Center/VBox"]
+[node name="QuitBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.quit"
+
+[node name="BottomSpacer" type="Control" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch_ratio = 0.4

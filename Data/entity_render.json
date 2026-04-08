@@ -16,7 +16,7 @@
   },
   "goblin_miner": {
     "type": "texture",
-    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_goblin_8dir.png",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_goblin_miner_8dir.png",
     "frameWidth": 256,
     "frameHeight": 256,
     "useFacing": true,
@@ -115,10 +115,110 @@
   },
   "orc_shaman": {
     "type": "texture",
-    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_orc_warrior_8dir.png",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_orc_shaman_8dir.png",
     "frameWidth": 256,
     "frameHeight": 256,
     "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "elf_ranger": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_elf_ranger_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+
+  "merchant": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_merchant.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "elder": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_elder.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "villager": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_villager.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "blacksmith_npc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_blacksmith_npc.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "herbalist_npc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_herbalist_npc.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "cook_npc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_cook_npc.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "guard_npc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_guard_npc.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "tailor_npc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_tailor_npc.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "elf_trader": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_elf_trader.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "orc_merchant": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Placeholders/npc_map/npc_orc_merchant.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
     "scale": [0.25, 0.25],
     "offset": [0.0, 6.0]
   },

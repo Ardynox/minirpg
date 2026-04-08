@@ -77,7 +77,7 @@ App/Main.tscn / App/Main.cs
 ## 4. Core 逻辑分层
 
 - [`Core/Data`](../Core/Data)
-  运行时核心数据与数据驱动入口。包括 `GameState`、`Actor`、`GameEvent`、`Item`、`InteractionDef`、`PresetDB`、`SkillQuery`、`Quest`、`TagSystem`、`InventoryModule`、`InteractionModule` 等。
+  运行时核心数据与数据驱动入口。包括 `GameState`、`Actor`、`GameEvent`、`Item`、`InteractionDef`、`PresetDB`、`SkillQuery`、`Quest`、`TagSystem`、`InventoryModule`、`InteractionModule`、`PartyModule`（队伍/多角色控制，详见 [`Docs/Systems/02_队伍系统.md`](./Systems/02_队伍系统.md)）等。
 - [`Core/Config`](../Core/Config)
   统一运行时调参入口。`GameConfig` 在启动时读取 `Data/Config/*.json`，并向玩家视野、AI 视野、chunk 运行时、自动测试和地图生成器提供配置对象。
 - [`Core/Combat`](../Core/Combat)
@@ -89,7 +89,17 @@ App/Main.tscn / App/Main.cs
 - [`Core/Dialog`](../Core/Dialog)
   对话池、规则和模板渲染。
 - [`Core/AI`](../Core/AI)
-  AI 调度、批量视觉感知构建和当前大脑实现。当前入口包括 `AIDispatcher`、`PerceptionBuilder`、`AIVisionBatch`、`SimpleBrain`。
+  AI 调度、批量视觉感知构建和当前大脑实现。当前入口包括 `AIDispatcher`、`PerceptionBuilder`、`AIVisionBatch`、`SimpleBrain`、`FollowerBrain`（队伍跟随 AI）。
+- [`Core/Job`](../Core/Job)
+  工作调度系统。`JobScheduler` 为工人分配任务，`JobExecutor` 执行具体动作，`JobBehaviorModule` 插入 AI 行为链。详见 [`Docs/Systems/01_工作系统.md`](./Systems/01_工作系统.md)。
+- [`Core/Event`](../Core/Event)
+  RimWorld 风格事件调度器。`Storyteller` 根据威胁等级动态选择事件（袭击/商队/流浪者等）。详见 [`Docs/Systems/03_事件系统.md`](./Systems/03_事件系统.md)。
+- [`Core/Social`](../Core/Social)
+  角色间关系与社交互动。非对称好感度、关系标签、社交冷却。详见 [`Docs/Systems/04_社交系统.md`](./Systems/04_社交系统.md)。
+- [`Core/Zone`](../Core/Zone)
+  通用区域管理框架（种植区/禁区/家区等 6 种类型）。详见 [`Docs/Systems/05_区域系统.md`](./Systems/05_区域系统.md)。
+- [`Core/Farm`](../Core/Farm)
+  农业系统：种植/生长/收获/枯萎/自动重种。详见 [`Docs/Systems/06_农业系统.md`](./Systems/06_农业系统.md)。
 - [`Core/Debug`](../Core/Debug)
   调试命令实际执行逻辑。
 - [`Core/World`](../Core/World)
@@ -122,7 +132,7 @@ App/Main.tscn / App/Main.cs
 
 - 玩家和 AI 共用 [`Core/Combat/ActionModule.cs`](../Core/Combat/ActionModule.cs)。
 - `ActionModule` 调 `MapModule`、`CombatModule`、`InteractionModule` 等 Core 模块并产出 `GameEvent`。
-- `TurnModule` 负责推进回合，并驱动巢穴刷新和 AI 行动。
+- `TurnModule` 负责推进回合，并驱动巢穴刷新、AI 行动、事件调度（`Storyteller.Tick`）和作物生长（`FarmModule.TickGrowth`）。
 
 ### 事件到 UI
 

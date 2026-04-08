@@ -31,19 +31,19 @@ public class MenuModule
 	{
 		_mainMenu = root.GetNode<PanelContainer>("OverlayLayer/MainMenu");
 		_gameUI = root.GetNode<VBoxContainer>("HudLayer/UI");
-		_continueBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/ContinueBtn");
-		_worldsBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/WorldsBtn");
-		_mapEditorBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/MapEditorBtn");
-		_weatherLabBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/WeatherLabBtn");
-		_autoTestBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/AutoTestBtn");
+		_continueBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/ContinueBtn");
+		_worldsBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/WorldsBtn");
+		_mapEditorBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/MapEditorBtn");
+		_weatherLabBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/WeatherLabBtn");
+		_autoTestBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/AutoTestBtn");
 
 		_continueBtn.Pressed += () => OnContinue?.Invoke();
 		_worldsBtn.Pressed += () => OnWorlds?.Invoke();
 		_mapEditorBtn.Pressed += () => OnMapEditor?.Invoke();
 		_weatherLabBtn.Pressed += () => OnWeatherLab?.Invoke();
-		root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/SettingsBtn").Pressed += () => OnOpenSettings?.Invoke();
+		root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/SettingsBtn").Pressed += () => OnOpenSettings?.Invoke();
 		_autoTestBtn.Pressed += () => OnAutoTest?.Invoke();
-		root.GetNode<Button>("OverlayLayer/MainMenu/Center/VBox/QuitBtn").Pressed += () => OnQuit?.Invoke();
+		root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/QuitBtn").Pressed += () => OnQuit?.Invoke();
 	}
 
 	public void ShowMainMenu(bool canContinue, bool resourcesReady, string? continueButtonText = null)

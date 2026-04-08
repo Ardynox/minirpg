@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Event;
+using MiniRPG.Core.Farm;
 using MiniRPG.Core.Health;
 
 namespace MiniRPG.Core.Combat;
@@ -18,6 +19,7 @@ public static class TurnModule
 		events.AddRange(WeatherAccumulationSimulator.Advance(state));
 		events.AddRange(FireSystem.Advance(state));
 		events.AddRange(Storyteller.Tick(state));
+		events.AddRange(FarmModule.TickGrowth(state));
 		return events;
 	}
 
