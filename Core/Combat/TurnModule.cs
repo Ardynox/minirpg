@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MiniRPG.Core.AI;
+using MiniRPG.Core.Event;
 using MiniRPG.Core.Health;
 
 namespace MiniRPG.Core.Combat;
@@ -16,6 +17,7 @@ public static class TurnModule
 		var events = NestModule.Tick(state);
 		events.AddRange(WeatherAccumulationSimulator.Advance(state));
 		events.AddRange(FireSystem.Advance(state));
+		events.AddRange(Storyteller.Tick(state));
 		return events;
 	}
 

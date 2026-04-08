@@ -64,7 +64,7 @@ public sealed class MapModuleTests
 	{
 		var s = CreateState();
 		MapModule.SetFixture(s, 3, 3, ">");
-		Assert.True(MapModule.HasFixture(s, 3, 3));
+		Assert.True(MapModule.HasFixture(s, 3, 3, Entities.StairDown));
 	}
 
 	[Fact]
@@ -73,7 +73,7 @@ public sealed class MapModuleTests
 		var s = CreateState();
 		MapModule.SetFixture(s, 3, 3, ">");
 		MapModule.SetFixture(s, 3, 3, "");
-		Assert.False(MapModule.HasFixture(s, 3, 3));
+		Assert.False(MapModule.HasFixture(s, 3, 3, Entities.StairDown));
 	}
 
 	[Fact]
@@ -138,7 +138,12 @@ public sealed class MapModuleTests
 		item.EnsureRuntimeState();
 		MapModule.PlaceItem(s, 5, 5, item);
 
-		var picked = MapModule.PickupItem(s, 5, 5, item.Id);
+		// Get the entity ID from ground items
+		var groundItems = MapModule.PeekGroundItems(s, 5, 5);
+		Assert.NotEmpty(groundItems);
+		var entityId = groundItems[0].InstanceId;
+
+		var picked = MapModule.PickupItem(s, 5, 5, entityId);
 		Assert.NotNull(picked);
 	}
 

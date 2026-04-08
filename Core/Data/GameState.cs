@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Event;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Data;
@@ -58,6 +59,12 @@ public class GameState
 	public Dictionary<string, EconomicDomain> EconomicDomains { get; set; } = new(StringComparer.Ordinal);
 	public JobBoardState JobBoardState { get; set; } = new();
 
+	// ── 队伍 ──
+	public PartyState Party { get; set; } = new();
+
+	// ── 故事讲述者 ──
+	public StorytellerState StorytellerState { get; set; } = new();
+
 	// ── 任务 ──
 	public List<Quest> Quests { get; set; } = [];
 
@@ -94,6 +101,8 @@ public class GameState
 		StockpileZones.Clear();
 		EconomicDomains.Clear();
 		JobBoardState = new JobBoardState();
+		Party = new PartyState();
+		StorytellerState = new StorytellerState();
 		Quests.Clear();
 		KillCount = 0;
 		Timeline.Reset();

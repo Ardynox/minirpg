@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.AI;
+using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 
 namespace MiniRPG.Core.Combat;
@@ -225,7 +226,11 @@ public static class TimelineTurnManager
 	public static bool IsPlayerTurn(GameState state)
 	{
 		var actor = EnsureCurrentActor(state);
-		return actor?.Id == state.PlayerId && IsPlayerControllable(actor);
+		if (actor == null || !IsPlayerControllable(actor))
+			return false;
+
+		// 激活角色的回合 = 玩家回合
+		return string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal);
 	}
 
 	public static float CalculateSpeed(Actor actor)
@@ -263,7 +268,10 @@ public static class TimelineTurnManager
 			? TryGetActiveActor(state, state.Timeline.CurrentActorId)
 			: EnsureCurrentActor(state);
 		var lastActor = TryGetActiveActor(state, state.Timeline.LastActorId);
-		var isPlayerTurn = !playerDead && currentActor?.Id == state.PlayerId && IsPlayerControllable(currentActor);
+		var isPlayerTurn = !playerDead
+			&& currentActor != null
+			&& string.Equals(currentActor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal)
+			&& IsPlayerControllable(currentActor);
 		var hasPendingAutoAdvance = !playerDead
 			&& currentActor != null
 			&& (resolvedWatchMode || !isPlayerTurn);
@@ -285,7 +293,9 @@ public static class TimelineTurnManager
 	{
 		var result = new TimelineStepResult();
 		var actor = EnsureCurrentActor(state);
-		if (actor == null || actor.Id != state.PlayerId || !IsPlayerControllable(actor))
+		if (actor == null
+			|| !string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal)
+			|| !IsPlayerControllable(actor))
 		{
 			result.PlayerTurnReady = false;
 			result.HasPendingAutoStep = actor != null;
@@ -328,14 +338,15 @@ public static class TimelineTurnManager
 			return result;
 		}
 
-		if (actor.Id == state.PlayerId && !watchModeEnabled && IsPlayerControllable(actor))
+		var isActivePartyMember = string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal);
+		if (isActivePartyMember && !watchModeEnabled && IsPlayerControllable(actor))
 		{
 			result.PlayerTurnReady = true;
 			return result;
 		}
 
 		result.ActingActorId = actor.Id;
-		if (actor.Id == state.PlayerId)
+		if (isActivePartyMember)
 		{
 			actor.BrainId ??= "simple";
 		}
@@ -344,7 +355,7 @@ public static class TimelineTurnManager
 		result.Events.AddRange(execution.Events);
 		if (!execution.Consumed)
 		{
-			result.PlayerTurnReady = actor.Id == state.PlayerId && !watchModeEnabled;
+			result.PlayerTurnReady = isActivePartyMember && !watchModeEnabled;
 			result.HasPendingAutoStep = !result.PlayerTurnReady;
 			return result;
 		}
@@ -662,7 +673,7 @@ public static class TimelineTurnManager
 			.Select(item => new TimelineDebugEntry
 			{
 				ActorName = GetActorDisplayName(item.Actor),
-				IsPlayer = string.Equals(item.Actor.Id, state.PlayerId, StringComparison.Ordinal),
+				IsPlayer = PartyModule.IsPartyMember(state, item.Actor.Id),
 				IsCurrent = item.IsCurrent,
 				IsLast = item.IsLast,
 				Charge = item.Charge,

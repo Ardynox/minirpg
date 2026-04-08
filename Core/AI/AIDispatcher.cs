@@ -18,6 +18,7 @@ public static class AIDispatcher
 	{
 		Register("simple", new SimpleBrain());
 		Register(WorkBrainIds.DomainWorker, new SimpleBrain());
+		Register(FollowerBrain.BrainId, new FollowerBrain());
 	}
 
 	public static void Register(string id, IBrainModule brain) => _brains[id] = brain;
@@ -48,8 +49,10 @@ public static class AIDispatcher
 		double decisionExecuteMs = 0d;
 		var dispatchStart = captureProfile ? ProfilingClock.Start() : 0L;
 
+		var activePartyId = PartyModule.GetActiveId(state);
 		var actors = state.Actors.Values
-			.Where(actor => actor.BrainId != null && actor.Id != state.PlayerId)
+			.Where(actor => actor.BrainId != null
+				&& !string.Equals(actor.Id, activePartyId, StringComparison.Ordinal))
 			.ToList();
 		var awarenessContext = AwarenessModule.CreateTurnContext(state);
 		var behaviorContext = new AIBehaviorContext(state);
