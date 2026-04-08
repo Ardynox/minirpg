@@ -577,332 +577,337 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Ready()
 	{
-		GameConfig.Load();
-		PresetDB.Load();
-		LocalizationService.Initialize();
-		LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
-		_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
-		_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
-		TerrainRegistry.Load("terrains.json");
-		GameLocalizer.CaptureBaseSnapshots();
-		GameLocalizer.ApplyPresetTranslations();
-		DialogPool.Load();
-		ResAccess.Load();
-		_combatFxRegistry = CombatFxRegistry.Load();
-		PlayerAppearanceCatalog.LoadProjectCatalog();
-		_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
+		try
+		{
+			BindStartupOverlayNodes();
+			GameConfig.Load();
+			PresetDB.Load();
+			LocalizationService.Initialize();
+			LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
+			_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
+			_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
+			TerrainRegistry.Load("terrains.json");
+			GameLocalizer.CaptureBaseSnapshots();
+			GameLocalizer.ApplyPresetTranslations();
+			DialogPool.Load();
+			ResAccess.Load();
+			_combatFxRegistry = CombatFxRegistry.Load();
+			PlayerAppearanceCatalog.LoadProjectCatalog();
+			_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 
-		_session = new GameSessionModule(_state, _fogTracker);
-		_menu = new MenuModule(this);
+			_session = new GameSessionModule(_state, _fogTracker);
+			_menu = new MenuModule(this);
 
-		_mapPanelNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/MapPanel");
-		var logPanelNode = GetNode<PanelContainer>($"{HudRootPath}/LogPanel");
-		var logContent = logPanelNode.GetNode<RichTextLabel>("MarginContainer/VBox/ContentText");
-		_log = new LogModule(logContent);
-		_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
-		var lineEdit = _inputBar;
-		_mapEditor = new MapEditorSession(_state);
+			_mapPanelNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/MapPanel");
+			var logPanelNode = GetNode<PanelContainer>($"{HudRootPath}/LogPanel");
+			var logContent = logPanelNode.GetNode<RichTextLabel>("MarginContainer/VBox/ContentText");
+			_log = new LogModule(logContent);
+			_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
+			var lineEdit = _inputBar;
+			_mapEditor = new MapEditorSession(_state);
 
-		_startupOverlay = GetNode<Control>($"{OverlayRootPath}/StartupOverlay");
-		_startupStatusLabel = GetNode<Label>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Status");
-		_startupProgressBar = GetNode<ProgressBar>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Progress");
-		_combatFxTextRoot = CreateMapOverlayRoot(_mapPanelNode);
+			_combatFxTextRoot = CreateMapOverlayRoot(_mapPanelNode);
 
-		var uiTheme = GetNode<Control>(HudRootPath).Theme;
-		var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
-		floatingRoot.Theme = uiTheme;
-		var overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
-		overlayLayer.AddChild(floatingRoot);
-		var threatHudNode = ThreatHudModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(threatHudNode);
-		_threatHud = new ThreatHudModule(threatHudNode);
-		var targetSummaryHudNode = TargetSummaryHudModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(targetSummaryHudNode);
-		_targetSummaryHud = new TargetSummaryHudModule(targetSummaryHudNode);
-		var needsHudNode = NeedsHudModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(needsHudNode);
-		_needsHud = new NeedsHudModule(needsHudNode);
-		var healthAlertsNode = HealthAlertsModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(healthAlertsNode);
-		_healthAlerts = new HealthAlertsModule(healthAlertsNode);
-		var partyHudNode = PartyHudModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(partyHudNode);
-		_partyHud = new PartyHudModule(partyHudNode);
-		var incidentAlertNode = IncidentAlertModule.CreateControl(uiTheme);
-		overlayLayer.AddChild(incidentAlertNode);
-		_incidentAlerts = new IncidentAlertModule(incidentAlertNode);
-		_lastActiveThreatMode = ThreatHudMode.Hidden;
+			var uiTheme = GetNode<Control>(HudRootPath).Theme;
+			var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
+			floatingRoot.Theme = uiTheme;
+			var overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
+			overlayLayer.AddChild(floatingRoot);
+			var threatHudNode = ThreatHudModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(threatHudNode);
+			_threatHud = new ThreatHudModule(threatHudNode);
+			var targetSummaryHudNode = TargetSummaryHudModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(targetSummaryHudNode);
+			_targetSummaryHud = new TargetSummaryHudModule(targetSummaryHudNode);
+			var needsHudNode = NeedsHudModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(needsHudNode);
+			_needsHud = new NeedsHudModule(needsHudNode);
+			var healthAlertsNode = HealthAlertsModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(healthAlertsNode);
+			_healthAlerts = new HealthAlertsModule(healthAlertsNode);
+			var partyHudNode = PartyHudModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(partyHudNode);
+			_partyHud = new PartyHudModule(partyHudNode);
+			var incidentAlertNode = IncidentAlertModule.CreateControl(uiTheme);
+			overlayLayer.AddChild(incidentAlertNode);
+			_incidentAlerts = new IncidentAlertModule(incidentAlertNode);
+			_lastActiveThreatMode = ThreatHudMode.Hidden;
 
-		var layoutStore = new PanelLayoutStore();
-		var buttonScaleService = new PanelButtonScaleService();
-		PanelButtonScaleRegistry.Bind(buttonScaleService);
-		_panelLayouts = new PanelLayoutService(layoutStore, buttonScaleService);
-		_panelLayouts.Initialize();
-		_panelDrag = new PanelDragService(layoutStore, floatingRoot);
-		_panelChrome = new PanelHoverChromeService(floatingRoot, _panelLayouts, _panelDrag);
-		_inputBindings = new InputBindingService(ProjectSettings.GlobalizePath("user://keybindings.json"));
+			var layoutStore = new PanelLayoutStore();
+			var buttonScaleService = new PanelButtonScaleService();
+			PanelButtonScaleRegistry.Bind(buttonScaleService);
+			_panelLayouts = new PanelLayoutService(layoutStore, buttonScaleService);
+			_panelLayouts.Initialize();
+			_panelDrag = new PanelDragService(layoutStore, floatingRoot);
+			_panelChrome = new PanelHoverChromeService(floatingRoot, _panelLayouts, _panelDrag);
+			_inputBindings = new InputBindingService(ProjectSettings.GlobalizePath("user://keybindings.json"));
 
-		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TopRow/StatusPanel"));
-		_turnPanelModule = new TurnPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TurnPanel"));
-		var pauseMenuNode = GetNode<PanelContainer>($"{OverlayRootPath}/PauseMenuPanel");
-		pauseMenuNode.Theme = uiTheme;
-		_pauseMenuPanelModule = new PauseMenuPanelModule(pauseMenuNode);
-		var settingsPanelNode = GetNode<PanelContainer>($"{OverlayRootPath}/SettingsPanel");
-		settingsPanelNode.Theme = uiTheme;
-		_settingsPanelModule = new SettingsPanelModule(settingsPanelNode, _inputBindings);
-		var layoutEditBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/LayoutEditBar");
-		layoutEditBarNode.Theme = uiTheme;
-		_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
-		var worldManagerNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldManager");
-		worldManagerNode.Theme = uiTheme;
-		_worldManager = new WorldManagerModule(worldManagerNode);
-		var mapEditorBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/MapEditorBar");
-		mapEditorBarNode.Theme = uiTheme;
-		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
-		InitializeWeatherLabPanel(uiTheme);
-		var saveNameDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/SaveNameDialog");
-		saveNameDialogNode.Theme = uiTheme;
-		_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
-		var characterCreationNode = GetNode<PanelContainer>($"{OverlayRootPath}/CharacterCreationDialog");
-		characterCreationNode.Theme = uiTheme;
-		_characterCreation = new CharacterCreationModule(characterCreationNode);
-		var worldSettingsDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldSettingsDialog");
-		worldSettingsDialogNode.Theme = uiTheme;
-		_worldSettingsDialog = new WorldSettingsDialogModule(worldSettingsDialogNode);
-		var confirmDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/ConfirmDialog");
-		confirmDialogNode.Theme = uiTheme;
-		_confirmDialog = new ConfirmDialogModule(confirmDialogNode);
+			_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TopRow/StatusPanel"));
+			_turnPanelModule = new TurnPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TurnPanel"));
+			var pauseMenuNode = GetNode<PanelContainer>($"{OverlayRootPath}/PauseMenuPanel");
+			pauseMenuNode.Theme = uiTheme;
+			_pauseMenuPanelModule = new PauseMenuPanelModule(pauseMenuNode);
+			var settingsPanelNode = GetNode<PanelContainer>($"{OverlayRootPath}/SettingsPanel");
+			settingsPanelNode.Theme = uiTheme;
+			_settingsPanelModule = new SettingsPanelModule(settingsPanelNode, _inputBindings);
+			var layoutEditBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/LayoutEditBar");
+			layoutEditBarNode.Theme = uiTheme;
+			_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
+			var worldManagerNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldManager");
+			worldManagerNode.Theme = uiTheme;
+			_worldManager = new WorldManagerModule(worldManagerNode);
+			var mapEditorBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/MapEditorBar");
+			mapEditorBarNode.Theme = uiTheme;
+			_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
+			InitializeWeatherLabPanel(uiTheme);
+			var saveNameDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/SaveNameDialog");
+			saveNameDialogNode.Theme = uiTheme;
+			_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
+			var characterCreationNode = GetNode<PanelContainer>($"{OverlayRootPath}/CharacterCreationDialog");
+			characterCreationNode.Theme = uiTheme;
+			_characterCreation = new CharacterCreationModule(characterCreationNode);
+			var worldSettingsDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldSettingsDialog");
+			worldSettingsDialogNode.Theme = uiTheme;
+			_worldSettingsDialog = new WorldSettingsDialogModule(worldSettingsDialogNode);
+			var confirmDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/ConfirmDialog");
+			confirmDialogNode.Theme = uiTheme;
+			_confirmDialog = new ConfirmDialogModule(confirmDialogNode);
 
-		var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
-		skillBarNode.Theme = uiTheme;
-		_skillBar = new SkillBarModule(skillBarNode);
-		_skillBar.CloseRequested += CloseSkillBarPanel;
-		_skillBar.ConfirmRequested += HandleSkillConfirmRequested;
-		var skillManagerNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/SkillManager");
-		_skillMgr = new SkillManagerModule(skillManagerNode);
-		var inventoryNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/InventoryPanel");
-		_inventoryPanel = new InventoryPanelModule(inventoryNode, this);
-		var groundNode = GetNode<PanelContainer>($"{HudRootPath}/GroundPanel");
-		_groundPanel = new GroundPanelModule(groundNode, this);
+			var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
+			skillBarNode.Theme = uiTheme;
+			_skillBar = new SkillBarModule(skillBarNode);
+			_skillBar.CloseRequested += CloseSkillBarPanel;
+			_skillBar.ConfirmRequested += HandleSkillConfirmRequested;
+			var skillManagerNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/SkillManager");
+			_skillMgr = new SkillManagerModule(skillManagerNode);
+			var inventoryNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/InventoryPanel");
+			_inventoryPanel = new InventoryPanelModule(inventoryNode, this);
+			var groundNode = GetNode<PanelContainer>($"{HudRootPath}/GroundPanel");
+			_groundPanel = new GroundPanelModule(groundNode, this);
 
-		_panels = new PanelManager();
-		_panels.SetFloatingCheck(_panelDrag.IsFloating);
-		_panelDrag.LayoutChanged += RefreshAllBorders;
-		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
-		_panels.Register(_statusPanelModule);
-		_panels.Register(_skillBar);
-		_panels.Register(_skillMgr);
-		_panels.Register(_inventoryPanel);
-		_panels.Register(_groundPanel);
-		_panels.RegisterPassive(logPanelNode, "log", canFocus: false);
+			_panels = new PanelManager();
+			_panels.SetFloatingCheck(_panelDrag.IsFloating);
+			_panelDrag.LayoutChanged += RefreshAllBorders;
+			_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
+			_panels.Register(_statusPanelModule);
+			_panels.Register(_skillBar);
+			_panels.Register(_skillMgr);
+			_panels.Register(_inventoryPanel);
+			_panels.Register(_groundPanel);
+			_panels.RegisterPassive(logPanelNode, "log", canFocus: false);
 
-		RegisterAlwaysDirectDraggable(_statusPanelModule);
-		RegisterAlwaysDirectDraggable(_skillBar);
-		RegisterAlwaysDirectDraggable(_skillMgr);
-		RegisterAlwaysDirectDraggable(_inventoryPanel);
-		RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
-		RegisterEditModeOnly("log", logPanelNode, defaultFloating: false, logContent);
-		RegisterCommonPanelChrome(_statusPanelModule, "MarginContainer/VBox/HeaderBar/NameInfo", CloseStatusPanel);
-		RegisterCommonPanelChrome(_skillBar, "MarginContainer/VBox/HeaderBar/Header", CloseSkillBarPanel);
-		RegisterCommonPanelChrome(_skillMgr, "MarginContainer/VBox/HeaderBar/Header", CloseSkillManagerPanel);
-		RegisterCommonPanelChrome(_inventoryPanel, "MarginContainer/VBox/HeaderBar/Header", CloseInventoryPanel);
+			RegisterAlwaysDirectDraggable(_statusPanelModule);
+			RegisterAlwaysDirectDraggable(_skillBar);
+			RegisterAlwaysDirectDraggable(_skillMgr);
+			RegisterAlwaysDirectDraggable(_inventoryPanel);
+			RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
+			RegisterEditModeOnly("log", logPanelNode, defaultFloating: false, logContent);
+			RegisterCommonPanelChrome(_statusPanelModule, "MarginContainer/VBox/HeaderBar/NameInfo", CloseStatusPanel);
+			RegisterCommonPanelChrome(_skillBar, "MarginContainer/VBox/HeaderBar/Header", CloseSkillBarPanel);
+			RegisterCommonPanelChrome(_skillMgr, "MarginContainer/VBox/HeaderBar/Header", CloseSkillManagerPanel);
+			RegisterCommonPanelChrome(_inventoryPanel, "MarginContainer/VBox/HeaderBar/Header", CloseInventoryPanel);
 
-		_inputModule = new InputModule(lineEdit, _inputBindings);
-		_panels.Register(_pauseMenuPanelModule);
-		_panels.Register(_settingsPanelModule);
-		_settingsFlow = new SettingsFlowCoordinator(
-			new PanelManagerSettingsFlowFocusHost(_panels),
-			_pauseMenuPanelModule,
-			_settingsPanelModule);
-		_settingsFlowModalInput = new SettingsFlowModalInputAdapter(_settingsFlow, _panels, FlushMap);
-		_modalInputLayers =
-		[
-			_confirmDialog,
-			_worldManager,
-			_worldSettingsDialog,
-			_saveNameDialog,
-			_characterCreation,
-			_settingsFlowModalInput,
-		];
-		_modalStateController = new ModalStateController(
-			_panelChrome.CloseActiveSettings,
-			HideSettingsPanels,
-			CloseSettingsOverlayIfVisible,
-			() => ExitMapEditor(silent: true),
-			CancelLayoutEditMode,
-			() => _mainAppFlowCoordinator.CloseConfirmDialog(),
-			() => _mainAppFlowCoordinator.CloseWorldManager(),
-			() => _mainAppFlowCoordinator.CloseWorldSettingsDialog(),
-			CloseSaveNameDialog,
-			() => _mainAppFlowCoordinator.CloseCharacterCreationDialog());
-		_mainAppFlowCoordinator = new MainAppFlowCoordinator(
-			_state,
-			_session,
-			_log,
-			_menu,
-			_settingsFlow,
-			_worldManager,
-			_worldSettingsDialog,
-			_characterCreation,
-			_saveNameDialog,
-			_confirmDialog,
-			_inputModule,
-			_panels,
-			_modalStateController,
-			() => ResourcesReady,
-			() => _busyOperationActive,
-			() => LayoutEditActive,
-			() => MapEditorActive,
-			() => _state.World != null,
-			ShowMainMenuWithCurrentContinue,
-			RefreshMainMenuContinueState,
-			ShowGameHints,
-			ShowWorldCharacterEntryHint,
-			ShowMapEditorHints,
-			FinalizeSessionPanels,
-			DoEnterGame,
-			HideSettingsPanels,
-			() => ClearArmedSkill(restoreFocus: false),
-			() => EndInspectMode(restoreFocus: false),
-			ClearPlayerTargeting,
-			ResetThreatHud,
-			() => _log.Clear(),
-			value => PlayerDead = value,
-			() => SetWatchModeEnabled(false, emitLog: false),
-			() => _playerRestModeActive = false,
-			ResetTimelineStatusLog,
-			() =>
+			_inputModule = new InputModule(lineEdit, _inputBindings);
+			_panels.Register(_pauseMenuPanelModule);
+			_panels.Register(_settingsPanelModule);
+			_settingsFlow = new SettingsFlowCoordinator(
+				new PanelManagerSettingsFlowFocusHost(_panels),
+				_pauseMenuPanelModule,
+				_settingsPanelModule);
+			_settingsFlowModalInput = new SettingsFlowModalInputAdapter(_settingsFlow, _panels, FlushMap);
+			_modalInputLayers =
+			[
+				_confirmDialog,
+				_worldManager,
+				_worldSettingsDialog,
+				_saveNameDialog,
+				_characterCreation,
+				_settingsFlowModalInput,
+			];
+			_modalStateController = new ModalStateController(
+				_panelChrome.CloseActiveSettings,
+				HideSettingsPanels,
+				CloseSettingsOverlayIfVisible,
+				() => ExitMapEditor(silent: true),
+				CancelLayoutEditMode,
+				() => _mainAppFlowCoordinator.CloseConfirmDialog(),
+				() => _mainAppFlowCoordinator.CloseWorldManager(),
+				() => _mainAppFlowCoordinator.CloseWorldSettingsDialog(),
+				CloseSaveNameDialog,
+				() => _mainAppFlowCoordinator.CloseCharacterCreationDialog());
+			_mainAppFlowCoordinator = new MainAppFlowCoordinator(
+				_state,
+				_session,
+				_log,
+				_menu,
+				_settingsFlow,
+				_worldManager,
+				_worldSettingsDialog,
+				_characterCreation,
+				_saveNameDialog,
+				_confirmDialog,
+				_inputModule,
+				_panels,
+				_modalStateController,
+				() => ResourcesReady,
+				() => _busyOperationActive,
+				() => LayoutEditActive,
+				() => MapEditorActive,
+				() => _state.World != null,
+				ShowMainMenuWithCurrentContinue,
+				RefreshMainMenuContinueState,
+				ShowGameHints,
+				ShowWorldCharacterEntryHint,
+				ShowMapEditorHints,
+				FinalizeSessionPanels,
+				DoEnterGame,
+				HideSettingsPanels,
+				() => ClearArmedSkill(restoreFocus: false),
+				() => EndInspectMode(restoreFocus: false),
+				ClearPlayerTargeting,
+				ResetThreatHud,
+				() => _log.Clear(),
+				value => PlayerDead = value,
+				() => SetWatchModeEnabled(false, emitLog: false),
+				() => _playerRestModeActive = false,
+				ResetTimelineStatusLog,
+				() =>
+				{
+					if (_dialogUI != null && _dialogUI.InDialog)
+						_dialogUI.CloseDialog();
+				},
+				() =>
+				{
+					if (_tradeUI != null && _tradeUI.InTrade)
+						_tradeUI.CloseTrade();
+				},
+				() => _skillBar.Close(),
+				CloseDebugPanel,
+				RefreshPlayerCharacterVisual,
+				RefreshLocalizedUi,
+				SyncSettingsUiState,
+				() => SyncTimelineAutoAdvanceState(),
+				_weatherLabPanelController.RefreshSessionState,
+				_weatherLabPanelController.Close,
+				DoSave,
+				DoLoad,
+				BeginLayoutEditMode,
+				EnterMapEditorCore,
+				silent => ExitMapEditor(silent),
+				FlushMap,
+				BeginBusyOperation,
+				ShowBusyOperationStageAsync,
+				EndBusyOperation);
+			_debugPanelController = new DebugPanelController(
+				_state,
+				_session,
+				_log,
+				_panels,
+				CreateDebugPanel,
+				MarkUIDirty,
+				FlushMap,
+				SubmitPlayerActionWithResult,
+				() => _session.GameStarted,
+				() => _menu.InMenu,
+				() => _enableDebugPanel);
+			_mainInputCoordinator = new MainInputCoordinator(
+				_modalInputLayers,
+				() => GetViewport().SetInputAsHandled(),
+				@event => _panelChrome.HandleInput(@event, enabled: true),
+				_panelDrag.HandleGlobalInput,
+				HandleLayoutEditKeyInput,
+				HandleLayoutEditInput,
+				HandleMapEditorKeyInput,
+				HandleMapEditorMouseInput,
+				HandleInspectModeKey,
+				_panels.HandleKey,
+				_inputModule.HandleKeyInput,
+				HandleGameplayMouseInput);
+			_inputModule.CommandReceived += OnCommand;
+
+			_combatUI = new CombatUIModule(this);
+			_settingsFlow.RenderToggleRequested += ToggleRender;
+			_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
+			_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
+			_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
+			_settingsFlow.MapEditorToggleRequested += _mainAppFlowCoordinator.ToggleMapEditor;
+			_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
+			_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
+			_settingsFlow.SaveRequested += DoSaveCurrent;
+			_settingsFlow.LoadRequested += () => _mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
+			_settingsFlow.LanguageChangedRequested += HandleLanguageChanged;
+			_settingsFlow.QuickSaveRequested += () =>
 			{
-				if (_dialogUI != null && _dialogUI.InDialog)
-					_dialogUI.CloseDialog();
-			},
-			() =>
+				var path = _session.GetQuickSavePath();
+				DoSave(path, _session.DescribeSavePath(path));
+			};
+			_settingsFlow.QuickLoadRequested += _mainAppFlowCoordinator.HandleQuickLoadRequested;
+			_settingsFlow.ReturnToMenuRequested += _mainAppFlowCoordinator.HandleBackToMenu;
+			_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
+			_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
+			_layoutEditBar.CancelRequested += CancelLayoutEditMode;
+			_layoutEditBar.ResetRequested += ResetLayoutEditMode;
+			_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
+			_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
+			_worldManager.DeleteSaveDataRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested;
+			_worldManager.CleanAssetsRequested += _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested;
+			_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
+			_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
+			_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
+			_worldManager.LegacySaveRequested += _mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested;
+			_mapEditorBar.CategorySelected += category =>
 			{
-				if (_tradeUI != null && _tradeUI.InTrade)
-					_tradeUI.CloseTrade();
-			},
-			() => _skillBar.Close(),
-			CloseDebugPanel,
-			RefreshPlayerCharacterVisual,
-			RefreshLocalizedUi,
-			SyncSettingsUiState,
-			() => SyncTimelineAutoAdvanceState(),
-			_weatherLabPanelController.RefreshSessionState,
-			_weatherLabPanelController.Close,
-			DoSave,
-			DoLoad,
-			BeginLayoutEditMode,
-			EnterMapEditorCore,
-			silent => ExitMapEditor(silent),
-			FlushMap,
-			BeginBusyOperation,
-			ShowBusyOperationStageAsync,
-			EndBusyOperation);
-		_debugPanelController = new DebugPanelController(
-			_state,
-			_session,
-			_log,
-			_panels,
-			CreateDebugPanel,
-			MarkUIDirty,
-			FlushMap,
-			SubmitPlayerActionWithResult,
-			() => _session.GameStarted,
-			() => _menu.InMenu,
-			() => _enableDebugPanel);
-		_mainInputCoordinator = new MainInputCoordinator(
-			_modalInputLayers,
-			() => GetViewport().SetInputAsHandled(),
-			@event => _panelChrome.HandleInput(@event, enabled: true),
-			_panelDrag.HandleGlobalInput,
-			HandleLayoutEditKeyInput,
-			HandleLayoutEditInput,
-			HandleMapEditorKeyInput,
-			HandleMapEditorMouseInput,
-			HandleInspectModeKey,
-			_panels.HandleKey,
-			_inputModule.HandleKeyInput,
-			HandleGameplayMouseInput);
-		_inputModule.CommandReceived += OnCommand;
+				_mapEditor.SelectCategory(category);
+				RefreshMapEditorBar();
+				FlushMap();
+			};
+			_mapEditorBar.BrushSelected += index =>
+			{
+				_mapEditor.SelectBrush(index);
+				RefreshMapEditorBar();
+				FlushMap();
+			};
+			_mapEditorBar.SaveRequested += HandleMapEditorSaveRequested;
+			_mapEditorBar.ExitRequested += () => ExitMapEditor();
+			_mapEditorBar.CenterRequested += () =>
+			{
+				_mapEditor.CenterOnPlayer();
+				FlushMap();
+			};
+			_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
+			_saveNameDialog.CancelRequested += CloseSaveNameDialog;
+			_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
+			_characterCreation.CancelRequested += _mainAppFlowCoordinator.HandleCharacterCreationCanceled;
+			_worldSettingsDialog.ConfirmRequested += _mainAppFlowCoordinator.HandleWorldSettingsConfirmed;
+			_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
+			_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;
+			_confirmDialog.CancelRequested += _mainAppFlowCoordinator.CloseConfirmDialog;
 
-		_combatUI = new CombatUIModule(this);
-		_settingsFlow.RenderToggleRequested += ToggleRender;
-		_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
-		_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
-		_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
-		_settingsFlow.MapEditorToggleRequested += _mainAppFlowCoordinator.ToggleMapEditor;
-		_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
-		_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
-		_settingsFlow.SaveRequested += DoSaveCurrent;
-		_settingsFlow.LoadRequested += () => _mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
-		_settingsFlow.LanguageChangedRequested += HandleLanguageChanged;
-		_settingsFlow.QuickSaveRequested += () =>
-		{
-			var path = _session.GetQuickSavePath();
-			DoSave(path, _session.DescribeSavePath(path));
-		};
-		_settingsFlow.QuickLoadRequested += _mainAppFlowCoordinator.HandleQuickLoadRequested;
-		_settingsFlow.ReturnToMenuRequested += _mainAppFlowCoordinator.HandleBackToMenu;
-		_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
-		_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
-		_layoutEditBar.CancelRequested += CancelLayoutEditMode;
-		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
-		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
-		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
-		_worldManager.DeleteSaveDataRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested;
-		_worldManager.CleanAssetsRequested += _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested;
-		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
-		_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
-		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
-		_worldManager.LegacySaveRequested += _mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested;
-		_mapEditorBar.CategorySelected += category =>
-		{
-			_mapEditor.SelectCategory(category);
-			RefreshMapEditorBar();
-			FlushMap();
-		};
-		_mapEditorBar.BrushSelected += index =>
-		{
-			_mapEditor.SelectBrush(index);
-			RefreshMapEditorBar();
-			FlushMap();
-		};
-		_mapEditorBar.SaveRequested += HandleMapEditorSaveRequested;
-		_mapEditorBar.ExitRequested += () => ExitMapEditor();
-		_mapEditorBar.CenterRequested += () =>
-		{
-			_mapEditor.CenterOnPlayer();
-			FlushMap();
-		};
-		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
-		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
-		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
-		_characterCreation.CancelRequested += _mainAppFlowCoordinator.HandleCharacterCreationCanceled;
-		_worldSettingsDialog.ConfirmRequested += _mainAppFlowCoordinator.HandleWorldSettingsConfirmed;
-		_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
-		_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;
-		_confirmDialog.CancelRequested += _mainAppFlowCoordinator.CloseConfirmDialog;
+			_menu.OnContinue += _mainAppFlowCoordinator.HandleMenuContinue;
+			_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
+			_menu.OnMapEditor += _mainAppFlowCoordinator.HandleMenuMapEditor;
+			_menu.OnWeatherLab += HandleMenuWeatherLab;
+			_menu.OnAutoTest += HandleAutoTest;
+			_menu.OnQuit += () => GetTree().Quit();
+			_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;
 
-		_menu.OnContinue += _mainAppFlowCoordinator.HandleMenuContinue;
-		_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
-		_menu.OnMapEditor += _mainAppFlowCoordinator.HandleMenuMapEditor;
-		_menu.OnWeatherLab += HandleMenuWeatherLab;
-		_menu.OnAutoTest += HandleAutoTest;
-		_menu.OnQuit += () => GetTree().Quit();
-		_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;
-
-		LocalizationService.LocalizeTree(this);
-		_settingsFlow.RefreshTexts();
-		SyncSettingsUiState();
-		ShowMainMenuWithCurrentContinue();
-		RefreshStartupUi();
-		BeginHeavyStartupLoad();
+			LocalizationService.LocalizeTree(this);
+			_settingsFlow.RefreshTexts();
+			SyncSettingsUiState();
+			ShowMainMenuWithCurrentContinue();
+			RefreshStartupUi();
+			BeginHeavyStartupLoad();
+		}
+		catch (Exception ex)
+		{
+			FailStartupBootstrap("startup-bootstrap", ex);
+		}
 	}
 
 	/// <summary>每帧更新：驱动异步资源加载 + 脏面板统一刷新 + 看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
-		if (!IsNodeReady())
+		if (ShouldSkipRuntimeCallbacks())
 			return;
 
 		var snapshot = CaptureRuntimeUiMode();
@@ -1272,12 +1277,41 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void FailHeavyStartupLoad(string path, string reason)
 	{
 		GD.PrintErr($"[Startup] Heavy resource load failed: {path} ({reason})");
+		TransitionToStartupFailed(path);
+	}
+
+	private void FailStartupBootstrap(string path, Exception ex)
+	{
+		GD.PrintErr($"[Startup] Bootstrap failed: {path} ({ex.GetType().Name}: {ex.Message})");
+		TransitionToStartupFailed(path);
+	}
+
+	private void TransitionToStartupFailed(string path)
+	{
 		_startupState = StartupState.Failed;
 		_startupLastLoadPath = path;
 		_startupLoadPath = null;
 		_startupLoadStartedAtMsec = 0;
 		_startupStatusKey = "ui.startup.status.failed";
 		RefreshStartupUi();
+	}
+
+	private void BindStartupOverlayNodes()
+	{
+		var startupOverlay = GetNode<Control>($"{OverlayRootPath}/StartupOverlay");
+		var startupStatusLabel = GetNode<Label>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Status");
+		var startupProgressBar = GetNode<ProgressBar>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Progress");
+		_startupOverlay = startupOverlay;
+		_startupStatusLabel = startupStatusLabel;
+		_startupProgressBar = startupProgressBar;
+	}
+
+	private bool ShouldSkipRuntimeCallbacks()
+	{
+		if (_startupState == StartupState.Failed)
+			return true;
+
+		return !IsNodeReady();
 	}
 
 	private void RefreshStartupUi()
@@ -1303,7 +1337,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_startupOverlay.MouseFilter = overlayVisible && (_busyOperationActive || _startupState != StartupState.Failed)
 			? Control.MouseFilterEnum.Stop
 			: Control.MouseFilterEnum.Ignore;
-		RefreshMainMenuContinueState();
+		if (_menu != null && _session != null)
+			RefreshMainMenuContinueState();
 		SyncSettingsUiState();
 	}
 
@@ -1336,6 +1371,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void RefreshMainMenuContinueState()
 	{
+		if (_session == null || _menu == null)
+			return;
+
 		var continueTarget = _session.ResolveContinueTarget();
 		_menu.RefreshMainMenuState(
 			continueTarget.Kind != ContinueTargetKind.None,
@@ -1532,7 +1570,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (!IsNodeReady())
+		if (ShouldSkipRuntimeCallbacks())
 			return;
 
 		var snapshot = CaptureRuntimeUiMode();
@@ -1549,7 +1587,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Input(InputEvent @event)
 	{
-		if (!IsNodeReady())
+		if (ShouldSkipRuntimeCallbacks())
 			return;
 
 		var snapshot = CaptureRuntimeUiMode();

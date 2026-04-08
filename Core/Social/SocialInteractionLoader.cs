@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.Social;
@@ -12,6 +13,8 @@ public static class SocialInteractionLoader
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{
 		PropertyNameCaseInsensitive = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+		Converters = { new JsonStringEnumConverter() },
 	};
 
 	public static void Load(string relativeDataPath = "social_interactions.json")

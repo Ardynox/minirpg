@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Event;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Trade;
 using Xunit;
@@ -105,6 +107,38 @@ public sealed class ResourceLoadTests
 		var installArm = SurgeryOperationRegistry.Get("install_arm");
 		Assert.NotNull(installArm);
 		Assert.Equal(SurgeryOperationModes.LiveInstall, installArm!.Mode);
+	}
+
+	[Fact]
+	public void PresetDB_LoadsStorytellerDefsFromJsonStringEnums()
+	{
+		Storyteller.ClearDefs();
+		typeof(PresetDB).GetField("_loaded", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, false);
+		PresetDB.Load();
+
+		Assert.Equal(IncidentCategory.Threat, Storyteller.GetDef("raid_goblin")?.Category);
+		Assert.Equal(IncidentCategory.Neutral, Storyteller.GetDef("trader_visit")?.Category);
+		Assert.Equal(IncidentCategory.Positive, Storyteller.GetDef("wanderer_join")?.Category);
+	}
+
+	[Fact]
+	public void StorytellerLoader_DeserializeDefs_ParsesStringEnumCategory()
+	{
+		const string json = """
+			[
+			  {
+			    "id": "test_threat",
+			    "name": "Test Threat",
+			    "category": "Threat"
+			  }
+			]
+			""";
+
+		var method = typeof(StorytellerDefLoader).GetMethod("DeserializeDefs", BindingFlags.NonPublic | BindingFlags.Static);
+		var defs = Assert.IsType<List<IncidentDef>>(method!.Invoke(null, [json]));
+
+		var def = Assert.Single(defs);
+		Assert.Equal(IncidentCategory.Threat, def.Category);
 	}
 
 	[Fact]
