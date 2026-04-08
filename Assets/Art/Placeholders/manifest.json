@@ -163,6 +163,47 @@
       ]
     },
     {
+      "id": "npc_elf_trader",
+      "name": "\u7CBE\u7075\u5546\u4EBA\u5730\u56FE\u5360\u4F4D\u56FE",
+      "description": "\u7CBE\u7075\u5546\u4EBA\u7684\u5730\u56FE\u50CF\u7D20\u5360\u4F4D\u56FE\u3002",
+      "category": "npc_map",
+      "status": "done",
+      "canvasPresetId": "tile_256",
+      "width": 256,
+      "height": 256,
+      "frames": [
+        {
+          "imagePath": "npc_map/npc_elf_trader.png"
+        }
+      ],
+      "tags": [
+        "friendly",
+        "elf",
+        "merchant",
+        "trader"
+      ]
+    },
+    {
+      "id": "npc_orc_merchant",
+      "name": "\u517D\u4EBA\u5546\u4EBA\u5730\u56FE\u5360\u4F4D\u56FE",
+      "description": "\u517D\u4EBA\u5546\u4EBA\u7684\u5730\u56FE\u50CF\u7D20\u5360\u4F4D\u56FE\u3002",
+      "category": "npc_map",
+      "status": "done",
+      "canvasPresetId": "tile_256",
+      "width": 256,
+      "height": 256,
+      "frames": [
+        {
+          "imagePath": "npc_map/npc_orc_merchant.png"
+        }
+      ],
+      "tags": [
+        "friendly",
+        "orc",
+        "merchant"
+      ]
+    },
+    {
       "id": "monster_goblin",
       "name": "\u54E5\u5E03\u6797\u5730\u56FE\u5360\u4F4D\u56FE",
       "description": "\u54E5\u5E03\u6797\u7684\u5730\u56FE\u50CF\u7D20\u5360\u4F4D\u56FE\u3002",
