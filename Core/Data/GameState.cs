@@ -34,7 +34,11 @@ public class GameState
 	}
 
 	/// <summary>兼容旧模块的 RNG 种子属性，等同于 WorldSeed。</summary>
-	public int RngSeed => WorldSeed;
+	public int RngSeed
+	{
+		get => WorldSeed;
+		set => WorldSeed = value;
+	}
 
 	/// <summary>三维无限世界。不可序列化——存档时由 SaveModule 单独处理 dirty chunk。</summary>
 	[JsonIgnore]

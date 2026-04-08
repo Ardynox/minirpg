@@ -341,6 +341,7 @@ public sealed class WorldStoreTests
 			});
 
 			var validPath = store.GetCharacterSavePath("alpha-00000001", "rook-00000001");
+			Directory.CreateDirectory(Path.GetDirectoryName(validPath)!);
 			File.WriteAllText(validPath, """
 			{
 			  "version": 5,

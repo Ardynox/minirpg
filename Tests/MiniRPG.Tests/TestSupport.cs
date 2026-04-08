@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Farm;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Tests;
@@ -14,6 +15,15 @@ internal static class TestSupport
 		LocalizationService.SetLocale("en", notify: false);
 		GameConfig.Load();
 		PresetDB.Load();
+		FixtureRegistry.Load();
+		FacilityRegistry.Load();
+		RecipeRegistry.Load();
+		RoomRoleRegistry.Load();
+		if (GameDataLocator.TryReadText("crops.json", out var cropsJson, out _))
+		{
+			CropRegistry.Clear();
+			CropRegistry.LoadFromJson(cropsJson);
+		}
 		if (!HasExpectedTerrain(Terrains.Floor) || !HasExpectedTerrain(Terrains.Water))
 			TerrainRegistry.Load("terrains.json");
 	}

@@ -55,7 +55,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	];
 
 	private readonly GameState _state = new();
-	private readonly Godot.Collections.Array _startupThreadProgress = [];
+	private Godot.Collections.Array? _startupThreadProgress;
 	private readonly Queue<Action> _postStartupTasks = new();
 
 	private PanelContainer _mapPanelNode = null!;
@@ -316,6 +316,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		throw new InvalidOperationException($"Failed to load PackedScene: {path}");
 	}
+
+	private Godot.Collections.Array StartupThreadProgress
+		=> _startupThreadProgress ??= new Godot.Collections.Array();
 
 	private void RegisterAlwaysDirectDraggable(IPanel panel)
 	{
@@ -1019,7 +1022,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_startupStatusKey = step.StatusKey;
 		_startupLoadStartedAtMsec = Time.GetTicksMsec();
 		_startupProgress = Mathf.Lerp(step.ProgressStart, step.ProgressEnd, StartupVisualFloor);
-		_startupThreadProgress.Clear();
+		StartupThreadProgress.Clear();
 
 		var err = ResourceLoader.LoadThreadedRequest(
 			step.Path,
@@ -1069,8 +1072,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 
 		var step = StartupHeavyLoadSteps[_startupLoadIndex];
-		_startupThreadProgress.Clear();
-		var status = ResourceLoader.LoadThreadedGetStatus(_startupLoadPath, _startupThreadProgress);
+		StartupThreadProgress.Clear();
+		var status = ResourceLoader.LoadThreadedGetStatus(_startupLoadPath, StartupThreadProgress);
 		UpdateHeavyStartupProgress(step);
 
 		switch (status)
@@ -1165,7 +1168,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private float ReadStartupThreadProgress()
 	{
-		if (_startupThreadProgress.Count == 0)
+		if (_startupThreadProgress == null || _startupThreadProgress.Count == 0)
 			return 0f;
 
 		return ClampProgressValue(_startupThreadProgress[0]);
