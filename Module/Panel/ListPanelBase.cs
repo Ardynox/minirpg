@@ -61,7 +61,7 @@ public abstract class ListPanelBase : IPanel
 			Flat = true,
 			FocusMode = Control.FocusModeEnum.None,
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			CustomMinimumSize = new Vector2(0, 26),
+			CustomMinimumSize = new Vector2(0, 30),
 			Alignment = HorizontalAlignment.Left,
 			ClipText = true,
 		};

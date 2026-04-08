@@ -73,21 +73,25 @@ theme_override_constants/separation = 4
 [node name="TakeBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.chest.take"
 
 [node name="TakeAllBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.chest.take_all"
 
 [node name="PutBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.chest.put"
 
 [node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.common.close_esc"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]

@@ -262,12 +262,11 @@ internal static class ActorStatusTextBuilder
 
 	private static void BuildNeedsLines(List<string> lines, Actor actor)
 	{
-		NeedSystem.Sync(actor, actor.NeedsLastUpdatedTurn);
 		lines.Add(BuildNeedLine(actor, NeedIds.Hunger));
 		lines.Add(BuildNeedLine(actor, NeedIds.Rest));
 		lines.Add(BuildMoodLine(actor));
 
-		var thoughts = NeedSystem.GetTopThoughts(actor, actor.NeedsLastUpdatedTurn, 3);
+		var thoughts = NeedSystem.GetTopThoughtsSnapshot(actor, actor.NeedsLastUpdatedTurn, 3);
 		if (thoughts.Count == 0)
 		{
 			lines.Add(LocalizationService.T("ui.needs.thoughts.none"));
@@ -395,14 +394,15 @@ internal static class ActorStatusTextBuilder
 
 	private static string BuildNeedLine(Actor actor, string needId)
 	{
-		if (!actor.Needs.TryGetValue(needId, out var need))
+		if (actor.Needs == null || !actor.Needs.ContainsKey(needId))
 			return $"{NeedCatalog.GetNeedDisplayName(needId)}: --";
 
-		var stageId = NeedCatalog.ResolveStageId(needId, need.Current);
+		var value = NeedSystem.GetNeedValueSnapshot(actor, needId);
+		var stageId = NeedCatalog.ResolveStageId(needId, value);
 		var stageLabel = string.IsNullOrWhiteSpace(stageId)
 			? string.Empty
 			: $" [{NeedCatalog.GetThoughtDisplayName(stageId)}]";
-		return $"{NeedCatalog.GetNeedDisplayName(needId)}: {need.Current:0}{stageLabel}";
+		return $"{NeedCatalog.GetNeedDisplayName(needId)}: {value:0}{stageLabel}";
 	}
 
 	private static string BuildMoodLine(Actor actor)

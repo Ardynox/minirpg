@@ -418,6 +418,7 @@ public sealed class PanelHoverChromeService
 		{
 			Text = textKey,
 			FocusMode = Control.FocusModeEnum.None,
+			ThemeTypeVariation = "ActionButton",
 		};
 		PanelButtonScaleService.MarkIgnored(button);
 		LocalizationService.LocalizeTree(button);

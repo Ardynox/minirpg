@@ -16,10 +16,14 @@ public class PanelManager
 	private readonly List<IPanel> _focusStack = [];
 	private IPanel? _focused;
 	private bool _switching;
+	private Func<string, bool>? _isFloatingCheck;
 
 	public IPanel? Focused => _focused;
 	public bool HasFocus => _focused != null;
 	public string? FocusedId => _focused?.PanelId;
+
+	public void SetFloatingCheck(Func<string, bool> isFloatingCheck) =>
+		_isFloatingCheck = isFloatingCheck;
 
 	public void Register(IPanel panel)
 	{
@@ -211,7 +215,11 @@ public class PanelManager
 	{
 		var focusedNode = _focused?.PanelNode;
 		foreach (var node in _allNodes)
-			PanelBorderHelper.Apply(node, node == focusedNode);
+		{
+			var panelId = FindPanelIdForNode(node);
+			var floating = panelId != null && _isFloatingCheck != null && _isFloatingCheck(panelId);
+			PanelBorderHelper.Apply(node, node == focusedNode, floating);
+		}
 	}
 
 	private void SwitchFocus(IPanel? panel, bool clearStack)
@@ -240,14 +248,31 @@ public class PanelManager
 			_focusStack.Clear();
 
 		if (prev != null)
-			PanelBorderHelper.Apply(prev.PanelNode, false);
+		{
+			var prevFloating = _isFloatingCheck != null && _isFloatingCheck(prev.PanelId);
+			PanelBorderHelper.Apply(prev.PanelNode, false, prevFloating);
+		}
 		if (_focused != null)
-			PanelBorderHelper.Apply(_focused.PanelNode, true);
+		{
+			var focusedFloating = _isFloatingCheck != null && _isFloatingCheck(_focused.PanelId);
+			PanelBorderHelper.Apply(_focused.PanelNode, true, focusedFloating);
+		}
 
 		FocusChanged?.Invoke();
 	}
 
 	private bool IsFocusable(IPanel panel) => panel.CanFocus && panel.Visible;
+
+	private string? FindPanelIdForNode(PanelContainer node)
+	{
+		foreach (var panel in _panels)
+		{
+			if (panel.PanelNode == node)
+				return panel.PanelId;
+		}
+
+		return null;
+	}
 
 	private IPanel? FindPanelForControl(Control? control)
 	{

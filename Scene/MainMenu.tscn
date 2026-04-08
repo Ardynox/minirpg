@@ -19,6 +19,7 @@ theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.main_menu.title"
 horizontal_alignment = 1
 
@@ -28,28 +29,35 @@ custom_minimum_size = Vector2(0, 16)
 
 [node name="ContinueBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.continue"
 
 [node name="WorldsBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.worlds"
 
 [node name="MapEditorBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.map_editor"
 
 [node name="WeatherLabBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.weather_lab"
 
 [node name="SettingsBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.settings"
 
 [node name="AutoTestBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.auto_test"
 
 [node name="QuitBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.main_menu.quit"

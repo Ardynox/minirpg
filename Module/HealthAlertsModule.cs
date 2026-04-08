@@ -12,7 +12,6 @@ public sealed class HealthAlertsModule
 	private readonly Label[] _labels;
 	private GameState? _cachedState;
 	private Actor? _cachedActor;
-	private int _cachedTurn;
 
 	public HealthAlertsModule(PanelContainer root)
 	{
@@ -98,14 +97,12 @@ public sealed class HealthAlertsModule
 	{
 		_cachedState = state;
 		_cachedActor = player;
-		_cachedTurn = currentTurn;
 		if (!visible || player == null)
 		{
 			HideImmediate();
 			return;
 		}
 
-		HealthSystem.Sync(player, currentTurn, DefaultEnvironmentExposureProvider.Instance.Capture(state, player));
 		RenderAlerts(BuildAlerts(player));
 	}
 
@@ -117,7 +114,6 @@ public sealed class HealthAlertsModule
 			return;
 		}
 
-		HealthSystem.Sync(_cachedActor, _cachedTurn, DefaultEnvironmentExposureProvider.Instance.Capture(_cachedState, _cachedActor));
 		RenderAlerts(BuildAlerts(_cachedActor));
 	}
 

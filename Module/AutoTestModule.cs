@@ -1181,7 +1181,7 @@ public class AutoTestModule
 	private void RunHealthSmokeChecks(AutoTestScenarioContext context, string prefix, Actor player)
 	{
 		var baselineLines = new List<string>();
-		HealthSystem.Sync(player, context.State.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(context.State, player));
+		ActorDerivedStateUpdater.SyncActor(context.State, player);
 		ActorStatusTextBuilder.BuildLines(baselineLines, StatusTab.Health, context.State, player);
 
 		var originalPain = player.PainValue;
@@ -1192,7 +1192,7 @@ public class AutoTestModule
 			player.PainValue = Math.Max(player.PainValue, 72f);
 			player.BloodLossValue = Math.Max(player.BloodLossValue, 16f);
 			player.WetnessValue = Math.Max(player.WetnessValue, 74f);
-			HealthSystem.Sync(player, context.State.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(context.State, player));
+			ActorDerivedStateUpdater.SyncActor(context.State, player);
 
 			var alerts = HealthAlertsModule.DescribeAlerts(player);
 			context.Check(
@@ -1219,7 +1219,7 @@ public class AutoTestModule
 			player.PainValue = originalPain;
 			player.BloodLossValue = originalBloodLoss;
 			player.WetnessValue = originalWetness;
-			HealthSystem.Sync(player, context.State.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(context.State, player));
+			ActorDerivedStateUpdater.SyncActor(context.State, player);
 		}
 	}
 

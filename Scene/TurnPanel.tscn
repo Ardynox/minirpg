@@ -19,6 +19,7 @@ theme_override_constants/separation = 4
 
 [node name="Header" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.turn_panel.title"
 
 [node name="StatusText" type="RichTextLabel" parent="MarginContainer/VBox"]

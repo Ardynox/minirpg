@@ -71,6 +71,7 @@ public class GameSessionModule
 		_fogTracker.Clear();
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
+		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 		ResetSessionContext(ActiveSessionKind.None);
 		GameStarted = true;
 	}
@@ -233,6 +234,7 @@ public class GameSessionModule
 		_fogTracker.Clear();
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
+		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 		SetWorldCharacterContext(manifest.WorldId, manifest.DisplayName, characterId, characterName, canonicalPath);
 		_activeSessionKind = ActiveSessionKind.WorldCharacter;
 		GameStarted = true;
@@ -264,6 +266,7 @@ public class GameSessionModule
 		_fogTracker.Clear();
 		InitializeWorld();
 		TimelineTurnManager.Reset(_state);
+		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 		ResetSessionContext(ActiveSessionKind.BlankEditor);
 		GameStarted = true;
 	}
@@ -657,6 +660,7 @@ public class GameSessionModule
 			TimelineTurnManager.Reset(_state);
 		else
 			TimelineTurnManager.SyncActors(_state);
+		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 
 		CurrentSavePath = currentSavePath;
 		CurrentPresetScenarioId = presetScenarioId;

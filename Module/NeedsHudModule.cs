@@ -80,10 +80,9 @@ public sealed class NeedsHudModule
 			return;
 		}
 
-		NeedSystem.Sync(player, currentTurn);
 		_root.Visible = true;
-		ApplyNeedLabel(_hungerLabel, NeedIds.Hunger, NeedSystem.GetNeedValue(player, NeedIds.Hunger));
-		ApplyNeedLabel(_restLabel, NeedIds.Rest, NeedSystem.GetNeedValue(player, NeedIds.Rest));
+		ApplyNeedLabel(_hungerLabel, NeedIds.Hunger, NeedSystem.GetNeedValueSnapshot(player, NeedIds.Hunger));
+		ApplyNeedLabel(_restLabel, NeedIds.Rest, NeedSystem.GetNeedValueSnapshot(player, NeedIds.Rest));
 		ApplyMoodLabel(_moodLabel, player.MoodValue, NeedCatalog.GetProfileForActor(player).AllowMood);
 	}
 

@@ -19,8 +19,6 @@ public class DialogContext
 
 	public static DialogContext Build(GameState state, Actor player, Actor npc)
 	{
-		HealthSystem.Sync(player, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, player));
-		HealthSystem.Sync(npc, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, npc));
 		var ctx = new DialogContext { Player = player, Npc = npc };
 
 		// ── 数值维度 ──────────────────────────────────────

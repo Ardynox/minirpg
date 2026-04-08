@@ -19,6 +19,7 @@ theme_override_constants/separation = 4
 
 [node name="Header" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.ground.title"
 
 [node name="ItemScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
@@ -37,9 +38,11 @@ theme_override_constants/separation = 4
 [node name="PickupBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.ground.pickup"
 
 [node name="PickupAllBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.ground.pickup_all"

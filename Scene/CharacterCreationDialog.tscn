@@ -29,6 +29,7 @@ theme_override_constants/separation = 14
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.character_creation.title"
 horizontal_alignment = 1
 
@@ -164,8 +165,10 @@ theme_override_constants/separation = 12
 
 [node name="CancelBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.character_creation.cancel"
 
 [node name="ConfirmBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.character_creation.confirm"

@@ -427,8 +427,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
-		NeedSystem.Sync(player, _state.Turn);
-		var restValue = NeedSystem.GetNeedValue(player, NeedIds.Rest);
+		ActorDerivedStateUpdater.SyncPlayerUiState(_state);
+		var restValue = NeedSystem.GetNeedValueSnapshot(player, NeedIds.Rest);
 		if (restValue >= 85f)
 		{
 			_playerRestModeActive = false;
@@ -492,14 +492,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private TimelineStepResult SubmitPlayerActionWithResult(TimelinePlayerAction action)
 	{
-		var result = TimelineTurnManager.SubmitPlayerAction(_state, action);
+		var result = TimelineTurnGateway.SubmitPlayerAction(_state, action);
 		ApplyTimelineStep(result);
 		return result;
 	}
 
 	private void AdvanceTimelineAutoStep()
 	{
-		var result = TimelineTurnManager.AdvanceAuto(_state, _watchModeEnabled);
+		var result = TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled);
 		ApplyTimelineStep(result);
 	}
 
@@ -2767,7 +2767,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
-		HealthSystem.Sync(actor, _state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(_state, actor));
+		ActorDerivedStateUpdater.SyncInspectActor(_state, actor);
 		_actorInspectPanel.Refresh(_state, actor);
 	}
 
@@ -2775,7 +2775,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		var panel = EnsureActorInspectPanel();
 		_inspectActorId = actor.Id;
-		HealthSystem.Sync(actor, _state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(_state, actor));
+		ActorDerivedStateUpdater.SyncInspectActor(_state, actor);
 		panel.Open(_state, actor);
 		_panels.PushFocus(panel);
 	}

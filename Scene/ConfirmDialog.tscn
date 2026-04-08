@@ -28,6 +28,7 @@ theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 horizontal_alignment = 1
 text = "Confirm"
 
@@ -43,13 +44,16 @@ theme_override_constants/separation = 8
 
 [node name="Action1Btn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "Confirm"
 
 [node name="Action2Btn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "Cancel"
 
 [node name="Action3Btn" type="Button" parent="Margin/VBox/Actions"]
 visible = false
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = ""

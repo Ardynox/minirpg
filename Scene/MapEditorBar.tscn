@@ -24,6 +24,7 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.map_editor.title"
 horizontal_alignment = 1
 
@@ -35,12 +36,14 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
+theme_type_variation = "TabButton"
 text = "ui.map_editor.category.terrain"
 
 [node name="FixtureBtn" type="Button" parent="Margin/VBox/CategoryRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
+theme_type_variation = "TabButton"
 text = "ui.map_editor.category.fixture"
 
 [node name="BrushSelect" type="OptionButton" parent="Margin/VBox"]
@@ -62,14 +65,17 @@ theme_override_constants/separation = 8
 [node name="CenterBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.map_editor.center"
 
 [node name="SaveBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.map_editor.save"
 
 [node name="ExitBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.map_editor.exit"

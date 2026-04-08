@@ -27,6 +27,7 @@ theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.layout_edit.title"
 horizontal_alignment = 1
 
@@ -43,14 +44,17 @@ theme_override_constants/separation = 8
 [node name="ApplyBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.layout_edit.apply"
 
 [node name="CancelBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.layout_edit.cancel"
 
 [node name="ResetBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.layout_edit.reset"

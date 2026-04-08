@@ -129,7 +129,6 @@ public class StatusPanelModule : IPanel
 			return;
 		}
 
-		HealthSystem.Sync(player, turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, player));
 		_nameInfo.Text = ActorStatusTextBuilder.BuildPlayerHeader(state, player, floor, turn);
 		UpdateTabLabel();
 		BuildLines();

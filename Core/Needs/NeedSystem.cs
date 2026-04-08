@@ -120,6 +120,16 @@ public static class NeedSystem
 			: NeedMax;
 	}
 
+	public static float GetNeedValueSnapshot(Actor actor, string needId)
+	{
+		if (actor.Needs == null)
+			return NeedMax;
+
+		return actor.Needs.TryGetValue(needId, out var need)
+			? need.Current
+			: NeedMax;
+	}
+
 	public static void SetNeedValue(Actor actor, string needId, float current)
 	{
 		EnsureInitialized(actor, actor.NeedsLastUpdatedTurn);
@@ -162,7 +172,14 @@ public static class NeedSystem
 	public static IReadOnlyList<ThoughtState> GetTopThoughts(Actor actor, int currentTurn, int maxCount = 3)
 	{
 		Sync(actor, currentTurn);
-		return actor.Thoughts
+		return GetTopThoughtsSnapshot(actor, currentTurn, maxCount);
+	}
+
+	public static IReadOnlyList<ThoughtState> GetTopThoughtsSnapshot(Actor actor, int currentTurn, int maxCount = 3)
+	{
+		var thoughts = actor.Thoughts ?? [];
+		return thoughts
+			.Where(thought => thought.ExpiresOnTurn < 0 || thought.ExpiresOnTurn > currentTurn)
 			.OrderByDescending(thought => Math.Abs(thought.MoodOffset))
 			.ThenBy(thought => thought.Id, StringComparer.Ordinal)
 			.Take(maxCount)

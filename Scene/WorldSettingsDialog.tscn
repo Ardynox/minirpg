@@ -29,6 +29,7 @@ theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.world_settings.title"
 horizontal_alignment = 1
 
@@ -77,6 +78,7 @@ placeholder_text = "ui.world_settings.seed_placeholder"
 
 [node name="RandomizeSeedBtn" type="Button" parent="Margin/VBox/BasicSection/BasicForm/SeedRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.world_settings.randomize_seed"
 
 [node name="GeneratorLabel" type="Label" parent="Margin/VBox/BasicSection/BasicForm"]
@@ -175,8 +177,10 @@ theme_override_constants/separation = 10
 
 [node name="CancelBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.world_settings.cancel"
 
 [node name="ConfirmBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.world_settings.confirm"

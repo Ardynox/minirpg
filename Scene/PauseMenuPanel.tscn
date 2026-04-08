@@ -31,25 +31,31 @@ theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "HeaderLabel"
 text = "ui.pause_menu.title"
 horizontal_alignment = 1
 
 [node name="ContinueBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.pause_menu.continue"
 
 [node name="QuickSaveBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.pause_menu.quick_save"
 
 [node name="QuickLoadBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.pause_menu.quick_load"
 
 [node name="SettingsBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.pause_menu.settings"
 
 [node name="ReturnToMenuBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.pause_menu.return_to_menu"

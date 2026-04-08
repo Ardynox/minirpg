@@ -40,7 +40,15 @@ public class DialogUIModule
 		_npc = npc;
 		_rng = new Random(_ui.State.RngSeed + _ui.State.Turn + npc.Id.GetHashCode());
 
-		_ctx = DialogContext.Build(_ui.State, ActorModule.GetPlayer(_ui.State)!, npc);
+		var player = ActorModule.GetPlayer(_ui.State);
+		if (player == null)
+		{
+			_ui.AddLog(LocalizationService.T("dialog.fallback.silence", ("name", npc.DisplayName)));
+			return;
+		}
+
+		ActorDerivedStateUpdater.SyncDialogParticipants(_ui.State, player, npc);
+		_ctx = DialogContext.Build(_ui.State, player, npc);
 		npc.DialogTalkCount++;
 
 		var candidates = DialogPool.GetGreetCandidates();
@@ -130,7 +138,15 @@ public class DialogUIModule
 				var next = DialogPool.FindById(_currentEntry.NextId);
 				if (next != null)
 				{
-					_ctx = DialogContext.Build(_ui.State, ActorModule.GetPlayer(_ui.State)!, _npc);
+					var player = ActorModule.GetPlayer(_ui.State);
+					if (player == null)
+					{
+						CloseDialog();
+						return;
+					}
+
+					ActorDerivedStateUpdater.SyncDialogParticipants(_ui.State, player, _npc);
+					_ctx = DialogContext.Build(_ui.State, player, _npc);
 					ShowEntry(next);
 					return;
 				}
@@ -153,7 +169,15 @@ public class DialogUIModule
 			var next = DialogPool.FindById(option.NextId);
 			if (next != null)
 			{
-				_ctx = DialogContext.Build(_ui.State, ActorModule.GetPlayer(_ui.State)!, _npc);
+				var player = ActorModule.GetPlayer(_ui.State);
+				if (player == null)
+				{
+					CloseDialog();
+					return;
+				}
+
+				ActorDerivedStateUpdater.SyncDialogParticipants(_ui.State, player, _npc);
+				_ctx = DialogContext.Build(_ui.State, player, _npc);
 				ShowEntry(next);
 				return;
 			}
@@ -181,7 +205,7 @@ public class DialogUIModule
 						durationTurns: 240,
 						currentTurn: _ui.State.Turn,
 						source: $"{NeedThoughtSources.Social}:{eff.Key ?? "dialog"}");
-					NeedSystem.Sync(_npc, _ui.State.Turn);
+					ActorDerivedStateUpdater.SyncActor(_ui.State, _npc);
 					if (_ctx != null) _ctx.NumTags["mood"] = _npc.DialogMood;
 					break;
 				case "memory":

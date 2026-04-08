@@ -23,6 +23,7 @@ public static class TabHelper
 				ToggleMode = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 				FocusMode = Control.FocusModeEnum.None,
+				ThemeTypeVariation = "TabButton",
 			};
 			var tab = tabs[i];
 			btn.Pressed += () => onPressed(tab);

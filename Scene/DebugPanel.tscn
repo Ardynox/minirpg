@@ -79,6 +79,7 @@ placeholder_text = "1000"
 
 [node name="AddGoldBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/GoldRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.gold_apply"
 
 [node name="QuickButtons" type="GridContainer" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection"]
@@ -87,34 +88,42 @@ columns = 3
 
 [node name="Gold100Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.gold_100"
 
 [node name="Gold1000Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.gold_1000"
 
 [node name="Gold5000Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.gold_5000"
 
 [node name="HealBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.heal"
 
 [node name="ChestBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.chest"
 
 [node name="GodModeBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.god.enable"
 
 [node name="DownFloorBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.down"
 
 [node name="SpawnNpcBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.npcs"
 
 [node name="QuickSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
@@ -161,6 +170,7 @@ theme_override_constants/separation = 6
 
 [node name="SpawnBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.spawn.execute"
 
 [node name="SpawnSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
@@ -214,14 +224,17 @@ theme_override_constants/separation = 6
 
 [node name="WeatherStatusBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.weather.status"
 
 [node name="WeatherLockBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.weather.lock"
 
 [node name="WeatherUnlockBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.weather.unlock"
 
 [node name="StepRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
@@ -240,6 +253,7 @@ placeholder_text = "1"
 
 [node name="WeatherStepBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/StepRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.weather.step_apply"
 
 [node name="ClearRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
@@ -247,6 +261,7 @@ layout_mode = 2
 
 [node name="WeatherClearAccumBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ClearRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.weather.clear_accum"
 
 [node name="WeatherSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
@@ -300,18 +315,22 @@ theme_override_constants/separation = 6
 
 [node name="FacilityPlaceBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.facility.place"
 
 [node name="FacilityStatusBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.facility.status"
 
 [node name="FacilityDeliverBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.facility.deliver"
 
 [node name="FacilityBuildBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.facility.build"
 
 [node name="FacilitySep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
@@ -341,6 +360,7 @@ size_flags_horizontal = 3
 
 [node name="ExportPresetBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection/ExportRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
 text = "ui.debug_panel.export.execute"
 
 [node name="ResultsSection" type="VBoxContainer" parent="MarginContainer/VBox"]

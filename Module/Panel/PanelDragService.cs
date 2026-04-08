@@ -507,6 +507,9 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		state.Placeholder = null;
 	}
 
+	public bool IsFloating(string panelId) =>
+		_states.TryGetValue(panelId, out var state) && IsFloating(state);
+
 	private bool IsFloating(DragState state) => state.Registration.Panel.GetParent() == _floatingRoot;
 
 	private void BringToFront(Control panel)

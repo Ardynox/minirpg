@@ -95,7 +95,6 @@ public sealed class ActorInspectPanelModule : IPanel
 			return;
 		}
 
-		HealthSystem.Sync(actor, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, actor));
 		_nameInfo.Text = ActorStatusTextBuilder.BuildInspectHeader(state, actor);
 		UpdateTabLabel();
 		BuildLines();

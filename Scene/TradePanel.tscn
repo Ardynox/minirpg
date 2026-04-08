@@ -77,16 +77,19 @@ theme_override_constants/separation = 4
 [node name="BuyBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.trade.buy"
 
 [node name="SellBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.trade.sell"
 
 [node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
 text = "ui.common.close_esc"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]

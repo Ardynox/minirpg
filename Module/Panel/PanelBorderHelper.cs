@@ -11,11 +11,17 @@ namespace MiniRPG.Module.Panel;
 public static class PanelBorderHelper
 {
 	private const string FocusedVariation = "FocusedPanel";
+	private const string FloatingVariation = "FloatingPanel";
+	private const string FloatingFocusedVariation = "FloatingFocusedPanel";
 
-	public static void Apply(PanelContainer panel, bool focused)
+	public static void Apply(PanelContainer panel, bool focused, bool floating = false)
 	{
 		if (panel == null) return;
-		var desired = focused ? FocusedVariation : "";
+		string desired;
+		if (floating)
+			desired = focused ? FloatingFocusedVariation : FloatingVariation;
+		else
+			desired = focused ? FocusedVariation : "";
 		if (panel.ThemeTypeVariation != desired)
 			panel.ThemeTypeVariation = desired;
 	}
