@@ -46,13 +46,13 @@ public sealed class WeatherScreenFxResolverTests
 		Assert.Equal(WeatherScreenFxMode.Thunderstorm, thunder.Mode);
 		Assert.True(thunder.EdgeShadow > rain.EdgeShadow);
 		Assert.True(thunder.LightningFlash > 0f);
-		Assert.InRange(thunder.OverlayAlpha, 0.018f, 0.04f);
-		Assert.InRange(thunder.FogAlpha, 0.004f, 0.015f);
-		Assert.InRange(thunder.Density, 0.2f, 0.46f);
+		Assert.InRange(thunder.OverlayAlpha, 0.15f, 0.40f);
+		Assert.InRange(thunder.FogAlpha, 0.08f, 0.25f);
+		Assert.InRange(thunder.Density, 0.4f, 1.2f);
 	}
 
 	[Fact]
-	public void Resolve_RainUsesSubtleParticleOnlyProfile()
+	public void Resolve_RainUsesAtmosphericProfile()
 	{
 		var rain = WeatherScreenFxResolver.Resolve(
 			new WeatherSample(WeatherType.Rain, WeatherIntensity.Heavy, Severity: 0.9f, TemperatureNormalized: 0.3f),
@@ -60,15 +60,15 @@ public sealed class WeatherScreenFxResolverTests
 			hash: 31);
 
 		Assert.Equal(WeatherScreenFxMode.Rain, rain.Mode);
-		Assert.InRange(rain.OverlayAlpha, 0.015f, 0.035f);
-		Assert.InRange(rain.FogAlpha, 0.001f, 0.008f);
-		Assert.Equal(0f, rain.EdgeTintAlpha);
-		Assert.Equal(0f, rain.EdgeShadow);
-		Assert.InRange(rain.Density, 0.18f, 0.42f);
+		Assert.InRange(rain.OverlayAlpha, 0.12f, 0.35f);
+		Assert.InRange(rain.FogAlpha, 0.05f, 0.20f);
+		Assert.True(rain.EdgeTintAlpha > 0f);
+		Assert.True(rain.EdgeShadow > 0f);
+		Assert.InRange(rain.Density, 0.4f, 1.2f);
 	}
 
 	[Fact]
-	public void Resolve_SnowUsesSparseNeutralProfile()
+	public void Resolve_SnowUsesImmersiveProfile()
 	{
 		var snow = WeatherScreenFxResolver.Resolve(
 			new WeatherSample(WeatherType.Snow, WeatherIntensity.Heavy, Severity: 0.85f, TemperatureNormalized: 0.1f),
@@ -76,12 +76,12 @@ public sealed class WeatherScreenFxResolverTests
 			hash: 47);
 
 		Assert.Equal(WeatherScreenFxMode.Snow, snow.Mode);
-		Assert.InRange(snow.OverlayAlpha, 0.01f, 0.028f);
-		Assert.InRange(snow.FogAlpha, 0f, 0.006f);
-		Assert.Equal(0f, snow.EdgeTintAlpha);
-		Assert.Equal(0f, snow.EdgeShadow);
-		Assert.InRange(snow.Density, 0.08f, 0.22f);
-		Assert.InRange(snow.Speed, 0.12f, 0.28f);
+		Assert.InRange(snow.OverlayAlpha, 0.10f, 0.30f);
+		Assert.InRange(snow.FogAlpha, 0.04f, 0.20f);
+		Assert.True(snow.EdgeTintAlpha > 0f);
+		Assert.True(snow.EdgeShadow > 0f);
+		Assert.InRange(snow.Density, 0.3f, 0.9f);
+		Assert.InRange(snow.Speed, 0.15f, 0.40f);
 	}
 
 	[Fact]

@@ -1047,20 +1047,6 @@ public class TileMapRenderModule
 				return;
 		}
 
-		RenderAccumulationOverlay(cell, surface, band);
-	}
-
-	private void RenderAccumulationOverlay(Vector2I cell, WeatherSurfaceState surface, PlayerVisionBand band)
-	{
-		if (surface.HasSnowCover)
-			RenderWeatherTextureSprite(cell, "snow_cover", band, overlay: true, WeatherOverlayFootprintTiles, new Color(1f, 1f, 1f, 0.95f));
-		else if (surface.HasSandCover)
-			RenderWeatherTextureSprite(cell, "sand_cover", band, overlay: true, WeatherOverlayFootprintTiles, new Color(1f, 1f, 1f, 0.9f));
-
-		if (surface.HasIceGloss)
-			RenderWeatherTextureSprite(cell, "ice_gloss", band, overlay: true, WeatherOverlayFootprintTiles, new Color(1f, 1f, 1f, 0.85f));
-		else if (surface.HasWetGloss)
-			RenderWeatherTextureSprite(cell, "wet_gloss", band, overlay: true, WeatherOverlayFootprintTiles, new Color(1f, 1f, 1f, 0.7f));
 	}
 
 	private void RenderWeatherFx(Vector2I cell, int wx, int wy, int wz, WeatherSurfaceState surface, PlayerVisionBand band)
