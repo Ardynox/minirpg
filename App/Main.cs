@@ -747,6 +747,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			() => MapEditorActive,
 			() => _state.World != null,
 			ShowMainMenuWithCurrentContinue,
+			RefreshMainMenuContinueState,
 			ShowGameHints,
 			ShowWorldCharacterEntryHint,
 			ShowMapEditorHints,
@@ -840,6 +841,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
 		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
 		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
+		_worldManager.DeleteWorldRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteWorldRequested;
 		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
 		_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
 		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
@@ -3574,6 +3576,9 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 	private void HandleWorldManagerCreateCharacterRequested(string worldId)
 		=> _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested(worldId);
+
+	private void HandleWorldManagerDeleteWorldRequested(string worldId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerDeleteWorldRequested(worldId);
 
 	private void HandleWorldManagerContinueCharacterRequested(string worldId, string characterId)
 		=> _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested(worldId, characterId);

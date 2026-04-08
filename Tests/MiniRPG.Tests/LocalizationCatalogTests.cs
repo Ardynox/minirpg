@@ -108,6 +108,9 @@ public sealed class LocalizationCatalogTests
 		Assert.True(zh.ContainsKey("ui.world_manager.title.main_menu"));
 		Assert.True(zh.ContainsKey("ui.world_settings.title"));
 		Assert.True(zh.ContainsKey("ui.world_settings.randomize_seed"));
+		Assert.True(zh.ContainsKey("ui.world_manager.delete_world"));
+		Assert.True(zh.ContainsKey("ui.world_manager.status.deleted"));
+		Assert.True(zh.ContainsKey("ui.confirm_world_delete.title"));
 		Assert.True(zh.ContainsKey("ui.confirm_switch.title.world_character"));
 		Assert.True(zh.ContainsKey("ui.session_label.map_editor"));
 		Assert.True(zh.ContainsKey("hint.game.world_entry"));

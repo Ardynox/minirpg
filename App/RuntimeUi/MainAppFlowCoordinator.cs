@@ -32,6 +32,7 @@ internal sealed class MainAppFlowCoordinator
 	private readonly Func<bool> _mapEditorActive;
 	private readonly Func<bool> _worldReadyForMapEditor;
 	private readonly Action _showMainMenuWithCurrentContinue;
+	private readonly Action _refreshMainMenuContinueState;
 	private readonly Action _showGameHints;
 	private readonly Action<string, string> _showWorldCharacterEntryHint;
 	private readonly Action _showMapEditorHints;
@@ -95,6 +96,7 @@ internal sealed class MainAppFlowCoordinator
 		Func<bool> mapEditorActive,
 		Func<bool> worldReadyForMapEditor,
 		Action showMainMenuWithCurrentContinue,
+		Action refreshMainMenuContinueState,
 		Action showGameHints,
 		Action<string, string> showWorldCharacterEntryHint,
 		Action showMapEditorHints,
@@ -149,6 +151,7 @@ internal sealed class MainAppFlowCoordinator
 		_mapEditorActive = mapEditorActive;
 		_worldReadyForMapEditor = worldReadyForMapEditor;
 		_showMainMenuWithCurrentContinue = showMainMenuWithCurrentContinue;
+		_refreshMainMenuContinueState = refreshMainMenuContinueState;
 		_showGameHints = showGameHints;
 		_showWorldCharacterEntryHint = showWorldCharacterEntryHint;
 		_showMapEditorHints = showMapEditorHints;
@@ -510,6 +513,8 @@ internal sealed class MainAppFlowCoordinator
 	{
 		CloseConfirmDialog();
 		_worldManager.Close();
+		if (_worldManagerContext == WorldManagerContext.MainMenu)
+			_refreshMainMenuContinueState();
 	}
 
 	public void HandleWorldManagerCreateCharacterRequested(string worldId)
@@ -518,6 +523,35 @@ internal sealed class MainAppFlowCoordinator
 			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
 		if (world != null)
 			OpenCharacterCreationDialog(world.WorldId, world.DisplayName);
+	}
+
+	public void HandleWorldManagerDeleteWorldRequested(string worldId)
+	{
+		if (_busyOperationActive())
+			return;
+
+		var world = _session.ListWorlds()
+			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
+		if (world == null)
+		{
+			SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+			RefreshWorldManagerContents();
+			return;
+		}
+
+		_confirmDialogActions.Clear();
+		_confirmDialogActions["delete_world"] = () => DeleteWorldFromManager(world.WorldId, world.DisplayName);
+		_confirmDialog.Open(
+			LocalizationService.T("ui.confirm_world_delete.title"),
+			LocalizationService.T(
+				"ui.confirm_world_delete.message",
+				("world", world.DisplayName),
+				("characters", world.CharacterCount)),
+			[
+				new ConfirmDialogAction("delete_world", LocalizationService.T("ui.confirm_world_delete.action.delete")),
+				new ConfirmDialogAction("cancel", LocalizationService.T("ui.confirm_switch.action.cancel")),
+			],
+			defaultActionIndex: 1);
 	}
 
 	public void HandleWorldManagerContinueCharacterRequested(string worldId, string characterId)
@@ -719,6 +753,34 @@ internal sealed class MainAppFlowCoordinator
 		_worldManagerStatusMessage = null;
 		_worldManagerStatusIsError = false;
 		_worldManager.SetStatusMessage(null, isError: false);
+	}
+
+	private void DeleteWorldFromManager(string worldId, string worldName)
+	{
+		var status = _session.DeleteWorld(worldId);
+		switch (status)
+		{
+			case WorldDeletionStatus.Success:
+				SetWorldManagerStatus(
+					LocalizationService.T("ui.world_manager.status.deleted", ("world", worldName)),
+					isError: false);
+				RefreshWorldManagerContents(selectedWorldId: worldId);
+				return;
+
+			case WorldDeletionStatus.ActiveWorldLocked:
+				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_current_world_locked"), isError: true);
+				break;
+
+			case WorldDeletionStatus.NotFound:
+				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+				break;
+
+			default:
+				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_failed"), isError: true);
+				break;
+		}
+
+		RefreshWorldManagerContents(selectedWorldId: worldId);
 	}
 
 	private (string? WorldId, string? CharacterId) ResolvePreferredWorldManagerSelection()

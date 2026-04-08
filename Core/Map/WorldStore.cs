@@ -303,6 +303,32 @@ public sealed class WorldStore
 		SaveWorld(manifest);
 	}
 
+	public bool DeleteWorld(string worldId)
+	{
+		if (string.IsNullOrWhiteSpace(worldId))
+			return false;
+
+		var worldsRoot = Path.GetFullPath(WorldsDirectory);
+		var worldDirectory = Path.GetFullPath(GetWorldDirectory(worldId));
+		var expectedPrefix = worldsRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+			+ Path.DirectorySeparatorChar;
+		if (!worldDirectory.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+			return false;
+
+		if (!Directory.Exists(worldDirectory))
+			return false;
+
+		try
+		{
+			Directory.Delete(worldDirectory, recursive: true);
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
 	public string GetWorldDirectory(string worldId) => Path.Combine(WorldsDirectory, worldId);
 
 	public string GetWorldManifestPath(string worldId) => Path.Combine(GetWorldDirectory(worldId), "world.json");

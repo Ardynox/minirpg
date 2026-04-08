@@ -84,6 +84,27 @@ public class GameSessionModule
 		return _worldStore.CreateWorld(displayName, resolvedSettings);
 	}
 
+	public WorldDeletionStatus DeleteWorld(string worldId)
+	{
+		if (string.IsNullOrWhiteSpace(worldId))
+			return WorldDeletionStatus.NotFound;
+
+		if (_activeSessionKind == ActiveSessionKind.WorldCharacter
+			&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal))
+		{
+			return WorldDeletionStatus.ActiveWorldLocked;
+		}
+
+		if (!_worldStore.TryLoadWorld(worldId, out _))
+			return WorldDeletionStatus.NotFound;
+
+		if (!_worldStore.DeleteWorld(worldId))
+			return WorldDeletionStatus.Failed;
+
+		ClearContinueStateForDeletedWorld(worldId);
+		return WorldDeletionStatus.Success;
+	}
+
 	public IReadOnlyList<WorldEntryInfo> ListWorlds()
 	{
 		var manifests = _worldStore.ListWorlds();
@@ -798,6 +819,21 @@ public class GameSessionModule
 		CurrentCharacterName = null;
 	}
 
+	private static void ClearContinueStateForDeletedWorld(string worldId)
+	{
+		var current = AppSettingsStore.LoadContinueState();
+		if (!string.Equals(current.LastWorldId, worldId, StringComparison.Ordinal))
+			return;
+
+		AppSettingsStore.SaveContinueState(new ContinueState
+		{
+			LastContinueKind = null,
+			LastWorldId = null,
+			LastCharacterId = null,
+			LastLegacySavePath = current.LastLegacySavePath,
+		});
+	}
+
 	private static WorldSettings NormalizeWorldSettings(WorldSettings settings)
 	{
 		var normalized = settings.Clone();
@@ -941,4 +977,12 @@ public enum SaveSlotKind
 {
 	PresetScenario,
 	UserSave,
+}
+
+public enum WorldDeletionStatus
+{
+	Success,
+	NotFound,
+	ActiveWorldLocked,
+	Failed,
 }

@@ -116,6 +116,36 @@ public sealed class WorldStoreTests
 	}
 
 	[Fact]
+	public void DeleteWorld_RemovesManifestAndCharacterSaves()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-delete");
+		try
+		{
+			var store = new WorldStore(root);
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "alpha-00000001",
+				DisplayName = "Alpha",
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = DateTimeOffset.UtcNow,
+			});
+
+			var characterPath = store.GetCharacterSavePath("alpha-00000001", "rook-00000001");
+			File.WriteAllText(characterPath, "{}");
+
+			var deleted = store.DeleteWorld("alpha-00000001");
+
+			Assert.True(deleted);
+			Assert.False(Directory.Exists(store.GetWorldDirectory("alpha-00000001")));
+			Assert.Empty(store.ListWorlds());
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void ListWorldCharacters_ReadsHeaderOnlyWithoutDeserializingPayload()
 	{
 		var root = TestSupport.CreateTempDirectory("world-store-characters");

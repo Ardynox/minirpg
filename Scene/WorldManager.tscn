@@ -204,6 +204,11 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.world_manager.create_world"
 
+[node name="DeleteWorldBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.world_manager.delete_world"
+
 [node name="CreateCharacterBtn" type="Button" parent="Margin/VBox/Footer"]
 layout_mode = 2
 theme_type_variation = "ActionButton"

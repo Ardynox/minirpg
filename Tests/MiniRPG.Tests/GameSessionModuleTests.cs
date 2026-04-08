@@ -85,6 +85,62 @@ public sealed class GameSessionModuleTests
 	}
 
 	[Fact]
+	public void DeleteWorld_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-active-world");
+		try
+		{
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha");
+			session.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+
+			var status = session.DeleteWorld(manifest.WorldId);
+
+			Assert.Equal(WorldDeletionStatus.ActiveWorldLocked, status);
+			Assert.Contains(session.ListWorlds(), entry => entry.WorldId == manifest.WorldId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorld_ClearsStoredContinueState_ForDeletedWorld()
+	{
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-continue");
+		try
+		{
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha");
+
+			AppSettingsStore.SaveContinueState(new ContinueState
+			{
+				LastContinueKind = "world_character",
+				LastWorldId = manifest.WorldId,
+				LastCharacterId = "rook-00000001",
+				LastLegacySavePath = "legacy-slot.json",
+			});
+
+			var status = session.DeleteWorld(manifest.WorldId);
+			var continueState = AppSettingsStore.LoadContinueState();
+
+			Assert.Equal(WorldDeletionStatus.Success, status);
+			Assert.Null(continueState.LastContinueKind);
+			Assert.Null(continueState.LastWorldId);
+			Assert.Null(continueState.LastCharacterId);
+			Assert.Equal("legacy-slot.json", continueState.LastLegacySavePath);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void ResolveContinueTarget_PrefersStoredWorldCharacterOverMoreRecentWorld()
 	{
 		TestSupport.EnsureGameplayDataLoaded();
