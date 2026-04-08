@@ -253,12 +253,12 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		};
 
 		_rowNormalStyle = CreateRowStyle(
-			new Color(0.13f, 0.13f, 0.16f, 0.85f),
-			new Color(0.28f, 0.28f, 0.32f, 1f),
+			new Color(0.1f, 0.1f, 0.16f, 0.85f),
+			UIColors.IdleBorder,
 			leftBorderWidth: 1);
 		_rowSelectedStyle = CreateRowStyle(
-			new Color(0.15f, 0.24f, 0.19f, 0.95f),
-			new Color(0.32f, 0.82f, 0.45f, 1f),
+			new Color(0.18f, 0.15f, 0.08f, 0.95f),
+			UIColors.FocusBorder,
 			leftBorderWidth: 4);
 
 		_generalTabButton.Pressed += () => SetCurrentTab(SettingsTab.General);

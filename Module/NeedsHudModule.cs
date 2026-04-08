@@ -42,7 +42,7 @@ public sealed class NeedsHudModule
 
 		var style = new StyleBoxFlat
 		{
-			BgColor = new Color(0.08f, 0.08f, 0.11f, 0.88f),
+			BgColor = new Color(UIColors.PanelBg, 0.88f),
 			BorderColor = UIColors.IdleBorder,
 			BorderWidthLeft = 1,
 			BorderWidthTop = 1,
@@ -109,18 +109,18 @@ public sealed class NeedsHudModule
 	{
 		var warning = NeedCatalog.GetNeed(needId)?.WarningThreshold ?? 35f;
 		if (value <= warning)
-			return new Color(0.96f, 0.42f, 0.38f);
+			return UIColors.TextWarning;
 		if (value <= warning + 20f)
-			return new Color(1f, 0.78f, 0.34f);
+			return UIColors.TextEquipped;
 		return UIColors.TextNormal;
 	}
 
 	private static Color ResolveMoodColor(float moodValue)
 	{
 		if (moodValue <= 35f)
-			return new Color(0.96f, 0.42f, 0.38f);
+			return UIColors.TextWarning;
 		if (moodValue >= 65f)
-			return new Color(0.6f, 1f, 0.7f);
+			return UIColors.TextMoodGood;
 		return UIColors.TextNormal;
 	}
 }

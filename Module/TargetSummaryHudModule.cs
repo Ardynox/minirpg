@@ -56,7 +56,7 @@ public sealed class TargetSummaryHudModule
 
 		var style = new StyleBoxFlat
 		{
-			BgColor = new Color(0.08f, 0.08f, 0.11f, 0.88f),
+			BgColor = new Color(UIColors.PanelBg, 0.88f),
 			BorderColor = UIColors.IdleBorder,
 			BorderWidthLeft = 1,
 			BorderWidthTop = 1,
@@ -190,9 +190,9 @@ public sealed class TargetSummaryHudModule
 
 	private static Color ResolveAccent(AwarenessState state) => state switch
 	{
-		AwarenessState.Suspicious => new Color(1f, 0.78f, 0.34f),
-		AwarenessState.Alerted => new Color(0.96f, 0.42f, 0.38f),
-		AwarenessState.Searching => new Color(0.62f, 0.82f, 1f),
+		AwarenessState.Suspicious => UIColors.TextEquipped,
+		AwarenessState.Alerted => UIColors.TextWarning,
+		AwarenessState.Searching => UIColors.TextUtility,
 		_ => UIColors.TextDim,
 	};
 }

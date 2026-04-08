@@ -9,16 +9,16 @@ namespace MiniRPG.Module;
 
 public sealed class WorldManagerModule : IModalInputLayer
 {
-	private static readonly Color RowNormalBackground = new(0.10f, 0.12f, 0.15f, 0.94f);
-	private static readonly Color RowHoverBackground = new(0.15f, 0.18f, 0.22f, 0.96f);
-	private static readonly Color RowBorderColor = new(0.26f, 0.29f, 0.35f, 1f);
-	private static readonly Color RowSelectedBackground = new(0.28f, 0.21f, 0.10f, 0.98f);
-	private static readonly Color RowSelectedHoverBackground = new(0.34f, 0.26f, 0.12f, 1f);
-	private static readonly Color RowSelectedBorderColor = new(0.92f, 0.80f, 0.46f, 1f);
-	private static readonly Color RowDisabledBackground = new(0.08f, 0.09f, 0.11f, 0.82f);
-	private static readonly Color RowDisabledBorderColor = new(0.18f, 0.20f, 0.24f, 1f);
-	private static readonly Color RowTextColor = new(0.95f, 0.96f, 0.98f, 1f);
-	private static readonly Color RowDisabledTextColor = new(0.60f, 0.64f, 0.69f, 1f);
+	private static readonly Color RowNormalBackground = new(UIColors.RowBg, 0.94f);
+	private static readonly Color RowHoverBackground = new(UIColors.HoverBg, 0.96f);
+	private static readonly Color RowBorderColor = new(UIColors.IdleBorder, 1f);
+	private static readonly Color RowSelectedBackground = new(UIColors.SelectedBg, 0.98f);
+	private static readonly Color RowSelectedHoverBackground = new(0.24f, 0.2f, 0.1f, 1f);
+	private static readonly Color RowSelectedBorderColor = new(UIColors.FocusBorder, 1f);
+	private static readonly Color RowDisabledBackground = new(UIColors.PanelBg, 0.82f);
+	private static readonly Color RowDisabledBorderColor = new(0.18f, 0.15f, 0.12f, 1f);
+	private static readonly Color RowTextColor = new(UIColors.TextNormal, 1f);
+	private static readonly Color RowDisabledTextColor = new(UIColors.TextDim, 1f);
 
 	private enum WorldsListFocus
 	{
@@ -154,7 +154,7 @@ public sealed class WorldManagerModule : IModalInputLayer
 		_statusLabel.Visible = !string.IsNullOrWhiteSpace(message);
 		_statusLabel.Text = message ?? string.Empty;
 		_statusLabel.Modulate = isError
-			? new Color(1f, 0.58f, 0.58f, 1f)
+			? new Color(UIColors.TextWarning, 1f)
 			: Colors.White;
 	}
 

@@ -51,7 +51,7 @@ public sealed class HealthAlertsModule
 
 		var style = new StyleBoxFlat
 		{
-			BgColor = new Color(0.08f, 0.08f, 0.11f, 0.88f),
+			BgColor = new Color(UIColors.PanelBg, 0.88f),
 			BorderColor = UIColors.IdleBorder,
 			BorderWidthLeft = 1,
 			BorderWidthTop = 1,
@@ -176,7 +176,7 @@ public sealed class HealthAlertsModule
 			alerts.Add((
 				0,
 				LocalizationService.TOrFallback("ui.health.alert.dying", "Dying: {reason}", ("reason", reason)),
-				new Color(0.96f, 0.42f, 0.38f)));
+				UIColors.TextWarning));
 		}
 
 		var temperatureCondition = (hypothermia?.Severity ?? 0f) >= (heatstroke?.Severity ?? 0f)
@@ -185,22 +185,22 @@ public sealed class HealthAlertsModule
 		if ((temperatureCondition?.Severity ?? 0f) >= 20f)
 		{
 			var color = string.Equals(temperatureCondition!.Id, HealthConditionIds.Hypothermia, System.StringComparison.Ordinal)
-				? new Color(0.62f, 0.82f, 1f)
-				: new Color(1f, 0.64f, 0.28f);
+				? UIColors.TextUtility
+				: UIColors.TextEquipped;
 			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(temperatureCondition.Id)} {temperatureCondition.Severity:0.#}", color));
 		}
 
 		if ((onFire?.Severity ?? 0f) > 0f)
-			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.OnFire)} {onFire!.Severity:0.#}", new Color(1f, 0.48f, 0.2f)));
+			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.OnFire)} {onFire!.Severity:0.#}", UIColors.TextWarning));
 
 		if ((infection?.Severity ?? 0f) >= 8f)
-			alerts.Add((2, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.Infection)} {infection!.Severity:0.#}", new Color(1f, 0.78f, 0.34f)));
+			alerts.Add((2, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.Infection)} {infection!.Severity:0.#}", UIColors.TextEquipped));
 		if (actor.BloodLossValue >= 8f)
-			alerts.Add((3, $"{LocalizationService.TOrFallback("ui.health.alert.bleeding", "Bleeding")} {actor.BloodLossValue:0.#}", new Color(0.96f, 0.42f, 0.38f)));
+			alerts.Add((3, $"{LocalizationService.TOrFallback("ui.health.alert.bleeding", "Bleeding")} {actor.BloodLossValue:0.#}", UIColors.TextWarning));
 		if (actor.PainValue >= 70f)
-			alerts.Add((4, $"{LocalizationService.TOrFallback("ui.health.alert.extreme_pain", "Extreme pain")} {actor.PainValue:0.#}", new Color(1f, 0.62f, 0.32f)));
+			alerts.Add((4, $"{LocalizationService.TOrFallback("ui.health.alert.extreme_pain", "Extreme pain")} {actor.PainValue:0.#}", UIColors.TextWarning));
 		if (actor.WetnessValue >= 70f)
-			alerts.Add((5, $"{LocalizationService.TOrFallback("ui.health.alert.soaked", "Severe wetness")} {actor.WetnessValue:0.#}", new Color(0.62f, 0.82f, 1f)));
+			alerts.Add((5, $"{LocalizationService.TOrFallback("ui.health.alert.soaked", "Severe wetness")} {actor.WetnessValue:0.#}", UIColors.TextUtility));
 
 		return alerts
 			.OrderBy(static entry => entry.Priority)

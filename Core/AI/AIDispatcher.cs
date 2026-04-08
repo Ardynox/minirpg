@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Data;
+using MiniRPG.Core.Job;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI;
@@ -15,6 +17,7 @@ public static class AIDispatcher
 	static AIDispatcher()
 	{
 		Register("simple", new SimpleBrain());
+		Register(WorkBrainIds.DomainWorker, new SimpleBrain());
 	}
 
 	public static void Register(string id, IBrainModule brain) => _brains[id] = brain;
@@ -40,6 +43,7 @@ public static class AIDispatcher
 		double fireBehaviorMs = 0d;
 		double temperatureBehaviorMs = 0d;
 		double needBehaviorMs = 0d;
+		double jobBehaviorMs = 0d;
 		double brainDecideMs = 0d;
 		double decisionExecuteMs = 0d;
 		var dispatchStart = captureProfile ? ProfilingClock.Start() : 0L;
@@ -167,6 +171,24 @@ public static class AIDispatcher
 				continue;
 			}
 
+			// ── Job 行为：工人自动执行工作任务 ──
+			ActionExecutionResult jobResult;
+			if (captureProfile)
+			{
+				var stageStart = ProfilingClock.Start();
+				jobResult = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
+				jobBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
+			}
+			else
+			{
+				jobResult = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
+			}
+			if (jobResult.Consumed)
+			{
+				events.AddRange(jobResult.Events);
+				continue;
+			}
+
 			var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
 			Decision decision;
 			if (captureProfile)
@@ -208,6 +230,7 @@ public static class AIDispatcher
 				FireBehaviorMs = fireBehaviorMs,
 				TemperatureBehaviorMs = temperatureBehaviorMs,
 				NeedBehaviorMs = needBehaviorMs,
+				JobBehaviorMs = jobBehaviorMs,
 				BrainDecideMs = brainDecideMs,
 				DecisionExecuteMs = decisionExecuteMs,
 			},
@@ -259,6 +282,14 @@ public static class AIDispatcher
 			var shortCircuit = new ActionExecutionResult { Consumed = true };
 			shortCircuit.Events.AddRange(awarenessEvents);
 			shortCircuit.Events.AddRange(needExecution.Events);
+			return shortCircuit;
+		}
+		var jobExecution = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
+		if (jobExecution.Consumed)
+		{
+			var shortCircuit = new ActionExecutionResult { Consumed = true };
+			shortCircuit.Events.AddRange(awarenessEvents);
+			shortCircuit.Events.AddRange(jobExecution.Events);
 			return shortCircuit;
 		}
 		var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
@@ -319,6 +350,14 @@ public static class AIDispatcher
 			var shortCircuit = new ActionExecutionResult { Consumed = true };
 			shortCircuit.Events.AddRange(awarenessEvents);
 			shortCircuit.Events.AddRange(needExecution.Events);
+			return shortCircuit;
+		}
+		var jobExecution = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
+		if (jobExecution.Consumed)
+		{
+			var shortCircuit = new ActionExecutionResult { Consumed = true };
+			shortCircuit.Events.AddRange(awarenessEvents);
+			shortCircuit.Events.AddRange(jobExecution.Events);
 			return shortCircuit;
 		}
 		var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());

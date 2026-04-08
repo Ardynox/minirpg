@@ -72,7 +72,7 @@ public sealed class ThreatHudModule
 
 		var style = new StyleBoxFlat
 		{
-			BgColor = new Color(0.08f, 0.08f, 0.11f, 0.92f),
+			BgColor = new Color(UIColors.PanelBg, 0.92f),
 			BorderColor = UIColors.IdleBorder,
 			BorderWidthLeft = 1,
 			BorderWidthTop = 1,
@@ -300,9 +300,9 @@ public sealed class ThreatHudModule
 
 	private static Color ResolveAccent(ThreatHudMode mode) => mode switch
 	{
-		ThreatHudMode.Suspicious => new Color(1f, 0.78f, 0.34f),
-		ThreatHudMode.Combat => new Color(0.96f, 0.42f, 0.38f),
-		ThreatHudMode.Search => new Color(0.62f, 0.82f, 1f),
+		ThreatHudMode.Suspicious => UIColors.TextEquipped,
+		ThreatHudMode.Combat => UIColors.TextWarning,
+		ThreatHudMode.Search => UIColors.TextUtility,
 		_ => UIColors.TextNormal,
 	};
 }

@@ -20,7 +20,7 @@ public sealed class SkillBarModule : IPanel
 
 	private static readonly string[] TabLabels = ["All", "Combat", "Utility", "Social"];
 	private static readonly Dictionary<string, StyleBoxFlat> StyleCache = [];
-	private static readonly Color ArmedBorder = new(1.0f, 0.82f, 0.32f);
+	private static readonly Color ArmedBorder = UIColors.FocusBorder;
 
 	public string PanelId => "skill_bar";
 	public PanelContainer PanelNode => _panel;
@@ -503,10 +503,10 @@ public sealed class SkillBarModule : IPanel
 		button.AddThemeStyleboxOverride("focus", style);
 
 		var fontColor = coolingDown
-			? new Color(0.64f, 0.66f, 0.72f)
+			? UIColors.TextDim
 			: selected || armed
 				? Colors.White
-				: new Color(0.92f, 0.94f, 0.98f);
+				: UIColors.TextNormal;
 		button.AddThemeColorOverride("font_color", fontColor);
 		button.AddThemeColorOverride("font_hover_color", fontColor);
 		button.AddThemeColorOverride("font_pressed_color", fontColor);
@@ -541,10 +541,10 @@ public sealed class SkillBarModule : IPanel
 
 	private static (Color BaseColor, Color AccentColor) GetPalette(string category) => category switch
 	{
-		"combat" => (new Color(0.27f, 0.16f, 0.18f), new Color(0.88f, 0.35f, 0.38f)),
-		"utility" => (new Color(0.16f, 0.23f, 0.29f), new Color(0.38f, 0.74f, 0.94f)),
-		"social" => (new Color(0.16f, 0.28f, 0.22f), new Color(0.42f, 0.88f, 0.58f)),
-		_ => (new Color(0.18f, 0.18f, 0.22f), UIColors.IdleBorder),
+		"combat" => (new Color(0.2f, 0.1f, 0.12f), UIColors.TextCombat),
+		"utility" => (new Color(0.1f, 0.15f, 0.22f), UIColors.TextUtility),
+		"social" => (new Color(0.1f, 0.18f, 0.14f), UIColors.TextSocial),
+		_ => (new Color(0.1f, 0.1f, 0.16f), UIColors.IdleBorder),
 	};
 
 	private static Color GetCategoryAccent(string category) => GetPalette(category).AccentColor;

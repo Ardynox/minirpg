@@ -35,20 +35,20 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("15_theme")
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="TopRow" type="HBoxContainer" parent="HudLayer/UI"]
 layout_mode = 2
 size_flags_vertical = 3
-size_flags_stretch_ratio = 3.0
-theme_override_constants/separation = 6
+size_flags_stretch_ratio = 6.0
+theme_override_constants/separation = 8
 
 [node name="MapPanel" parent="HudLayer/UI/TopRow" instance=ExtResource("2_map")]
 

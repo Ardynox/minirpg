@@ -2,16 +2,16 @@
 
 [node name="LogPanel" type="PanelContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 80)
 size_flags_vertical = 3
 size_flags_stretch_ratio = 1.0
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
 
 [node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2

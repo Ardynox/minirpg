@@ -14,6 +14,7 @@ public sealed class AIDispatchMetrics
 	public double FireBehaviorMs { get; init; }
 	public double TemperatureBehaviorMs { get; init; }
 	public double NeedBehaviorMs { get; init; }
+	public double JobBehaviorMs { get; init; }
 	public double BrainDecideMs { get; init; }
 	public double DecisionExecuteMs { get; init; }
 }

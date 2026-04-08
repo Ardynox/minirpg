@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Panel;
+
 namespace MiniRPG.Module;
 
 /// <summary>
@@ -67,29 +69,31 @@ public class LogModule
 		return true;
 	}
 
+	private static string C(string hex, string text) => $"[color={hex}]{text}[/color]";
+
 	private static List<string>? ToLogLines(GameEvent e, GameState state)
 	{
 		return e.Type switch
 		{
-			"hit_wall" => [LocalizationService.T("log.hit_wall")],
+			"hit_wall" => [C(UIColors.HexDim, LocalizationService.T("log.hit_wall"))],
 			"actor_moved" => null,
-			"monster_spawned" => [LocalizationService.T("log.monster_spawned", ("x", e.TargetX), ("y", e.TargetY))],
+			"monster_spawned" => [C(UIColors.HexWarning, LocalizationService.T("log.monster_spawned", ("x", e.TargetX), ("y", e.TargetY)))],
 			"combat_attack" => FormatCombatAttack(e, state),
-			"combat_block" => [LocalizationService.T("log.combat_block", ("target", e.TargetActorName), ("action", e.ActionName))],
+			"combat_block" => [C(UIColors.HexCombat, LocalizationService.T("log.combat_block", ("target", e.TargetActorName), ("action", e.ActionName)))],
 			"awareness_state_changed" => FormatAwarenessStateChanged(e, state),
-			"skill_cast_failed" => [FormatSkillCastFailed(e)],
+			"skill_cast_failed" => [C(UIColors.HexWarning, FormatSkillCastFailed(e))],
 			"limb_destroyed" => FormatLimbDestroyed(e, state),
-			"reload_complete" => [FormatReloadComplete(e)],
-			"reload_failed" => [FormatReloadFailed(e)],
-			"empty_magazine" => [FormatEmptyMagazine(e)],
-			"item_picked_up" => [LocalizationService.T("log.item_picked_up", ("item", e.ItemName))],
-			"item_dropped" => [LocalizationService.T("log.item_dropped", ("item", e.ItemName))],
-			"drop_failed" => [LocalizationService.T("log.drop_failed", ("item", e.ItemName))],
-			"pickup_failed" => [LocalizationService.T("log.pickup_failed")],
-			"dig_success" => [LocalizationService.T("log.dig_success", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage))],
-			"dig_progress" => [LocalizationService.T("log.dig_progress", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage))],
-			"dig_failed" => [LocalizationService.T("log.dig_failed", ("item", e.ItemName))],
-			"weather_changed" => [FormatWeatherChanged(e)],
+			"reload_complete" => [C(UIColors.HexUtility, FormatReloadComplete(e))],
+			"reload_failed" => [C(UIColors.HexWarning, FormatReloadFailed(e))],
+			"empty_magazine" => [C(UIColors.HexWarning, FormatEmptyMagazine(e))],
+			"item_picked_up" => [C(UIColors.HexUtility, LocalizationService.T("log.item_picked_up", ("item", e.ItemName)))],
+			"item_dropped" => [C(UIColors.HexUtility, LocalizationService.T("log.item_dropped", ("item", e.ItemName)))],
+			"drop_failed" => [C(UIColors.HexDim, LocalizationService.T("log.drop_failed", ("item", e.ItemName)))],
+			"pickup_failed" => [C(UIColors.HexDim, LocalizationService.T("log.pickup_failed"))],
+			"dig_success" => [C(UIColors.HexSocial, LocalizationService.T("log.dig_success", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage)))],
+			"dig_progress" => [C(UIColors.HexDim, LocalizationService.T("log.dig_progress", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage)))],
+			"dig_failed" => [C(UIColors.HexWarning, LocalizationService.T("log.dig_failed", ("item", e.ItemName)))],
+			"weather_changed" => [C(UIColors.HexUtility, FormatWeatherChanged(e))],
 			"weather_lightning_strike" => FormatWeatherLightningStrike(e, state),
 			"fire_started" => FormatFireCellEvent(e, state, "log.fire.started", "Fire started at ({x},{y})"),
 			"fire_spread" => FormatFireCellEvent(e, state, "log.fire.spread", "Fire spread to ({x},{y})"),
@@ -99,40 +103,40 @@ public class LogModule
 			"item_destroyed_by_fire" => FormatItemFireEvent(e, state, "log.fire.item_destroyed", "{item} was destroyed by fire"),
 			"fixture_burned_down" => FormatFixtureBurnedDown(e, state),
 			"actor_incapacitated" when e.TargetId != state.PlayerId
-				=> [LocalizationService.T("log.actor_incapacitated.other", ("target", e.TargetActorName))],
+				=> [C(UIColors.HexCombat, LocalizationService.T("log.actor_incapacitated.other", ("target", e.TargetActorName)))],
 			"food_consumed" when e.TargetId == state.PlayerId
-				=> [LocalizationService.T("log.need.food_consumed", ("item", e.ItemName))],
+				=> [C(UIColors.HexSocial, LocalizationService.T("log.need.food_consumed", ("item", e.ItemName)))],
 			"rest_started" when e.TargetId == state.PlayerId
-				=> [LocalizationService.T("log.need.rest_started")],
+				=> [C(UIColors.HexSocial, LocalizationService.T("log.need.rest_started"))],
 			"rest_completed" when e.TargetId == state.PlayerId
-				=> [LocalizationService.T("log.need.rest_completed")],
+				=> [C(UIColors.HexSuccess, LocalizationService.T("log.need.rest_completed"))],
 			"need_stage_changed" when e.TargetId == state.PlayerId
-				=> [LocalizationService.T("log.need.stage_changed", ("need", LocalizeNeed(e.EffectType)), ("stage", LocalizeThought(e.ActionName)))],
+				=> [C(UIColors.HexWarning, LocalizationService.T("log.need.stage_changed", ("need", LocalizeNeed(e.EffectType)), ("stage", LocalizeThought(e.ActionName))))],
 			"thought_applied" when e.TargetId == state.PlayerId
-				=> [LocalizationService.T("log.need.thought_applied", ("thought", LocalizeThought(e.ActionName)), ("value", e.ItemName))],
+				=> [C(UIColors.HexDim, LocalizationService.T("log.need.thought_applied", ("thought", LocalizeThought(e.ActionName)), ("value", e.ItemName)))],
 			"bleeding_started" when e.TargetId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.health.bleeding_started", "You start bleeding.")],
+				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.bleeding_started", "You start bleeding."))],
 			"treatment_applied" when e.TargetId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.health.treatment_applied", "Treatment applied to {condition}.", ("condition", LocalizeCondition(e.ActionName)))],
+				=> [C(UIColors.HexSuccess, LocalizationService.TOrFallback("log.health.treatment_applied", "Treatment applied to {condition}.", ("condition", LocalizeCondition(e.ActionName))))],
 			"infection_started" when e.TargetId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.health.infection_started", "An infection has started.")],
+				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.infection_started", "An infection has started."))],
 			"infection_worsened" when e.TargetId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.health.infection_worsened", "The infection is getting worse.")],
+				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.infection_worsened", "The infection is getting worse."))],
 			"scar_gained" when e.TargetId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.health.scar_gained", "You gained a scar.")],
+				=> [C(UIColors.HexDim, LocalizationService.TOrFallback("log.health.scar_gained", "You gained a scar."))],
 			"death_blood_loss"
-				=> [LocalizationService.TOrFallback("log.health.death_blood_loss", "{target} died from blood loss.", ("target", e.TargetActorName ?? "Someone"))],
+				=> [C(UIColors.HexCombat, LocalizationService.TOrFallback("log.health.death_blood_loss", "{target} died from blood loss.", ("target", e.TargetActorName ?? "Someone")))],
 			"death_infection"
-				=> [LocalizationService.TOrFallback("log.health.death_infection", "{target} died from infection.", ("target", e.TargetActorName ?? "Someone"))],
-			"corpse_spawned" => [FormatCorpseSpawned(e)],
-			"corpse_stripped" => [FormatCorpseStripped(e)],
-			"corpse_butchered" => [FormatCorpseButchered(e)],
-			"corpse_harvested" => [FormatCorpseHarvested(e)],
-			"surgery_installed" => [FormatSurgeryInstalled(e)],
-			"live_harvested" => [FormatLiveHarvested(e)],
-			"operate_failed" => [FormatOperateFailed(e)],
+				=> [C(UIColors.HexCombat, LocalizationService.TOrFallback("log.health.death_infection", "{target} died from infection.", ("target", e.TargetActorName ?? "Someone")))],
+			"corpse_spawned" => [C(UIColors.HexDim, FormatCorpseSpawned(e))],
+			"corpse_stripped" => [C(UIColors.HexDim, FormatCorpseStripped(e))],
+			"corpse_butchered" => [C(UIColors.HexDim, FormatCorpseButchered(e))],
+			"corpse_harvested" => [C(UIColors.HexDim, FormatCorpseHarvested(e))],
+			"surgery_installed" => [C(UIColors.HexSuccess, FormatSurgeryInstalled(e))],
+			"live_harvested" => [C(UIColors.HexWarning, FormatLiveHarvested(e))],
+			"operate_failed" => [C(UIColors.HexWarning, FormatOperateFailed(e))],
 			"campfire_lit" when e.InitiatorId == state.PlayerId
-				=> [LocalizationService.TOrFallback("log.heat.campfire_lit", "You light a campfire.")],
+				=> [C(UIColors.HexEquipped, LocalizationService.TOrFallback("log.heat.campfire_lit", "You light a campfire."))],
 			_ => null,
 		};
 	}
@@ -216,18 +220,18 @@ public class LogModule
 			var attackerName = string.IsNullOrWhiteSpace(e.InitiatorActorName)
 				? "???"
 				: e.InitiatorActorName!;
-			lines.Add(LocalizationService.T("log.combat_attack.player",
+			lines.Add(C(UIColors.HexCombat, LocalizationService.T("log.combat_attack.player",
 				("attacker", attackerName),
 				("limb", e.LimbName),
-				("damage", e.Damage)));
+				("damage", e.Damage))));
 		}
 		else
 		{
-			lines.Add(LocalizationService.T("log.combat_attack.other",
+			lines.Add(C(UIColors.HexCombat, LocalizationService.T("log.combat_attack.other",
 				("action", e.ActionName),
 				("target", e.TargetActorName),
 				("limb", e.LimbName),
-				("damage", e.Damage)));
+				("damage", e.Damage))));
 		}
 
 		var hitTarget = e.TargetId != null ? ActorModule.GetById(state, e.TargetId) : null;
@@ -236,10 +240,10 @@ public class LogModule
 			var hl = hitTarget.Limbs.Find(l => l.Name == e.LimbName);
 			if (hl != null)
 			{
-				lines.Add(LocalizationService.T("log.combat_attack.limb_status",
+				lines.Add(C(UIColors.HexDim, LocalizationService.T("log.combat_attack.limb_status",
 					("limb", e.LimbName),
 					("current", hl.Durability),
-					("max", hl.MaxDurability)));
+					("max", hl.MaxDurability))));
 			}
 		}
 
@@ -249,8 +253,8 @@ public class LogModule
 	private static List<string> FormatLimbDestroyed(GameEvent e, GameState state)
 	{
 		if (e.TargetId == state.PlayerId)
-			return [LocalizationService.T("log.limb_destroyed.player", ("limb", e.LimbName))];
-		return [LocalizationService.T("log.limb_destroyed.other", ("target", e.TargetActorName), ("limb", e.LimbName))];
+			return [C(UIColors.HexWarning, LocalizationService.T("log.limb_destroyed.player", ("limb", e.LimbName)))];
+		return [C(UIColors.HexCombat, LocalizationService.T("log.limb_destroyed.other", ("target", e.TargetActorName), ("limb", e.LimbName)))];
 	}
 
 	private static string FormatWeatherChanged(GameEvent e)
@@ -267,12 +271,12 @@ public class LogModule
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexWarning, LocalizationService.TOrFallback(
 				"log.weather_lightning_strike",
 				"Lightning strikes {target}'s {limb} for {damage}",
 				("target", e.TargetActorName ?? "target"),
 				("limb", e.LimbName ?? "body"),
-				("damage", e.Damage)),
+				("damage", e.Damage))),
 			];
 	}
 
@@ -283,12 +287,12 @@ public class LogModule
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexWarning, LocalizationService.TOrFallback(
 				key,
 				fallback,
 				("x", e.TargetX),
 				("y", e.TargetY),
-				("damage", e.Damage)),
+				("damage", e.Damage))),
 		];
 	}
 
@@ -299,10 +303,10 @@ public class LogModule
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexWarning, LocalizationService.TOrFallback(
 				"log.fire.actor_ignited",
 				"{target} caught fire",
-				("target", e.TargetActorName ?? "Someone")),
+				("target", e.TargetActorName ?? "Someone"))),
 		];
 	}
 
@@ -315,9 +319,9 @@ public class LogModule
 		{
 			return
 			[
-				LocalizationService.TOrFallback(
+				C(UIColors.HexSuccess, LocalizationService.TOrFallback(
 					"log.fire.self_extinguished",
-					"You beat out the flames on yourself"),
+					"You beat out the flames on yourself")),
 			];
 		}
 
@@ -325,20 +329,20 @@ public class LogModule
 		{
 			return
 			[
-				LocalizationService.TOrFallback(
+				C(UIColors.HexDim, LocalizationService.TOrFallback(
 					"log.fire.actor_extinguished",
 					"{target} is no longer on fire",
-					("target", e.TargetActorName ?? "Someone")),
+					("target", e.TargetActorName ?? "Someone"))),
 			];
 		}
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexDim, LocalizationService.TOrFallback(
 				"log.fire.extinguished",
 				"The fire at ({x},{y}) was extinguished",
 				("x", e.TargetX),
-				("y", e.TargetY)),
+				("y", e.TargetY))),
 		];
 	}
 
@@ -349,11 +353,11 @@ public class LogModule
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexWarning, LocalizationService.TOrFallback(
 				key,
 				fallback,
 				("item", e.ItemName ?? LocalizationService.T("ui.common.unknown")),
-				("damage", e.Damage)),
+				("damage", e.Damage))),
 		];
 	}
 
@@ -364,10 +368,10 @@ public class LogModule
 
 		return
 		[
-			LocalizationService.TOrFallback(
+			C(UIColors.HexWarning, LocalizationService.TOrFallback(
 				"log.fire.fixture_burned_down",
 				"{fixture} burned down",
-				("fixture", GameLocalizer.LocalizeFixtureName(e.ActionName ?? string.Empty))),
+				("fixture", GameLocalizer.LocalizeFixtureName(e.ActionName ?? string.Empty)))),
 		];
 	}
 
@@ -379,16 +383,16 @@ public class LogModule
 		var enemyName = string.IsNullOrWhiteSpace(e.InitiatorActorName)
 			? "???"
 			: e.InitiatorActorName!;
-		var key = e.EffectType switch
+		var (key, hex) = e.EffectType switch
 		{
-			"suspicious" => "log.awareness.suspicious",
-			"alerted" => "log.awareness.alerted",
-			"searching" => "log.awareness.searching",
-			_ => string.Empty,
+			"suspicious" => ("log.awareness.suspicious", UIColors.HexEquipped),
+			"alerted" => ("log.awareness.alerted", UIColors.HexCombat),
+			"searching" => ("log.awareness.searching", UIColors.HexUtility),
+			_ => (string.Empty, UIColors.HexDim),
 		};
 		return string.IsNullOrEmpty(key)
 			? null
-			: [LocalizationService.T(key, ("enemy", enemyName))];
+			: [C(hex, LocalizationService.T(key, ("enemy", enemyName)))];
 	}
 
 	private static string FormatSkillCastFailed(GameEvent e)

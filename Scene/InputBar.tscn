@@ -2,5 +2,5 @@
 
 [node name="InputBar" type="LineEdit"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 40)
 placeholder_text = "ui.input_bar.placeholder"

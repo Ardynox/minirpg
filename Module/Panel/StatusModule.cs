@@ -181,7 +181,7 @@ public class StatusPanelModule : IPanel
 				sb.Append('\n');
 
 			if (i == _cursor)
-				sb.Append($"[color=#99ffaa]鈻?{_lines[i]}[/color]");
+				sb.Append($"[color={UIColors.HexSelected}]鈻?{_lines[i]}[/color]");
 			else
 				sb.Append($"  {_lines[i]}");
 		}

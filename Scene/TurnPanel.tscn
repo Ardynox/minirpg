@@ -2,43 +2,49 @@
 
 [node name="TurnPanel" type="PanelContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 104)
+custom_minimum_size = Vector2(0, 32)
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 3
 
-[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+[node name="HBox" type="HBoxContainer" parent="Margin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 4
+theme_override_constants/separation = 12
 
-[node name="Header" type="Label" parent="MarginContainer/VBox"]
+[node name="PhaseLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
-theme_type_variation = "HeaderLabel"
-text = "ui.turn_panel.title"
-
-[node name="StatusText" type="RichTextLabel" parent="MarginContainer/VBox"]
-layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(100, 0)
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
 
-[node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
+[node name="ActorLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
-
-[node name="SummaryText" type="RichTextLabel" parent="MarginContainer/VBox"]
-layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(120, 0)
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
 
-[node name="QueueText" type="RichTextLabel" parent="MarginContainer/VBox"]
+[node name="TurnLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(60, 0)
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+
+[node name="Sep" type="VSeparator" parent="Margin/HBox"]
+layout_mode = 2
+
+[node name="QueueFlow" type="HBoxContainer" parent="Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
