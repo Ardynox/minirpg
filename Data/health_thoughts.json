@@ -1,0 +1,93 @@
+[
+  {
+    "id": "minor_pain",
+    "labelKey": "health.thought.minor_pain",
+    "displayName": "轻微疼痛",
+    "moodOffset": -3,
+    "durationTurns": -1
+  },
+  {
+    "id": "major_pain",
+    "labelKey": "health.thought.major_pain",
+    "displayName": "剧烈疼痛",
+    "moodOffset": -8,
+    "durationTurns": -1
+  },
+  {
+    "id": "extreme_pain",
+    "labelKey": "health.thought.extreme_pain",
+    "displayName": "极度疼痛",
+    "moodOffset": -18,
+    "durationTurns": -1
+  },
+  {
+    "id": "bleeding",
+    "labelKey": "health.thought.bleeding",
+    "displayName": "正在流血",
+    "moodOffset": -6,
+    "durationTurns": -1
+  },
+  {
+    "id": "infected",
+    "labelKey": "health.thought.infected",
+    "displayName": "感染中",
+    "moodOffset": -10,
+    "durationTurns": -1
+  },
+  {
+    "id": "tended_well",
+    "labelKey": "health.thought.tended_well",
+    "displayName": "伤口处理得当",
+    "moodOffset": 4,
+    "durationTurns": 180
+  },
+  {
+    "id": "tended_poorly",
+    "labelKey": "health.thought.tended_poorly",
+    "displayName": "伤口处理粗糙",
+    "moodOffset": -3,
+    "durationTurns": 180
+  },
+  {
+    "id": "scarred",
+    "labelKey": "health.thought.scarred",
+    "displayName": "留下伤疤",
+    "moodOffset": -4,
+    "durationTurns": -1
+  },
+  {
+    "id": "lost_limb",
+    "labelKey": "health.thought.lost_limb",
+    "displayName": "失去肢体",
+    "moodOffset": -12,
+    "durationTurns": -1
+  },
+  {
+    "id": "slept_wet",
+    "labelKey": "health.thought.slept_wet",
+    "displayName": "湿着睡了一觉",
+    "moodOffset": -5,
+    "durationTurns": 220
+  },
+  {
+    "id": "slept_dirty",
+    "labelKey": "health.thought.slept_dirty",
+    "displayName": "脏地方睡了一觉",
+    "moodOffset": -4,
+    "durationTurns": 220
+  },
+  {
+    "id": "hypothermic",
+    "labelKey": "health.thought.hypothermic",
+    "displayName": "失温",
+    "moodOffset": -9,
+    "durationTurns": -1
+  },
+  {
+    "id": "heatstroke",
+    "labelKey": "health.thought.heatstroke",
+    "displayName": "中暑",
+    "moodOffset": -9,
+    "durationTurns": -1
+  }
+]

@@ -21,6 +21,7 @@
 - 看项目约定和默认决策规则，请先读 [`./minirpg.md`](./minirpg.md)。
 - 看当前职责边界和主路径，请读 [`./ARCHITECTURE.md`](./ARCHITECTURE.md)。
 - 看遗留问题和技术债，请读 [`./TODO.md`](./TODO.md)。
+- 看游戏内自动化巡检器（AutoTest）的 AI 接手流程，请读 [`./AUTOTEST_AI_GUIDE.md`](./AUTOTEST_AI_GUIDE.md)。
 
 ## 顶层目录
 
@@ -55,6 +56,7 @@ mini-rpg/
 
 | 任务类型 | 先看这些文件 |
 |---|---|
+| 游戏内自动化巡检 / 读 `test_results.log` / AutoTest 扩展 | [`./AUTOTEST_AI_GUIDE.md`](./AUTOTEST_AI_GUIDE.md), [`../App/Main.AutoTest.cs`](../App/Main.AutoTest.cs), [`../Module/AutoTestModule.cs`](../Module/AutoTestModule.cs), [`../Module/AutoTestLogWriter.cs`](../Module/AutoTestLogWriter.cs), [`../Data/Config/debug.json`](../Data/Config/debug.json) |
 | 项目入口、初始化、命令路由 | [`../App/Main.cs`](../App/Main.cs), [`../App/Main.tscn`](../App/Main.tscn) |
 | 菜单、继续、读档、楼层切换 | [`../Module/GameSessionModule.cs`](../Module/GameSessionModule.cs), [`../Module/MenuModule.cs`](../Module/MenuModule.cs), [`../Core/Map/SaveModule.cs`](../Core/Map/SaveModule.cs) |
 | 输入、快捷键、输入焦点 | [`../Module/InputModule.cs`](../Module/InputModule.cs), [`../Module/InputBindingService.cs`](../Module/InputBindingService.cs), [`../Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs) |

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
@@ -83,7 +84,7 @@ public class DialogPanelModule : IPanel
 	/// <summary>显示无选项的终结节点（自动关闭提示）。</summary>
 	public void ShowEnd(string npcName, string moodIcon, string dialogContent)
 	{
-		Show(npcName, moodIcon, dialogContent, ["（结束对话）"]);
+		Show(npcName, moodIcon, dialogContent, [LocalizationService.T("ui.dialog.end")]);
 	}
 
 	public void Close()
@@ -146,6 +147,7 @@ public class DialogPanelModule : IPanel
 			row.MouseExited += () => { if (_hoverIndex == idx) _hoverIndex = -1; UpdateRowVisuals(); };
 
 			_optionList.AddChild(row);
+			PanelButtonScaleRegistry.Track(PanelId, row);
 			_optionRows.Add(row);
 		}
 	}

@@ -1,19 +1,15 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
+
 namespace MiniRPG.Module.Panel;
 
-/// <summary>
-/// 地面物品面板：用单个 RichTextLabel 渲染物品列表，
-/// 光标选中用 ▶ 前缀 + 颜色高亮，容器物品用蓝色标注。
-/// </summary>
-public class GroundPanelModule : IPanel
+public class GroundPanelModule : ListPanelBase
 {
-	public string PanelId => "ground";
-	public PanelContainer PanelNode => _panel;
-	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
-	bool IPanel.CanFocus => false;
-	bool IPanel.HandleCommand(string cmd) => false;
+	public override string PanelId => "ground";
+	public override PanelContainer PanelNode => _panel;
+	public override bool CanFocus => false;
 
 	public interface IHost
 	{
@@ -22,58 +18,76 @@ public class GroundPanelModule : IPanel
 		void Dispatch(List<GameEvent> events);
 		void FlushMap();
 		void OpenChestPanel(Item chestItem);
+		void OpenCorpseHarvest(Item corpseItem);
+		void StripCorpse(Item corpseItem);
+		void ButcherCorpse(Item corpseItem);
 		void PickupGroundItem(Item item);
+		bool TryHandleItemRightClick(Item item);
 	}
 
 	private readonly PanelContainer _panel;
 	private readonly Label _header;
-	private readonly RichTextLabel _contentText;
 	private readonly Button _pickupBtn;
 	private readonly Button _pickupAllBtn;
+	private readonly PopupMenu _contextMenu;
 	private readonly IHost _host;
 
 	private List<Item> _groundItems = [];
-	private int _cursor;
 	private int _cachedX = int.MinValue;
 	private int _cachedY = int.MinValue;
 	private bool _dirty = true;
 
-	public bool Dirty { get; set; }
-
-	public void FlushIfDirty()
-	{
-		if (!Dirty) return;
-		Dirty = false;
-		Refresh();
-	}
-
-	public bool Visible
+	public override bool Visible
 	{
 		get => _panel.Visible;
 		set => _panel.Visible = value;
+	}
+
+	public override bool HandleCommand(string cmd) => false;
+
+	public override void OnBlur()
+	{
 	}
 
 	public GroundPanelModule(PanelContainer panel, IHost host)
 	{
 		_panel = panel;
 		_host = host;
-		var vbox = panel.GetNode("MarginContainer/VBox");
+		var vbox = panel.GetNode<VBoxContainer>("MarginContainer/VBox");
 		_header = vbox.GetNode<Label>("Header");
-		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
+		var itemScroll = vbox.GetNode<ScrollContainer>("ItemScroll");
+		var itemList = itemScroll.GetNode<VBoxContainer>("ItemList");
+		BindListNodes(itemScroll, itemList);
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_pickupBtn = actionBar.GetNode<Button>("PickupBtn");
 		_pickupAllBtn = actionBar.GetNode<Button>("PickupAllBtn");
 
 		_pickupBtn.FocusMode = Control.FocusModeEnum.None;
 		_pickupAllBtn.FocusMode = Control.FocusModeEnum.None;
-		_pickupBtn.Pressed += () => DoPickupSelected();
-		_pickupAllBtn.Pressed += () => DoPickupAll();
+		_pickupBtn.Pressed += DoPickupSelected;
+		_pickupAllBtn.Pressed += DoPickupAll;
+		_contextMenu = new PopupMenu { Name = "ContextMenu" };
+		_panel.AddChild(_contextMenu);
+		_contextMenu.IdPressed += OnContextMenuAction;
 	}
 
 	public void Invalidate() => _dirty = true;
 
-	public void Refresh()
+	public override void Refresh()
 	{
+		if (_host.State.World == null)
+		{
+			_groundItems = [];
+			_cursor = 0;
+			_cachedX = _host.State.PlayerX;
+			_cachedY = _host.State.PlayerY;
+			_dirty = false;
+			RebuildRows(0, ApplyRowContent, LocalizationService.T("ui.common.empty_inline"));
+			RenderHeader();
+			UpdateActionButtons();
+			return;
+		}
+
 		var px = _host.State.PlayerX;
 		var py = _host.State.PlayerY;
 		if (_dirty || px != _cachedX || py != _cachedY)
@@ -83,31 +97,129 @@ public class GroundPanelModule : IPanel
 			_cachedY = py;
 			_dirty = false;
 		}
+
 		if (_cursor >= _groundItems.Count)
 			_cursor = Math.Max(0, _groundItems.Count - 1);
 
+		RebuildRows(_groundItems.Count, ApplyRowContent, LocalizationService.T("ui.common.empty_inline"));
 		RenderHeader();
-		RenderContent();
+		UpdateRowVisuals(_groundItems.Count);
 		UpdateActionButtons();
 	}
 
-	public void MoveCursor(int delta)
+	protected override int GetRowDataCount() => _groundItems.Count;
+
+	protected override void OnSelectionChanged()
 	{
-		if (_groundItems.Count == 0) return;
-		var prev = _cursor;
-		_cursor = Math.Clamp(_cursor + delta, 0, _groundItems.Count - 1);
-		if (_cursor != prev)
+		UpdateRowVisuals(_groundItems.Count);
+		UpdateActionButtons();
+	}
+
+	protected override Button CreateRow(int index)
+	{
+		var row = base.CreateRow(index);
+		var idx = index;
+		row.GuiInput += ev => OnRowInput(ev, idx);
+		return row;
+	}
+
+	private void ApplyRowContent(Button row, int index)
+	{
+		var item = _groundItems[index];
+		var icon = item.IsContainer ? "[C]" : "   ";
+		var itemName = ItemFormatHelper.GetDisplayName(_host.State, item);
+		var stats = ItemFormatHelper.InlineStats(_host.State, item);
+		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
+		var nameText = item.IsContainer
+			? LocalizationService.T("ui.ground.container_name", ("name", itemName), ("count", item.Contents?.Count ?? 0))
+			: itemName;
+		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
+		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
+		row.Text = $"{icon} {nameText}{statSegment}{weightSegment}";
+	}
+
+	private void OnRowInput(InputEvent ev, int index)
+	{
+		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= _groundItems.Count)
+			return;
+
+		if (mb.ButtonIndex != MouseButton.Right)
+			return;
+
+		_cursor = index;
+		OnSelectionChanged();
+		if (_host.TryHandleItemRightClick(_groundItems[index]))
 		{
-			RenderContent();
-			UpdateActionButtons();
+			Refresh();
+			_host.FlushMap();
+			return;
 		}
+
+		ShowContextMenu(_groundItems[index], mb.GlobalPosition);
+	}
+
+	private void ShowContextMenu(Item item, Vector2 position)
+	{
+		_contextMenu.Clear();
+		if (item.IsCorpse)
+		{
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), 0);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.strip", "Strip"), 1);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.butcher", "Butcher"), 2);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.harvest", "Harvest"), 3);
+		}
+		else if (item.IsContainer)
+		{
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), 0);
+		}
+		else
+		{
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.pickup", "Pick up"), 4);
+		}
+
+		_contextMenu.Position = new Vector2I((int)position.X, (int)position.Y);
+		_contextMenu.ResetSize();
+		_contextMenu.Popup();
+	}
+
+	private void OnContextMenuAction(long id)
+	{
+		if (_cursor < 0 || _cursor >= _groundItems.Count)
+			return;
+
+		var item = _groundItems[_cursor];
+		switch (id)
+		{
+			case 0:
+				_host.OpenChestPanel(item);
+				break;
+			case 1:
+				_host.StripCorpse(item);
+				break;
+			case 2:
+				_host.ButcherCorpse(item);
+				break;
+			case 3:
+				_host.OpenCorpseHarvest(item);
+				break;
+			case 4:
+				_host.PickupGroundItem(item);
+				break;
+		}
+
+		Refresh();
+		_host.FlushMap();
 	}
 
 	public void DoPickupSelected()
 	{
-		if (_cursor < 0 || _cursor >= _groundItems.Count) return;
-		var item = _groundItems[_cursor];
+		if (_host.State.World == null)
+			return;
 
+		if (_cursor < 0 || _cursor >= _groundItems.Count)
+			return;
+
+		var item = _groundItems[_cursor];
 		if (item.IsContainer)
 		{
 			_host.OpenChestPanel(item);
@@ -120,15 +232,24 @@ public class GroundPanelModule : IPanel
 
 	public void DoPickupAll()
 	{
-		var nonContainers = _groundItems.FindAll(i => !i.IsContainer);
+		if (_host.State.World == null)
+			return;
+
+		var nonContainers = _groundItems.FindAll(static item => !item.IsContainer);
 		foreach (var item in nonContainers)
 			_host.PickupGroundItem(item);
+
 		Refresh();
 	}
 
 	public void DoInteractSelected()
 	{
-		if (_cursor < 0 || _cursor >= _groundItems.Count) return;
+		if (_host.State.World == null)
+			return;
+
+		if (_cursor < 0 || _cursor >= _groundItems.Count)
+			return;
+
 		var item = _groundItems[_cursor];
 		if (item.IsContainer)
 			_host.OpenChestPanel(item);
@@ -140,40 +261,13 @@ public class GroundPanelModule : IPanel
 	{
 		if (_groundItems.Count == 0)
 		{
-			_header.Text = "── 脚下 ── (空)";
+			_header.Text = LocalizationService.T("ui.ground.header.empty");
 			_header.ThemeTypeVariation = "HintLabel";
+			return;
 		}
-		else
-		{
-			_header.Text = $"── 脚下 ── ({_groundItems.Count}件)";
-			_header.ThemeTypeVariation = "";
-		}
-	}
 
-	private void RenderContent()
-	{
-		_contentText.Clear();
-		if (_groundItems.Count == 0) return;
-
-		var sb = new System.Text.StringBuilder();
-		for (var i = 0; i < _groundItems.Count; i++)
-		{
-			if (i > 0) sb.Append('\n');
-			var item = _groundItems[i];
-			var icon = item.IsContainer ? "📦 " : "· ";
-			var nameText = item.IsContainer
-				? $"{item.Name} ({item.Contents?.Count ?? 0}件)"
-				: item.Name;
-			var line = $"{icon}{nameText}  {item.EffectiveWeight:F1}kg";
-
-			if (i == _cursor)
-				sb.Append($"[color=#99ffaa]▶ {line}[/color]");
-			else if (item.IsContainer)
-				sb.Append($"[color=#99ddff]  {line}[/color]");
-			else
-				sb.Append($"  {line}");
-		}
-		_contentText.AppendText(sb.ToString());
+		_header.Text = LocalizationService.T("ui.ground.header.count", ("count", _groundItems.Count));
+		_header.ThemeTypeVariation = "";
 	}
 
 	private void UpdateActionButtons()
@@ -185,11 +279,15 @@ public class GroundPanelModule : IPanel
 		if (hasItems && _cursor >= 0 && _cursor < _groundItems.Count)
 		{
 			var item = _groundItems[_cursor];
-			_pickupBtn.Text = item.IsContainer ? "打开 [F]" : "拾取 [F]";
+			_pickupBtn.Text = item.IsContainer
+				? LocalizationService.T("ui.ground.open")
+				: LocalizationService.T("ui.ground.pickup");
 		}
 		else
 		{
-			_pickupBtn.Text = "拾取 [F]";
+			_pickupBtn.Text = LocalizationService.T("ui.ground.pickup");
 		}
+
+		_pickupAllBtn.Text = LocalizationService.T("ui.ground.pickup_all");
 	}
 }

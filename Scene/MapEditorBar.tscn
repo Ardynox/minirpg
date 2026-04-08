@@ -24,7 +24,7 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "地图编辑模式"
+text = "ui.map_editor.title"
 horizontal_alignment = 1
 
 [node name="CategoryRow" type="HBoxContainer" parent="Margin/VBox"]
@@ -35,24 +35,24 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "地形"
+text = "ui.map_editor.category.terrain"
 
 [node name="FixtureBtn" type="Button" parent="Margin/VBox/CategoryRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "设施"
+text = "ui.map_editor.category.fixture"
 
 [node name="BrushSelect" type="OptionButton" parent="Margin/VBox"]
 layout_mode = 2
 
 [node name="CurrentBrush" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "当前笔刷: -"
+text = "ui.map_editor.current_brush.none"
 
 [node name="Hint" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "左键绘制 | 右键删除当前层 | 滚轮切笔刷 | Tab 切分类"
+text = "ui.map_editor.hint"
 autowrap_mode = 2
 
 [node name="Actions" type="HBoxContainer" parent="Margin/VBox"]
@@ -62,14 +62,14 @@ theme_override_constants/separation = 8
 [node name="CenterBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "回到玩家"
+text = "ui.map_editor.center"
 
 [node name="SaveBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "保存"
+text = "ui.map_editor.save"
 
 [node name="ExitBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "退出编辑"
+text = "ui.map_editor.exit"

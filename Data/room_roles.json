@@ -1,0 +1,83 @@
+[
+  {
+    "id": "storage",
+    "name": "Storage",
+    "facilityTags": ["storage"],
+    "minimumScore": 1,
+    "modifiers": {
+      "workSpeed": 1.0,
+      "restQuality": 1.0,
+      "foodHandling": 1.05,
+      "storage": 1.15,
+      "trade": 1.0
+    }
+  },
+  {
+    "id": "kitchen",
+    "name": "Kitchen",
+    "facilityIds": ["stove"],
+    "minimumScore": 1,
+    "modifiers": {
+      "workSpeed": 1.05,
+      "restQuality": 1.0,
+      "foodHandling": 1.2,
+      "storage": 1.0,
+      "trade": 1.0
+    }
+  },
+  {
+    "id": "workshop",
+    "name": "Workshop",
+    "facilityIds": ["smithy", "loom", "herbal_bench", "butcher_table"],
+    "facilityTags": ["smithing", "tailoring", "herbalism", "butchery"],
+    "minimumScore": 1,
+    "modifiers": {
+      "workSpeed": 1.12,
+      "restQuality": 1.0,
+      "foodHandling": 1.0,
+      "storage": 1.0,
+      "trade": 1.0
+    }
+  },
+  {
+    "id": "dormitory",
+    "name": "Dormitory",
+    "facilityTags": ["sleep"],
+    "minimumScore": 2,
+    "modifiers": {
+      "workSpeed": 1.0,
+      "restQuality": 1.12,
+      "foodHandling": 1.0,
+      "storage": 1.0,
+      "trade": 1.0
+    }
+  },
+  {
+    "id": "clinic",
+    "name": "Clinic",
+    "facilityIds": ["herbal_bench"],
+    "facilityTags": ["herbalism", "sleep"],
+    "minimumScore": 1,
+    "modifiers": {
+      "workSpeed": 1.04,
+      "restQuality": 1.08,
+      "foodHandling": 1.0,
+      "storage": 1.0,
+      "trade": 1.0
+    }
+  },
+  {
+    "id": "market",
+    "name": "Market",
+    "facilityIds": ["market_stall"],
+    "facilityTags": ["trade"],
+    "minimumScore": 1,
+    "modifiers": {
+      "workSpeed": 1.0,
+      "restQuality": 1.0,
+      "foodHandling": 1.0,
+      "storage": 1.0,
+      "trade": 1.2
+    }
+  }
+]

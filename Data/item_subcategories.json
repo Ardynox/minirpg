@@ -1,0 +1,17 @@
+[
+  { "id": "firearm_sidearm", "name": "手枪", "category": "weapon", "group": "firearm" },
+  { "id": "firearm_rifle", "name": "步枪", "category": "weapon", "group": "firearm" },
+  { "id": "firearm_shotgun", "name": "霰弹枪", "category": "weapon", "group": "firearm" },
+  { "id": "ammo_revolver", "name": "左轮弹", "category": "ammo", "group": "ammo" },
+  { "id": "ammo_rifle", "name": "步枪弹", "category": "ammo", "group": "ammo" },
+  { "id": "ammo_shell", "name": "霰弹", "category": "ammo", "group": "ammo" },
+  { "id": "medicine_industrial", "name": "工业药品", "category": "consumable", "group": "medicine" },
+  { "id": "medical_tool", "name": "手术工具", "category": "tool", "group": "medicine" },
+  { "id": "corpse_humanoid", "name": "类人生物尸体", "category": "misc", "group": "corpse" },
+  { "id": "corpse_beast", "name": "兽类尸体", "category": "misc", "group": "corpse" },
+  { "id": "organ_vital", "name": "重要器官", "category": "misc", "group": "organ" },
+  { "id": "organ_sensory", "name": "感官器官", "category": "misc", "group": "organ" },
+  { "id": "limb_natural", "name": "天然肢体", "category": "misc", "group": "limb" },
+  { "id": "prosthetic_basic", "name": "基础义体", "category": "misc", "group": "prosthetic" },
+  { "id": "bionic_advanced", "name": "高级仿生体", "category": "misc", "group": "bionic" }
+]

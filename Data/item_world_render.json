@@ -1,0 +1,406 @@
+{
+  "default": {
+    "kind": "tile",
+    "value": "Misc B5_N"
+  },
+  "categories": {
+    "consumable": {
+      "kind": "tile",
+      "value": "Misc B5_N"
+    },
+    "food": {
+      "kind": "tile",
+      "value": "Misc B10_N"
+    },
+    "weapon": {
+      "kind": "tile",
+      "value": "Misc C1_N"
+    },
+    "armor": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "clothing": {
+      "kind": "tile",
+      "value": "Misc E1_N"
+    },
+    "tool": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "material": {
+      "kind": "tile",
+      "value": "Misc B15_N"
+    },
+    "ammo": {
+      "kind": "tile",
+      "value": "Misc B18_N"
+    },
+    "misc": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    }
+  },
+  "items": {
+    "potion_hp": {
+      "kind": "tile",
+      "value": "Misc B5_N"
+    },
+    "potion_str": {
+      "kind": "tile",
+      "value": "Misc B6_N"
+    },
+    "herbal_medicine": {
+      "kind": "tile",
+      "value": "Flora A1_N"
+    },
+    "antidote": {
+      "kind": "tile",
+      "value": "Misc B7_N"
+    },
+    "bandage": {
+      "kind": "tile",
+      "value": "Misc B8_N"
+    },
+    "go_juice": {
+      "kind": "tile",
+      "value": "Misc B9_N"
+    },
+    "meal_simple": {
+      "kind": "tile",
+      "value": "Misc B10_N"
+    },
+    "meal_fine": {
+      "kind": "tile",
+      "value": "Misc B11_N"
+    },
+    "meal_lavish": {
+      "kind": "tile",
+      "value": "Misc B12_N"
+    },
+    "pemmican": {
+      "kind": "tile",
+      "value": "Misc B13_N"
+    },
+    "raw_meat": {
+      "kind": "tile",
+      "value": "Misc B14_N"
+    },
+    "berries": {
+      "kind": "tile",
+      "value": "Flora B1_N"
+    },
+    "sword_steel": {
+      "kind": "tile",
+      "value": "Misc C1_N"
+    },
+    "sword_iron": {
+      "kind": "tile",
+      "value": "Misc C2_N"
+    },
+    "sword_plasteel": {
+      "kind": "tile",
+      "value": "Misc C3_N"
+    },
+    "club_wood": {
+      "kind": "tile",
+      "value": "Misc C4_N"
+    },
+    "mace_iron": {
+      "kind": "tile",
+      "value": "Misc C5_N"
+    },
+    "war_hammer": {
+      "kind": "tile",
+      "value": "Misc C6_N"
+    },
+    "war_hammer_uranium": {
+      "kind": "tile",
+      "value": "Misc C7_N"
+    },
+    "dagger": {
+      "kind": "tile",
+      "value": "Misc C8_N"
+    },
+    "spear_wood": {
+      "kind": "tile",
+      "value": "Misc C9_N"
+    },
+    "spear_steel": {
+      "kind": "tile",
+      "value": "Misc C10_N"
+    },
+    "bow_short": {
+      "kind": "tile",
+      "value": "Misc C11_N"
+    },
+    "bow_great": {
+      "kind": "tile",
+      "value": "Misc C12_N"
+    },
+    "shield_iron": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "shield_steel": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    },
+    "shield_wood": {
+      "kind": "tile",
+      "value": "Misc D3_N"
+    },
+    "cloth_shirt": {
+      "kind": "tile",
+      "value": "Misc E1_N"
+    },
+    "cloth_pants": {
+      "kind": "tile",
+      "value": "Misc E2_N"
+    },
+    "tuque": {
+      "kind": "tile",
+      "value": "Misc E3_N"
+    },
+    "duster": {
+      "kind": "tile",
+      "value": "Misc E4_N"
+    },
+    "parka": {
+      "kind": "tile",
+      "value": "Misc E5_N"
+    },
+    "devilstrand_duster": {
+      "kind": "tile",
+      "value": "Misc E6_N"
+    },
+    "leather_vest": {
+      "kind": "tile",
+      "value": "Misc D4_N"
+    },
+    "chainmail": {
+      "kind": "tile",
+      "value": "Misc D5_N"
+    },
+    "plate_armor": {
+      "kind": "tile",
+      "value": "Misc E7_N"
+    },
+    "flak_vest": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "iron_helmet": {
+      "kind": "tile",
+      "value": "Misc E9_N"
+    },
+    "steel_helmet": {
+      "kind": "tile",
+      "value": "Misc E10_N"
+    },
+    "leather_boots": {
+      "kind": "tile",
+      "value": "Misc E11_N"
+    },
+    "steel_greaves": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "gauntlets_iron": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    },
+    "torch": {
+      "kind": "tile",
+      "value": "Misc A5_N"
+    },
+    "pickaxe": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "pickaxe_steel": {
+      "kind": "tile",
+      "value": "Misc C14_N"
+    },
+    "wood_axe": {
+      "kind": "tile",
+      "value": "Misc C4_N"
+    },
+    "hammer_smith": {
+      "kind": "tile",
+      "value": "Misc C6_N"
+    },
+    "knife_butcher": {
+      "kind": "tile",
+      "value": "Misc C8_N"
+    },
+    "mat_wood": {
+      "kind": "tile",
+      "value": "Misc B15_N"
+    },
+    "mat_stone": {
+      "kind": "tile",
+      "value": "Misc B16_N"
+    },
+    "mat_iron": {
+      "kind": "tile",
+      "value": "Misc B17_N"
+    },
+    "mat_steel": {
+      "kind": "tile",
+      "value": "Misc B18_N"
+    },
+    "mat_gold": {
+      "kind": "tile",
+      "value": "Misc B19_N"
+    },
+    "mat_silver": {
+      "kind": "tile",
+      "value": "Misc B20_N"
+    },
+    "mat_plasteel": {
+      "kind": "tile",
+      "value": "Misc B21_N"
+    },
+    "mat_uranium": {
+      "kind": "tile",
+      "value": "Misc B22_N"
+    },
+    "mat_jade": {
+      "kind": "tile",
+      "value": "Misc B23_N"
+    },
+    "mat_leather": {
+      "kind": "tile",
+      "value": "Misc B24_N"
+    },
+    "mat_cloth": {
+      "kind": "tile",
+      "value": "Misc B25_N"
+    },
+    "mat_silk": {
+      "kind": "tile",
+      "value": "Misc B26_N"
+    },
+    "mat_devilstrand": {
+      "kind": "tile",
+      "value": "Misc B27_N"
+    },
+    "mat_herb": {
+      "kind": "tile",
+      "value": "Flora A2_N"
+    },
+    "mat_chitin": {
+      "kind": "tile",
+      "value": "Misc B28_N"
+    },
+    "chest_wooden": {
+      "kind": "tile",
+      "value": "Chest A1_N"
+    },
+    "backpack": {
+      "kind": "tile",
+      "value": "Misc E9_N"
+    },
+    "bedroll": {
+      "kind": "tile",
+      "value": "Misc E10_N"
+    },
+    "lantern": {
+      "kind": "tile",
+      "value": "Misc A6_N"
+    },
+    "rope": {
+      "kind": "tile",
+      "value": "Misc E11_N"
+    },
+    "industrial_medicine": {
+      "kind": "tile",
+      "value": "Misc B8_N"
+    },
+    "surgery_kit": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "sidearm_revolver": {
+      "kind": "tile",
+      "value": "Misc C1_N"
+    },
+    "bolt_rifle": {
+      "kind": "tile",
+      "value": "Misc C2_N"
+    },
+    "pump_shotgun": {
+      "kind": "tile",
+      "value": "Misc C3_N"
+    },
+    "ammo_revolver": {
+      "kind": "tile",
+      "value": "Misc B18_N"
+    },
+    "ammo_rifle": {
+      "kind": "tile",
+      "value": "Misc B19_N"
+    },
+    "ammo_shell": {
+      "kind": "tile",
+      "value": "Misc B20_N"
+    },
+    "corpse_human": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "corpse_beast_small": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "corpse_beast_large": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "organ_heart": {
+      "kind": "tile",
+      "value": "Misc B21_N"
+    },
+    "organ_lung": {
+      "kind": "tile",
+      "value": "Misc B22_N"
+    },
+    "organ_eye": {
+      "kind": "tile",
+      "value": "Misc B23_N"
+    },
+    "limb_arm": {
+      "kind": "tile",
+      "value": "Misc B24_N"
+    },
+    "limb_leg": {
+      "kind": "tile",
+      "value": "Misc B25_N"
+    },
+    "prosthetic_arm": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "prosthetic_leg": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "prosthetic_eye": {
+      "kind": "tile",
+      "value": "Misc D1_N"
+    },
+    "bionic_arm": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    },
+    "bionic_leg": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    },
+    "bionic_eye": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    }
+  }
+}

@@ -430,33 +430,107 @@ public partial class UnityTilesetImporter : Node
 			frames.Sort();
 			if (frames.Count == 0) continue;
 
-			var frameSourceIds = new List<int>();
-			foreach (var frameFile in frames)
-			{
-				var tex = ResourceLoader.Load<Texture2D>($"{baseDir}/{sub}/{frameFile}");
-				if (tex == null) continue;
+			var clipAtlas = BuildAnimationClipAtlas(baseDir, sub, frames, nextSourceId);
+			if (clipAtlas == null)
+				continue;
 
-				var atlas = new TileSetAtlasSource();
-				atlas.Texture           = tex;
-				atlas.TextureRegionSize = new Vector2I(tex.GetWidth(), tex.GetHeight());
-				int id = tileSet.AddSource(atlas, nextSourceId);
-				atlas.CreateTile(Vector2I.Zero);
-				frameSourceIds.Add(id);
-				nextSourceId++;
-			}
+			var tex = ImageTexture.CreateFromImage(clipAtlas.AtlasImage);
+			tex.ResourcePath = clipAtlas.AtlasPngPath;
 
-			if (frameSourceIds.Count > 0)
+			var atlas = new TileSetAtlasSource();
+			atlas.Texture = tex;
+			atlas.TextureRegionSize = new Vector2I(clipAtlas.TileW, clipAtlas.TileH);
+			tileSet.AddSource(atlas, clipAtlas.SourceId);
+
+			foreach (var coord in clipAtlas.FrameCoords)
+				atlas.CreateTile(new Vector2I(coord.AtlasX, coord.AtlasY));
+
+			var firstCoord = clipAtlas.FrameCoords[0];
+			nameToRef[sub] = new TileRef
 			{
-				nameToRef[sub] = new TileRef
-				{
-					SourceId       = frameSourceIds[0],
-					IsAnimated     = true,
-					Fps            = 10f,
-					FrameSourceIds = frameSourceIds,
-				};
-				animCount++;
-			}
+				SourceId = clipAtlas.SourceId,
+				AtlasX = firstCoord.AtlasX,
+				AtlasY = firstCoord.AtlasY,
+				IsAnimated = true,
+				Fps = 10f,
+				FrameCoords = clipAtlas.FrameCoords,
+			};
+			nextSourceId++;
+			animCount++;
 		}
+	}
+
+	private static AnimationClipAtlas? BuildAnimationClipAtlas(string baseDir, string subDir, List<string> frames, int sourceId)
+	{
+		var frameImages = new List<Image>(frames.Count);
+		var globalFrameDir = ProjectSettings.GlobalizePath($"{baseDir}/{subDir}");
+		var tileW = 0;
+		var tileH = 0;
+
+		foreach (var frameFile in frames)
+		{
+			var image = Image.LoadFromFile(System.IO.Path.Combine(globalFrameDir, frameFile));
+			if (image == null)
+				continue;
+
+			if (image.GetFormat() != Image.Format.Rgba8)
+				image.Convert(Image.Format.Rgba8);
+
+			if (tileW == 0 || tileH == 0)
+			{
+				tileW = image.GetWidth();
+				tileH = image.GetHeight();
+			}
+			else if (image.GetWidth() != tileW || image.GetHeight() != tileH)
+			{
+				throw new InvalidOperationException(
+					$"Animation clip '{subDir}' contains mismatched frame sizes: expected {tileW}x{tileH}, got {image.GetWidth()}x{image.GetHeight()} ({frameFile}).");
+			}
+
+			frameImages.Add(image);
+		}
+
+		if (frameImages.Count == 0 || tileW <= 0 || tileH <= 0)
+			return null;
+
+		var maxCols = Math.Max(1, MaxAtlasSize / tileW);
+		var usedCols = Math.Min(maxCols, frameImages.Count);
+		var usedRows = (frameImages.Count + usedCols - 1) / usedCols;
+		var atlasImage = Image.CreateEmpty(usedCols * tileW, usedRows * tileH, false, Image.Format.Rgba8);
+		var frameCoords = new List<TileFrameCoord>(frameImages.Count);
+
+		for (var index = 0; index < frameImages.Count; index++)
+		{
+			var col = index % usedCols;
+			var row = index / usedCols;
+			atlasImage.BlitRect(
+				frameImages[index],
+				new Rect2I(0, 0, tileW, tileH),
+				new Vector2I(col * tileW, row * tileH));
+			frameCoords.Add(new TileFrameCoord
+			{
+				AtlasX = col,
+				AtlasY = row,
+			});
+		}
+
+		var globalAtlasDir = ProjectSettings.GlobalizePath(AtlasDir);
+		System.IO.Directory.CreateDirectory(globalAtlasDir);
+		var pngName = $"atlas_{sourceId}.png";
+		var atlasPath = $"{AtlasDir}/{pngName}";
+		System.IO.File.WriteAllBytes(
+			System.IO.Path.Combine(globalAtlasDir, pngName),
+			atlasImage.SavePngToBuffer());
+
+		return new AnimationClipAtlas
+		{
+			SourceId = sourceId,
+			TileW = tileW,
+			TileH = tileH,
+			AtlasPngPath = atlasPath,
+			AtlasImage = atlasImage,
+			FrameCoords = frameCoords,
+		};
 	}
 
 	// ═══════════════════════════════════════════════════
@@ -478,6 +552,16 @@ public partial class UnityTilesetImporter : Node
 		public int    TileH;
 		public string AtlasPngPath = "";
 		public List<(string Name, int Col, int Row)> Tiles = [];
+	}
+
+	private sealed class AnimationClipAtlas
+	{
+		public int SourceId;
+		public int TileW;
+		public int TileH;
+		public string AtlasPngPath = "";
+		public Image AtlasImage = null!;
+		public List<TileFrameCoord> FrameCoords = [];
 	}
 }
 
@@ -502,4 +586,16 @@ public class TileRef
 
 	[System.Text.Json.Serialization.JsonPropertyName("frame_source_ids")]
 	public List<int>? FrameSourceIds { get; set; }
+
+	[System.Text.Json.Serialization.JsonPropertyName("frame_coords")]
+	public List<TileFrameCoord>? FrameCoords { get; set; }
+}
+
+public sealed class TileFrameCoord
+{
+	[System.Text.Json.Serialization.JsonPropertyName("atlas_x")]
+	public int AtlasX { get; set; }
+
+	[System.Text.Json.Serialization.JsonPropertyName("atlas_y")]
+	public int AtlasY { get; set; }
 }

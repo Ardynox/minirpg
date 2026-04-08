@@ -36,11 +36,12 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 背包 ──"
+text = "ui.inventory.title"
 
 [node name="FilterBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -76,26 +77,26 @@ theme_override_constants/separation = 4
 [node name="EquipBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "装备 [E]"
+text = "ui.inventory.equip"
 
 [node name="UseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "使用 [U]"
+text = "ui.inventory.use"
 
 [node name="DropBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "丢弃 [Q]"
+text = "ui.inventory.drop"
 
 [node name="SortBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "排序 [R]"
+text = "ui.inventory.sort"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "↑↓选择 ←→分类 E装备 U使用 Q丢弃 R排序 I/Esc关闭"
+text = "ui.inventory.hint"
 
 [node name="ContextMenu" type="PopupMenu" parent="."]

@@ -19,6 +19,8 @@ public class DialogContext
 
 	public static DialogContext Build(GameState state, Actor player, Actor npc)
 	{
+		HealthSystem.Sync(player, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, player));
+		HealthSystem.Sync(npc, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, npc));
 		var ctx = new DialogContext { Player = player, Npc = npc };
 
 		// ── 数值维度 ──────────────────────────────────────
@@ -27,6 +29,8 @@ public class DialogContext
 		ctx.NumTags["talk_count"] = npc.DialogTalkCount;
 		ctx.NumTags["gold"] = player.Gold;
 		ctx.NumTags["npc_gold"] = npc.Gold;
+		ctx.NumTags["pain"] = npc.PainValue / 100f;
+		ctx.NumTags["bleeding"] = npc.BloodLossValue / 100f;
 		ctx.NumTags["floor"] = state.PlayerZ;
 		ctx.NumTags["turn"] = state.Turn;
 		ctx.NumTags["kill_count"] = state.KillCount;
@@ -77,6 +81,14 @@ public class DialogContext
 		if (npc.DialogTalkCount == 0) ctx.BoolTags.Add("first_meet");
 		if (npc.DialogAffinity >= 50) ctx.BoolTags.Add("is_friend");
 		if (npc.DialogAffinity >= 80) ctx.BoolTags.Add("is_close_friend");
+		if (npc.HealthConditions.Any(condition => string.Equals(condition.Id, HealthConditionIds.Infection, System.StringComparison.Ordinal) && condition.Severity >= 8f))
+			ctx.BoolTags.Add("infected");
+		if (npc.HealthConditions.Any(condition => !condition.Permanent && !string.IsNullOrEmpty(condition.LimbId))
+			|| npc.BloodLossValue > 0f
+			|| npc.HealthConditions.Any(condition => string.Equals(condition.Id, HealthConditionIds.MissingLimb, System.StringComparison.Ordinal)))
+		{
+			ctx.BoolTags.Add("injured");
+		}
 		if (npc.DialogMood < -0.3f) ctx.BoolTags.Add("npc_angry");
 		if (npc.DialogMood > 0.5f) ctx.BoolTags.Add("npc_happy");
 		if (npc.ShopSlots.Count > 0) ctx.BoolTags.Add("is_shopkeeper");

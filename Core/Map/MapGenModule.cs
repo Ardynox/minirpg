@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
 
@@ -38,7 +39,14 @@ public static class MapGenModule
 	public static void InitializeWorld(GameState state, int? seed = null)
 	{
 		var actualSeed = seed ?? state.WorldSeed;
-		state.WorldSeed = actualSeed;
+		if (state.WorldSeed != actualSeed)
+		{
+			state.WorldSeed = actualSeed;
+		}
+		else
+		{
+			state.Weather ??= WeatherState.CreateDefault(actualSeed);
+		}
 
 		var generator = GetGenerator(state.GeneratorId);
 		state.World = new WorldMap(actualSeed, generator);
@@ -51,11 +59,13 @@ public static class MapGenModule
 	}
 
 	/// <summary>在玩家位置放置一个新生成的玩家 Actor。</summary>
-	public static void SpawnPlayer(GameState state)
+	public static void SpawnPlayer(GameState state, PlayerCreationOptions? options = null)
 	{
 		ActorModule.ClearAll(state);
 
-		var player = ActorTemplates.Spawn(Factions.Player, Factions.Player);
+		var player = ActorTemplates.Spawn(Factions.Player, state.PlayerId);
+		ApplyPlayerCreationOptions(state, player, options);
+		GiveStarterKit(player);
 		player.X = state.PlayerX;
 		player.Y = state.PlayerY;
 		player.Z = state.PlayerZ;
@@ -82,5 +92,52 @@ public static class MapGenModule
 				return;
 			}
 		}
+	}
+
+	private static void ApplyPlayerCreationOptions(GameState state, Actor player, PlayerCreationOptions? options)
+	{
+		var resolvedOptions = options ?? PlayerCreationOptions.CreateDefault();
+		var defaultOptions = PlayerCreationOptions.CreateDefault();
+		var raceId = resolvedOptions.ResolveRaceId(defaultOptions.RaceId);
+		var professionId = resolvedOptions.ResolveProfessionId(defaultOptions.ProfessionId);
+
+		player.DisplayName = resolvedOptions.ResolveDisplayName(player.DisplayName);
+		player.Race = null;
+		player.Profession = null;
+		player.Limbs.Clear();
+
+		if (PresetDB.Races.TryGetValue(raceId, out var racePreset))
+		{
+			player.Race = new Race
+			{
+				Id = racePreset.Id,
+				Name = racePreset.Name,
+				NeedProfileId = racePreset.NeedProfileId,
+				Tags = new(racePreset.Tags),
+			};
+			foreach (var limbId in racePreset.DefaultLimbs)
+				player.Limbs.Add(PresetDB.CloneLimb(limbId));
+		}
+
+		if (!string.IsNullOrWhiteSpace(professionId)
+			&& PresetDB.Professions.TryGetValue(professionId, out var professionPreset))
+		{
+			player.Profession = new Profession
+			{
+				Id = professionPreset.Id,
+				Name = professionPreset.Name,
+				Tags = new(professionPreset.Tags),
+			};
+		}
+
+		state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
+		NeedSystem.EnsureInitialized(player, state.Turn);
+	}
+
+	private static void GiveStarterKit(Actor player)
+	{
+		player.Inventory.Clear();
+		player.Inventory.Add(PresetDB.CloneItem("meal_simple"));
+		player.Inventory.Add(PresetDB.CloneItem("bedroll"));
 	}
 }

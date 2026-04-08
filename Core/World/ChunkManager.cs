@@ -5,31 +5,24 @@ using System.Linq;
 namespace MiniRPG.Core.World;
 
 /// <summary>
-/// Chunk 管理器：负责 chunk 的按需生成、缓存、加载/卸载。
-/// 围绕玩家位置维护一个加载窗口，超出范围的 chunk 被卸载（脏 chunk 先持久化）。
+/// Manages loaded chunks around the player. Critical chunks are loaded immediately,
+/// while the rest of the target window is streamed in over later frames.
 /// </summary>
 public class ChunkManager
 {
 	private readonly Dictionary<ChunkCoord, ChunkData> _loaded = new();
-	private IMapGenerator _generator;
+	private readonly Queue<ChunkCoord> _pendingLoadQueue = new();
 	private readonly int _worldSeed;
+	private IMapGenerator _generator;
 
-	/// <summary>水平方向加载半径（chunk 为单位）。视口 21x11 ÷ 32 < 1，取 2 留余量。</summary>
 	public int LoadRadiusXY { get; set; } = 2;
-
-	/// <summary>Z 方向加载半径。多层预览需要 ±1。</summary>
 	public int LoadRadiusZ { get; set; } = 1;
-
-	/// <summary>缓存中保留的最大 chunk 数。超出后 LRU 卸载。</summary>
+	public int CriticalLoadRadiusXY { get; set; } = 1;
+	public int BackgroundLoadBudgetPerFrame { get; set; } = 2;
 	public int MaxCachedChunks { get; set; } = 512;
 
-	/// <summary>最小模拟器，对远离玩家的已加载 chunk 执行简化模拟。</summary>
 	public IChunkSimulator Simulator { get; set; } = new NullSimulator();
-
-	/// <summary>脏 chunk 持久化回调。由 SaveModule 设置。</summary>
 	public Action<ChunkCoord, ChunkData>? OnChunkUnload { get; set; }
-
-	/// <summary>尝试从持久化加载 chunk 的回调。返回 null = 无存档，需重新生成。</summary>
 	public Func<ChunkCoord, ChunkData?>? OnChunkLoad { get; set; }
 
 	public IReadOnlyDictionary<ChunkCoord, ChunkData> LoadedChunks => _loaded;
@@ -44,12 +37,13 @@ public class ChunkManager
 
 	public void ApplyRuntimeConfig(WorldRuntimeConfig config)
 	{
-		LoadRadiusXY = config.ChunkLoadRadiusXy;
-		LoadRadiusZ = config.ChunkLoadRadiusZ;
-		MaxCachedChunks = config.MaxCachedChunks;
+		LoadRadiusXY = Math.Max(0, config.ChunkLoadRadiusXy);
+		LoadRadiusZ = Math.Max(0, config.ChunkLoadRadiusZ);
+		CriticalLoadRadiusXY = Math.Clamp(config.CriticalChunkLoadRadiusXy, 0, LoadRadiusXY);
+		BackgroundLoadBudgetPerFrame = Math.Max(0, config.ChunkBackgroundLoadBudgetPerFrame);
+		MaxCachedChunks = Math.Max(1, config.MaxCachedChunks);
 	}
 
-	/// <summary>获取 chunk。已缓存则直接返回，否则尝试从存档加载或重新生成。</summary>
 	public ChunkData GetOrLoad(ChunkCoord coord)
 	{
 		if (_loaded.TryGetValue(coord, out var existing))
@@ -67,27 +61,107 @@ public class ChunkManager
 		return chunk;
 	}
 
-	/// <summary>根据玩家当前位置更新已加载 chunk 的集合。</summary>
 	public void UpdateLoadedChunks(WorldCoord center, int currentTurn)
 	{
-		var cc = CoordUtil.WorldToChunk(center);
+		var chunkCenter = CoordUtil.WorldToChunk(center);
+		LoadCriticalWindow(chunkCenter, currentTurn);
+		RebuildPendingLoadQueue(chunkCenter, currentTurn);
+		EvictDistant(chunkCenter);
+	}
 
-		for (var cz = cc.Cz - LoadRadiusZ; cz <= cc.Cz + LoadRadiusZ; cz++)
-		for (var cy = cc.Cy - LoadRadiusXY; cy <= cc.Cy + LoadRadiusXY; cy++)
-		for (var cx = cc.Cx - LoadRadiusXY; cx <= cc.Cx + LoadRadiusXY; cx++)
+	public void ProcessPendingLoads(int currentTurn, int? budgetOverride = null)
+	{
+		var budget = Math.Max(0, budgetOverride ?? BackgroundLoadBudgetPerFrame);
+		while (budget > 0 && _pendingLoadQueue.Count > 0)
 		{
-			var coord = new ChunkCoord(cx, cy, cz);
+			var coord = _pendingLoadQueue.Dequeue();
+			var chunk = GetOrLoad(coord);
+			chunk.LastAccessTurn = currentTurn;
+			budget--;
+		}
+	}
+
+	public void TickSimulation(WorldCoord playerPos, GameState state)
+	{
+		var pc = CoordUtil.WorldToChunk(playerPos);
+		var nearRadius = Math.Max(0, GameConfig.WorldRuntime.ChunkSimulationNearRadiusXy);
+		foreach (var (coord, chunk) in _loaded)
+		{
+			var dx = Math.Abs(coord.Cx - pc.Cx);
+			var dy = Math.Abs(coord.Cy - pc.Cy);
+			if (dx > nearRadius || dy > nearRadius)
+				Simulator.TickChunk(chunk, state);
+		}
+	}
+
+	public bool IsLoaded(ChunkCoord coord) => _loaded.ContainsKey(coord);
+
+	public void UnloadAll()
+	{
+		foreach (var (coord, chunk) in _loaded)
+		{
+			if (chunk.Dirty)
+				OnChunkUnload?.Invoke(coord, chunk);
+		}
+
+		_loaded.Clear();
+		_pendingLoadQueue.Clear();
+	}
+
+	private void LoadCriticalWindow(ChunkCoord center, int currentTurn)
+	{
+		var criticalRadius = Math.Min(CriticalLoadRadiusXY, LoadRadiusXY);
+		for (var cy = center.Cy - criticalRadius; cy <= center.Cy + criticalRadius; cy++)
+		for (var cx = center.Cx - criticalRadius; cx <= center.Cx + criticalRadius; cx++)
+		{
+			var coord = new ChunkCoord(cx, cy, center.Cz);
 			var chunk = GetOrLoad(coord);
 			chunk.LastAccessTurn = currentTurn;
 		}
-
-		EvictDistant(cc, currentTurn);
 	}
 
-	/// <summary>卸载超出加载范围且超出缓存上限的 chunk（LRU 策略）。</summary>
-	private void EvictDistant(ChunkCoord center, int currentTurn)
+	private void RebuildPendingLoadQueue(ChunkCoord center, int currentTurn)
 	{
-		if (_loaded.Count <= MaxCachedChunks) return;
+		_pendingLoadQueue.Clear();
+
+		foreach (var coord in EnumerateBackgroundWindow(center))
+		{
+			if (_loaded.TryGetValue(coord, out var loaded))
+			{
+				loaded.LastAccessTurn = currentTurn;
+				continue;
+			}
+
+			_pendingLoadQueue.Enqueue(coord);
+		}
+	}
+
+	private IEnumerable<ChunkCoord> EnumerateBackgroundWindow(ChunkCoord center)
+	{
+		var queued = new List<(ChunkCoord Coord, int Priority)>();
+		for (var cz = center.Cz - LoadRadiusZ; cz <= center.Cz + LoadRadiusZ; cz++)
+		for (var cy = center.Cy - LoadRadiusXY; cy <= center.Cy + LoadRadiusXY; cy++)
+		for (var cx = center.Cx - LoadRadiusXY; cx <= center.Cx + LoadRadiusXY; cx++)
+		{
+			var dx = Math.Abs(cx - center.Cx);
+			var dy = Math.Abs(cy - center.Cy);
+			var dz = Math.Abs(cz - center.Cz);
+			if (dz == 0 && dx <= CriticalLoadRadiusXY && dy <= CriticalLoadRadiusXY)
+				continue;
+
+			var priority = dz * 100 + dx + dy;
+			queued.Add((new ChunkCoord(cx, cy, cz), priority));
+		}
+
+		queued.Sort((a, b) => a.Priority.CompareTo(b.Priority));
+		foreach (var (coord, _) in queued)
+			yield return coord;
+	}
+
+	private void EvictDistant(ChunkCoord center)
+	{
+		if (_loaded.Count <= MaxCachedChunks)
+			return;
 
 		var evictRadius = LoadRadiusXY + Math.Max(0, GameConfig.WorldRuntime.ChunkEvictPaddingXy);
 		var toEvict = new List<ChunkCoord>();
@@ -121,33 +195,5 @@ public class ChunkManager
 				_loaded.Remove(coord);
 			}
 		}
-	}
-
-	/// <summary>每回合对已加载的远距离 chunk 执行最小模拟。</summary>
-	public void TickSimulation(WorldCoord playerPos, GameState state)
-	{
-		var pc = CoordUtil.WorldToChunk(playerPos);
-		var nearRadius = Math.Max(0, GameConfig.WorldRuntime.ChunkSimulationNearRadiusXy);
-		foreach (var (coord, chunk) in _loaded)
-		{
-			var dx = Math.Abs(coord.Cx - pc.Cx);
-			var dy = Math.Abs(coord.Cy - pc.Cy);
-			if (dx > nearRadius || dy > nearRadius)
-				Simulator.TickChunk(chunk, state);
-		}
-	}
-
-	/// <summary>检查指定 chunk 是否已加载。</summary>
-	public bool IsLoaded(ChunkCoord coord) => _loaded.ContainsKey(coord);
-
-	/// <summary>强制卸载所有 chunk（存盘时使用）。</summary>
-	public void UnloadAll()
-	{
-		foreach (var (coord, chunk) in _loaded)
-		{
-			if (chunk.Dirty)
-				OnChunkUnload?.Invoke(coord, chunk);
-		}
-		_loaded.Clear();
 	}
 }

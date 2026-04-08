@@ -1,25 +1,50 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
+
 namespace MiniRPG.Module.Panel;
 
 /// <summary>
-/// 物品文本格式化工具，供背包/宝箱/地面面板共享。
+/// Item text formatter shared by inventory, chest, ground, and trade panels.
 /// </summary>
 public static class ItemFormatHelper
 {
+	public static string GetDisplayName(Item item) => item.Name;
+
+	public static string GetDisplayName(GameState? state, Item item) =>
+		state == null
+			? GetDisplayName(item)
+			: IdentificationModule.GetItemDisplayName(state, item);
+
 	public static string InlineStats(Item item)
 	{
 		var parts = new List<string>();
-		if (item.SharpDamage > 0) parts.Add($"锐{item.SharpDamage:F0}");
-		if (item.BluntDamage > 0) parts.Add($"钝{item.BluntDamage:F0}");
-		if (item.SharpArmor > 0) parts.Add($"锐防{item.SharpArmor:F0}");
-		if (item.BluntArmor > 0) parts.Add($"钝防{item.BluntArmor:F0}");
+		if (item.IsStackable && item.SafeStackCount > 1)
+			parts.Add($"x{item.SafeStackCount}");
+		if (item.RequiresAmmo)
+			parts.Add($"{item.SafeLoadedAmmo}/{item.MagazineSize}");
+		parts.Add(ItemConditionFormatter.BuildInlineDurability(item));
+		if (item.SharpDamage > 0) parts.Add($"{LocalizationService.T("enum.damage_type.short.sharp")}{item.SharpDamage:F0}");
+		if (item.BluntDamage > 0) parts.Add($"{LocalizationService.T("enum.damage_type.short.blunt")}{item.BluntDamage:F0}");
+		if (item.SharpArmor > 0) parts.Add($"{LocalizationService.T("item.stat.armor.short.sharp")}{item.SharpArmor:F0}");
+		if (item.BluntArmor > 0) parts.Add($"{LocalizationService.T("item.stat.armor.short.blunt")}{item.BluntArmor:F0}");
 		return string.Join(" ", parts);
 	}
 
-	/// <summary>
-	/// 生成物品详情的 BBCode 文本（完整版，含装备位置/技能/容器信息）。
-	/// </summary>
+	public static string InlineStats(GameState? state, Item item) =>
+		state != null && IdentificationModule.IsItemIdentified(state, item)
+			? InlineStats(item)
+			: string.Empty;
+
+	public static string BuildWeight(Item item) => $"{item.EffectiveWeight:F1}kg";
+
+	public static string BuildWeight(GameState? state, Item item) =>
+		state != null && IdentificationModule.IsItemIdentified(state, item)
+			? BuildWeight(item)
+			: string.Empty;
+
 	public static string BuildDetail(Item item)
 	{
 		var sb = new StringBuilder();
@@ -27,37 +52,98 @@ public static class ItemFormatHelper
 		sb.Append($"[color=#ffffff]{item.Name}[/color]");
 		var catDef = ItemCategoryDef.Get(item.Category);
 		sb.AppendLine($"  [color=#888888][{catDef?.Name ?? item.Category}][/color]");
+		if (!string.IsNullOrWhiteSpace(item.TechTier) || !string.IsNullOrWhiteSpace(item.SubCategory))
+		{
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.tech_class",
+				Localize(
+					"[color=#88c0d0]科技[/color] {tech}  [color=#88c0d0]分类[/color] {subCategory}",
+					"[color=#88c0d0]Tech[/color] {tech}  [color=#88c0d0]Class[/color] {subCategory}"),
+				("tech", GetTechTierDisplayName(item.TechTier)),
+				("subCategory", GetSubcategoryDisplayName(item.SubCategory))));
+		}
+		if (item.IsStackable)
+		{
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.stack",
+				Localize(
+					"[color=#8fbc8f]堆叠[/color] {count}/{max}",
+					"[color=#8fbc8f]Stack[/color] {count}/{max}"),
+				("count", item.SafeStackCount),
+				("max", item.MaxStack)));
+		}
+		if (item.RequiresAmmo)
+		{
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.loaded_ammo",
+				Localize(
+					"[color=#d08770]弹药[/color] {loaded}/{magazine} ({ammoType})",
+					"[color=#d08770]Ammo[/color] {loaded}/{magazine} ({ammoType})"),
+				("loaded", item.SafeLoadedAmmo),
+				("magazine", item.MagazineSize),
+				("ammoType", GetAmmoTypeDisplayName(item.AmmoType))));
+		}
+		if (item.Surgery != null)
+		{
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.surgery_role",
+				Localize(
+					"[color=#b48ead]用途[/color] {role}",
+					"[color=#b48ead]Role[/color] {role}"),
+				("role", GetSurgeryRoleDisplayName(item))));
+		}
+		if (item.Corpse != null)
+		{
+			var corpseProfileName = CorpseProfileRegistry.Get(item.Corpse.CorpseProfileId)?.Name
+				?? GetSubcategoryDisplayName(item.SubCategory);
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.corpse_state",
+				Localize(
+					"[color=#bf616a]尸体[/color] {profile}  剥取={stripped}  肢解={butchered}  可摘取={count}",
+					"[color=#bf616a]Corpse[/color] {profile}  stripped={stripped}  butchered={butchered}  harvestable={count}"),
+				("profile", corpseProfileName),
+				("stripped", FormatBool(item.Corpse.Stripped)),
+				("butchered", FormatBool(item.Corpse.Butchered)),
+				("count", item.Corpse.RemainingLimbIds.Count)));
+		}
+		if (item.Tags.ContainsKey(ItemTags.Healing))
+		{
+			sb.AppendLine(LocalizationService.TOrFallback(
+				"item.detail.medical_supply",
+				Localize(
+					"[color=#8ecae6]医疗耗材[/color] 品质 {value}",
+					"[color=#8ecae6]Medical Supply[/color] quality {value}"),
+				("value", item.Tags.GetValueOrDefault(ItemTags.Healing, 0))));
+		}
+
+		sb.AppendLine($"[color=#ffaa66]{ItemConditionFormatter.BuildDetailDurability(item)}[/color]");
 
 		if (item.SharpDamage > 0 || item.BluntDamage > 0)
 		{
-			sb.Append("[color=#ff6666]伤害:[/color] ");
-			if (item.SharpDamage > 0) sb.Append($"锐{item.SharpDamage:F0} ");
-			if (item.BluntDamage > 0) sb.Append($"钝{item.BluntDamage:F0} ");
+			sb.Append($"[color=#ff6666]{LocalizationService.T("item.detail.damage")}[/color] ");
+			if (item.SharpDamage > 0) sb.Append($"{LocalizationService.T("enum.damage_type.short.sharp")}{item.SharpDamage:F0} ");
+			if (item.BluntDamage > 0) sb.Append($"{LocalizationService.T("enum.damage_type.short.blunt")}{item.BluntDamage:F0} ");
 			sb.AppendLine();
 		}
 
 		if (item.SharpArmor > 0 || item.BluntArmor > 0)
 		{
-			sb.Append("[color=#6699ff]护甲:[/color] ");
-			if (item.SharpArmor > 0) sb.Append($"锐防{item.SharpArmor:F0} ");
-			if (item.BluntArmor > 0) sb.Append($"钝防{item.BluntArmor:F0} ");
+			sb.Append($"[color=#6699ff]{LocalizationService.T("item.detail.armor")}[/color] ");
+			if (item.SharpArmor > 0) sb.Append($"{LocalizationService.T("item.stat.armor.short.sharp")}{item.SharpArmor:F0} ");
+			if (item.BluntArmor > 0) sb.Append($"{LocalizationService.T("item.stat.armor.short.blunt")}{item.BluntArmor:F0} ");
 			sb.AppendLine();
 		}
 
 		if (item.IsEquippable)
 		{
-			var layerName = item.Layer switch
-			{
-				EquipLayer.Skin => "贴身",
-				EquipLayer.Middle => "中层",
-				EquipLayer.Shell => "外壳",
-				EquipLayer.Overhead => "最外",
-				_ => item.Layer.ToString(),
-			};
-			sb.AppendLine($"[color=#66cc99]位置:[/color] {item.BodyPart} / {layerName}");
+			var layerName = GameLocalizer.LocalizeEquipLayer(item.Layer);
+			sb.AppendLine($"[color=#66cc99]{LocalizationService.T("item.detail.slot")}[/color] {GameLocalizer.LocalizeBodyPart(item.BodyPart)} / {layerName}");
 
 			if (item.CoveredParts.Count > 0)
-				sb.AppendLine($"[color=#66cc99]覆盖:[/color] {string.Join(", ", item.CoveredParts)}");
+			{
+				var parts = item.CoveredParts.ConvertAll(GameLocalizer.LocalizeBodyPart);
+				sb.AppendLine($"[color=#66cc99]{LocalizationService.T("item.detail.coverage")}[/color] {string.Join(", ", parts)}");
+			}
 		}
 
 		if (item.GrantedSkills.Count > 0)
@@ -68,16 +154,74 @@ public static class ItemFormatHelper
 				var def = InteractionDefs.Get(sid);
 				skillNames.Add(def?.Name ?? sid);
 			}
-			sb.AppendLine($"[color=#cc99ff]技能:[/color] {string.Join(", ", skillNames)}");
+			sb.AppendLine($"[color=#cc99ff]{LocalizationService.T("item.detail.skills")}[/color] {string.Join(", ", skillNames)}");
 		}
 
 		if (item.IsContainer)
 		{
 			var count = item.Contents?.Count ?? 0;
-			sb.AppendLine($"[color=#66ccff]容器:[/color] {count}件物品");
+			sb.AppendLine($"[color=#66ccff]{LocalizationService.T("item.detail.container")}[/color] {LocalizationService.T("item.detail.container_count", ("count", count))}");
 		}
 
-		sb.Append($"[color=#888888]重量: {item.EffectiveWeight:F1}kg  价格: {item.Price}G[/color]");
+		sb.Append($"[color=#888888]{LocalizationService.T("item.detail.weight_price", ("weight", item.EffectiveWeight.ToString("F1")), ("price", item.Price))}[/color]");
 		return sb.ToString();
 	}
+
+	public static string BuildDetail(GameState? state, Item item) =>
+		state == null
+			? BuildDetail(item)
+			: IdentificationModule.IsItemIdentified(state, item)
+				? BuildDetail(item)
+				: IdentificationModule.BuildUnknownItemDetail(state, item);
+
+	private static string Localize(string zhHans, string en) =>
+		string.Equals(LocalizationService.CurrentLocale, "en", StringComparison.Ordinal)
+			? en
+			: zhHans;
+
+	private static string GetTechTierDisplayName(string techTier) => techTier switch
+	{
+		"natural" => Localize("天然", "Natural"),
+		"medieval" => Localize("中世纪", "Medieval"),
+		"industrial" => Localize("工业", "Industrial"),
+		"spacer" => Localize("太空", "Spacer"),
+		"archotech" => Localize("远古超科技", "Archotech"),
+		_ when string.IsNullOrWhiteSpace(techTier) => "-",
+		_ => techTier,
+	};
+
+	private static string GetSubcategoryDisplayName(string subCategoryId)
+	{
+		if (string.IsNullOrWhiteSpace(subCategoryId))
+			return "-";
+
+		return ItemSubcategoryRegistry.Get(subCategoryId)?.Name ?? subCategoryId;
+	}
+
+	private static string GetAmmoTypeDisplayName(string ammoTypeId)
+	{
+		if (string.IsNullOrWhiteSpace(ammoTypeId))
+			return "-";
+
+		return AmmoProfileRegistry.Get(ammoTypeId)?.Name ?? ammoTypeId;
+	}
+
+	private static string GetSurgeryRoleDisplayName(Item item)
+	{
+		if (item.Surgery == null)
+			return "-";
+
+		if (!string.IsNullOrWhiteSpace(item.Surgery.Role))
+			return item.Surgery.Role;
+
+		if (!string.IsNullOrWhiteSpace(item.Surgery.OperationId))
+			return SurgeryOperationRegistry.Get(item.Surgery.OperationId)?.Name ?? item.Surgery.OperationId;
+
+		return "-";
+	}
+
+	private static string FormatBool(bool value) =>
+		value
+			? Localize("是", "Yes")
+			: Localize("否", "No");
 }

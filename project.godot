@@ -24,6 +24,10 @@ window/size/viewport_height=1080
 
 project/assembly_name="MiniRPG"
 
+[gui]
+
+theme/custom="res://Assets/UI/Themes/UITheme.tres"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "hunger",
+    "labelKey": "ui.needs.hunger",
+    "displayName": "Hunger",
+    "warningThreshold": 35,
+    "stages": [
+      { "id": "peckish", "maxValue": 75 },
+      { "id": "hungry", "maxValue": 35 },
+      { "id": "starving", "maxValue": 15 }
+    ]
+  },
+  {
+    "id": "rest",
+    "labelKey": "ui.needs.rest",
+    "displayName": "Rest",
+    "warningThreshold": 30,
+    "stages": [
+      { "id": "tired", "maxValue": 40 },
+      { "id": "exhausted", "maxValue": 20 }
+    ]
+  },
+  {
+    "id": "mood",
+    "labelKey": "ui.needs.mood",
+    "displayName": "Mood",
+    "warningThreshold": 35,
+    "stages": []
+  }
+]

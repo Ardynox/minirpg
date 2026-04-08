@@ -1299,5 +1299,115 @@
     "equipLayers": [],
     "capacities": {},
     "tags": {}
+  },
+  {
+    "id": "transplant_heart",
+    "name": "移植心脏",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "blood_circulation": 1.0, "consciousness": 0.1 },
+    "tags": { "要害": 1 }
+  },
+  {
+    "id": "transplant_lung",
+    "name": "移植肺",
+    "maxDurability": 5,
+    "material": "flesh",
+    "bodyPart": "torso",
+    "equipLayers": [],
+    "capacities": { "breathing": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "transplant_eye",
+    "name": "移植眼球",
+    "maxDurability": 3,
+    "material": "flesh",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "transplant_arm",
+    "name": "移植手臂",
+    "maxDurability": 8,
+    "material": "flesh",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.5 },
+    "tags": { "格挡": 1 }
+  },
+  {
+    "id": "transplant_leg",
+    "name": "移植腿",
+    "maxDurability": 10,
+    "material": "flesh",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.5 },
+    "tags": {}
+  },
+  {
+    "id": "prosthetic_arm",
+    "name": "义肢手臂",
+    "maxDurability": 12,
+    "material": "steel",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.6 },
+    "tags": { "格挡": 1 }
+  },
+  {
+    "id": "prosthetic_leg",
+    "name": "义肢腿",
+    "maxDurability": 14,
+    "material": "steel",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "prosthetic_eye",
+    "name": "义眼",
+    "maxDurability": 6,
+    "material": "steel",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.6 },
+    "tags": {}
+  },
+  {
+    "id": "bionic_arm",
+    "name": "仿生臂",
+    "maxDurability": 16,
+    "material": "plasteel",
+    "bodyPart": "arm",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "manipulation": 0.8 },
+    "tags": { "格挡": 2 }
+  },
+  {
+    "id": "bionic_leg",
+    "name": "仿生腿",
+    "maxDurability": 18,
+    "material": "plasteel",
+    "bodyPart": "leg",
+    "equipLayers": ["Skin", "Middle", "Shell"],
+    "capacities": { "moving": 0.8 },
+    "tags": {}
+  },
+  {
+    "id": "bionic_eye",
+    "name": "仿生眼",
+    "maxDurability": 8,
+    "material": "plasteel",
+    "bodyPart": "head",
+    "equipLayers": [],
+    "capacities": { "sight": 0.8 },
+    "tags": {}
   }
 ]

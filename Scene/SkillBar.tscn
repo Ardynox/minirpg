@@ -43,11 +43,12 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 技能栏 ──"
+text = "ui.skill_bar.title"
 
 [node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -72,7 +73,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = "HintLabel"
 horizontal_alignment = 1
-text = "当前分类暂无技能"
+text = "ui.skill_bar.empty"
 
 [node name="SkillGrid" type="GridContainer" parent="MarginContainer/VBox/GridScroll/GridHost"]
 layout_mode = 2
@@ -103,9 +104,9 @@ theme_override_constants/separation = 4
 [node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "关闭 [Esc]"
+text = "ui.common.close_esc"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "方向键/滚轮选择  Tab切分类  Esc关闭  B切换技能栏"
+text = "ui.skill_bar.hint"

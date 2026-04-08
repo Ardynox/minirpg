@@ -32,7 +32,12 @@ public class PanelManager
 		_allNodes.Add(node);
 	}
 
-	public void RegisterPassive(PanelContainer node, string panelId, bool canFocus, bool consumeUnhandledKeys = true)
+	public void RegisterPassive(
+		PanelContainer node,
+		string panelId,
+		bool canFocus,
+		bool consumeUnhandledKeys = true,
+		bool allowGlobalClose = true)
 	{
 		if (!canFocus)
 		{
@@ -40,7 +45,7 @@ public class PanelManager
 			return;
 		}
 
-		Register(new PassivePanel(panelId, node, consumeUnhandledKeys));
+		Register(new PassivePanel(panelId, node, consumeUnhandledKeys, allowGlobalClose));
 	}
 
 	/// <summary>
@@ -83,23 +88,27 @@ public class PanelManager
 	/// <summary>
 	/// Focus change from pointer interaction: push previous focus into stack without clearing history.
 	/// </summary>
-	public void FocusFromPointer(IPanel? panel)
+	public void FocusFromPointer(IPanel? panel, bool clearStack = false)
 	{
 		if (_switching || panel == null || !IsFocusable(panel))
 			return;
 
 		if (_focused == panel)
+		{
+			if (clearStack)
+				SwitchFocus(panel, clearStack: true);
 			return;
+		}
 
 		RemoveFromStack(panel);
 
-		if (_focused != null)
+		if (!clearStack && _focused != null)
 		{
 			RemoveFromStack(_focused);
 			_focusStack.Add(_focused);
 		}
 
-		SwitchFocus(panel, clearStack: false);
+		SwitchFocus(panel, clearStack);
 	}
 
 	/// <summary>
@@ -132,7 +141,7 @@ public class PanelManager
 	public bool CloseFocused()
 	{
 		var focused = _focused;
-		if (focused == null)
+		if (focused == null || !focused.AllowGlobalClose)
 			return false;
 
 		focused.HandleCommand("close");
@@ -162,10 +171,7 @@ public class PanelManager
 			return focused.ConsumeUnhandledKeys;
 
 		if (cmd == "close")
-		{
-			CloseFocused();
-			return true;
-		}
+			return CloseFocused() || focused.ConsumeUnhandledKeys;
 
 		var handled = focused.HandleCommand(cmd);
 		if (!handled && ShouldTrapDirectionalInput(focused, cmd))
@@ -219,7 +225,7 @@ public class PanelManager
 		var prev = _focused;
 		if (prev == panel)
 		{
-			if (clearStack && panel == null)
+			if (clearStack)
 				_focusStack.Clear();
 			return;
 		}
@@ -318,13 +324,14 @@ public class PanelManager
 		return cmd is "up" or "down" or "left" or "right";
 	}
 
-	private sealed class PassivePanel(string panelId, PanelContainer panelNode, bool consumeUnhandledKeys) : IPanel
+	private sealed class PassivePanel(string panelId, PanelContainer panelNode, bool consumeUnhandledKeys, bool allowGlobalClose) : IPanel
 	{
 		public string PanelId => panelId;
 		public PanelContainer PanelNode => panelNode;
 		public bool Visible { get => panelNode.Visible; set => panelNode.Visible = value; }
 		public bool CanFocus => true;
 		public bool ConsumeUnhandledKeys => consumeUnhandledKeys;
+		public bool AllowGlobalClose => allowGlobalClose;
 		public bool Dirty { get; set; }
 
 		public bool HandleCommand(string cmd) => false;

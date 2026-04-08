@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.Dialog;
 
@@ -22,26 +23,50 @@ public static class DialogPool
 		PropertyNameCaseInsensitive = true,
 	};
 
-	public static void Load(string path = "res://Data/dialogs.json")
+	public static void Load(string path = "dialogs.json")
 	{
 		_all = [];
 		_byId.Clear();
 		_byCategory.Clear();
 
-		var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
-		if (file == null)
+		if (!GameDataLocator.TryReadText(path, out var json, out var sourceLabel))
 		{
-			GD.PrintErr($"DialogPool: cannot open {path}");
+			GD.PrintErr($"DialogPool: cannot open {path} (tried: {sourceLabel})");
 			_loaded = true;
 			return;
 		}
 
-		var json = file.GetAsText();
-		file.Close();
-
 		_sets = JsonSerializer.Deserialize<List<DialogSet>>(json, JsonOpts) ?? [];
+		ApplyLocalizationOverrides();
 		IndexAll();
 		_loaded = true;
+	}
+
+	private static void ApplyLocalizationOverrides()
+	{
+		foreach (var set in _sets)
+		{
+			foreach (var entry in set.Entries)
+			{
+				if (!string.IsNullOrWhiteSpace(entry.Id))
+				{
+					entry.Template = LocalizationService.TOrFallback(
+						$"dialog.entry.{entry.Id}.template",
+						entry.Template);
+				}
+
+				for (var i = 0; i < entry.Options.Count; i++)
+				{
+					var option = entry.Options[i];
+					if (string.IsNullOrWhiteSpace(entry.Id))
+						continue;
+
+					option.Text = LocalizationService.TOrFallback(
+						$"dialog.entry.{entry.Id}.option.{i}",
+						option.Text);
+				}
+			}
+		}
 	}
 
 	private static void IndexAll()

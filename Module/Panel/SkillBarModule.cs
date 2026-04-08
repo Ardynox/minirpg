@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
@@ -17,16 +18,19 @@ public sealed class SkillBarModule : IPanel
 	private static readonly SkillBarTab[] Tabs =
 		[SkillBarTab.All, SkillBarTab.Combat, SkillBarTab.Utility, SkillBarTab.Social];
 
-	private static readonly string[] TabLabels = ["全部", "战斗", "工具", "社交"];
+	private static readonly string[] TabLabels = ["All", "Combat", "Utility", "Social"];
 	private static readonly Dictionary<string, StyleBoxFlat> StyleCache = [];
+	private static readonly Color ArmedBorder = new(1.0f, 0.82f, 0.32f);
 
 	public string PanelId => "skill_bar";
 	public PanelContainer PanelNode => _panel;
 	public bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
 	public bool Dirty { get; set; }
 	public bool CanFocus => true;
+	public string? ArmedSkillId { get; set; }
 
 	public event Action? CloseRequested;
+	public event Action<InteractionDef>? ConfirmRequested;
 
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _header;
@@ -60,7 +64,7 @@ public sealed class SkillBarModule : IPanel
 		closeBtn.FocusMode = Control.FocusModeEnum.None;
 		closeBtn.Pressed += () => CloseRequested?.Invoke();
 
-		_tabButtons = TabHelper.BuildTabButtons(tabBar, TabLabels, Tabs, SetTab);
+		_tabButtons = TabHelper.BuildTabButtons(tabBar, TabLabels, Tabs, SetTab, PanelId);
 	}
 
 	public void Open(Actor? player)
@@ -109,7 +113,7 @@ public sealed class SkillBarModule : IPanel
 			case "down": return StepSelection(GridColumns);
 			case "tab_prev": CycleTab(-1); return true;
 			case "tab_next": CycleTab(1); return true;
-			case "confirm": return true;
+			case "confirm": return ActivateSelectedSkill();
 			case "close": CloseRequested?.Invoke(); return true;
 			default: return false;
 		}
@@ -131,6 +135,7 @@ public sealed class SkillBarModule : IPanel
 		ClampSelection();
 		RebuildGrid();
 		RenderHeader();
+		UpdateTabTexts();
 		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
 		UpdateCellContent();
 		UpdateCellVisuals();
@@ -170,6 +175,15 @@ public sealed class SkillBarModule : IPanel
 		UpdateCellVisuals();
 		RenderDetail();
 		EnsureSelectedVisible();
+		return true;
+	}
+
+	private bool ActivateSelectedSkill()
+	{
+		if (_selectedIndex < 0 || _selectedIndex >= _filtered.Count)
+			return false;
+
+		ConfirmRequested?.Invoke(_filtered[_selectedIndex]);
 		return true;
 	}
 
@@ -261,6 +275,7 @@ public sealed class SkillBarModule : IPanel
 		button.Pressed += () => SelectIndex(capturedIndex);
 		button.MouseEntered += () => OnCellHover(capturedIndex);
 		button.MouseExited += () => OnCellHoverExit(capturedIndex);
+		PanelButtonScaleRegistry.Track(PanelId, button);
 		return button;
 	}
 
@@ -311,7 +326,10 @@ public sealed class SkillBarModule : IPanel
 			var skill = _filtered[i];
 			var selected = i == _selectedIndex;
 			var hovered = i == _hoverIndex;
-			ApplyButtonStyle(button, skill.Category, selected, hovered);
+			var armed = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal);
+			var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
+			ApplyButtonStyle(button, skill.Category, selected, hovered, armed, cooldownRemaining > 0);
+			PanelButtonScaleRegistry.Reapply(PanelId, button);
 		}
 	}
 
@@ -339,8 +357,25 @@ public sealed class SkillBarModule : IPanel
 		var social = CountCategory("social");
 		_header.Clear();
 		_header.AppendText(
-			$"[center]── 技能栏 ──[/center]\n" +
-			$"[color=#ff6666]战斗: {combat}[/color]  [color=#66ccff]工具: {utility}[/color]  [color=#66ff88]社交: {social}[/color]  [color=#888888]总计: {_allSkills.Count}[/color]");
+			$"[center]{LocalizationService.T("ui.skill_bar.title")}[/center]\n" +
+			LocalizationService.T("ui.skill.summary",
+				("combat", combat),
+				("utility", utility),
+				("social", social),
+				("total", _allSkills.Count)) +
+			"\n" +
+			$"[color=#888888]{LocalizationService.T("ui.skill_bar.hint")}[/color]");
+	}
+
+	private void UpdateTabTexts()
+	{
+		if (_tabButtons.Count < Tabs.Length)
+			return;
+
+		_tabButtons[0].Text = LocalizationService.T("ui.common.tab.all");
+		_tabButtons[1].Text = LocalizationService.T("skill.category.combat");
+		_tabButtons[2].Text = LocalizationService.T("skill.category.utility");
+		_tabButtons[3].Text = LocalizationService.T("skill.category.social");
 	}
 
 	private int CountCategory(string category)
@@ -359,18 +394,25 @@ public sealed class SkillBarModule : IPanel
 		_detailText.Clear();
 		if (_filtered.Count == 0 || _selectedIndex < 0 || _selectedIndex >= _filtered.Count)
 		{
-			_detailText.AppendText("[color=#888888]当前分类暂无技能。[/color]");
+			_detailText.AppendText($"[color=#888888]{LocalizationService.T("ui.skill_bar.empty")}[/color]");
 			return;
 		}
 
 		var skill = _filtered[_selectedIndex];
 		var color = GetCategoryAccent(skill.Category).ToHtml(false);
+		var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
 		var metaParts = new List<string>();
 		if (skill.Power > 0)
-			metaParts.Add($"威力 {skill.Power}");
+			metaParts.Add(LocalizationService.T("ui.skill.detail.power_inline", ("value", skill.Power)));
 		if (skill.Cooldown > 0)
-			metaParts.Add($"冷却 {skill.Cooldown}");
-		metaParts.Add($"射程 {GetRangeLabel(skill.Range)}");
+			metaParts.Add(LocalizationService.T("ui.skill.detail.cooldown_inline", ("value", skill.Cooldown)));
+		metaParts.Add(LocalizationService.T("ui.skill.detail.range_inline", ("value", GetRangeLabel(skill.Range))));
+
+		var statusKey = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal)
+			? "ui.skill.detail.status.armed"
+			: cooldownRemaining > 0
+				? "ui.skill.detail.status.cooldown"
+				: "ui.skill.detail.status.ready";
 
 		var sb = new StringBuilder();
 		sb.Append($"[b][color=#{color}]{skill.Name}[/color][/b]");
@@ -380,6 +422,10 @@ public sealed class SkillBarModule : IPanel
 			sb.AppendLine();
 			sb.Append($"[color=#aaaaaa]{string.Join("  ", metaParts)}[/color]");
 		}
+
+		sb.AppendLine();
+		sb.AppendLine();
+		sb.Append(LocalizationService.T(statusKey, ("value", cooldownRemaining)));
 		if (!string.IsNullOrWhiteSpace(skill.Description))
 		{
 			sb.AppendLine();
@@ -390,15 +436,26 @@ public sealed class SkillBarModule : IPanel
 		_detailText.AppendText(sb.ToString());
 	}
 
-	private static string BuildTileLabel(InteractionDef skill)
+	private string BuildTileLabel(InteractionDef skill)
 	{
-		return $"{GetCategorySymbol(skill.Category)} {BuildShortName(skill.Name)}";
+		var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
+		var marker = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal)
+			? "*"
+			: GetCategorySymbol(skill.Category);
+		var baseLabel = $"{marker} {BuildShortName(skill.Name)}";
+		return cooldownRemaining > 0
+			? $"{baseLabel}\nCD{cooldownRemaining}"
+			: baseLabel;
 	}
 
 	private static string BuildShortName(string name)
 	{
 		if (string.IsNullOrWhiteSpace(name))
 			return "--";
+
+		var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+		if (words.Length >= 2)
+			return $"{char.ToUpperInvariant(words[0][0])}{char.ToUpperInvariant(words[1][0])}";
 
 		var sb = new StringBuilder(2);
 		foreach (var ch in name.Trim())
@@ -416,49 +473,56 @@ public sealed class SkillBarModule : IPanel
 
 	private static string GetCategorySymbol(string category) => category switch
 	{
-		"combat" => "⚔",
-		"utility" => "⚙",
-		"social" => "✦",
-		_ => "◆",
+		"combat" => "C",
+		"utility" => "U",
+		"social" => "S",
+		_ => "O",
 	};
 
 	private static string GetCategoryLabel(string category) => category switch
 	{
-		"combat" => "战斗",
-		"utility" => "工具",
-		"social" => "社交",
+		"combat" => LocalizationService.T("skill.category.combat"),
+		"utility" => LocalizationService.T("skill.category.utility"),
+		"social" => LocalizationService.T("skill.category.social"),
 		_ => category,
 	};
 
 	private static string GetRangeLabel(int range) => range switch
 	{
-		0 => "自身",
-		1 => "邻近",
+		0 => LocalizationService.T("enum.range.self"),
+		1 => LocalizationService.T("enum.range.adjacent"),
 		_ => range.ToString(),
 	};
 
-	private static void ApplyButtonStyle(Button button, string category, bool selected, bool hovered)
+	private static void ApplyButtonStyle(Button button, string category, bool selected, bool hovered, bool armed, bool coolingDown)
 	{
-		var style = GetStyle(category, selected, hovered);
+		var style = GetStyle(category, selected, hovered, armed, coolingDown);
 		button.AddThemeStyleboxOverride("normal", style);
 		button.AddThemeStyleboxOverride("hover", style);
 		button.AddThemeStyleboxOverride("pressed", style);
 		button.AddThemeStyleboxOverride("focus", style);
 
-		var fontColor = selected ? Colors.White : new Color(0.92f, 0.94f, 0.98f);
+		var fontColor = coolingDown
+			? new Color(0.64f, 0.66f, 0.72f)
+			: selected || armed
+				? Colors.White
+				: new Color(0.92f, 0.94f, 0.98f);
 		button.AddThemeColorOverride("font_color", fontColor);
 		button.AddThemeColorOverride("font_hover_color", fontColor);
 		button.AddThemeColorOverride("font_pressed_color", fontColor);
 		button.AddThemeColorOverride("font_focus_color", fontColor);
 	}
 
-	private static StyleBoxFlat GetStyle(string category, bool selected, bool hovered)
+	private static StyleBoxFlat GetStyle(string category, bool selected, bool hovered, bool armed, bool coolingDown)
 	{
-		var key = $"{category}:{selected}:{hovered}";
+		var key = $"{category}:{selected}:{hovered}:{armed}:{coolingDown}";
 		if (StyleCache.TryGetValue(key, out var cached))
 			return cached;
 
 		var (baseColor, accentColor) = GetPalette(category);
+		if (coolingDown)
+			baseColor = baseColor.Darkened(0.35f);
+
 		var style = new StyleBoxFlat
 		{
 			BgColor = selected
@@ -466,9 +530,9 @@ public sealed class SkillBarModule : IPanel
 				: hovered
 					? baseColor.Lightened(0.12f)
 					: baseColor,
-			BorderColor = selected ? UIColors.FocusBorder : accentColor,
+			BorderColor = armed ? ArmedBorder : accentColor,
 		};
-		style.SetBorderWidthAll(selected ? 2 : 1);
+		style.SetBorderWidthAll(armed || selected ? 2 : 1);
 		style.SetCornerRadiusAll(6);
 		style.SetContentMarginAll(6);
 		StyleCache[key] = style;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module.Render;
@@ -9,7 +10,7 @@ namespace MiniRPG.Module.Render;
 public class SingleLayerViewMode : IViewMode
 {
 	public string Id => "single_layer";
-	public string Name => "单层视图";
+	public string Name => LocalizationService.T("render.view_mode.single_layer");
 
 	public List<List<string>> BuildDisplayMap(GameState state, int viewW, int viewH)
 	{
@@ -43,7 +44,7 @@ public class SingleLayerViewMode : IViewMode
 public class MultiLayerViewMode : IViewMode
 {
 	public string Id => "multi_layer";
-	public string Name => "多层预览";
+	public string Name => LocalizationService.T("render.view_mode.multi_layer");
 
 	public List<List<string>> BuildDisplayMap(GameState state, int viewW, int viewH)
 	{

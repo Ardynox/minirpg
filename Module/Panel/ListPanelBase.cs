@@ -70,6 +70,7 @@ public abstract class ListPanelBase : IPanel
 		row.Pressed += () => OnRowPressed(idx);
 		row.MouseEntered += () => OnRowHover(idx);
 		row.MouseExited += () => OnRowHoverExit(idx);
+		PanelButtonScaleRegistry.Track(PanelId, row);
 		return row;
 	}
 

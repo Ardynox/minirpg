@@ -28,14 +28,16 @@
   "entity": {
     "player": "Misc B1_N",
     "hostile": "Misc B2_N",
-    "friendly": "Misc B3_N"
+    "friendly": "Misc B3_N",
+    "fire": "Fire"
   },
   "fixture": {
     "stair_down": "Misc A1_N",
     "stair_up": "Misc A2_N",
     "door": "Door A1_N",
     "nest": "Misc A3_N",
-    "house": "Roof A1_N"
+    "house": "Roof A1_N",
+    "campfire": "Misc B6_N"
   },
   "item": {
     "container": "Chest A1_N",

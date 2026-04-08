@@ -29,6 +29,8 @@ public interface IPanel
 	/// </summary>
 	bool ConsumeUnhandledKeys => false;
 
+	bool AllowGlobalClose => true;
+
 	/// <summary>
 	/// 处理键盘命令字符串。返回 true 表示已消费，false 表示未处理。
 	/// 通用命令由 PanelManager 预处理（W/S→"up"/"down"，Esc→"close"，数字→"1"-"9"），

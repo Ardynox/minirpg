@@ -1,0 +1,212 @@
+[gd_scene format=3]
+
+[node name="WorldManager" type="PanelContainer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_manager.title"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_manager.subtitle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TabBar" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WorldsTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+text = "ui.world_manager.tab.worlds"
+
+[node name="ScenariosTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+text = "ui.world_manager.tab.scenarios"
+
+[node name="LegacyTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+text = "ui.world_manager.tab.legacy"
+
+[node name="Status" type="Label" parent="Margin/VBox"]
+visible = false
+layout_mode = 2
+autowrap_mode = 3
+modulate = Color(1, 0.58, 0.58, 1)
+
+[node name="Pages" type="Control" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="WorldsPage" type="VBoxContainer" parent="Margin/VBox/Pages"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Body" type="HSplitContainer" parent="Margin/VBox/Pages/WorldsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+split_offset = 280
+
+[node name="WorldColumn" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="WorldListTitle" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/WorldColumn"]
+layout_mode = 2
+text = "ui.world_manager.world_list_title"
+
+[node name="WorldListScroll" type="ScrollContainer" parent="Margin/VBox/Pages/WorldsPage/Body/WorldColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="WorldList" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body/WorldColumn/WorldListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="DetailColumn" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="SelectedWorldTitle" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn"]
+layout_mode = 2
+text = "ui.world_manager.no_world_selected"
+
+[node name="SelectedWorldSummary" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn"]
+layout_mode = 2
+autowrap_mode = 3
+text = "ui.world_manager.no_world_selected_summary"
+
+[node name="CharacterListTitle" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn"]
+layout_mode = 2
+text = "ui.world_manager.character_list_title"
+
+[node name="CharacterListScroll" type="ScrollContainer" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="CharacterList" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/CharacterListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ScenariosPage" type="VBoxContainer" parent="Margin/VBox/Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="ScenarioHint" type="Label" parent="Margin/VBox/Pages/ScenariosPage"]
+layout_mode = 2
+text = "ui.world_manager.scenarios_hint"
+autowrap_mode = 3
+
+[node name="ScenarioListScroll" type="ScrollContainer" parent="Margin/VBox/Pages/ScenariosPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="ScenarioList" type="VBoxContainer" parent="Margin/VBox/Pages/ScenariosPage/ScenarioListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="LegacyPage" type="VBoxContainer" parent="Margin/VBox/Pages"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="LegacyHint" type="Label" parent="Margin/VBox/Pages/LegacyPage"]
+layout_mode = 2
+text = "ui.world_manager.legacy_hint"
+autowrap_mode = 3
+
+[node name="LegacyListScroll" type="ScrollContainer" parent="Margin/VBox/Pages/LegacyPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="LegacyList" type="VBoxContainer" parent="Margin/VBox/Pages/LegacyPage/LegacyListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="Footer" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 10
+
+[node name="CreateWorldBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+text = "ui.world_manager.create_world"
+
+[node name="CreateCharacterBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+text = "ui.world_manager.create_character"
+
+[node name="ContinueCharacterBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+text = "ui.world_manager.continue_character"
+
+[node name="BackBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+text = "ui.world_manager.back"

@@ -11,17 +11,26 @@
 [ext_resource type="PackedScene" path="res://Scene/SkillManager.tscn" id="8b_skillmgr"]
 [ext_resource type="PackedScene" path="res://Scene/InventoryPanel.tscn" id="9_inv"]
 [ext_resource type="PackedScene" path="res://Scene/GroundPanel.tscn" id="10_ground"]
-[ext_resource type="PackedScene" path="res://Scene/KeyBindingsPanel.tscn" id="11_keybindings"]
+[ext_resource type="PackedScene" path="res://Scene/TurnPanel.tscn" id="10b_turnpanel"]
+[ext_resource type="PackedScene" path="res://Scene/PauseMenuPanel.tscn" id="11_pausemenu"]
 [ext_resource type="PackedScene" path="res://Scene/LayoutEditBar.tscn" id="12_layoutbar"]
 [ext_resource type="PackedScene" path="res://Scene/SaveBrowser.tscn" id="13_savebrowser"]
 [ext_resource type="PackedScene" path="res://Scene/MapEditorBar.tscn" id="14_mapeditorbar"]
 [ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="15_theme"]
 [ext_resource type="PackedScene" path="res://Scene/SaveNameDialog.tscn" id="16_savenamedialog"]
+[ext_resource type="PackedScene" path="res://Scene/CharacterCreationDialog.tscn" id="17_charactercreation"]
+[ext_resource type="PackedScene" path="res://Scene/WorldManager.tscn" id="18_worldmanager"]
+[ext_resource type="PackedScene" path="res://Scene/WorldSettingsDialog.tscn" id="19_worldsettings"]
+[ext_resource type="PackedScene" path="res://Scene/ConfirmDialog.tscn" id="20_confirmdialog"]
+[ext_resource type="PackedScene" path="res://Scene/WeatherLabPanel.tscn" id="21_weatherlab"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
 
-[node name="UI" type="VBoxContainer" parent="."]
+[node name="HudLayer" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="UI" type="VBoxContainer" parent="HudLayer"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -35,38 +44,93 @@ grow_vertical = 2
 theme = ExtResource("15_theme")
 theme_override_constants/separation = 6
 
-[node name="TopRow" type="HBoxContainer" parent="UI"]
+[node name="TopRow" type="HBoxContainer" parent="HudLayer/UI"]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 3.0
 theme_override_constants/separation = 6
 
-[node name="MapPanel" parent="UI/TopRow" instance=ExtResource("2_map")]
+[node name="MapPanel" parent="HudLayer/UI/TopRow" instance=ExtResource("2_map")]
 
-[node name="StatusPanel" parent="UI/TopRow" instance=ExtResource("3_status")]
+[node name="StatusPanel" parent="HudLayer/UI/TopRow" instance=ExtResource("3_status")]
 
-[node name="SkillManager" parent="UI/TopRow" instance=ExtResource("8b_skillmgr")]
+[node name="SkillManager" parent="HudLayer/UI/TopRow" instance=ExtResource("8b_skillmgr")]
 
-[node name="InventoryPanel" parent="UI/TopRow" instance=ExtResource("9_inv")]
+[node name="InventoryPanel" parent="HudLayer/UI/TopRow" instance=ExtResource("9_inv")]
 
-[node name="GroundPanel" parent="UI" instance=ExtResource("10_ground")]
+[node name="GroundPanel" parent="HudLayer/UI" instance=ExtResource("10_ground")]
 
-[node name="LogPanel" parent="UI" instance=ExtResource("4_log")]
+[node name="TurnPanel" parent="HudLayer/UI" instance=ExtResource("10b_turnpanel")]
 
-[node name="InputBar" parent="UI" instance=ExtResource("5_input")]
+[node name="LogPanel" parent="HudLayer/UI" instance=ExtResource("4_log")]
 
-[node name="SettingsPanel" parent="." instance=ExtResource("6_settings")]
+[node name="InputBar" parent="HudLayer/UI" instance=ExtResource("5_input")]
 
-[node name="KeyBindingsPanel" parent="." instance=ExtResource("11_keybindings")]
+[node name="OverlayLayer" type="CanvasLayer" parent="."]
+layer = 2
 
-[node name="MainMenu" parent="." instance=ExtResource("7_menu")]
+[node name="StartupOverlay" type="MarginContainer" parent="OverlayLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 108.0
+grow_horizontal = 2
+mouse_filter = 2
+z_index = 100
+theme = ExtResource("15_theme")
 
-[node name="SkillBar" parent="." instance=ExtResource("8_skillbar")]
+[node name="Bar" type="PanelContainer" parent="OverlayLayer/StartupOverlay"]
+layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="LayoutEditBar" parent="." instance=ExtResource("12_layoutbar")]
+[node name="Margin" type="MarginContainer" parent="OverlayLayer/StartupOverlay/Bar"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
 
-[node name="SaveBrowser" parent="." instance=ExtResource("13_savebrowser")]
+[node name="VBox" type="VBoxContainer" parent="OverlayLayer/StartupOverlay/Bar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="MapEditorBar" parent="." instance=ExtResource("14_mapeditorbar")]
+[node name="Status" type="Label" parent="OverlayLayer/StartupOverlay/Bar/Margin/VBox"]
+layout_mode = 2
+text = "ui.startup.status.tileset"
 
-[node name="SaveNameDialog" parent="." instance=ExtResource("16_savenamedialog")]
+[node name="Progress" type="ProgressBar" parent="OverlayLayer/StartupOverlay/Bar/Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 1.0
+show_percentage = true
+
+[node name="SettingsPanel" parent="OverlayLayer" instance=ExtResource("6_settings")]
+
+[node name="PauseMenuPanel" parent="OverlayLayer" instance=ExtResource("11_pausemenu")]
+
+[node name="MainMenu" parent="OverlayLayer" instance=ExtResource("7_menu")]
+
+[node name="SkillBar" parent="OverlayLayer" instance=ExtResource("8_skillbar")]
+
+[node name="LayoutEditBar" parent="OverlayLayer" instance=ExtResource("12_layoutbar")]
+
+[node name="SaveBrowser" parent="OverlayLayer" instance=ExtResource("13_savebrowser")]
+
+[node name="WorldManager" parent="OverlayLayer" instance=ExtResource("18_worldmanager")]
+
+[node name="MapEditorBar" parent="OverlayLayer" instance=ExtResource("14_mapeditorbar")]
+
+[node name="WeatherLabPanel" parent="OverlayLayer" instance=ExtResource("21_weatherlab")]
+
+[node name="SaveNameDialog" parent="OverlayLayer" instance=ExtResource("16_savenamedialog")]
+
+[node name="CharacterCreationDialog" parent="OverlayLayer" instance=ExtResource("17_charactercreation")]
+
+[node name="WorldSettingsDialog" parent="OverlayLayer" instance=ExtResource("19_worldsettings")]
+
+[node name="ConfirmDialog" parent="OverlayLayer" instance=ExtResource("20_confirmdialog")]

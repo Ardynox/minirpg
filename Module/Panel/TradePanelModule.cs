@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
 
@@ -13,6 +15,7 @@ public class TradePanelModule : ListPanelBase
 
 	public event Action? OnTradeClosed;
 	public event Action<TradeTab, int>? OnTradeAction;
+	public Func<Item, bool>? TryHandleItemRightClick { get; set; }
 
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _header;
@@ -21,13 +24,14 @@ public class TradePanelModule : ListPanelBase
 	private readonly Button _buyBtn;
 	private readonly Button _sellBtn;
 
+	private GameState? _state;
 	private List<TradeGood> _buyGoods = [];
 	private List<(int InvIndex, Item Item)> _sellItems = [];
 	private readonly List<Button> _tabButtons;
 	private TradeTab _currentTab = TradeTab.Buy;
 
 	private static readonly TradeTab[] Tabs = [TradeTab.Buy, TradeTab.Sell];
-	private static readonly string[] TabLabels = ["购买", "出售"];
+	private static readonly string[] TabLabels = ["Buy", "Sell"];
 
 	public override bool Visible
 	{
@@ -37,6 +41,7 @@ public class TradePanelModule : ListPanelBase
 
 	public TradeTab CurrentTab => _currentTab;
 	public int ItemCount => _currentTab == TradeTab.Buy ? _buyGoods.Count : _sellItems.Count;
+	public GameState? State { get => _state; set => _state = value; }
 
 	public override bool HandleCommand(string cmd)
 	{
@@ -80,7 +85,7 @@ public class TradePanelModule : ListPanelBase
 		_sellBtn.Pressed += () => DoAction();
 		closeBtn.Pressed += () => OnTradeClosed?.Invoke();
 
-		_tabButtons = TabHelper.BuildTabButtons(_tabBar, TabLabels, Tabs, SetTab);
+		_tabButtons = TabHelper.BuildTabButtons(_tabBar, TabLabels, Tabs, SetTab, PanelId);
 	}
 
 	public void Open(Actor player, Actor trader)
@@ -110,8 +115,12 @@ public class TradePanelModule : ListPanelBase
 
 	public override void Refresh()
 	{
+		_tabButtons[0].Text = LocalizationService.T("ui.trade.buy");
+		_tabButtons[1].Text = LocalizationService.T("ui.trade.sell");
 		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
-		RebuildRows(ItemCount, ApplyRowContent, _currentTab == TradeTab.Buy ? "  (对方没有可交易的商品)" : "  (没有可出售的物品)");
+		RebuildRows(ItemCount, ApplyRowContent, _currentTab == TradeTab.Buy
+			? LocalizationService.T("ui.trade.empty.buy")
+			: LocalizationService.T("ui.trade.empty.sell"));
 		OnSelectionChanged();
 	}
 
@@ -154,17 +163,48 @@ public class TradePanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
+	protected override Button CreateRow(int index)
+	{
+		var row = base.CreateRow(index);
+		var idx = index;
+		row.GuiInput += ev => OnRowInput(ev, idx);
+		return row;
+	}
+
 	private void DoAction()
 	{
 		if (ItemCount == 0) return;
 		OnTradeAction?.Invoke(_currentTab, _cursor);
 	}
 
+	private void OnRowInput(InputEvent ev, int index)
+	{
+		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= ItemCount)
+			return;
+
+		if (mb.ButtonIndex != MouseButton.Right)
+			return;
+
+		_cursor = index;
+		OnSelectionChanged();
+		var item = _currentTab == TradeTab.Buy
+			? _buyGoods[index].Item
+			: _sellItems[index].Item;
+		if (TryHandleItemRightClick?.Invoke(item) == true)
+			Refresh();
+	}
+
 	public void RefreshHeader(Actor player, Actor trader)
 	{
+		var traderName = _state == null
+			? trader.DisplayName
+			: IdentificationModule.GetActorDisplayName(_state, trader);
 		_header.Clear();
-		_header.AppendText($"[center]── 交易: {trader.DisplayName} ──[/center]\n" +
-			$"[color=#ffcc00]你: {player.Gold}G[/color]  [color=#88ccff]{trader.DisplayName}: {trader.Gold}G[/color]");
+		_header.AppendText($"[center]{LocalizationService.T("ui.trade.header", ("trader", traderName))}[/center]\n" +
+			LocalizationService.T("ui.trade.gold_summary",
+				("player_gold", player.Gold),
+				("trader", traderName),
+				("trader_gold", trader.Gold)));
 	}
 
 	private void ApplyRowContent(Button row, int i)
@@ -172,15 +212,31 @@ public class TradePanelModule : ListPanelBase
 		if (_currentTab == TradeTab.Buy)
 		{
 			var g = _buyGoods[i];
-			var src = g.From == TradeGood.Source.Shop ? "" : " [私]";
+			var src = g.From == TradeGood.Source.Shop ? "" : LocalizationService.T("ui.trade.private_stock");
 			var stock = g.Stock > 1 ? $" x{g.Stock}" : "";
-			row.Text = $"  [{i + 1}] {g.Item.Name}  {g.BuyPrice}G{stock}{src}";
+			var itemName = _state == null
+				? g.Item.Name
+				: ItemFormatHelper.GetDisplayName(_state, g.Item);
+			var stats = _state == null ? ItemFormatHelper.InlineStats(g.Item) : ItemFormatHelper.InlineStats(_state, g.Item);
+			var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
+			row.Text = $"  [{i + 1}] {itemName}{statSegment}  {g.BuyPrice}G{stock}{src}";
 		}
 		else
 		{
 			var (_, item) = _sellItems[i];
 			var sp = TradeModule.SellPrice(item);
-			row.Text = $"  [{i + 1}] {item.Name}  售价:{sp}G";
+			var itemName = _state == null
+				? item.Name
+				: ItemFormatHelper.GetDisplayName(_state, item);
+			var stats = _state == null ? ItemFormatHelper.InlineStats(item) : ItemFormatHelper.InlineStats(_state, item);
+			var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
+			row.Text = LocalizationService.TOrFallback(
+				"ui.trade.sell_row.rich",
+				"[{index}] {item}{stats}  {price}G",
+				("index", i + 1),
+				("item", itemName),
+				("stats", statSegment),
+				("price", sp));
 		}
 	}
 
@@ -191,6 +247,8 @@ public class TradePanelModule : ListPanelBase
 		_sellBtn.Visible = _currentTab == TradeTab.Sell;
 		_buyBtn.Disabled = !hasItem;
 		_sellBtn.Disabled = !hasItem;
+		_buyBtn.Text = LocalizationService.T("ui.trade.buy");
+		_sellBtn.Text = LocalizationService.T("ui.trade.sell");
 	}
 
 	private void RenderDetail()
@@ -199,7 +257,9 @@ public class TradePanelModule : ListPanelBase
 		Item? item = null;
 		if (_currentTab == TradeTab.Buy && _cursor >= 0 && _cursor < _buyGoods.Count) item = _buyGoods[_cursor].Item;
 		else if (_currentTab == TradeTab.Sell && _cursor >= 0 && _cursor < _sellItems.Count) item = _sellItems[_cursor].Item;
-		if (item == null) { _detailBox.AppendText("[color=#888888]选择商品查看详情[/color]"); return; }
-		_detailBox.AppendText(ItemFormatHelper.BuildDetail(item));
+		if (item == null) { _detailBox.AppendText(LocalizationService.T("ui.common.detail_hint.trade")); return; }
+		_detailBox.AppendText(_state == null
+			? ItemFormatHelper.BuildDetail(item)
+			: ItemFormatHelper.BuildDetail(_state, item));
 	}
 }

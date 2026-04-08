@@ -1,0 +1,16 @@
+[
+  { "id": "peckish", "labelKey": "ui.thought.peckish", "displayName": "Peckish", "moodOffset": -3, "durationTurns": -1 },
+  { "id": "hungry", "labelKey": "ui.thought.hungry", "displayName": "Hungry", "moodOffset": -10, "durationTurns": -1 },
+  { "id": "starving", "labelKey": "ui.thought.starving", "displayName": "Starving", "moodOffset": -20, "durationTurns": -1 },
+  { "id": "tired", "labelKey": "ui.thought.tired", "displayName": "Tired", "moodOffset": -6, "durationTurns": -1 },
+  { "id": "exhausted", "labelKey": "ui.thought.exhausted", "displayName": "Exhausted", "moodOffset": -14, "durationTurns": -1 },
+  { "id": "ate_simple", "labelKey": "ui.thought.ate_simple", "displayName": "Ate simple food", "moodOffset": 0, "durationTurns": 180 },
+  { "id": "ate_fine", "labelKey": "ui.thought.ate_fine", "displayName": "Ate fine food", "moodOffset": 4, "durationTurns": 220 },
+  { "id": "ate_lavish", "labelKey": "ui.thought.ate_lavish", "displayName": "Ate lavish food", "moodOffset": 8, "durationTurns": 260 },
+  { "id": "ate_raw", "labelKey": "ui.thought.ate_raw", "displayName": "Ate raw food", "moodOffset": -6, "durationTurns": 220 },
+  { "id": "slept_bedroll", "labelKey": "ui.thought.slept_bedroll", "displayName": "Slept in bedroll", "moodOffset": 4, "durationTurns": 260 },
+  { "id": "slept_home_floor", "labelKey": "ui.thought.slept_home_floor", "displayName": "Slept on home floor", "moodOffset": 1, "durationTurns": 180 },
+  { "id": "sleep_interrupted", "labelKey": "ui.thought.sleep_interrupted", "displayName": "Sleep interrupted", "moodOffset": -8, "durationTurns": 180 },
+  { "id": "hurt_recently", "labelKey": "ui.thought.hurt_recently", "displayName": "Hurt recently", "moodOffset": -5, "durationTurns": 140 },
+  { "id": "limb_destroyed", "labelKey": "ui.thought.limb_destroyed", "displayName": "Lost a limb", "moodOffset": -14, "durationTurns": 420 }
+]

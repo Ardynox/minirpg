@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Trade;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Data;
@@ -48,7 +50,7 @@ public static class InteractionModule
 		return allDefs.Where(d =>
 			CheckTags(iTags, d.Required, initiator.Faction) &&
 			CheckCapacities(iCaps, d.CapacityRequired) &&
-			CheckTags(tTags, d.TargetRequired, target.Faction)
+			CheckTargetRequirements(target, tTags, d)
 		).ToList();
 	}
 
@@ -57,12 +59,9 @@ public static class InteractionModule
 		InteractionDef def)
 	{
 		var events = new List<GameEvent>();
-		var evt = new GameEvent("interaction")
-		{
-			InitiatorId = initiator.Id,
-			TargetId = target.Id,
-			TargetActorName = target.DisplayName,
-		};
+		var evt = new GameEvent("interaction");
+		IdentificationModule.PopulateInitiatorIdentity(evt, state, initiator);
+		IdentificationModule.PopulateTargetIdentity(evt, state, target);
 		evt.InteractionDefId = def.Id;
 		evt.InteractionName = def.Name;
 		evt.EffectType = def.EffectType;
@@ -71,10 +70,11 @@ public static class InteractionModule
 		{
 			case "tame":
 				target.Faction = Factions.Friendly;
+				var targetName = IdentificationModule.GetActorDisplayName(state, target);
 				initiator.Experiences.Add(new Experience
 				{
 					Id = $"tamed_{target.Id}",
-					Name = $"驯服了{target.DisplayName}",
+					Name = LocalizationService.T("runtime.experience.tamed_actor.name", ("actor", targetName)),
 					Tags = new() { ["驯服经验"] = 1 },
 				});
 				break;
@@ -101,18 +101,24 @@ public static class InteractionModule
 
 		var item = actor.Inventory[inventoryIndex];
 		if (item.Equipped)
-			return [new GameEvent("drop_failed") { InitiatorId = actor.Id, ItemName = item.Name }];
+		{
+			var failedEvent = new GameEvent("drop_failed");
+			IdentificationModule.PopulateInitiatorIdentity(failedEvent, state, actor);
+			IdentificationModule.PopulateItemIdentity(failedEvent, state, item);
+			return [failedEvent];
+		}
 
 		actor.Inventory.RemoveAt(inventoryIndex);
 		MapModule.PlaceItem(state, actor.X, actor.Y, item);
 
-		return [new GameEvent("item_dropped")
+		var droppedEvent = new GameEvent("item_dropped")
 		{
-			InitiatorId = actor.Id,
-			ItemName = item.Name,
 			TargetX = actor.X,
 			TargetY = actor.Y,
-		}];
+		};
+		IdentificationModule.PopulateInitiatorIdentity(droppedEvent, state, actor);
+		IdentificationModule.PopulateItemIdentity(droppedEvent, state, item);
+		return [droppedEvent];
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -126,17 +132,22 @@ public static class InteractionModule
 	{
 		var picked = MapModule.PickupItem(state, actor.X, actor.Y, itemEntityId);
 		if (picked == null)
-			return [new GameEvent("pickup_failed") { InitiatorId = actor.Id }];
+		{
+			var failedEvent = new GameEvent("pickup_failed");
+			IdentificationModule.PopulateInitiatorIdentity(failedEvent, state, actor);
+			return [failedEvent];
+		}
 
 		InventoryModule.Add(actor, picked);
 
-		return [new GameEvent("item_picked_up")
+		var pickedUpEvent = new GameEvent("item_picked_up")
 		{
-			InitiatorId = actor.Id,
-			ItemName = picked.Name,
 			TargetX = actor.X,
 			TargetY = actor.Y,
-		}];
+		};
+		IdentificationModule.PopulateInitiatorIdentity(pickedUpEvent, state, actor);
+		IdentificationModule.PopulateItemIdentity(pickedUpEvent, state, picked);
+		return [pickedUpEvent];
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -199,6 +210,20 @@ public static class InteractionModule
 		foreach (var (key, val) in required)
 			if (caps.GetValueOrDefault(key, 0f) < val) return false;
 		return true;
+	}
+
+	private static bool CheckTargetRequirements(
+		Actor target,
+		Dictionary<string, int> targetTags,
+		InteractionDef def)
+	{
+		if (CheckTags(targetTags, def.TargetRequired, target.Faction))
+			return true;
+
+		// Trade should stay available for actors that actually have sellable goods,
+		// even when imported preset snapshots are missing the legacy trade tag.
+		return string.Equals(def.EffectType, "trade", StringComparison.Ordinal)
+			&& TradeModule.ListGoods(target).Count > 0;
 	}
 
 	private static bool CheckTags(Dictionary<string, int> tags, Dictionary<string, int> requirements,

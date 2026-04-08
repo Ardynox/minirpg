@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Config;
 using MiniRPG.Module.Panel;
 
 namespace MiniRPG.Module;
@@ -47,7 +48,7 @@ public class DialogUIModule
 
 		if (entry == null)
 		{
-			_ui.AddLog($"{npc.DisplayName}: 「……」");
+			_ui.AddLog(LocalizationService.T("dialog.fallback.silence", ("name", npc.DisplayName)));
 			return;
 		}
 
@@ -68,12 +69,24 @@ public class DialogUIModule
 			_panels.OnPanelClosed(_panel);
 	}
 
+	public void RefreshCurrentEntry()
+	{
+		if (_currentEntry == null || _ctx == null || _npc == null)
+			return;
+
+		RenderEntry(_currentEntry);
+	}
+
 	private void ShowEntry(DialogEntry entry)
 	{
 		_currentEntry = entry;
-		var text = TemplateRenderer.Render(entry.Template, _ctx!, _rng);
-
 		ApplyEffects(entry.Effects);
+		RenderEntry(entry);
+	}
+
+	private void RenderEntry(DialogEntry entry)
+	{
+		var text = TemplateRenderer.Render(entry.Template, _ctx!, _rng);
 
 		var filteredOptions = DialogRuleEngine.FilterOptions(_ctx!, entry.Options);
 		_currentOptions = filteredOptions;
@@ -161,7 +174,14 @@ public class DialogUIModule
 					if (_ctx != null) _ctx.NumTags["affinity"] = _npc.DialogAffinity;
 					break;
 				case "mood":
-					_npc.DialogMood = Math.Clamp(_npc.DialogMood + eff.Value, -1f, 1f);
+					NeedSystem.ApplyTemporaryThought(
+						_npc,
+						"dialog_social",
+						eff.Value,
+						durationTurns: 240,
+						currentTurn: _ui.State.Turn,
+						source: $"{NeedThoughtSources.Social}:{eff.Key ?? "dialog"}");
+					NeedSystem.Sync(_npc, _ui.State.Turn);
 					if (_ctx != null) _ctx.NumTags["mood"] = _npc.DialogMood;
 					break;
 				case "memory":

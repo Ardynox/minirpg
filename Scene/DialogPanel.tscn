@@ -36,11 +36,12 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 对话 ──"
+text = "ui.dialog.title"
 
 [node name="Separator1" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -63,4 +64,4 @@ theme_override_constants/separation = 4
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "数字键选择 / ↑↓选择 Enter确认 / Esc离开"
+text = "ui.dialog.hint"

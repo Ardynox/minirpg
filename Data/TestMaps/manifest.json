@@ -1,0 +1,32 @@
+{
+  "scenarios": [
+    {
+      "id": "qa_smoke_core",
+      "displayNameKey": "ui.preset_scenario.qa_smoke_core.title",
+      "descriptionKey": "ui.preset_scenario.qa_smoke_core.description",
+      "sortOrder": 10,
+      "templatePath": "res://Data/TestMaps/qa_smoke_core.json"
+    },
+    {
+      "id": "qa_interaction_hub",
+      "displayNameKey": "ui.preset_scenario.qa_interaction_hub.title",
+      "descriptionKey": "ui.preset_scenario.qa_interaction_hub.description",
+      "sortOrder": 20,
+      "templatePath": "res://Data/TestMaps/qa_interaction_hub.json"
+    },
+    {
+      "id": "qa_combat_arena",
+      "displayNameKey": "ui.preset_scenario.qa_combat_arena.title",
+      "descriptionKey": "ui.preset_scenario.qa_combat_arena.description",
+      "sortOrder": 30,
+      "templatePath": "res://Data/TestMaps/qa_combat_arena.json"
+    },
+    {
+      "id": "weather_lab",
+      "displayNameKey": "ui.preset_scenario.weather_lab.title",
+      "descriptionKey": "ui.preset_scenario.weather_lab.description",
+      "sortOrder": 40,
+      "templatePath": "res://Data/TestMaps/weather_lab.json"
+    }
+  ]
+}

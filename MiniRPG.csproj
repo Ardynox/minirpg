@@ -5,5 +5,16 @@
     <RootNamespace>MiniRPG</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GodotProjectDir Condition="'$(GodotProjectDir)' == ''">$(MSBuildProjectDirectory)</GodotProjectDir>
   </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GodotProjectDir" />
+    <Compile Remove=".godot\**\*.cs" />
+    <Compile Remove="Tests\**\*.cs" />
+    <Compile Remove="Tools\MonsterMapAssetGenerator.cs" />
+    <Compile Remove="Tools\MonsterMapAssetGenerator\**\*.cs" />
+    <EmbeddedResource Remove="Tests\**\*" />
+    <None Remove="Tests\**\*" />
+  </ItemGroup>
 </Project>

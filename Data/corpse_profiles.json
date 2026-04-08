@@ -1,0 +1,61 @@
+[
+  {
+    "id": "corpse_humanoid",
+    "name": "类人生物尸体",
+    "corpseItemId": "corpse_human",
+    "raceIds": ["human", "goblin", "elf", "orc", "undead"],
+    "butcherYields": [
+      { "itemId": "raw_meat", "count": 12 },
+      { "itemId": "mat_leather", "count": 6 }
+    ]
+  },
+  {
+    "id": "corpse_beast_small",
+    "name": "小型兽类尸体",
+    "corpseItemId": "corpse_beast_small",
+    "raceIds": ["wolf", "rat"],
+    "butcherYields": [
+      { "itemId": "raw_meat", "count": 8 },
+      { "itemId": "mat_leather", "count": 3 }
+    ]
+  },
+  {
+    "id": "corpse_beast_large",
+    "name": "大型兽类尸体",
+    "corpseItemId": "corpse_beast_large",
+    "raceIds": ["bear"],
+    "butcherYields": [
+      { "itemId": "raw_meat", "count": 18 },
+      { "itemId": "mat_leather", "count": 10 }
+    ]
+  },
+  {
+    "id": "corpse_insectoid",
+    "name": "虫类尸体",
+    "corpseItemId": "corpse_beast_small",
+    "raceIds": ["spider", "scorpion"],
+    "butcherYields": [
+      { "itemId": "raw_meat", "count": 6 },
+      { "itemId": "mat_chitin", "count": 8 }
+    ]
+  },
+  {
+    "id": "corpse_woody",
+    "name": "木质生物尸体",
+    "corpseItemId": "corpse_beast_large",
+    "raceIds": ["treant"],
+    "butcherYields": [
+      { "itemId": "mat_wood", "count": 16 },
+      { "itemId": "mat_herb", "count": 3 }
+    ]
+  },
+  {
+    "id": "corpse_gelatinous",
+    "name": "胶质尸体",
+    "corpseItemId": "corpse_beast_small",
+    "raceIds": ["slime"],
+    "butcherYields": [
+      { "itemId": "raw_meat", "count": 4 }
+    ]
+  }
+]

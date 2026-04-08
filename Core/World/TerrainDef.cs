@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.World;
 
@@ -29,6 +31,16 @@ public static class TerrainRegistry
 {
 	private static readonly List<TerrainDef> _byId = [];
 	private static readonly Dictionary<string, TerrainDef> _byStringId = new();
+	private static readonly TerrainDef FallbackVoid = new()
+	{
+		Id = 0,
+		StringId = "void",
+		Glyph = " ",
+		DefaultHardness = 0,
+		Solid = true,
+		Material = "",
+		BreaksInto = "rubble",
+	};
 
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{
@@ -38,8 +50,16 @@ public static class TerrainRegistry
 
 	public static IReadOnlyList<TerrainDef> All => _byId;
 
-	public static TerrainDef Get(ushort id) =>
-		id < _byId.Count ? _byId[id] : _byId[0];
+	public static TerrainDef Get(ushort id)
+	{
+		if (_byId.Count == 0)
+			return FallbackVoid;
+
+		if (id < _byId.Count && _byId[id] != null)
+			return _byId[id];
+
+		return _byId[0] ?? FallbackVoid;
+	}
 
 	public static TerrainDef? Get(string stringId) =>
 		_byStringId.GetValueOrDefault(stringId);
@@ -55,22 +75,27 @@ public static class TerrainRegistry
 	}
 
 	/// <summary>
-	/// 从 Godot res:// 路径加载地形定义。使用 Godot.FileAccess 以正确解析虚拟路径。
+	/// 从 Data/ 相对路径加载地形定义。
 	/// </summary>
-	public static void Load(string resPath)
+	public static void Load(string relativeDataPath)
 	{
 		_byId.Clear();
 		_byStringId.Clear();
+		LoadFromJson(GameDataLocator.ReadTextOrThrow(relativeDataPath));
+	}
 
-		using var file = Godot.FileAccess.Open(resPath, Godot.FileAccess.ModeFlags.Read);
-		if (file == null)
-			throw new InvalidOperationException(
-				$"Failed to open terrain file: {resPath} (error: {Godot.FileAccess.GetOpenError()})");
+	public static void LoadFromFile(string filePath)
+	{
+		_byId.Clear();
+		_byStringId.Clear();
+		LoadFromJson(File.ReadAllText(filePath));
+	}
 
-		var json = file.GetAsText();
+	public static void LoadFromJson(string json)
+	{
 		var presets = JsonSerializer.Deserialize<List<TerrainPreset>>(json, JsonOpts);
 		if (presets == null || presets.Count == 0)
-			throw new InvalidOperationException($"Terrain file is empty or invalid: {resPath}");
+			throw new InvalidOperationException("Terrain payload is empty or invalid.");
 
 		foreach (var p in presets)
 		{

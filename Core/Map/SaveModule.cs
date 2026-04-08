@@ -1,298 +1,906 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MiniRPG.Core.Combat;
+using MiniRPG.Core.Data;
+using MiniRPG.Core.Facility;
+using MiniRPG.Core.Health;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Map;
 
 /// <summary>
-/// 存档模块：负责游戏状态的持久化。
-///
-/// 无限世界存档策略：
-/// - 未修改的 chunk 可以从种子重新生成，不需要存档
-/// - 只存储被修改过的 dirty chunk（挖掘、建造等）
-/// - Actor 表、玩家位置、世界种子、设置等存在全局存档中
+/// 存档模块：负责运行时对象与显式存档快照之间的映射。
 /// </summary>
 public static class SaveModule
 {
+	public const int MinimumCompatibleVersion = 5;
+	public const int CurrentVersion = 6;
+
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{
 		WriteIndented = true,
+		PropertyNameCaseInsensitive = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-		Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+		Converters = { new JsonStringEnumConverter() },
 	};
 
-	// ══════════════════════════════════════════════════════
-	//  全局存读档
-	// ══════════════════════════════════════════════════════
-
-	public static void SaveGame(GameState state, string filePath)
+	public static void SaveGame(GameState state, string filePath, SaveHeaderContext? headerContext = null)
 	{
-		var data = new WorldSaveData
+		var saveFile = BuildSnapshot(state, headerContext);
+		saveFile.Header.Title = BuildSaveTitle(filePath, headerContext);
+		WriteSaveFile(saveFile, filePath);
+	}
+
+	public static SaveLoadStatus LoadGame(GameState state, string filePath)
+	{
+		var status = TryReadSaveFile(filePath, out var saveFile);
+		if (status != SaveLoadStatus.Success || saveFile == null)
+			return status;
+
+		ApplySnapshot(state, saveFile);
+		return SaveLoadStatus.Success;
+	}
+
+	public static SaveLoadStatus TryReadSaveHeader(string filePath, out SaveHeader? header)
+	{
+		header = null;
+		if (!File.Exists(filePath))
+			return SaveLoadStatus.NotFound;
+
+		try
+		{
+			header = DeserializeSaveHeader(File.ReadAllText(filePath));
+			return header != null ? SaveLoadStatus.Success : SaveLoadStatus.Incompatible;
+		}
+		catch
+		{
+			header = null;
+			return SaveLoadStatus.Incompatible;
+		}
+	}
+
+	public static void WriteSaveFile(SaveFile saveFile, string filePath)
+	{
+		var json = SerializeSaveFile(saveFile);
+		EnsureDir(filePath);
+		File.WriteAllText(filePath, json);
+	}
+
+	public static string SerializeSaveFile(SaveFile saveFile)
+	{
+		var json = JsonSerializer.Serialize(saveFile, JsonOpts);
+		return CanonicalizeJson(json);
+	}
+
+	public static SaveFile? DeserializeSaveFile(string json)
+	{
+		try
+		{
+			var saveFile = JsonSerializer.Deserialize<SaveFile>(json, JsonOpts);
+			return saveFile != null && IsCompatibleVersion(saveFile.Version)
+				? saveFile
+				: null;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	public static SaveHeader? DeserializeSaveHeader(string json)
+	{
+		try
+		{
+			using var doc = JsonDocument.Parse(json);
+			var root = doc.RootElement;
+			if (root.ValueKind != JsonValueKind.Object)
+				return null;
+
+			if (!root.TryGetProperty("version", out var versionElement)
+				|| versionElement.ValueKind != JsonValueKind.Number
+				|| !IsCompatibleVersion(versionElement.GetInt32()))
+				return null;
+
+			if (!root.TryGetProperty("header", out var headerElement)
+				|| headerElement.ValueKind != JsonValueKind.Object)
+				return null;
+
+			if (!root.TryGetProperty("payload", out var payloadElement)
+				|| payloadElement.ValueKind != JsonValueKind.Object)
+				return null;
+
+			return TryParseSaveHeader(headerElement, out var header)
+				? header
+				: null;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	public static SaveFile BuildSnapshot(GameState state, SaveHeaderContext? headerContext = null)
+	{
+		state.EnsureDefaultEconomicDomains();
+		foreach (var actor in state.Actors.Values)
+		{
+			NeedSystem.Sync(actor, state.Turn);
+			HealthSystem.Sync(actor, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, actor));
+		}
+
+		var payload = new SavePayload
 		{
 			WorldSeed = state.WorldSeed,
 			Turn = state.Turn,
 			PlayerX = state.PlayerX,
 			PlayerY = state.PlayerY,
 			PlayerZ = state.PlayerZ,
-			BumpAttack = state.BumpAttack,
-			WatchMode = state.WatchMode,
+			PlayerId = state.PlayerId,
+			PlayerAppearanceId = state.PlayerAppearanceId,
+			BumpAttack = false,
+			WatchMode = false,
 			KillCount = state.KillCount,
 			GeneratorId = state.GeneratorId,
 			ViewModeId = state.ViewModeId,
-			Actors = CopyActors(state.Actors),
-			Quests = state.Quests.ConvertAll(CopyQuest),
+			Actors = MapList(state.Actors.Values.OrderBy(static actor => actor.Id, StringComparer.Ordinal), BuildActorSnapshot),
+			Quests = MapList(state.Quests, BuildQuestSnapshot),
+			DirtyChunks = BuildDirtyChunkSnapshots(state),
+			Timeline = BuildTimelineSnapshot(state.Timeline),
+			Weather = BuildWeatherStateSnapshot(state.Weather, state.WorldSeed),
+			IdentifiedActorTypes = [.. state.IdentifiedActorTypes.OrderBy(static id => id, StringComparer.Ordinal)],
+			IdentifiedItemTypes = [.. state.IdentifiedItemTypes.OrderBy(static id => id, StringComparer.Ordinal)],
+			Facilities = MapList(
+				state.Facilities.Values.OrderBy(static facility => facility.Id, StringComparer.Ordinal),
+				static facility => facility.Clone()),
+			StockpileZones = MapList(state.StockpileZones, static zone => zone.Clone()),
+			EconomicDomains = MapList(
+				state.EconomicDomains.Values.OrderBy(static domain => domain.Id, StringComparer.Ordinal),
+				static domain => domain.Clone()),
 		};
 
-		if (state.World != null)
+		return new SaveFile
 		{
-			foreach (var (coord, chunk) in state.World.Chunks.LoadedChunks)
-			{
-				if (!chunk.Dirty) continue;
-				data.DirtyChunks.Add(SerializeChunk(coord, chunk));
-			}
-		}
-
-		var json = JsonSerializer.Serialize(data, JsonOpts);
-		EnsureDir(filePath);
-		File.WriteAllText(filePath, json);
+			Version = CurrentVersion,
+			Header = BuildHeader(payload, headerContext),
+			Payload = payload,
+		};
 	}
 
-	public static bool LoadGame(GameState state, string filePath)
+	public static void ApplySnapshot(GameState state, SaveFile saveFile)
 	{
-		if (!File.Exists(filePath)) return false;
-
-		var json = File.ReadAllText(filePath);
-		var data = JsonSerializer.Deserialize<WorldSaveData>(json, JsonOpts);
-		if (data == null) return false;
-
-		state.WorldSeed = data.WorldSeed;
-		state.Turn = data.Turn;
-		state.PlayerX = data.PlayerX;
-		state.PlayerY = data.PlayerY;
-		state.PlayerZ = data.PlayerZ;
-		state.BumpAttack = data.BumpAttack;
-		state.WatchMode = data.WatchMode;
-		state.KillCount = data.KillCount;
-		state.GeneratorId = data.GeneratorId ?? "room_corridor";
-		state.ViewModeId = data.ViewModeId ?? "single_layer";
-		state.Actors = data.Actors ?? new();
-		state.Quests = data.Quests ?? [];
+		var payload = saveFile.Payload;
+		state.Reset();
+		state.World = null;
+		state.WorldSeed = payload.WorldSeed;
+		state.Turn = payload.Turn;
+		state.PlayerX = payload.PlayerX;
+		state.PlayerY = payload.PlayerY;
+		state.PlayerZ = payload.PlayerZ;
+		state.PlayerId = payload.PlayerId;
+		state.PlayerAppearanceId = PlayerAppearanceCatalog.NormalizeId(payload.PlayerAppearanceId);
+		state.KillCount = payload.KillCount;
+		state.GeneratorId = payload.GeneratorId;
+		state.ViewModeId = payload.ViewModeId;
+		state.Timeline = CreateTimelineState(payload.Timeline);
+		state.Weather = CreateWeatherState(payload.Weather, payload.WorldSeed);
+		state.IdentifiedActorTypes = new HashSet<string>(
+			payload.IdentifiedActorTypes ?? [],
+			StringComparer.Ordinal);
+		state.IdentifiedItemTypes = new HashSet<string>(
+			payload.IdentifiedItemTypes ?? [],
+			StringComparer.Ordinal);
+		state.EconomicDomains = payload.EconomicDomains?.ToDictionary(
+			static domain => domain.Id,
+			static domain => domain.Clone(),
+			StringComparer.Ordinal) ?? new Dictionary<string, EconomicDomain>(StringComparer.Ordinal);
+		state.EnsureDefaultEconomicDomains();
+		state.Facilities = payload.Facilities?.ToDictionary(
+			static facility => facility.Id,
+			static facility => facility.Clone(),
+			StringComparer.Ordinal) ?? new Dictionary<string, FacilityInstance>(StringComparer.Ordinal);
+		state.StockpileZones = payload.StockpileZones != null
+			? MapList(payload.StockpileZones, static zone => zone.Clone())
+			: [];
+		state.JobBoardState = new JobBoardState();
+		state.Actors = payload.Actors.ToDictionary(
+			static snapshot => snapshot.Id,
+			CreateActor,
+			StringComparer.Ordinal);
+		foreach (var actor in state.Actors.Values)
+		{
+			NeedSystem.EnsureInitialized(actor, state.Turn);
+			HealthSystem.EnsureInitialized(actor, state.Turn);
+		}
+		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
-		if (data.DirtyChunks != null)
+		foreach (var chunk in payload.DirtyChunks)
 		{
-			foreach (var cs in data.DirtyChunks)
-			{
-				var coord = new ChunkCoord(cs.Cx, cs.Cy, cs.Cz);
-				DirtyChunkCache[coord] = cs;
-			}
+			var coord = new ChunkCoord(chunk.Cx, chunk.Cy, chunk.Cz);
+			DirtyChunkCache[coord] = chunk;
 		}
 
-		return true;
+		FacilityConstructionModule.RebuildConstructionTickets(state);
 	}
 
-	public static bool TryReadSaveHeader(string filePath, out SaveHeader header)
-	{
-		header = new SaveHeader();
-		if (!File.Exists(filePath)) return false;
+	internal static readonly Dictionary<ChunkCoord, ChunkSnapshot> DirtyChunkCache = new();
 
-		try
-		{
-			using var doc = JsonDocument.Parse(File.ReadAllText(filePath));
-			var root = doc.RootElement;
-
-			header = new SaveHeader
-			{
-				WorldSeed = ReadInt(root, nameof(WorldSaveData.WorldSeed)),
-				Turn = ReadInt(root, nameof(WorldSaveData.Turn)),
-				PlayerX = ReadInt(root, nameof(WorldSaveData.PlayerX)),
-				PlayerY = ReadInt(root, nameof(WorldSaveData.PlayerY)),
-				PlayerZ = ReadInt(root, nameof(WorldSaveData.PlayerZ)),
-				GeneratorId = ReadString(root, nameof(WorldSaveData.GeneratorId)),
-				ViewModeId = ReadString(root, nameof(WorldSaveData.ViewModeId)),
-			};
-			return true;
-		}
-		catch
-		{
-			header = new SaveHeader();
-			return false;
-		}
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  Dirty Chunk 缓存（存档加载后供 ChunkManager 使用）
-	// ══════════════════════════════════════════════════════
-
-	internal static readonly Dictionary<ChunkCoord, ChunkSaveData> DirtyChunkCache = new();
-
-	/// <summary>供 ChunkManager.OnChunkLoad 使用：从存档缓存中还原 dirty chunk。</summary>
+	/// <summary>供 ChunkManager.OnChunkLoad 使用：从存档缓存中恢复 dirty chunk。</summary>
 	public static ChunkData? LoadChunkFromCache(ChunkCoord coord)
 	{
-		if (!DirtyChunkCache.TryGetValue(coord, out var cs)) return null;
-		return DeserializeChunk(cs);
+		if (!DirtyChunkCache.TryGetValue(coord, out var snapshot))
+			return null;
+
+		return CreateChunkData(snapshot);
 	}
 
 	/// <summary>供 ChunkManager.OnChunkUnload 使用：将 dirty chunk 写入缓存。</summary>
 	public static void SaveChunkToCache(ChunkCoord coord, ChunkData chunk)
 	{
-		DirtyChunkCache[coord] = SerializeChunk(coord, chunk);
+		DirtyChunkCache[coord] = BuildChunkSnapshot(coord, chunk);
 	}
 
-	// ══════════════════════════════════════════════════════
-	//  Chunk 序列化 / 反序列化
-	// ══════════════════════════════════════════════════════
-
-	private static ChunkSaveData SerializeChunk(ChunkCoord coord, ChunkData chunk)
+	private static List<ChunkSnapshot> BuildDirtyChunkSnapshots(GameState state)
 	{
-		var cs = new ChunkSaveData
-		{
-			Cx = coord.Cx, Cy = coord.Cy, Cz = coord.Cz,
-			TerrainIds = new ushort[ChunkData.Area],
-			Hardness = new byte[ChunkData.Area],
-		};
-		System.Array.Copy(chunk.TerrainIds, cs.TerrainIds, ChunkData.Area);
-		System.Array.Copy(chunk.Hardness, cs.Hardness, ChunkData.Area);
+		if (state.World == null)
+			return [];
 
-		foreach (var (idx, entities) in chunk.Entities)
+		var dirtyChunks = new List<ChunkSnapshot>();
+		foreach (var (coord, chunk) in state.World.Chunks.LoadedChunks.OrderBy(static entry => entry.Key.Cz)
+			.ThenBy(static entry => entry.Key.Cy)
+			.ThenBy(static entry => entry.Key.Cx))
 		{
-			var list = new List<CellEntity>();
-			foreach (var e in entities) list.Add(CopyCellEntity(e));
-			cs.Entities[idx] = list;
+			if (!chunk.Dirty)
+				continue;
+
+			dirtyChunks.Add(BuildChunkSnapshot(coord, chunk));
 		}
 
-		cs.Nests = CopyNests(chunk.Nests);
-		return cs;
+		return dirtyChunks;
 	}
 
-	private static ChunkData DeserializeChunk(ChunkSaveData cs)
+	private static TimelineSnapshot BuildTimelineSnapshot(TimelineState timeline) => new()
+	{
+		CurrentActorId = timeline.CurrentActorId,
+		LastActorId = timeline.LastActorId,
+		Actors = MapList(timeline.Actors.OrderBy(static entry => entry.ActorId, StringComparer.Ordinal), static entry => new TimelineActorSnapshot
+		{
+			ActorId = entry.ActorId,
+			Charge = entry.Charge,
+		}),
+	};
+
+	private static TimelineState CreateTimelineState(TimelineSnapshot snapshot) => new()
+	{
+		CurrentActorId = snapshot.CurrentActorId,
+		LastActorId = snapshot.LastActorId,
+		Actors = MapList(snapshot.Actors, static entry => new TimelineActorState
+		{
+			ActorId = entry.ActorId,
+			Charge = entry.Charge,
+		}),
+	};
+
+	private static WeatherStateSnapshot BuildWeatherStateSnapshot(WeatherState? weather, int worldSeed)
+	{
+		var source = weather ?? WeatherState.CreateDefault(worldSeed);
+		return new WeatherStateSnapshot
+		{
+			FrontPhase = source.FrontPhase,
+			DebugTypeId = source.DebugOverride != null ? WeatherIds.ToId(source.DebugOverride.Type) : null,
+			DebugIntensityId = source.DebugOverride != null ? WeatherIds.ToId(source.DebugOverride.Intensity) : null,
+			LastLocalTypeId = source.LastLocalWeather != null ? WeatherIds.ToId(source.LastLocalWeather.Type) : null,
+			LastLocalIntensityId = source.LastLocalWeather != null ? WeatherIds.ToId(source.LastLocalWeather.Intensity) : null,
+			LastLocalTurn = source.LastLocalWeather?.Turn,
+		};
+	}
+
+	private static WeatherState CreateWeatherState(WeatherStateSnapshot? snapshot, int worldSeed)
+	{
+		if (snapshot == null)
+			return WeatherState.CreateDefault(worldSeed);
+
+		var result = new WeatherState
+		{
+			FrontPhase = snapshot.FrontPhase,
+		};
+
+		if (WeatherIds.TryParseType(snapshot.DebugTypeId, out var debugType)
+			&& WeatherIds.TryParseIntensity(snapshot.DebugIntensityId, out var debugIntensity))
+		{
+			result.DebugOverride = new WeatherDebugOverride
+			{
+				Type = debugType,
+				Intensity = debugIntensity,
+			};
+		}
+
+		if (WeatherIds.TryParseType(snapshot.LastLocalTypeId, out var localType)
+			&& WeatherIds.TryParseIntensity(snapshot.LastLocalIntensityId, out var localIntensity))
+		{
+			result.LastLocalWeather = new WeatherLocalSnapshot
+			{
+				Type = localType,
+				Intensity = localIntensity,
+				Turn = snapshot.LastLocalTurn ?? 0,
+			};
+		}
+
+		return result;
+	}
+
+	private static ChunkSnapshot BuildChunkSnapshot(ChunkCoord coord, ChunkData chunk) => new()
+	{
+		Cx = coord.Cx,
+		Cy = coord.Cy,
+		Cz = coord.Cz,
+		TerrainIds = [.. chunk.TerrainIds],
+		Hardness = [.. chunk.Hardness],
+		Stacks = chunk.Entities
+			.OrderBy(static entry => entry.Key)
+			.Select(static entry => new CellStackSnapshot
+			{
+				Index = entry.Key,
+				Entities = MapList(entry.Value, BuildCellEntitySnapshot),
+			})
+			.ToList(),
+		Nests = MapList(chunk.Nests, BuildNestSnapshot),
+		SnowDepth = [.. chunk.SnowDepth],
+		SandDepth = [.. chunk.SandDepth],
+		Wetness = [.. chunk.Wetness],
+		IceDepth = [.. chunk.IceDepth],
+		LastWeatherSimTurn = chunk.LastWeatherSimTurn,
+	};
+
+	private static ChunkData CreateChunkData(ChunkSnapshot snapshot)
 	{
 		var chunk = new ChunkData
 		{
-			Coord = new ChunkCoord(cs.Cx, cs.Cy, cs.Cz),
+			Coord = new ChunkCoord(snapshot.Cx, snapshot.Cy, snapshot.Cz),
 			Dirty = true,
-			TerrainIds = new ushort[ChunkData.Area],
-			Hardness = new byte[ChunkData.Area],
+			TerrainIds = [.. snapshot.TerrainIds],
+			Hardness = [.. snapshot.Hardness],
+			SnowDepth = CloneOrDefault(snapshot.SnowDepth, ChunkData.Area),
+			SandDepth = CloneOrDefault(snapshot.SandDepth, ChunkData.Area),
+			Wetness = CloneOrDefault(snapshot.Wetness, ChunkData.Area),
+			IceDepth = CloneOrDefault(snapshot.IceDepth, ChunkData.Area),
+			LastWeatherSimTurn = snapshot.LastWeatherSimTurn ?? 0,
 		};
-		if (cs.TerrainIds != null) System.Array.Copy(cs.TerrainIds, chunk.TerrainIds, ChunkData.Area);
-		if (cs.Hardness != null) System.Array.Copy(cs.Hardness, chunk.Hardness, ChunkData.Area);
 
-		foreach (var (idx, entities) in cs.Entities)
-		{
-			var list = new List<CellEntity>();
-			foreach (var e in entities) list.Add(CopyCellEntity(e));
-			chunk.Entities[idx] = list;
-		}
+		foreach (var stack in snapshot.Stacks)
+			chunk.Entities[stack.Index] = MapList(stack.Entities, CreateCellEntity);
 
-		chunk.Nests = cs.Nests ?? [];
+		chunk.Nests = MapList(snapshot.Nests, CreateNest);
 		return chunk;
 	}
 
-	// ══════════════════════════════════════════════════════
-	//  深拷贝
-	// ══════════════════════════════════════════════════════
-
-	private static CellEntity CopyCellEntity(CellEntity e) => new()
+	private static ActorSnapshot BuildActorSnapshot(Actor actor) => new()
 	{
-		Type = e.Type, Glyph = e.Glyph, EntityId = e.EntityId,
-		Meta = e.Meta != null ? new Dictionary<string, string>(e.Meta) : null,
-	};
-
-	private static List<NestData> CopyNests(List<NestData> src)
-	{
-		var copy = new List<NestData>();
-		foreach (var n in src)
-			copy.Add(new NestData
+		Id = actor.Id,
+		X = actor.X,
+		Y = actor.Y,
+		Z = actor.Z,
+		Glyph = actor.Glyph,
+		DisplayName = actor.DisplayName,
+		TemplateId = actor.TemplateId,
+		FacingX = actor.FacingX,
+		FacingY = actor.FacingY,
+		Faction = actor.Faction,
+		BrainId = actor.BrainId,
+		PrimaryDomainId = actor.PrimaryDomainId,
+		AccessibleDomainIds = [.. actor.AccessibleDomainIds.OrderBy(static id => id, StringComparer.Ordinal)],
+		WorkBrainId = actor.WorkBrainId,
+		AwarenessState = actor.AwarenessState,
+		HasHomePosition = actor.HasHomePosition,
+		HomeX = actor.HomeX,
+		HomeY = actor.HomeY,
+		HomeZ = actor.HomeZ,
+		AlertTargetActorId = actor.AlertTargetActorId,
+		LastKnownTargetX = actor.LastKnownTargetX,
+		LastKnownTargetY = actor.LastKnownTargetY,
+		LastKnownTargetZ = actor.LastKnownTargetZ,
+		StateTurns = actor.StateTurns,
+		SearchTurnsRemaining = actor.SearchTurnsRemaining,
+		Gold = actor.Gold,
+		Inventory = MapList(actor.Inventory, BuildItemSnapshot),
+		ShopSlots = MapList(actor.ShopSlots, BuildShopSlotSnapshot),
+		Limbs = MapList(actor.Limbs, BuildLimbSnapshot),
+		Race = actor.Race != null ? BuildRaceSnapshot(actor.Race) : null,
+		Profession = actor.Profession != null ? BuildProfessionSnapshot(actor.Profession) : null,
+		Buffs = MapList(actor.Buffs, BuildBuffSnapshot),
+		Experiences = MapList(actor.Experiences, BuildExperienceSnapshot),
+		SkillCooldowns = CopyDictionary(actor.SkillCooldowns),
+		DialogMood = actor.DialogMood,
+		DialogAffinity = actor.DialogAffinity,
+		DialogMemory = [.. actor.DialogMemory],
+		DialogTalkCount = actor.DialogTalkCount,
+		DialogPersonality = CopyDictionary(actor.DialogPersonality),
+		DialogNeeds = CopyDictionary(actor.DialogNeeds),
+		Needs = actor.Needs.ToDictionary(
+			static entry => entry.Key,
+			static entry => new NeedStateSnapshot
 			{
-				X = n.X, Y = n.Y,
-				SpawnInterval = n.SpawnInterval,
-				TurnsSinceSpawn = n.TurnsSinceSpawn,
-				MaxSpawned = n.MaxSpawned,
-				TemplateId = n.TemplateId,
-			});
+				Id = entry.Value.Id,
+				Current = entry.Value.Current,
+				Min = entry.Value.Min,
+				Max = entry.Value.Max,
+				LastUpdatedTurn = entry.Value.LastUpdatedTurn,
+			},
+			StringComparer.Ordinal),
+		Thoughts = MapList(actor.Thoughts, static thought => new ThoughtStateSnapshot
+		{
+			Id = thought.Id,
+			MoodOffset = thought.MoodOffset,
+			ExpiresOnTurn = thought.ExpiresOnTurn,
+			Source = thought.Source,
+		}),
+		MoodValue = actor.MoodValue,
+		NeedsLastUpdatedTurn = actor.NeedsLastUpdatedTurn,
+		HealthConditions = MapList(actor.HealthConditions, static condition => new HealthConditionStateSnapshot
+		{
+			Id = condition.Id,
+			LimbId = condition.LimbId,
+			Severity = condition.Severity,
+			Permanent = condition.Permanent,
+			Source = condition.Source,
+			CreatedOnTurn = condition.CreatedOnTurn,
+			LastUpdatedTurn = condition.LastUpdatedTurn,
+			TendedQuality = condition.TendedQuality,
+			TendedOnTurn = condition.TendedOnTurn,
+			InfectionProgress = condition.InfectionProgress,
+		}),
+		PainValue = actor.PainValue,
+		BloodLossValue = actor.BloodLossValue,
+		WetnessValue = actor.WetnessValue,
+		HealthLastUpdatedTurn = actor.HealthLastUpdatedTurn,
+	};
+
+	private static Actor CreateActor(ActorSnapshot snapshot)
+	{
+		var actor = new Actor
+		{
+			Id = snapshot.Id,
+			X = snapshot.X,
+			Y = snapshot.Y,
+			Z = snapshot.Z,
+			Glyph = snapshot.Glyph,
+			DisplayName = snapshot.DisplayName,
+			TemplateId = snapshot.TemplateId ?? string.Empty,
+			FacingX = snapshot.FacingX,
+			FacingY = snapshot.FacingY,
+			Faction = snapshot.Faction,
+			BrainId = snapshot.BrainId,
+			PrimaryDomainId = snapshot.PrimaryDomainId ?? DomainIds.Public,
+			AccessibleDomainIds = snapshot.AccessibleDomainIds != null
+				? new HashSet<string>(snapshot.AccessibleDomainIds, StringComparer.Ordinal)
+				: new HashSet<string>(StringComparer.Ordinal),
+			WorkBrainId = snapshot.WorkBrainId ?? string.Empty,
+			AwarenessState = snapshot.AwarenessState,
+			HasHomePosition = snapshot.HasHomePosition,
+			HomeX = snapshot.HomeX,
+			HomeY = snapshot.HomeY,
+			HomeZ = snapshot.HomeZ,
+			AlertTargetActorId = snapshot.AlertTargetActorId,
+			LastKnownTargetX = snapshot.LastKnownTargetX,
+			LastKnownTargetY = snapshot.LastKnownTargetY,
+			LastKnownTargetZ = snapshot.LastKnownTargetZ,
+			StateTurns = snapshot.StateTurns,
+			SearchTurnsRemaining = snapshot.SearchTurnsRemaining,
+			Gold = snapshot.Gold,
+			Inventory = MapList(snapshot.Inventory, CreateItem),
+			ShopSlots = MapList(snapshot.ShopSlots, CreateShopSlot),
+			Limbs = MapList(snapshot.Limbs, CreateLimb),
+			Race = snapshot.Race != null ? CreateRace(snapshot.Race) : null,
+			Profession = snapshot.Profession != null ? CreateProfession(snapshot.Profession) : null,
+			Buffs = MapList(snapshot.Buffs, CreateBuff),
+			Experiences = MapList(snapshot.Experiences, CreateExperience),
+			SkillCooldowns = CopyDictionary(snapshot.SkillCooldowns),
+			DialogMood = snapshot.DialogMood,
+			DialogAffinity = snapshot.DialogAffinity,
+			DialogMemory = [.. snapshot.DialogMemory],
+			DialogTalkCount = snapshot.DialogTalkCount,
+			DialogPersonality = CopyDictionary(snapshot.DialogPersonality),
+			DialogNeeds = CopyDictionary(snapshot.DialogNeeds),
+			Needs = snapshot.Needs?.ToDictionary(
+				static entry => entry.Key,
+				static entry => new NeedState
+				{
+					Id = entry.Value.Id,
+					Current = entry.Value.Current,
+					Min = entry.Value.Min,
+					Max = entry.Value.Max,
+					LastUpdatedTurn = entry.Value.LastUpdatedTurn,
+				},
+				StringComparer.Ordinal) ?? new Dictionary<string, NeedState>(StringComparer.Ordinal),
+			Thoughts = snapshot.Thoughts != null
+				? MapList(snapshot.Thoughts, static thought => new ThoughtState
+				{
+					Id = thought.Id,
+					MoodOffset = thought.MoodOffset,
+					ExpiresOnTurn = thought.ExpiresOnTurn,
+					Source = thought.Source,
+				})
+				: [],
+			MoodValue = snapshot.MoodValue ?? 0f,
+			NeedsLastUpdatedTurn = snapshot.NeedsLastUpdatedTurn ?? 0,
+			HealthConditions = snapshot.HealthConditions != null
+				? MapList(snapshot.HealthConditions, static condition => new HealthConditionState
+				{
+					Id = condition.Id,
+					LimbId = condition.LimbId,
+					Severity = condition.Severity,
+					Permanent = condition.Permanent,
+					Source = condition.Source,
+					CreatedOnTurn = condition.CreatedOnTurn,
+					LastUpdatedTurn = condition.LastUpdatedTurn,
+					TendedQuality = condition.TendedQuality,
+					TendedOnTurn = condition.TendedOnTurn,
+					InfectionProgress = condition.InfectionProgress,
+				})
+				: [],
+			PainValue = snapshot.PainValue ?? 0f,
+			BloodLossValue = snapshot.BloodLossValue ?? 0f,
+			WetnessValue = snapshot.WetnessValue ?? 0f,
+			HealthLastUpdatedTurn = snapshot.HealthLastUpdatedTurn ?? 0,
+		};
+
+		EnsureVitalLimbTags(actor);
+		return actor.WithNormalizedEquipment();
+	}
+
+	private static ItemSnapshot BuildItemSnapshot(Item item) =>
+		ItemSnapshotMapper.BuildSnapshot(item);
+
+	private static Item CreateItem(ItemSnapshot snapshot) =>
+		ItemSnapshotMapper.CreateItem(snapshot);
+
+	private static ShopSlotSnapshot BuildShopSlotSnapshot(ShopSlot slot) => new()
+	{
+		Item = BuildItemSnapshot(slot.Item),
+		Stock = slot.Stock,
+	};
+
+	private static ShopSlot CreateShopSlot(ShopSlotSnapshot snapshot) => new()
+	{
+		Item = CreateItem(snapshot.Item),
+		Stock = snapshot.Stock,
+	};
+
+	private static LimbSnapshot BuildLimbSnapshot(Limb limb) => new()
+	{
+		Id = limb.Id,
+		Name = limb.Name,
+		MaxDurability = limb.MaxDurability,
+		Durability = limb.Durability,
+		PermanentDamage = limb.PermanentDamage,
+		Material = limb.Material,
+		BodyPart = limb.BodyPart,
+		EquipLayers = [.. limb.EquipLayers],
+		EquipSlots = MapList(limb.EquipSlots, BuildEquipSlotSnapshot),
+		Capacities = CopyDictionary(limb.Capacities),
+		Tags = CopyDictionary(limb.Tags),
+	};
+
+	private static Limb CreateLimb(LimbSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Name = snapshot.Name,
+		MaxDurability = snapshot.MaxDurability,
+		Durability = snapshot.Durability,
+		PermanentDamage = snapshot.PermanentDamage ?? 0,
+		Material = snapshot.Material,
+		BodyPart = snapshot.BodyPart,
+		EquipLayers = [.. snapshot.EquipLayers],
+		EquipSlots = MapList(snapshot.EquipSlots, CreateEquipSlot),
+		Capacities = CopyDictionary(snapshot.Capacities),
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static void EnsureVitalLimbTags(Actor actor)
+	{
+		if (actor.Limbs.Count == 0 || actor.Limbs.Any(CombatModule.IsVitalLimb))
+			return;
+
+		PresetDB.Load();
+		foreach (var limb in actor.Limbs)
+		{
+			if (!HasVitalCapacity(limb))
+				continue;
+
+			limb.Tags[CombatModule.VitalTag] = 1;
+		}
+	}
+
+	private static bool HasVitalCapacity(Limb limb)
+	{
+		foreach (var (capacityId, weight) in limb.Capacities)
+		{
+			if (weight <= 0f)
+				continue;
+			if (!PresetDB.Capacities.TryGetValue(capacityId, out var definition))
+				continue;
+			if (!string.IsNullOrWhiteSpace(definition.VitalEffect))
+				return true;
+		}
+
+		return false;
+	}
+
+	private static EquipSlotSnapshot BuildEquipSlotSnapshot(EquipSlot slot) => new()
+	{
+		LimbId = slot.LimbId,
+		BodyPart = slot.BodyPart,
+		Layer = slot.Layer,
+		ItemId = slot.ItemId,
+	};
+
+	private static EquipSlot CreateEquipSlot(EquipSlotSnapshot snapshot) => new()
+	{
+		LimbId = snapshot.LimbId,
+		BodyPart = snapshot.BodyPart,
+		Layer = snapshot.Layer,
+		ItemId = snapshot.ItemId,
+	};
+
+	private static RaceSnapshot BuildRaceSnapshot(Race race) => new()
+	{
+		Id = race.Id,
+		Name = race.Name,
+		NeedProfileId = race.NeedProfileId,
+		HealthProfileId = race.HealthProfileId,
+		Tags = CopyDictionary(race.Tags),
+	};
+
+	private static Race CreateRace(RaceSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Name = snapshot.Name,
+		NeedProfileId = snapshot.NeedProfileId ?? string.Empty,
+		HealthProfileId = snapshot.HealthProfileId ?? string.Empty,
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static ProfessionSnapshot BuildProfessionSnapshot(Profession profession) => new()
+	{
+		Id = profession.Id,
+		Name = profession.Name,
+		Tags = CopyDictionary(profession.Tags),
+	};
+
+	private static Profession CreateProfession(ProfessionSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Name = snapshot.Name,
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static BuffSnapshot BuildBuffSnapshot(Buff buff) => new()
+	{
+		Id = buff.Id,
+		Name = buff.Name,
+		RemainingTurns = buff.RemainingTurns,
+		Tags = CopyDictionary(buff.Tags),
+	};
+
+	private static Buff CreateBuff(BuffSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Name = snapshot.Name,
+		RemainingTurns = snapshot.RemainingTurns,
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static ExperienceSnapshot BuildExperienceSnapshot(Experience experience) => new()
+	{
+		Id = experience.Id,
+		Name = experience.Name,
+		Tags = CopyDictionary(experience.Tags),
+	};
+
+	private static Experience CreateExperience(ExperienceSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Name = snapshot.Name,
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static QuestSnapshot BuildQuestSnapshot(Quest quest) => new()
+	{
+		Id = quest.Id,
+		Title = quest.Title,
+		Description = quest.Description,
+		Source = quest.Source,
+		Status = quest.Status,
+		AcceptedTurn = quest.AcceptedTurn,
+		FinishedTurn = quest.FinishedTurn,
+		Objectives = MapList(quest.Objectives, BuildQuestObjectiveSnapshot),
+		Tags = CopyDictionary(quest.Tags),
+	};
+
+	private static Quest CreateQuest(QuestSnapshot snapshot) => new()
+	{
+		Id = snapshot.Id,
+		Title = snapshot.Title,
+		Description = snapshot.Description,
+		Source = snapshot.Source,
+		Status = snapshot.Status,
+		AcceptedTurn = snapshot.AcceptedTurn,
+		FinishedTurn = snapshot.FinishedTurn,
+		Objectives = MapList(snapshot.Objectives, CreateQuestObjective),
+		Tags = CopyDictionary(snapshot.Tags),
+	};
+
+	private static QuestObjectiveSnapshot BuildQuestObjectiveSnapshot(QuestObjective objective) => new()
+	{
+		Text = objective.Text,
+		Current = objective.Current,
+		Target = objective.Target,
+	};
+
+	private static QuestObjective CreateQuestObjective(QuestObjectiveSnapshot snapshot) => new()
+	{
+		Text = snapshot.Text,
+		Current = snapshot.Current,
+		Target = snapshot.Target,
+	};
+
+	private static CellEntitySnapshot BuildCellEntitySnapshot(CellEntity entity) => new()
+	{
+		Type = entity.Type,
+		Glyph = entity.Glyph,
+		EntityId = entity.EntityId,
+		Meta = entity.Meta != null ? CopyDictionary(entity.Meta) : null,
+	};
+
+	private static CellEntity CreateCellEntity(CellEntitySnapshot snapshot) => new()
+	{
+		Type = snapshot.Type,
+		Glyph = snapshot.Glyph,
+		EntityId = snapshot.EntityId,
+		Meta = snapshot.Meta != null ? CopyDictionary(snapshot.Meta) : null,
+	};
+
+	private static NestSnapshot BuildNestSnapshot(NestData nest) => new()
+	{
+		X = nest.X,
+		Y = nest.Y,
+		SpawnInterval = nest.SpawnInterval,
+		TurnsSinceSpawn = nest.TurnsSinceSpawn,
+		MaxSpawned = nest.MaxSpawned,
+		TemplateId = nest.TemplateId,
+	};
+
+	private static NestData CreateNest(NestSnapshot snapshot) => new()
+	{
+		X = snapshot.X,
+		Y = snapshot.Y,
+		SpawnInterval = snapshot.SpawnInterval,
+		TurnsSinceSpawn = snapshot.TurnsSinceSpawn,
+		MaxSpawned = snapshot.MaxSpawned,
+		TemplateId = snapshot.TemplateId,
+	};
+
+	private static SaveLoadStatus TryReadSaveFile(string filePath, out SaveFile? saveFile)
+	{
+		saveFile = null;
+		if (!File.Exists(filePath))
+			return SaveLoadStatus.NotFound;
+
+		try
+		{
+			saveFile = DeserializeSaveFile(File.ReadAllText(filePath));
+			if (saveFile == null)
+			{
+				saveFile = null;
+				return SaveLoadStatus.Incompatible;
+			}
+
+			return SaveLoadStatus.Success;
+		}
+		catch
+		{
+			saveFile = null;
+			return SaveLoadStatus.Incompatible;
+		}
+	}
+
+	private static SaveHeader BuildHeader(SavePayload payload, SaveHeaderContext? headerContext) => new()
+	{
+		Title = headerContext?.CharacterName ?? headerContext?.WorldName ?? string.Empty,
+		SavedAtUtc = DateTimeOffset.UtcNow,
+		Turn = payload.Turn,
+		PlayerZ = payload.PlayerZ,
+		GeneratorId = payload.GeneratorId,
+		ViewModeId = payload.ViewModeId,
+		WorldId = headerContext?.WorldId,
+		WorldName = headerContext?.WorldName,
+		CharacterId = headerContext?.CharacterId,
+		CharacterName = headerContext?.CharacterName,
+	};
+
+	private static string BuildSaveTitle(string filePath, SaveHeaderContext? headerContext)
+	{
+		if (!string.IsNullOrWhiteSpace(headerContext?.CharacterName))
+			return headerContext.CharacterName!;
+
+		var fileName = Path.GetFileName(filePath);
+		return fileName switch
+		{
+			"quicksave.json" => "quicksave",
+			"save.json" => "manual",
+			_ => Path.GetFileNameWithoutExtension(filePath),
+		};
+	}
+
+	private static string CanonicalizeJson(string json)
+	{
+		using var doc = JsonDocument.Parse(json);
+		using var stream = new MemoryStream();
+		using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+		WriteCanonicalElement(writer, doc.RootElement);
+		writer.Flush();
+		return Encoding.UTF8.GetString(stream.ToArray());
+	}
+
+	private static void WriteCanonicalElement(Utf8JsonWriter writer, JsonElement element)
+	{
+		switch (element.ValueKind)
+		{
+			case JsonValueKind.Object:
+				writer.WriteStartObject();
+				foreach (var property in element.EnumerateObject().OrderBy(static item => item.Name, StringComparer.Ordinal))
+				{
+					writer.WritePropertyName(property.Name);
+					WriteCanonicalElement(writer, property.Value);
+				}
+				writer.WriteEndObject();
+				return;
+
+			case JsonValueKind.Array:
+				writer.WriteStartArray();
+				foreach (var item in element.EnumerateArray())
+					WriteCanonicalElement(writer, item);
+				writer.WriteEndArray();
+				return;
+
+			default:
+				element.WriteTo(writer);
+				return;
+		}
+	}
+
+	private static List<TTarget> MapList<TSource, TTarget>(
+		IEnumerable<TSource> source,
+		Func<TSource, TTarget> map)
+	{
+		var result = new List<TTarget>();
+		foreach (var item in source)
+			result.Add(map(item));
+		return result;
+	}
+
+	private static Dictionary<TKey, TValue> CopyDictionary<TKey, TValue>(IDictionary<TKey, TValue> source)
+		where TKey : notnull
+	{
+		var copy = new Dictionary<TKey, TValue>(source.Count);
+		foreach (var (key, value) in source)
+			copy[key] = value;
 		return copy;
 	}
 
-	private static Dictionary<string, Actor> CopyActors(Dictionary<string, Actor> src)
+	private static byte[] CloneOrDefault(byte[]? source, int expectedLength)
 	{
-		var copy = new Dictionary<string, Actor>();
-		foreach (var (id, a) in src) copy[id] = CopyActor(a);
-		return copy;
+		if (source == null || source.Length != expectedLength)
+			return new byte[expectedLength];
+
+		return [.. source];
 	}
-
-	private static Actor CopyActor(Actor a) => new()
-	{
-		Id = a.Id, X = a.X, Y = a.Y, Z = a.Z,
-		Glyph = a.Glyph, DisplayName = a.DisplayName,
-		Faction = a.Faction, BrainId = a.BrainId,
-		FacingX = a.FacingX, FacingY = a.FacingY,
-		Gold = a.Gold,
-		Inventory = a.Inventory.ConvertAll(CopyItem),
-		ShopSlots = a.ShopSlots.ConvertAll(CopyShopSlot),
-		Limbs = a.Limbs.ConvertAll(CopyLimb),
-		Race = a.Race != null ? CopyRace(a.Race) : null,
-		Profession = a.Profession != null ? CopyProfession(a.Profession) : null,
-		Buffs = a.Buffs.ConvertAll(CopyBuff),
-		Experiences = a.Experiences.ConvertAll(CopyExperience),
-		DialogMood = a.DialogMood,
-		DialogAffinity = a.DialogAffinity,
-		DialogMemory = [.. a.DialogMemory],
-		DialogTalkCount = a.DialogTalkCount,
-		DialogPersonality = new(a.DialogPersonality),
-		DialogNeeds = new(a.DialogNeeds),
-	};
-
-	private static Item CopyItem(Item i) => new()
-	{
-		Id = i.Id, Name = i.Name, Category = i.Category,
-		Price = i.Price, Weight = i.Weight, Equipped = i.Equipped,
-		BodyPart = i.BodyPart, Layer = i.Layer,
-		CoveredParts = [.. i.CoveredParts],
-		SharpArmor = i.SharpArmor, BluntArmor = i.BluntArmor,
-		SharpDamage = i.SharpDamage, BluntDamage = i.BluntDamage,
-		GrantedSkills = [.. i.GrantedSkills],
-		Contents = i.Contents?.ConvertAll(CopyItem),
-		Tags = new Dictionary<string, int>(i.Tags),
-	};
-
-	private static ShopSlot CopyShopSlot(ShopSlot s) => new()
-		{ Stock = s.Stock, Item = CopyItem(s.Item) };
-
-	private static Limb CopyLimb(Limb l) => new()
-	{
-		Id = l.Id, Name = l.Name, MaxDurability = l.MaxDurability, Durability = l.Durability,
-		Material = l.Material, BodyPart = l.BodyPart,
-		EquipLayers = [.. l.EquipLayers],
-		EquipSlots = l.EquipSlots.ConvertAll(CopyEquipSlot),
-		Capacities = new Dictionary<string, float>(l.Capacities),
-		Tags = new Dictionary<string, int>(l.Tags),
-	};
-
-	private static EquipSlot CopyEquipSlot(EquipSlot s) => new()
-	{
-		LimbId = s.LimbId, BodyPart = s.BodyPart, Layer = s.Layer, ItemId = s.ItemId,
-	};
-
-	private static Race CopyRace(Race r) => new()
-		{ Id = r.Id, Name = r.Name, Tags = new Dictionary<string, int>(r.Tags) };
-	private static Profession CopyProfession(Profession p) => new()
-		{ Id = p.Id, Name = p.Name, Tags = new Dictionary<string, int>(p.Tags) };
-	private static Buff CopyBuff(Buff b) => new()
-		{ Id = b.Id, Name = b.Name, RemainingTurns = b.RemainingTurns, Tags = new Dictionary<string, int>(b.Tags) };
-	private static Experience CopyExperience(Experience e) => new()
-		{ Id = e.Id, Name = e.Name, Tags = new Dictionary<string, int>(e.Tags) };
-
-	private static Quest CopyQuest(Quest q) => new()
-	{
-		Id = q.Id, Title = q.Title, Description = q.Description,
-		Source = q.Source, Status = q.Status,
-		AcceptedTurn = q.AcceptedTurn, FinishedTurn = q.FinishedTurn,
-		Objectives = q.Objectives.ConvertAll(o => new QuestObjective
-			{ Text = o.Text, Current = o.Current, Target = o.Target }),
-		Tags = new Dictionary<string, string>(q.Tags),
-	};
 
 	private static void EnsureDir(string filePath)
 	{
@@ -301,64 +909,94 @@ public static class SaveModule
 			Directory.CreateDirectory(dir);
 	}
 
-	private static int ReadInt(JsonElement root, string propertyName)
+	private static bool TryParseSaveHeader(JsonElement headerElement, out SaveHeader header)
 	{
-		if (!root.TryGetProperty(propertyName, out var value)
-			|| value.ValueKind != JsonValueKind.Number)
-			return 0;
+		header = null!;
+		if (!TryReadRequiredString(headerElement, "title", out var title)
+			|| !TryReadDateTimeOffset(headerElement, "savedAtUtc", out var savedAtUtc)
+			|| !TryReadInt32(headerElement, "turn", out var turn)
+			|| !TryReadInt32(headerElement, "playerZ", out var playerZ)
+			|| !TryReadRequiredString(headerElement, "generatorId", out var generatorId)
+			|| !TryReadRequiredString(headerElement, "viewModeId", out var viewModeId))
+		{
+			return false;
+		}
 
-		return value.GetInt32();
+		header = new SaveHeader
+		{
+			Title = title,
+			SavedAtUtc = savedAtUtc,
+			Turn = turn,
+			PlayerZ = playerZ,
+			GeneratorId = generatorId,
+			ViewModeId = viewModeId,
+			WorldId = TryReadOptionalString(headerElement, "worldId"),
+			WorldName = TryReadOptionalString(headerElement, "worldName"),
+			CharacterId = TryReadOptionalString(headerElement, "characterId"),
+			CharacterName = TryReadOptionalString(headerElement, "characterName"),
+		};
+		return true;
 	}
 
-	private static string? ReadString(JsonElement root, string propertyName)
+	private static bool TryReadRequiredString(JsonElement element, string propertyName, out string value)
 	{
-		if (!root.TryGetProperty(propertyName, out var value)
-			|| value.ValueKind != JsonValueKind.String)
+		value = string.Empty;
+		if (!element.TryGetProperty(propertyName, out var property)
+			|| property.ValueKind != JsonValueKind.String)
+		{
+			return false;
+		}
+
+		var parsed = property.GetString();
+		if (string.IsNullOrWhiteSpace(parsed))
+			return false;
+
+		value = parsed;
+		return true;
+	}
+
+	private static string? TryReadOptionalString(JsonElement element, string propertyName)
+	{
+		if (!element.TryGetProperty(propertyName, out var property)
+			|| property.ValueKind == JsonValueKind.Null
+			|| property.ValueKind == JsonValueKind.Undefined)
+		{
 			return null;
+		}
 
-		return value.GetString();
+		return property.ValueKind == JsonValueKind.String
+			? property.GetString()
+			: null;
 	}
-}
 
-// ══════════════════════════════════════════════════════
-//  存档数据结构
-// ══════════════════════════════════════════════════════
+	private static bool TryReadInt32(JsonElement element, string propertyName, out int value)
+	{
+		value = 0;
+		return element.TryGetProperty(propertyName, out var property)
+			&& property.ValueKind == JsonValueKind.Number
+			&& property.TryGetInt32(out value);
+	}
 
-public class WorldSaveData
-{
-	public int WorldSeed { get; set; }
-	public int Turn { get; set; }
-	public int PlayerX { get; set; }
-	public int PlayerY { get; set; }
-	public int PlayerZ { get; set; }
-	public bool BumpAttack { get; set; } = true;
-	public bool WatchMode { get; set; }
-	public int KillCount { get; set; }
-	public string? GeneratorId { get; set; }
-	public string? ViewModeId { get; set; }
-	public Dictionary<string, Actor>? Actors { get; set; }
-	public List<Quest>? Quests { get; set; }
-	public List<ChunkSaveData> DirtyChunks { get; set; } = [];
-}
+	private static bool TryReadDateTimeOffset(JsonElement element, string propertyName, out DateTimeOffset value)
+	{
+		value = default;
+		if (!element.TryGetProperty(propertyName, out var property)
+			|| property.ValueKind != JsonValueKind.String)
+		{
+			return false;
+		}
 
-public class SaveHeader
-{
-	public int WorldSeed { get; set; }
-	public int Turn { get; set; }
-	public int PlayerX { get; set; }
-	public int PlayerY { get; set; }
-	public int PlayerZ { get; set; }
-	public string? GeneratorId { get; set; }
-	public string? ViewModeId { get; set; }
-}
+		var raw = property.GetString();
+		return !string.IsNullOrWhiteSpace(raw)
+			&& DateTimeOffset.TryParse(raw, out value);
+	}
 
-public class ChunkSaveData
-{
-	public int Cx { get; set; }
-	public int Cy { get; set; }
-	public int Cz { get; set; }
-	public ushort[]? TerrainIds { get; set; }
-	public byte[]? Hardness { get; set; }
-	public Dictionary<int, List<CellEntity>> Entities { get; set; } = new();
-	public List<NestData>? Nests { get; set; }
+	private static bool IsCompatibleVersion(int version) =>
+		version >= MinimumCompatibleVersion && version <= CurrentVersion;
+
+	private static Actor WithNormalizedEquipment(this Actor actor)
+	{
+		InventoryModule.NormalizeEquipmentReferences(actor);
+		return actor;
+	}
 }

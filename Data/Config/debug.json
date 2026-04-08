@@ -1,6 +1,16 @@
 {
   "auto_test_step_delay": 0.05,
+  "auto_test_continue_on_failure": true,
   "auto_test_stop_on_fail": false,
+  "auto_test_scenarios": [
+    "resource_smoke",
+    "new_game",
+    "qa_smoke_core",
+    "qa_interaction_hub",
+    "qa_combat_arena"
+  ],
+  "auto_test_enable_resource_smoke": true,
+  "auto_test_write_structured_log": true,
   "auto_test_render_arena_radius": 4,
   "auto_test_ai_arena_radius": 10,
   "auto_test_benchmark_arena_radius": 12,

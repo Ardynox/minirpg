@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.Dialog;
 
@@ -68,30 +69,30 @@ public static class TemplateRenderer
 
 	private static string GetAffinityLevel(float a) => a switch
 	{
-		< 10 => "陌生人",
-		< 30 => "熟人",
-		< 60 => "朋友",
-		< 85 => "挚友",
-		_ => "至交",
+		< 10 => LocalizationService.T("dialog.affinity.stranger"),
+		< 30 => LocalizationService.T("dialog.affinity.acquaintance"),
+		< 60 => LocalizationService.T("dialog.affinity.friend"),
+		< 85 => LocalizationService.T("dialog.affinity.close_friend"),
+		_ => LocalizationService.T("dialog.affinity.dearest"),
 	};
 
 	private static string GetMoodDesc(float m) => m switch
 	{
-		< -0.6f => "暴怒",
-		< -0.3f => "烦躁",
-		< 0f => "不悦",
-		< 0.3f => "平静",
-		< 0.6f => "愉悦",
-		_ => "兴高采烈",
+		< -0.6f => LocalizationService.T("dialog.mood_desc.furious"),
+		< -0.3f => LocalizationService.T("dialog.mood_desc.irritated"),
+		< 0f => LocalizationService.T("dialog.mood_desc.unhappy"),
+		< 0.3f => LocalizationService.T("dialog.mood_desc.calm"),
+		< 0.6f => LocalizationService.T("dialog.mood_desc.pleased"),
+		_ => LocalizationService.T("dialog.mood_desc.elated"),
 	};
 
 	private static string GetMoodGreeting(float m) => m switch
 	{
-		< -0.3f => "……什么事？",
-		< 0f => "嗯？",
-		< 0.3f => "你好。",
-		< 0.6f => "你好啊！",
-		_ => "哈哈，见到你真高兴！",
+		< -0.3f => LocalizationService.T("dialog.mood_greeting.bad"),
+		< 0f => LocalizationService.T("dialog.mood_greeting.low"),
+		< 0.3f => LocalizationService.T("dialog.mood_greeting.neutral"),
+		< 0.6f => LocalizationService.T("dialog.mood_greeting.good"),
+		_ => LocalizationService.T("dialog.mood_greeting.great"),
 	};
 
 	// ── 性格驱动的语气系统 ────────────────────────────────
@@ -104,21 +105,21 @@ public static class TemplateRenderer
 
 	private static string GetSelfRef(DialogContext ctx)
 	{
-		if (HasTrait(ctx, "greedy", 0.5f)) return "本商人";
-		if (HasTrait(ctx, "wise", 0.5f)) return "老夫";
-		if (HasTrait(ctx, "proud", 0.5f)) return "本大爷";
-		if (HasTrait(ctx, "timid", 0.5f)) return "小、小的";
-		return "我";
+		if (HasTrait(ctx, "greedy", 0.5f)) return LocalizationService.T("dialog.self_ref.greedy");
+		if (HasTrait(ctx, "wise", 0.5f)) return LocalizationService.T("dialog.self_ref.wise");
+		if (HasTrait(ctx, "proud", 0.5f)) return LocalizationService.T("dialog.self_ref.proud");
+		if (HasTrait(ctx, "timid", 0.5f)) return LocalizationService.T("dialog.self_ref.timid");
+		return LocalizationService.T("dialog.self_ref.default");
 	}
 
 	private static string GetPlayerRef(DialogContext ctx)
 	{
 		var aff = ctx.NumTags.GetValueOrDefault("affinity");
-		if (aff >= 60) return "老朋友";
-		if (aff >= 30) return "朋友";
-		if (HasTrait(ctx, "cautious", 0.5f)) return "外来人";
-		if (HasTrait(ctx, "friendly", 0.6f)) return "旅行者";
-		return "你";
+		if (aff >= 60) return LocalizationService.T("dialog.player_ref.old_friend");
+		if (aff >= 30) return LocalizationService.T("dialog.player_ref.friend");
+		if (HasTrait(ctx, "cautious", 0.5f)) return LocalizationService.T("dialog.player_ref.outsider");
+		if (HasTrait(ctx, "friendly", 0.6f)) return LocalizationService.T("dialog.player_ref.traveler");
+		return LocalizationService.T("dialog.player_ref.default");
 	}
 
 	private static string PickFromPool(string pool, DialogContext ctx)
@@ -132,30 +133,49 @@ public static class TemplateRenderer
 
 	private static string[] GetPoolPhrases(string pool, string trait, float mood)
 	{
-		return (pool, trait) switch
+		var fallback = (pool, trait) switch
 		{
-			("tone", "greedy") => ["嘿嘿，", "做生意嘛，", "钱嘛，", ""],
-			("tone", "wise") => ["年轻人，", "且听我说，", "以我的经验，", ""],
-			("tone", "timid") => ["那、那个，", "如果你不介意……", "抱、抱歉，", ""],
-			("tone", "friendly") => ["朋友！", "来来来，", "哈哈，", ""],
-			("tone", "cautious") => ["嗯……", "让我想想，", "你确定？", ""],
-			("tone", "proud") => ["哼，", "本大爷告诉你，", "听好了，", ""],
-			("tone", "curious") => ["哦？", "有意思，", "我听说……", ""],
-			("tone", _) when mood < -0.3f => ["……", "哼，", ""],
-			("tone", _) when mood > 0.5f => ["哈哈，", "嘿！", ""],
-			("tone", _) => ["", "", "嗯，"],
+			("tone", "greedy") => "嘿嘿，|做生意嘛，|钱嘛，|",
+			("tone", "wise") => "年轻人，|且听我说，|以我的经验，|",
+			("tone", "timid") => "那、那个，|如果你不介意……|抱、抱歉，|",
+			("tone", "friendly") => "朋友！|来来来，|哈哈，|",
+			("tone", "cautious") => "嗯……|让我想想，|你确定？|",
+			("tone", "proud") => "哼，|本大爷告诉你，|听好了，|",
+			("tone", "curious") => "哦？|有意思，|我听说……|",
+			("tone", _) when mood < -0.3f => "……|哼，|",
+			("tone", _) when mood > 0.5f => "哈哈，|嘿！|",
+			("tone", _) => "||嗯，",
 
-			("filler", "greedy") => ["这可不便宜啊", "有钱好办事", "利润才是王道"],
-			("filler", "wise") => ["我年轻的时候也是这样", "岁月教会了我很多", "这世上没有白走的路"],
-			("filler", "timid") => ["希望不会出什么事", "好、好害怕", "没事吧……"],
-			("filler", "friendly") => ["有什么需要尽管说", "我们是朋友嘛", "别客气"],
-			("filler", "cautious") => ["小心驶得万年船", "还是谨慎些好", "不要掉以轻心"],
-			("filler", "proud") => ["这种小事不在话下", "没有我办不到的", "哼，简单"],
-			("filler", "curious") => ["真想去看看", "你见过什么有趣的东西吗", "这个世界真奇妙"],
-			("filler", _) => ["是这样的", "嗯", "话说回来"],
+			("filler", "greedy") => "这可不便宜啊|有钱好办事|利润才是王道",
+			("filler", "wise") => "我年轻的时候也是这样|岁月教会了我很多|这世上没有白走的路",
+			("filler", "timid") => "希望不会出什么事|好、好害怕|没事吧……",
+			("filler", "friendly") => "有什么需要尽管说|我们是朋友嘛|别客气",
+			("filler", "cautious") => "小心驶得万年船|还是谨慎些好|不要掉以轻心",
+			("filler", "proud") => "这种小事不在话下|没有我办不到的|哼，简单",
+			("filler", "curious") => "真想去看看|你见过什么有趣的东西吗|这个世界真奇妙",
+			("filler", _) => "是这样的|嗯|话说回来",
 
-			_ => [""],
+			_ => "",
 		};
+
+		var key = pool switch
+		{
+			"tone" => $"dialog.pool.tone.{ResolvePoolKey(trait, mood)}",
+			"filler" => $"dialog.pool.filler.{(string.IsNullOrWhiteSpace(trait) ? "default" : trait)}",
+			_ => $"dialog.pool.{pool}.{trait}",
+		};
+		return LocalizationService.GetList(key, fallback);
+	}
+
+	private static string ResolvePoolKey(string trait, float mood)
+	{
+		if (!string.IsNullOrWhiteSpace(trait))
+			return trait;
+		if (mood < -0.3f)
+			return "bad_mood";
+		if (mood > 0.5f)
+			return "good_mood";
+		return "default";
 	}
 
 	private static string GetDominantTrait(DialogContext ctx)

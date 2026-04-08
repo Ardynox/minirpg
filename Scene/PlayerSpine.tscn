@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="SpineAtlasResource" path="res://Assets/Characters/Spine/Balin/Balin.atlas" id="1_atlas"]
+[ext_resource type="SpineSkeletonFileResource" path="res://Assets/Characters/Spine/Balin/Balin.skel" id="2_skel"]
+
+[sub_resource type="SpineSkeletonDataResource" id="spine_data"]
+atlas_res = ExtResource("1_atlas")
+skeleton_file_res = ExtResource("2_skel")
+default_mix = 0.2
+
+[node name="PlayerSpine" type="SpineSprite"]
+z_index = 3
+scale = Vector2(0.35, 0.35)
+skeleton_data_res = SubResource("spine_data")
+preview_skin = "default"
+preview_animation = "Idle"
+preview_frame = true

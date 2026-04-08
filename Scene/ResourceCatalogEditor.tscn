@@ -1,0 +1,632 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://App/ResourceCatalogEditor.cs" id="1_editor"]
+[ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="2_theme"]
+[ext_resource type="Script" path="res://Module/Editor/ResourcePreviewControl.cs" id="3_preview"]
+
+[node name="ResourceCatalogEditor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_editor")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0784314, 0.0901961, 0.117647, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Toolbar" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Summary" type="Label" parent="Margin/Root/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.summary.loading"
+
+[node name="Status" type="Label" parent="Margin/Root/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.status.ready"
+horizontal_alignment = 1
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Root/Toolbar"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="ImportImageBtn" type="Button" parent="Margin/Root/Toolbar/Actions"]
+layout_mode = 2
+text = "ui.resource_catalog.action.import_image"
+
+[node name="ImportFolderBtn" type="Button" parent="Margin/Root/Toolbar/Actions"]
+layout_mode = 2
+text = "ui.resource_catalog.action.import_folder"
+
+[node name="CreateAnimationBtn" type="Button" parent="Margin/Root/Toolbar/Actions"]
+layout_mode = 2
+text = "ui.resource_catalog.action.create_animation"
+
+[node name="SaveBtn" type="Button" parent="Margin/Root/Toolbar/Actions"]
+layout_mode = 2
+text = "ui.resource_catalog.action.save"
+
+[node name="BackBtn" type="Button" parent="Margin/Root/Toolbar/Actions"]
+layout_mode = 2
+text = "ui.resource_catalog.action.close"
+
+[node name="Filters" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SearchEdit" type="LineEdit" parent="Margin/Root/Filters"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ui.resource_catalog.filter.search"
+
+[node name="TagFilterEdit" type="LineEdit" parent="Margin/Root/Filters"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ui.resource_catalog.filter.tags"
+
+[node name="KindFilter" type="OptionButton" parent="Margin/Root/Filters"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 0)
+
+[node name="Body" type="HSplitContainer" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+split_offset = 320
+
+[node name="Left" type="VBoxContainer" parent="Margin/Root/Body"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ListTabs" type="TabContainer" parent="Margin/Root/Body/Left"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Catalog" type="VBoxContainer" parent="Margin/Root/Body/Left/ListTabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="List" type="ItemList" parent="Margin/Root/Body/Left/ListTabs/Catalog"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+allow_reselect = true
+
+[node name="Staging" type="VBoxContainer" parent="Margin/Root/Body/Left/ListTabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="List" type="ItemList" parent="Margin/Root/Body/Left/ListTabs/Staging"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+allow_reselect = true
+
+[node name="Middle" type="VBoxContainer" parent="Margin/Root/Body"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="PreviewPanel" type="PanelContainer" parent="Margin/Root/Body/Middle"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Middle/PreviewPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+mouse_filter = 2
+
+[node name="Preview" type="Control" parent="Margin/Root/Body/Middle/PreviewPanel/Margin"]
+custom_minimum_size = Vector2(0, 420)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("3_preview")
+
+[node name="PreviewInfo" type="Label" parent="Margin/Root/Body/Middle"]
+layout_mode = 2
+text = "ui.resource_catalog.preview.none"
+autowrap_mode = 3
+
+[node name="SlicePanel" type="PanelContainer" parent="Margin/Root/Body/Middle"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Middle/SlicePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.slice.title"
+
+[node name="Grid" type="VBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WidthRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WidthLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/WidthRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.width"
+
+[node name="WidthSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/WidthRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 4096.0
+step = 1.0
+value = 128.0
+
+[node name="WidthSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/WidthRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+min_value = 1.0
+max_value = 4096.0
+step = 1.0
+value = 128.0
+
+[node name="HeightRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeightLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/HeightRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.height"
+
+[node name="HeightSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/HeightRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 4096.0
+step = 1.0
+value = 64.0
+
+[node name="HeightSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/HeightRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+min_value = 1.0
+max_value = 4096.0
+step = 1.0
+value = 64.0
+
+[node name="OffsetXRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OffsetXLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetXRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.offset_x"
+
+[node name="OffsetXSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetXRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 4096.0
+step = 1.0
+
+[node name="OffsetXSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetXRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+max_value = 4096.0
+step = 1.0
+
+[node name="OffsetYRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OffsetYLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetYRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.offset_y"
+
+[node name="OffsetYSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetYRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 4096.0
+step = 1.0
+
+[node name="OffsetYSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/OffsetYRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+max_value = 4096.0
+step = 1.0
+
+[node name="SpacingXRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpacingXLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingXRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.spacing_x"
+
+[node name="SpacingXSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingXRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1024.0
+step = 1.0
+
+[node name="SpacingXSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingXRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+max_value = 1024.0
+step = 1.0
+
+[node name="SpacingYRow" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpacingYLabel" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingYRow"]
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+text = "ui.resource_catalog.slice.spacing_y"
+
+[node name="SpacingYSlider" type="HSlider" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingYRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1024.0
+step = 1.0
+
+[node name="SpacingYSpin" type="SpinBox" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Grid/SpacingYRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+max_value = 1024.0
+step = 1.0
+
+[node name="SliceInfo" type="Label" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.slice.unavailable"
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StageSlicesBtn" type="Button" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.slice.stage"
+
+[node name="ResetBtn" type="Button" parent="Margin/Root/Body/Middle/SlicePanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.slice.reset"
+
+[node name="Right" type="VBoxContainer" parent="Margin/Root/Body"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Root/Body/Right"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+follow_focus = true
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Right/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="SelectionLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.selection.none"
+
+[node name="ValidationLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.validation.no_selection"
+autowrap_mode = 3
+
+[node name="ActionRow" type="HBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AcceptSelectedBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/ActionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.action.accept_selected"
+
+[node name="RemoveSelectedBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/ActionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.action.remove_selected"
+
+[node name="BatchPanel" type="PanelContainer" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.batch.title"
+
+[node name="BaseIdEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "ui.resource_catalog.batch.base_id"
+
+[node name="TagsEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "ui.resource_catalog.batch.tags"
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RenameBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.batch.rename"
+
+[node name="TagsBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/BatchPanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.batch.apply_tags"
+
+[node name="PropertiesPanel" type="PanelContainer" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.title"
+
+[node name="Form" type="GridContainer" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 6
+
+[node name="KindLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.kind"
+
+[node name="KindEdit" type="OptionButton" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+
+[node name="IdLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.id"
+
+[node name="IdEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+
+[node name="DisplayNameLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.display_name"
+
+[node name="DisplayNameEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+
+[node name="TagsLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.tags"
+
+[node name="TagsEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+
+[node name="CategoryLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.category"
+
+[node name="CategoryEdit" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+
+[node name="SourceModeLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.source_mode"
+
+[node name="SourceModeValue" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "-"
+
+[node name="RegionXLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.region_x"
+
+[node name="RegionXSpin" type="SpinBox" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+min_value = 0.0
+max_value = 4096.0
+
+[node name="RegionYLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.region_y"
+
+[node name="RegionYSpin" type="SpinBox" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+min_value = 0.0
+max_value = 4096.0
+
+[node name="RegionWidthLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.region_width"
+
+[node name="RegionWidthSpin" type="SpinBox" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+min_value = 1.0
+max_value = 4096.0
+value = 1.0
+
+[node name="RegionHeightLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.region_height"
+
+[node name="RegionHeightSpin" type="SpinBox" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+min_value = 1.0
+max_value = 4096.0
+value = 1.0
+
+[node name="FpsLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.fps"
+
+[node name="FpsSpin" type="SpinBox" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+min_value = 0.1
+max_value = 60.0
+step = 0.1
+value = 10.0
+
+[node name="DescriptionLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+layout_mode = 2
+text = "ui.resource_catalog.properties.description"
+
+[node name="DescriptionEdit" type="TextEdit" parent="Margin/Root/Body/Right/Scroll/Content/PropertiesPanel/Margin/Content/Form"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+
+[node name="SourcePanel" type="PanelContainer" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.source.title"
+
+[node name="SourceImageLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.source.image"
+
+[node name="SourceImageValue" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin/Content"]
+layout_mode = 2
+editable = false
+
+[node name="SourceFolderLabel" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.source.folder"
+
+[node name="SourceFolderValue" type="LineEdit" parent="Margin/Root/Body/Right/Scroll/Content/SourcePanel/Margin/Content"]
+layout_mode = 2
+editable = false
+
+[node name="FramesPanel" type="PanelContainer" parent="Margin/Root/Body/Right/Scroll/Content"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content"]
+layout_mode = 2
+text = "ui.resource_catalog.frames.title"
+
+[node name="FrameList" type="ItemList" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+allow_reselect = true
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MoveUpBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.frames.move_up"
+
+[node name="MoveDownBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.frames.move_down"
+
+[node name="RemoveBtn" type="Button" parent="Margin/Root/Body/Right/Scroll/Content/FramesPanel/Margin/Content/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.resource_catalog.frames.remove"

@@ -35,7 +35,8 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 
 [node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -54,4 +55,4 @@ scroll_active = false
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "↑↓选择 ←→分类 H隐藏"
+text = "ui.status.hint"

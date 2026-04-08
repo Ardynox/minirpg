@@ -1,0 +1,101 @@
+{
+  "region_size_chunks": 4,
+  "front_phase_step": 0.0625,
+  "front_turn_scale": 0.03125,
+  "lightning_interval_turns": 6,
+  "lightning_damage": 12,
+  "lightning_strikes_per_pulse": 1,
+  "snow_cover_threshold": 28,
+  "sand_cover_threshold": 28,
+  "wet_gloss_threshold": 18,
+  "ice_gloss_threshold": 18,
+  "high_wetness_ice_threshold": 80,
+  "ambient_temperature_min_c": -20,
+  "ambient_temperature_max_c": 40,
+  "shelter_neutral_temperature_c": 18,
+  "shelter_temperature_lerp": 0.65,
+  "underground_neutral_temperature_c": 16,
+  "weather_wetness_scale": 0.35,
+  "campfire_heat_radius": 4,
+  "campfire_peak_temperature_bonus_c": 16,
+  "campfire_peak_drying_bonus": 5,
+  "room_retention_min_lerp": 0.2,
+  "room_retention_max_lerp": 0.55,
+  "intensity_multipliers": {
+    "light": 0.65,
+    "normal": 1.0,
+    "heavy": 1.45
+  },
+  "profiles": {
+    "clear": {
+      "vision_multiplier": 1.0,
+      "ai_vision_multiplier": 1.0,
+      "exposed_speed_multiplier": 1.0,
+      "ranged_penalty": 0,
+      "snow_delta": -4,
+      "sand_delta": -3,
+      "wetness_delta": -5,
+      "ice_delta": -3
+    },
+    "rain": {
+      "vision_multiplier": 0.9,
+      "ai_vision_multiplier": 0.9,
+      "exposed_speed_multiplier": 0.95,
+      "ranged_penalty": 1,
+      "snow_delta": 0,
+      "sand_delta": 0,
+      "wetness_delta": 6,
+      "ice_delta": -1
+    },
+    "fog": {
+      "vision_multiplier": 0.65,
+      "ai_vision_multiplier": 0.65,
+      "exposed_speed_multiplier": 1.0,
+      "ranged_penalty": 2,
+      "snow_delta": 0,
+      "sand_delta": 0,
+      "wetness_delta": 0,
+      "ice_delta": 0
+    },
+    "snow": {
+      "vision_multiplier": 0.85,
+      "ai_vision_multiplier": 0.85,
+      "exposed_speed_multiplier": 0.9,
+      "ranged_penalty": 1,
+      "snow_delta": 5,
+      "sand_delta": -1,
+      "wetness_delta": 1,
+      "ice_delta": 2
+    },
+    "storm": {
+      "vision_multiplier": 0.75,
+      "ai_vision_multiplier": 0.75,
+      "exposed_speed_multiplier": 0.85,
+      "ranged_penalty": 2,
+      "snow_delta": 0,
+      "sand_delta": -1,
+      "wetness_delta": 9,
+      "ice_delta": -1
+    },
+    "thunderstorm": {
+      "vision_multiplier": 0.75,
+      "ai_vision_multiplier": 0.75,
+      "exposed_speed_multiplier": 0.85,
+      "ranged_penalty": 2,
+      "snow_delta": 0,
+      "sand_delta": -1,
+      "wetness_delta": 10,
+      "ice_delta": -1
+    },
+    "sandstorm": {
+      "vision_multiplier": 0.6,
+      "ai_vision_multiplier": 0.6,
+      "exposed_speed_multiplier": 0.8,
+      "ranged_penalty": 3,
+      "snow_delta": -2,
+      "sand_delta": 6,
+      "wetness_delta": -2,
+      "ice_delta": -2
+    }
+  }
+}

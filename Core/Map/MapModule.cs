@@ -106,14 +106,34 @@ public static class MapModule
 	public static void PlaceItem(GameState s, int x, int y, Item item) =>
 		s.World!.PlaceItem(x, y, s.PlayerZ, item);
 
+	public static void PlaceItem(GameState s, int x, int y, int z, Item item) =>
+		s.World!.PlaceItem(x, y, z, item);
+
 	public static List<CellEntity> GetGroundItems(GameState s, int x, int y) =>
 		GetByType(s, x, y, CellEntityType.Item);
 
 	public static Item? PickupItem(GameState s, int x, int y, string entityId) =>
 		s.World!.PickupItem(x, y, s.PlayerZ, entityId);
 
+	public static Item? PickupItem(GameState s, int x, int y, int z, string entityId) =>
+		s.World!.PickupItem(x, y, z, entityId);
+
 	public static List<Item> PeekGroundItems(GameState s, int x, int y) =>
-		s.World!.PeekGroundItems(x, y, s.PlayerZ);
+		s.World == null ? [] : s.World.PeekGroundItems(x, y, s.PlayerZ);
+
+	public static List<Item> PeekGroundItems(GameState s, int x, int y, int z) =>
+		s.World == null ? [] : s.World.PeekGroundItems(x, y, z);
+
+	public static Item? FindGroundItem(GameState s, int x, int y, int z, string instanceId) =>
+		string.IsNullOrWhiteSpace(instanceId)
+			? null
+			: PeekGroundItems(s, x, y, z).Find(item => string.Equals(item.InstanceId, instanceId, System.StringComparison.Ordinal));
+
+	public static bool UpdateGroundItem(GameState s, int x, int y, Item item) =>
+		s.World != null && s.World.UpdateGroundItem(x, y, s.PlayerZ, item);
+
+	public static bool UpdateGroundItem(GameState s, int x, int y, int z, Item item) =>
+		s.World != null && s.World.UpdateGroundItem(x, y, z, item);
 
 	// ══════════════════════════════════════════════════════
 	//  查询
@@ -123,10 +143,10 @@ public static class MapModule
 	public static bool InBounds(GameState s, int x, int y) => true;
 
 	public static bool IsWall(GameState s, int x, int y) =>
-		s.World!.IsSolid(x, y, s.PlayerZ);
+		!s.World!.IsWalkable(x, y, s.PlayerZ);
 
 	public static bool IsWall(GameState s, int x, int y, int z) =>
-		s.World!.IsSolid(x, y, z);
+		!s.World!.IsWalkable(x, y, z);
 
 	public static bool IsWalkable(GameState s, int x, int y) =>
 		s.World!.IsWalkable(x, y, s.PlayerZ);
@@ -183,20 +203,26 @@ public static class MapModule
 		var cx = CoordUtil.WorldToChunk(s.PlayerX, s.PlayerY, s.PlayerZ);
 		var r = s.World!.Chunks.LoadRadiusXY;
 
-		for (var cy = cx.Cy - r; cy <= cx.Cy + r; cy++)
-		for (var ccx = cx.Cx - r; ccx <= cx.Cx + r; ccx++)
+		for (var radius = 0; radius <= r; radius++)
 		{
-			var coord = new ChunkCoord(ccx, cy, s.PlayerZ);
-			var chunk = s.World.Chunks.GetOrLoad(coord);
-			for (var ly = 0; ly < ChunkData.Size; ly++)
-			for (var lx = 0; lx < ChunkData.Size; lx++)
+			for (var cy = cx.Cy - radius; cy <= cx.Cy + radius; cy++)
+			for (var ccx = cx.Cx - radius; ccx <= cx.Cx + radius; ccx++)
 			{
-				var entities = chunk.GetEntities(lx, ly);
-				if (entities.Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId))
+				if (Math.Abs(ccx - cx.Cx) != radius && Math.Abs(cy - cx.Cy) != radius)
+					continue;
+
+				var coord = new ChunkCoord(ccx, cy, s.PlayerZ);
+				var chunk = s.World.Chunks.GetOrLoad(coord);
+				for (var ly = 0; ly < ChunkData.Size; ly++)
+				for (var lx = 0; lx < ChunkData.Size; lx++)
 				{
-					var w = CoordUtil.LocalToWorld(coord, lx, ly);
-					ActorModule.MoveActor(s, s.PlayerId, w.X, w.Y);
-					return;
+					var entities = chunk.GetEntities(lx, ly);
+					if (entities.Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId))
+					{
+						var w = CoordUtil.LocalToWorld(coord, lx, ly);
+						ActorModule.MoveActor(s, s.PlayerId, w.X, w.Y);
+						return;
+					}
 				}
 			}
 		}
@@ -210,72 +236,6 @@ public static class MapModule
 	/// 从字符串行加载地图到世界的指定 Z 层。
 	/// 用于测试和硬编码关卡。将字符写入以 (0,0,z) 为原点的区域。
 	/// </summary>
-	public static void LoadFromStrings(GameState state, string[] rows, int z = 0)
-	{
-		if (state.World == null) return;
-		var height = rows.Length;
-		var width = 0;
-		foreach (var r in rows)
-			if (r.Length > width) width = r.Length;
-
-		for (var y = 0; y < height; y++)
-		for (var x = 0; x < width; x++)
-		{
-			if (x < rows[y].Length)
-			{
-				var ch = rows[y][x].ToString();
-				ApplyCharToWorld(state, x, y, z, ch);
-				if (ch == "P")
-				{
-					state.PlayerX = x;
-					state.PlayerY = y;
-					state.PlayerZ = z;
-				}
-			}
-			else
-			{
-				state.World.SetTerrain(x, y, z, Terrains.WallStone);
-			}
-		}
-	}
-
-	private static void ApplyCharToWorld(GameState state, int x, int y, int z, string ch)
-	{
-		switch (ch)
-		{
-			case "#":
-				state.World!.SetTerrain(x, y, z, Terrains.WallStone);
-				break;
-			case ".":
-			case "P":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				break;
-			case "D":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				state.World.SetFixture(x, y, z, "D", Entities.Door);
-				break;
-			case "N":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				state.World.SetFixture(x, y, z, "N", Entities.Nest);
-				break;
-			case "H":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				state.World.SetFixture(x, y, z, "H", Entities.House);
-				break;
-			case ">":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				state.World.SetFixture(x, y, z, ">", Entities.StairDown);
-				break;
-			case "<":
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				state.World.SetFixture(x, y, z, "<", Entities.StairUp);
-				break;
-			default:
-				state.World!.SetTerrain(x, y, z, Terrains.Floor);
-				break;
-		}
-	}
-
 	// ══════════════════════════════════════════════════════
 	//  内部工具
 	// ══════════════════════════════════════════════════════

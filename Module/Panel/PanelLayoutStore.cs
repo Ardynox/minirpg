@@ -6,14 +6,16 @@ using Godot;
 
 namespace MiniRPG.Module.Panel;
 
+public readonly record struct PanelAppearance(float? Width, float? Height, float? ButtonScale);
+
 public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 {
 	private readonly string _path = path;
-	private readonly Dictionary<string, PanelPos> _positions = [];
+	private readonly Dictionary<string, PanelLayoutEntry> _entries = [];
 
 	public void Load()
 	{
-		_positions.Clear();
+		_entries.Clear();
 		if (!Godot.FileAccess.FileExists(_path))
 			return;
 
@@ -24,25 +26,27 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 				return;
 
 			var raw = file.GetAsText();
-			var parsed = JsonSerializer.Deserialize<Dictionary<string, PanelPos>>(raw);
+			var parsed = JsonSerializer.Deserialize<Dictionary<string, PanelLayoutEntry>>(raw);
 			if (parsed == null)
 				return;
 
-			foreach (var (panelId, pos) in parsed)
-				_positions[panelId] = pos;
+			foreach (var (panelId, entry) in parsed)
+				_entries[panelId] = entry;
 		}
 		catch (Exception ex)
 		{
 			GD.PushWarning($"[PanelLayoutStore] load failed, fallback to empty: {ex.Message}");
-			_positions.Clear();
+			_entries.Clear();
 		}
 	}
 
-	public bool TryGet(string panelId, out Vector2 position)
+	public bool TryGetPosition(string panelId, out Vector2 position)
 	{
-		if (_positions.TryGetValue(panelId, out var pos))
+		if (_entries.TryGetValue(panelId, out var entry)
+			&& entry.X.HasValue
+			&& entry.Y.HasValue)
 		{
-			position = new Vector2(pos.X, pos.Y);
+			position = new Vector2(entry.X.Value, entry.Y.Value);
 			return true;
 		}
 
@@ -50,22 +54,96 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 		return false;
 	}
 
-	public void Set(string panelId, Vector2 position)
+	public bool TryGetAppearance(string panelId, out PanelAppearance appearance)
 	{
-		_positions[panelId] = new PanelPos(position.X, position.Y);
+		if (_entries.TryGetValue(panelId, out var entry))
+		{
+			appearance = new PanelAppearance(
+				entry.Width,
+				entry.Height,
+				entry.ButtonScale);
+			return true;
+		}
+
+		appearance = new PanelAppearance(null, null, null);
+		return false;
+	}
+
+	public void SetPosition(string panelId, Vector2 position)
+	{
+		var entry = GetOrCreate(panelId);
+		entry.X = position.X;
+		entry.Y = position.Y;
+	}
+
+	public void RemovePosition(string panelId)
+	{
+		if (!_entries.TryGetValue(panelId, out var entry))
+			return;
+
+		entry.X = null;
+		entry.Y = null;
+		Cleanup(panelId, entry);
+	}
+
+	public void SetWidth(string panelId, float width)
+	{
+		if (width <= 0f)
+		{
+			if (!_entries.TryGetValue(panelId, out var entry))
+				return;
+
+			entry.Width = null;
+			Cleanup(panelId, entry);
+			return;
+		}
+
+		GetOrCreate(panelId).Width = width;
+	}
+
+	public void SetHeight(string panelId, float height)
+	{
+		if (height <= 0f)
+		{
+			if (!_entries.TryGetValue(panelId, out var entry))
+				return;
+
+			entry.Height = null;
+			Cleanup(panelId, entry);
+			return;
+		}
+
+		GetOrCreate(panelId).Height = height;
+	}
+
+	public void SetButtonScale(string panelId, float buttonScale)
+	{
+		GetOrCreate(panelId).ButtonScale = buttonScale;
+	}
+
+	public void RemoveAppearance(string panelId)
+	{
+		if (!_entries.TryGetValue(panelId, out var entry))
+			return;
+
+		entry.Width = null;
+		entry.Height = null;
+		entry.ButtonScale = null;
+		Cleanup(panelId, entry);
 	}
 
 	public void Remove(string panelId)
 	{
-		_positions.Remove(panelId);
+		_entries.Remove(panelId);
 	}
 
 	public void Save()
 	{
 		try
 		{
-			var raw = JsonSerializer.Serialize(_positions, new JsonSerializerOptions
+			var raw = JsonSerializer.Serialize(_entries, new JsonSerializerOptions
 			{
+				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 				WriteIndented = true,
 			});
 
@@ -78,12 +156,43 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 		}
 	}
 
-	private sealed class PanelPos(float x, float y)
+	private PanelLayoutEntry GetOrCreate(string panelId)
+	{
+		if (_entries.TryGetValue(panelId, out var entry))
+			return entry;
+
+		entry = new PanelLayoutEntry();
+		_entries[panelId] = entry;
+		return entry;
+	}
+
+	private void Cleanup(string panelId, PanelLayoutEntry entry)
+	{
+		if (entry.X.HasValue
+			|| entry.Y.HasValue
+			|| entry.Width.HasValue
+			|| entry.Height.HasValue
+			|| entry.ButtonScale.HasValue)
+			return;
+
+		_entries.Remove(panelId);
+	}
+
+	private sealed class PanelLayoutEntry
 	{
 		[JsonPropertyName("x")]
-		public float X { get; set; } = x;
+		public float? X { get; set; }
 
 		[JsonPropertyName("y")]
-		public float Y { get; set; } = y;
+		public float? Y { get; set; }
+
+		[JsonPropertyName("width")]
+		public float? Width { get; set; }
+
+		[JsonPropertyName("height")]
+		public float? Height { get; set; }
+
+		[JsonPropertyName("button_scale")]
+		public float? ButtonScale { get; set; }
 	}
 }

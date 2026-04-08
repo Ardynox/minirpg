@@ -3,7 +3,7 @@ using Godot;
 
 namespace MiniRPG.Module;
 
-public sealed class SaveNameDialogModule
+public sealed class SaveNameDialogModule : IModalInputLayer
 {
 	private readonly PanelContainer _panel;
 	private readonly LineEdit _nameEdit;
@@ -38,5 +38,17 @@ public sealed class SaveNameDialogModule
 	{
 		Visible = false;
 		_nameEdit.ReleaseFocus();
+	}
+
+	public bool HandleKeyInput(InputEventKey key)
+	{
+		if (!key.Pressed || key.Echo || key.AltPressed || key.CtrlPressed || key.MetaPressed)
+			return false;
+
+		if (key.Keycode != Key.Escape)
+			return false;
+
+		CancelRequested?.Invoke();
+		return true;
 	}
 }

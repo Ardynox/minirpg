@@ -1,10 +1,126 @@
 {
   "player": {
-    "type": "spine",
-    "atlas": "res://Assets/Characters/Spine/Balin/Balin.atlas",
-    "skel": "res://Assets/Characters/Spine/Balin/Balin.skel",
+    "type": "sprite_sheet",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/player1",
     "defaultAnim": "Idle",
-    "scale": [0.35, 0.35]
+    "scale": [1.0, 1.0]
+  },
+  "goblin": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_goblin_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "goblin_miner": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_goblin_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "slime": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_slime_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 5.0]
+  },
+  "skeleton": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_skeleton_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [1.0, 6.0]
+  },
+  "spider": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_spider_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "scorpion": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_scorpion_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "treant": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_treant_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.5, 5.0]
+  },
+  "wolf": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_wolf_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [1.5, 6.0]
+  },
+  "bear": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_bear_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [-2.0, 5.0]
+  },
+  "rat": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_rat_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [5.0, 7.0]
+  },
+  "orc": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_orc_warrior_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "orc_warrior": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_orc_warrior_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "orc_shaman": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_orc_warrior_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
   },
 
   "hostile": {
@@ -14,6 +130,10 @@
   "friendly": {
     "type": "tile",
     "tileName": "Misc B3_N"
+  },
+  "fire": {
+    "type": "tile",
+    "tileName": "Fire"
   },
 
   "stair_down": {
@@ -36,10 +156,18 @@
     "type": "tile",
     "tileName": "Roof A1_N"
   },
+  "campfire": {
+    "type": "tile",
+    "tileName": "Misc B6_N"
+  },
 
   "container": {
     "type": "tile",
     "tileName": "Chest A1_N"
+  },
+  "blood_filth": {
+    "type": "tile",
+    "tileName": "Misc B4_N"
   },
   "drop": {
     "type": "tile",

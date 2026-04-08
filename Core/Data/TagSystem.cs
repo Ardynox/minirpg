@@ -24,6 +24,7 @@ public class Limb : ITagSource
 	public string Name { get; set; } = "";
 	public int MaxDurability { get; set; } = 5;
 	public int Durability { get; set; } = 5;
+	public int PermanentDamage { get; set; }
 
 	/// <summary>材质 ID，对应 MaterialRegistry 中的定义。影响硬度、可燃性等物理属性。</summary>
 	public string Material { get; set; } = "flesh";
@@ -75,6 +76,8 @@ public class Race : ITagSource
 {
 	public string Id { get; set; } = "";
 	public string Name { get; set; } = "";
+	public string NeedProfileId { get; set; } = "";
+	public string HealthProfileId { get; set; } = "";
 	public Dictionary<string, int> Tags { get; set; } = new();
 
 	public Dictionary<string, int> GetTags() => Tags;

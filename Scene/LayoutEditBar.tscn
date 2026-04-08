@@ -27,12 +27,12 @@ theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
-text = "布局编辑模式"
+text = "ui.layout_edit.title"
 horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
-text = "拖动面板调整位置，游戏输入已暂停。"
+text = "ui.layout_edit.subtitle"
 horizontal_alignment = 1
 theme_type_variation = &"HintLabel"
 
@@ -43,14 +43,14 @@ theme_override_constants/separation = 8
 [node name="ApplyBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "应用"
+text = "ui.layout_edit.apply"
 
 [node name="CancelBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "取消"
+text = "ui.layout_edit.cancel"
 
 [node name="ResetBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "重置"
+text = "ui.layout_edit.reset"

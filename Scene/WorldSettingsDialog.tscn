@@ -1,0 +1,182 @@
+[gd_scene format=3]
+
+[node name="WorldSettingsDialog" type="PanelContainer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_settings.title"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_settings.subtitle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="BasicSection" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BasicTitle" type="Label" parent="Margin/VBox/BasicSection"]
+layout_mode = 2
+text = "ui.world_settings.basic"
+
+[node name="BasicForm" type="GridContainer" parent="Margin/VBox/BasicSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 8
+
+[node name="WorldNameLabel" type="Label" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+text = "ui.world_settings.world_name"
+
+[node name="WorldNameEdit" type="LineEdit" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+placeholder_text = "ui.world_settings.world_name_placeholder"
+
+[node name="SeedLabel" type="Label" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+text = "ui.world_settings.seed"
+
+[node name="SeedRow" type="HBoxContainer" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SeedEdit" type="LineEdit" parent="Margin/VBox/BasicSection/BasicForm/SeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ui.world_settings.seed_placeholder"
+
+[node name="RandomizeSeedBtn" type="Button" parent="Margin/VBox/BasicSection/BasicForm/SeedRow"]
+layout_mode = 2
+text = "ui.world_settings.randomize_seed"
+
+[node name="GeneratorLabel" type="Label" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+text = "ui.world_settings.generator"
+
+[node name="GeneratorOption" type="OptionButton" parent="Margin/VBox/BasicSection/BasicForm"]
+layout_mode = 2
+
+[node name="AdvancedToggle" type="CheckButton" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_settings.advanced"
+
+[node name="AdvancedHint" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "ui.world_settings.advanced_hint"
+autowrap_mode = 3
+
+[node name="AdvancedSection" type="VBoxContainer" parent="Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AdvancedForm" type="GridContainer" parent="Margin/VBox/AdvancedSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 8
+
+[node name="ClimateLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.climate"
+
+[node name="ClimateEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="StartSeasonLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.start_season"
+
+[node name="StartSeasonEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="CivilizationLevelLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.civilization_level"
+
+[node name="CivilizationLevelEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="MonsterDensityLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.monster_density"
+
+[node name="MonsterDensityEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="NpcDensityLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.npc_density"
+
+[node name="NpcDensityEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="LootAbundanceLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.loot_abundance"
+
+[node name="LootAbundanceEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="NestIntensityLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.nest_intensity"
+
+[node name="NestIntensityEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="WeatherVolatilityLabel" type="Label" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+text = "ui.world_settings.weather_volatility"
+
+[node name="WeatherVolatilityEdit" type="LineEdit" parent="Margin/VBox/AdvancedSection/AdvancedForm"]
+layout_mode = 2
+
+[node name="Validation" type="Label" parent="Margin/VBox"]
+visible = false
+layout_mode = 2
+modulate = Color(1, 0.58, 0.58, 1)
+
+[node name="Actions" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 10
+
+[node name="CancelBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+text = "ui.world_settings.cancel"
+
+[node name="ConfirmBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+text = "ui.world_settings.confirm"

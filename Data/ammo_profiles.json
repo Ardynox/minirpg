@@ -1,0 +1,5 @@
+[
+  { "id": "revolver_round", "name": "左轮弹", "itemId": "ammo_revolver", "ammoPerShot": 1 },
+  { "id": "rifle_round", "name": "步枪弹", "itemId": "ammo_rifle", "ammoPerShot": 1 },
+  { "id": "shotgun_shell", "name": "霰弹", "itemId": "ammo_shell", "ammoPerShot": 1 }
+]

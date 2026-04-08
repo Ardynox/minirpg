@@ -78,10 +78,23 @@ public class FogOfWarTracker
 		}
 
 		var player = ActorModule.GetPlayer(state);
-		var sight = player?.GetCapacity(Caps.Sight) ?? 1.0f;
-		var frontRadius = (int)(BaseVisionRadius * sight * AmbientLight);
-		if (frontRadius < MinimumVisionRadius) frontRadius = MinimumVisionRadius;
-		var rearRadius = System.Math.Max(MinimumRearVisionRadius, (int)(frontRadius * RearVisionRatio));
+		var sight = System.Math.Max(0f, player?.GetCapacity(Caps.Sight) ?? 1.0f);
+		var baseRadius = BaseVisionRadius;
+		if (z == 0 && state.World.IsWeatherExposed(state.PlayerX, state.PlayerY, z))
+		{
+			var weather = WeatherRules.GetLocalWeather(state, state.PlayerX, state.PlayerY, z);
+			baseRadius = System.Math.Max(1, (int)System.MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
+		}
+
+		var vision = VisionRangeScaler.ScaleDirectional(
+			baseRadius,
+			sight,
+			RearVisionRatio,
+			MinimumVisionRadius,
+			MinimumRearVisionRadius,
+			AmbientLight);
+		var frontRadius = vision.FrontRadius;
+		var rearRadius = vision.RearRadius;
 
 		var cx = state.PlayerX;
 		var cy = state.PlayerY;

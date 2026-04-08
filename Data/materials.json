@@ -5,7 +5,8 @@
     "hardness": 1,
     "flammability": 0.3,
     "corrosionResist": 0.1,
-    "density": 1.0
+    "density": 1.0,
+    "conductivity": 0.12
   },
   {
     "id": "bone",
@@ -13,7 +14,8 @@
     "hardness": 3,
     "flammability": 0.05,
     "corrosionResist": 0.3,
-    "density": 1.8
+    "density": 1.8,
+    "conductivity": 0.05
   },
   {
     "id": "chitin",
@@ -21,7 +23,8 @@
     "hardness": 4,
     "flammability": 0.1,
     "corrosionResist": 0.5,
-    "density": 1.3
+    "density": 1.3,
+    "conductivity": 0.04
   },
   {
     "id": "slime",
@@ -29,7 +32,8 @@
     "hardness": 0,
     "flammability": 0.0,
     "corrosionResist": 0.9,
-    "density": 1.1
+    "density": 1.1,
+    "conductivity": 0.18
   },
   {
     "id": "wood",
@@ -37,7 +41,8 @@
     "hardness": 2,
     "flammability": 0.8,
     "corrosionResist": 0.1,
-    "density": 0.6
+    "density": 0.6,
+    "conductivity": 0.02
   },
   {
     "id": "stone",
@@ -45,7 +50,8 @@
     "hardness": 5,
     "flammability": 0.0,
     "corrosionResist": 0.7,
-    "density": 2.5
+    "density": 2.5,
+    "conductivity": 0.01
   },
   {
     "id": "iron",
@@ -53,7 +59,8 @@
     "hardness": 7,
     "flammability": 0.0,
     "corrosionResist": 0.3,
-    "density": 7.8
+    "density": 7.8,
+    "conductivity": 0.92
   },
   {
     "id": "steel",
@@ -61,7 +68,8 @@
     "hardness": 8,
     "flammability": 0.0,
     "corrosionResist": 0.5,
-    "density": 7.9
+    "density": 7.9,
+    "conductivity": 0.88
   },
   {
     "id": "soil",
@@ -69,7 +77,8 @@
     "hardness": 1,
     "flammability": 0.0,
     "corrosionResist": 0.2,
-    "density": 1.5
+    "density": 1.5,
+    "conductivity": 0.03
   },
   {
     "id": "granite",
@@ -77,7 +86,8 @@
     "hardness": 8,
     "flammability": 0.0,
     "corrosionResist": 0.9,
-    "density": 2.7
+    "density": 2.7,
+    "conductivity": 0.01
   },
   {
     "id": "obsidian",
@@ -85,7 +95,8 @@
     "hardness": 10,
     "flammability": 0.0,
     "corrosionResist": 1.0,
-    "density": 2.4
+    "density": 2.4,
+    "conductivity": 0.02
   },
   {
     "id": "crystal",
@@ -93,7 +104,8 @@
     "hardness": 7,
     "flammability": 0.0,
     "corrosionResist": 0.8,
-    "density": 2.6
+    "density": 2.6,
+    "conductivity": 0.08
   },
   {
     "id": "leather",
@@ -101,7 +113,8 @@
     "hardness": 2,
     "flammability": 0.4,
     "corrosionResist": 0.2,
-    "density": 0.9
+    "density": 0.9,
+    "conductivity": 0.02
   },
   {
     "id": "cloth",
@@ -109,7 +122,8 @@
     "hardness": 1,
     "flammability": 0.9,
     "corrosionResist": 0.05,
-    "density": 0.4
+    "density": 0.4,
+    "conductivity": 0.01
   },
   {
     "id": "silk",
@@ -117,7 +131,8 @@
     "hardness": 2,
     "flammability": 0.6,
     "corrosionResist": 0.1,
-    "density": 0.3
+    "density": 0.3,
+    "conductivity": 0.01
   },
   {
     "id": "devilstrand",
@@ -125,7 +140,8 @@
     "hardness": 5,
     "flammability": 0.15,
     "corrosionResist": 0.6,
-    "density": 0.5
+    "density": 0.5,
+    "conductivity": 0.03
   },
   {
     "id": "gold",
@@ -133,7 +149,8 @@
     "hardness": 3,
     "flammability": 0.0,
     "corrosionResist": 1.0,
-    "density": 19.3
+    "density": 19.3,
+    "conductivity": 0.97
   },
   {
     "id": "silver",
@@ -141,7 +158,8 @@
     "hardness": 4,
     "flammability": 0.0,
     "corrosionResist": 0.7,
-    "density": 10.5
+    "density": 10.5,
+    "conductivity": 1.0
   },
   {
     "id": "jade",
@@ -149,7 +167,8 @@
     "hardness": 6,
     "flammability": 0.0,
     "corrosionResist": 0.9,
-    "density": 3.3
+    "density": 3.3,
+    "conductivity": 0.02
   },
   {
     "id": "plasteel",
@@ -157,7 +176,8 @@
     "hardness": 10,
     "flammability": 0.0,
     "corrosionResist": 0.95,
-    "density": 5.5
+    "density": 5.5,
+    "conductivity": 0.76
   },
   {
     "id": "uranium",
@@ -165,7 +185,8 @@
     "hardness": 6,
     "flammability": 0.0,
     "corrosionResist": 0.4,
-    "density": 19.1
+    "density": 19.1,
+    "conductivity": 0.55
   },
   {
     "id": "bark",
@@ -173,7 +194,8 @@
     "hardness": 2,
     "flammability": 0.7,
     "corrosionResist": 0.15,
-    "density": 0.5
+    "density": 0.5,
+    "conductivity": 0.02
   },
   {
     "id": "horn",
@@ -181,7 +203,8 @@
     "hardness": 4,
     "flammability": 0.15,
     "corrosionResist": 0.3,
-    "density": 1.4
+    "density": 1.4,
+    "conductivity": 0.04
   },
   {
     "id": "scale",
@@ -189,6 +212,7 @@
     "hardness": 5,
     "flammability": 0.1,
     "corrosionResist": 0.6,
-    "density": 1.6
+    "density": 1.6,
+    "conductivity": 0.05
   }
 ]

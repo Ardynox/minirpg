@@ -1,6 +1,8 @@
 [
   {
     "id": "human",
+    "needProfileId": "humanoid_standard",
+    "healthProfileId": "flesh_humanoid",
     "name": "人类",
     "tags": { "挖掘": 1, "伐木": 1 },
     "defaultLimbs": [
@@ -16,6 +18,8 @@
   },
   {
     "id": "goblin",
+    "needProfileId": "humanoid_standard",
+    "healthProfileId": "flesh_humanoid",
     "name": "哥布林",
     "tags": { "挖掘": 2, "采矿": 1 },
     "defaultLimbs": [
@@ -25,12 +29,16 @@
   },
   {
     "id": "slime",
+    "needProfileId": "slime_basic",
+    "healthProfileId": "gelatinous",
     "name": "史莱姆",
     "tags": { "毒性": 2 },
     "defaultLimbs": ["slime_body", "slime_core"]
   },
   {
     "id": "undead",
+    "needProfileId": "undead_none",
+    "healthProfileId": "undead_numb",
     "name": "亡灵",
     "tags": { "亡灵": 1, "挖掘": 1, "采矿": 1 },
     "defaultLimbs": [
@@ -41,6 +49,8 @@
   },
   {
     "id": "elf",
+    "needProfileId": "humanoid_standard",
+    "healthProfileId": "flesh_humanoid",
     "name": "精灵",
     "tags": { "伐木": 2, "驯服": 1 },
     "defaultLimbs": [
@@ -57,6 +67,8 @@
   },
   {
     "id": "orc",
+    "needProfileId": "humanoid_standard",
+    "healthProfileId": "flesh_humanoid",
     "name": "兽人",
     "tags": { "挖掘": 2, "采矿": 2 },
     "defaultLimbs": [
@@ -73,6 +85,8 @@
   },
   {
     "id": "spider",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "flesh_beast",
     "name": "巨蛛",
     "tags": { "毒性": 3, "野性": 3 },
     "defaultLimbs": [
@@ -86,6 +100,8 @@
   },
   {
     "id": "scorpion",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "flesh_beast",
     "name": "巨蝎",
     "tags": { "毒性": 2, "野性": 2 },
     "defaultLimbs": [
@@ -99,6 +115,8 @@
   },
   {
     "id": "treant",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "woody_beast",
     "name": "树人",
     "tags": { "伐木": 3, "挖掘": 1, "野性": 4 },
     "defaultLimbs": [
@@ -109,6 +127,8 @@
   },
   {
     "id": "wolf",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "flesh_beast",
     "name": "灰狼",
     "tags": { "野性": 2 },
     "defaultLimbs": [
@@ -123,6 +143,8 @@
   },
   {
     "id": "bear",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "flesh_beast",
     "name": "灰熊",
     "tags": { "野性": 4 },
     "defaultLimbs": [
@@ -138,6 +160,8 @@
   },
   {
     "id": "rat",
+    "needProfileId": "beast_standard",
+    "healthProfileId": "flesh_beast",
     "name": "鼠",
     "tags": { "野性": 1 },
     "defaultLimbs": [

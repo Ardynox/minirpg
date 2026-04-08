@@ -19,7 +19,7 @@ theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
-text = "⚔️  MiniRPG  ⚔️"
+text = "ui.main_menu.title"
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="Center/VBox"]
@@ -28,28 +28,28 @@ custom_minimum_size = Vector2(0, 16)
 
 [node name="ContinueBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "继续游戏"
+text = "ui.main_menu.continue"
 
-[node name="NewGameBtn" type="Button" parent="Center/VBox"]
+[node name="WorldsBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "新游戏"
+text = "ui.main_menu.worlds"
 
 [node name="MapEditorBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "地图编辑器"
+text = "ui.main_menu.map_editor"
 
-[node name="LoadGameBtn" type="Button" parent="Center/VBox"]
+[node name="WeatherLabBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "读取存档"
+text = "ui.main_menu.weather_lab"
 
 [node name="SettingsBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "设置"
+text = "ui.main_menu.settings"
 
 [node name="AutoTestBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "自动测试"
+text = "ui.main_menu.auto_test"
 
 [node name="QuitBtn" type="Button" parent="Center/VBox"]
 layout_mode = 2
-text = "退出游戏"
+text = "ui.main_menu.quit"

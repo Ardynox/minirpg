@@ -28,17 +28,17 @@ theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "为地图存档命名"
+text = "ui.save_name_dialog.title"
 horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "首次保存空白编辑地图时会创建一个新的普通存档文件。"
+text = "ui.save_name_dialog.subtitle"
 autowrap_mode = 2
 
 [node name="NameEdit" type="LineEdit" parent="Margin/VBox"]
 layout_mode = 2
-placeholder_text = "editor_map"
+placeholder_text = "ui.save_name_dialog.placeholder"
 
 [node name="Actions" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
@@ -47,8 +47,8 @@ theme_override_constants/separation = 8
 
 [node name="ConfirmBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
-text = "保存"
+text = "ui.save_name_dialog.save"
 
 [node name="CancelBtn" type="Button" parent="Margin/VBox/Actions"]
 layout_mode = 2
-text = "取消"
+text = "ui.save_name_dialog.cancel"

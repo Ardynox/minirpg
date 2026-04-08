@@ -36,11 +36,12 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 任务 ──"
+text = "ui.quest.title"
 
 [node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -85,4 +86,4 @@ scroll_active = false
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "↑↓选择任务 ←→切换分类 J/Esc关闭"
+text = "ui.quest.hint"

@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[node name="ActorInspectPanel" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.0
+custom_minimum_size = Vector2(240, 0)
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="HeaderBar" type="Control" parent="MarginContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+size_flags_horizontal = 3
+
+[node name="NameInfo" type="Label" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = -6.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+focus_mode = 0
+
+[node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="TabLabel" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+
+[node name="ContentText" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="HintBar" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.actor_inspect.hint"

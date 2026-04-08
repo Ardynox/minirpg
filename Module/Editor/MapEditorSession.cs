@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module.Editor;
@@ -23,14 +24,7 @@ public sealed class MapEditorSession
 {
 	private readonly GameState _state;
 	private readonly List<MapEditorBrush> _terrainBrushes = [];
-	private readonly List<MapEditorBrush> _fixtureBrushes =
-	[
-		new(Entities.Door, "door", "D"),
-		new(Entities.StairUp, "stair_up", "<"),
-		new(Entities.StairDown, "stair_down", ">"),
-		new(Entities.Nest, "nest", "N"),
-		new(Entities.House, "house", "H"),
-	];
+	private readonly List<MapEditorBrush> _fixtureBrushes = [];
 
 	private int _terrainBrushIndex;
 	private int _fixtureBrushIndex;
@@ -39,7 +33,7 @@ public sealed class MapEditorSession
 	public MapEditorSession(GameState state)
 	{
 		_state = state;
-		RefreshTerrainBrushes();
+		RefreshLocalizedBrushes();
 	}
 
 	public bool Active { get; private set; }
@@ -71,19 +65,26 @@ public sealed class MapEditorSession
 			if (terrain.StringId == Terrains.Void)
 				continue;
 
-			_terrainBrushes.Add(new MapEditorBrush(terrain.StringId, terrain.StringId));
+			_terrainBrushes.Add(new MapEditorBrush(
+				terrain.StringId,
+				GameLocalizer.LocalizeTerrainName(terrain.StringId)));
 		}
 
 		if (_terrainBrushes.Count == 0)
 			_terrainBrushes.Add(new MapEditorBrush(Terrains.Floor, Terrains.Floor));
 
 		_terrainBrushIndex = Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1);
-		_fixtureBrushIndex = Math.Clamp(_fixtureBrushIndex, 0, _fixtureBrushes.Count - 1);
+	}
+
+	public void RefreshLocalizedBrushes()
+	{
+		RefreshTerrainBrushes();
+		RefreshFixtureBrushes();
 	}
 
 	public void Enter(MapEditorEntryMode entryMode, string? savePath)
 	{
-		RefreshTerrainBrushes();
+		RefreshLocalizedBrushes();
 		Active = true;
 		EntryMode = entryMode;
 		CurrentCategory = MapEditorBrushCategory.Terrain;
@@ -190,5 +191,16 @@ public sealed class MapEditorSession
 		}
 
 		_state.World.SetFixture(x, y, z, string.Empty, string.Empty);
+	}
+
+	private void RefreshFixtureBrushes()
+	{
+		_fixtureBrushes.Clear();
+		_fixtureBrushes.Add(new MapEditorBrush(Entities.Door, GameLocalizer.LocalizeFixtureName(Entities.Door), "D"));
+		_fixtureBrushes.Add(new MapEditorBrush(Entities.StairUp, GameLocalizer.LocalizeFixtureName(Entities.StairUp), "<"));
+		_fixtureBrushes.Add(new MapEditorBrush(Entities.StairDown, GameLocalizer.LocalizeFixtureName(Entities.StairDown), ">"));
+		_fixtureBrushes.Add(new MapEditorBrush(Entities.Nest, GameLocalizer.LocalizeFixtureName(Entities.Nest), "N"));
+		_fixtureBrushes.Add(new MapEditorBrush(Entities.House, GameLocalizer.LocalizeFixtureName(Entities.House), "H"));
+		_fixtureBrushIndex = Math.Clamp(_fixtureBrushIndex, 0, _fixtureBrushes.Count - 1);
 	}
 }

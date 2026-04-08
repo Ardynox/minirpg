@@ -1,0 +1,16 @@
+# Shared high-confidence mojibake markers.
+# Used by Tools/validate_i18n.py and Tests/MiniRPG.Tests/LocalizationCatalogTests.cs.
+绠€
+鍦板浘
+娓告垙
+瀛樻
+璁剧疆
+銆
+锛
+鈥
+浜や簰
+绉诲姩
+鍥炲悎
+鏌ョ湅
+闈㈡澘
+鈹€

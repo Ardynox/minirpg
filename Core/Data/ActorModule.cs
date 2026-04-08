@@ -11,6 +11,8 @@ public static class ActorModule
 {
 	public static void Add(GameState state, Actor actor)
 	{
+		if (!actor.HasHomePosition)
+			actor.SetHomePosition(actor.X, actor.Y, actor.Z);
 		state.Actors[actor.Id] = actor;
 		state.World?.RegisterActor(actor);
 	}
@@ -27,25 +29,23 @@ public static class ActorModule
 
 	/// <summary>返回指定 2D 坐标 + 当前 PlayerZ 上的第一个 Actor。</summary>
 	public static Actor? GetAt(GameState state, int x, int y) =>
-		state.Actors.Values.FirstOrDefault(a => a.X == x && a.Y == y && a.Z == state.PlayerZ);
+		GetAt(state, x, y, state.PlayerZ);
 
 	public static Actor? GetAt(GameState state, int x, int y, int z) =>
-		state.Actors.Values.FirstOrDefault(a => a.X == x && a.Y == y && a.Z == z);
+		state.World?.GetActorAt(x, y, z, state.Actors) ?? ScanGetAt(state, x, y, z);
 
 	/// <summary>返回指定 2D 坐标 + 当前 PlayerZ 上的所有 Actor。</summary>
 	public static List<Actor> GetAllAt(GameState state, int x, int y) =>
-		state.Actors.Values.Where(a => a.X == x && a.Y == y && a.Z == state.PlayerZ).ToList();
+		GetAllAt(state, x, y, state.PlayerZ);
 
 	public static List<Actor> GetAllAt(GameState state, int x, int y, int z) =>
-		state.Actors.Values.Where(a => a.X == x && a.Y == y && a.Z == z).ToList();
+		state.World?.GetActorsAt(x, y, z, state.Actors) ?? ScanGetAllAt(state, x, y, z);
 
 	public static Actor? GetHostileAt(GameState state, int x, int y) =>
-		state.Actors.Values.FirstOrDefault(a =>
-			a.X == x && a.Y == y && a.Z == state.PlayerZ && a.Faction == Factions.Hostile);
+		GetHostileAt(state, x, y, state.PlayerZ);
 
 	public static Actor? GetHostileAt(GameState state, int x, int y, int z) =>
-		state.Actors.Values.FirstOrDefault(a =>
-			a.X == x && a.Y == y && a.Z == z && a.Faction == Factions.Hostile);
+		state.World?.GetHostileActorAt(x, y, z, state.Actors) ?? ScanGetHostileAt(state, x, y, z);
 
 	/// <summary>移动 Actor 到新坐标，同时同步 chunk 注册和玩家坐标。</summary>
 	public static void MoveActor(GameState state, string id, int nx, int ny)
@@ -100,8 +100,39 @@ public static class ActorModule
 		return null;
 	}
 
-	public static void ClearAll(GameState state) => state.Actors.Clear();
+	public static void ClearAll(GameState state)
+	{
+		if (state.World != null)
+		{
+			foreach (var actor in state.Actors.Values)
+				state.World.UnregisterActor(actor);
+		}
+
+		state.Actors.Clear();
+	}
 
 	public static List<Actor> GetAllHostile(GameState state) =>
 		state.Actors.Values.Where(a => a.Faction == Factions.Hostile).ToList();
+
+	public static void InitializeMissingHomePositions(GameState state)
+	{
+		foreach (var actor in state.Actors.Values)
+		{
+			if (!actor.HasHomePosition)
+				actor.SetHomePosition(actor.X, actor.Y, actor.Z);
+		}
+	}
+
+	private static Actor? ScanGetAt(GameState state, int x, int y, int z) =>
+		state.Actors.Values.FirstOrDefault(actor => actor.X == x && actor.Y == y && actor.Z == z);
+
+	private static List<Actor> ScanGetAllAt(GameState state, int x, int y, int z) =>
+		state.Actors.Values
+			.Where(actor => actor.X == x && actor.Y == y && actor.Z == z)
+			.OrderBy(actor => actor.Id)
+			.ToList();
+
+	private static Actor? ScanGetHostileAt(GameState state, int x, int y, int z) =>
+		state.Actors.Values.FirstOrDefault(actor =>
+			actor.X == x && actor.Y == y && actor.Z == z && actor.Faction == Factions.Hostile);
 }

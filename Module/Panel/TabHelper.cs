@@ -10,7 +10,8 @@ public static class TabHelper
 		HBoxContainer tabBar,
 		IReadOnlyList<string> labels,
 		IReadOnlyList<TTab> tabs,
-		Action<TTab> onPressed)
+		Action<TTab> onPressed,
+		string? panelId = null)
 		where TTab : struct
 	{
 		var result = new List<Button>(labels.Count);
@@ -26,6 +27,8 @@ public static class TabHelper
 			var tab = tabs[i];
 			btn.Pressed += () => onPressed(tab);
 			tabBar.AddChild(btn);
+			if (!string.IsNullOrEmpty(panelId))
+				PanelButtonScaleRegistry.Track(panelId, btn);
 			result.Add(btn);
 		}
 		return result;

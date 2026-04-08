@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.Data;
 
@@ -17,6 +18,10 @@ public class RacePreset
 	public string Id { get; set; } = "";
 	[JsonPropertyName("name")]
 	public string Name { get; set; } = "";
+	[JsonPropertyName("needProfileId")]
+	public string NeedProfileId { get; set; } = "";
+	[JsonPropertyName("healthProfileId")]
+	public string HealthProfileId { get; set; } = "";
 	[JsonPropertyName("tags")]
 	public Dictionary<string, int> Tags { get; set; } = new();
 	[JsonPropertyName("defaultLimbs")]
@@ -61,16 +66,44 @@ public class ItemPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("category")]
 	public string Category { get; set; } = ItemCategories.Misc;
+	[JsonPropertyName("subCategory")]
+	public string SubCategory { get; set; } = "";
+	[JsonPropertyName("techTier")]
+	public string TechTier { get; set; } = "";
 	[JsonPropertyName("price")]
 	public int Price { get; set; }
+	[JsonPropertyName("material")]
+	public string Material { get; set; } = "";
 	[JsonPropertyName("weight")]
 	public float Weight { get; set; }
+	[JsonPropertyName("maxStack")]
+	public int MaxStack { get; set; } = 1;
+	[JsonPropertyName("stackCount")]
+	public int StackCount { get; set; } = 1;
+	[JsonPropertyName("ammoType")]
+	public string AmmoType { get; set; } = "";
+	[JsonPropertyName("magazineSize")]
+	public int MagazineSize { get; set; }
+	[JsonPropertyName("loadedAmmo")]
+	public int LoadedAmmo { get; set; }
+	[JsonPropertyName("maxDurability")]
+	public int MaxDurability { get; set; }
 	[JsonPropertyName("bodyPart")]
 	public string BodyPart { get; set; } = "";
 	[JsonPropertyName("layer")]
 	public EquipLayer Layer { get; set; }
 	[JsonPropertyName("coveredParts")]
 	public List<string> CoveredParts { get; set; } = [];
+	[JsonPropertyName("coldInsulation")]
+	public float? ColdInsulation { get; set; }
+	[JsonPropertyName("heatInsulation")]
+	public float? HeatInsulation { get; set; }
+	[JsonPropertyName("waterproofing")]
+	public float? Waterproofing { get; set; }
+	[JsonPropertyName("portableWarmthC")]
+	public float? PortableWarmthC { get; set; }
+	[JsonPropertyName("portableDryingBonus")]
+	public float? PortableDryingBonus { get; set; }
 	[JsonPropertyName("sharpArmor")]
 	public float SharpArmor { get; set; }
 	[JsonPropertyName("bluntArmor")]
@@ -83,6 +116,8 @@ public class ItemPreset
 	public List<string> GrantedSkills { get; set; } = [];
 	[JsonPropertyName("isContainer")]
 	public bool IsContainer { get; set; }
+	[JsonPropertyName("surgery")]
+	public ItemSurgeryMetadata? Surgery { get; set; }
 	[JsonPropertyName("tags")]
 	public Dictionary<string, int> Tags { get; set; } = new();
 }
@@ -167,7 +202,7 @@ public class InteractionPreset
 }
 
 /// <summary>
-/// 预设数据库：从 res://Data/ 加载所有 JSON 预设，提供类型安全的查询和实例化 API。
+/// 预设数据库：从 Data/ 加载所有 JSON 预设，提供类型安全的查询和实例化 API。
 /// </summary>
 public static class PresetDB
 {
@@ -178,6 +213,13 @@ public static class PresetDB
 	public static Dictionary<string, ActorPreset> Actors { get; private set; } = new();
 	public static Dictionary<string, CapacityDef> Capacities { get; private set; } = new();
 	public static List<InteractionDef> Interactions { get; private set; } = [];
+	public static IReadOnlyDictionary<string, FacilityDef> Facilities => FacilityRegistry.All;
+	public static IReadOnlyDictionary<string, RecipeDef> Recipes => RecipeRegistry.All;
+	public static IReadOnlyDictionary<string, RoomRoleDef> RoomRoles => RoomRoleRegistry.All;
+	public static IReadOnlyDictionary<string, ItemSubcategoryDef> ItemSubcategories => ItemSubcategoryRegistry.All;
+	public static IReadOnlyDictionary<string, AmmoProfileDef> AmmoProfiles => AmmoProfileRegistry.All;
+	public static IReadOnlyDictionary<string, CorpseProfileDef> CorpseProfiles => CorpseProfileRegistry.All;
+	public static IReadOnlyDictionary<string, SurgeryOperationDef> SurgeryOperations => SurgeryOperationRegistry.All;
 
 	/// <summary>hostile faction 的 actor 模板 ID 列表，用于怪物刷新。</summary>
 	public static IReadOnlyCollection<string> MonsterIds { get; private set; } = [];
@@ -187,23 +229,38 @@ public static class PresetDB
 	public static void Load()
 	{
 		if (_loaded) return;
-		_loaded = true;
-
-		var materials = LoadList<MaterialDef>("res://Data/materials.json");
+		var materials = LoadList<MaterialDef>("materials.json");
 		foreach (var m in materials)
 			MaterialRegistry.Register(m);
 
-		var categories = LoadList<ItemCategoryPreset>("res://Data/item_categories.json");
+		var categories = LoadList<ItemCategoryPreset>("item_categories.json");
 		foreach (var c in categories)
 			ItemCategoryDef.Register(new ItemCategoryDef { Id = c.Id, Name = c.Name, DefaultWeight = c.DefaultWeight });
+		ItemSubcategoryRegistry.Clear();
+		foreach (var def in LoadOptionalList<ItemSubcategoryDef>("item_subcategories.json"))
+			ItemSubcategoryRegistry.Register(def);
+		AmmoProfileRegistry.Clear();
+		foreach (var def in LoadOptionalList<AmmoProfileDef>("ammo_profiles.json"))
+			AmmoProfileRegistry.Register(def);
+		CorpseProfileRegistry.Clear();
+		foreach (var def in LoadOptionalList<CorpseProfileDef>("corpse_profiles.json"))
+			CorpseProfileRegistry.Register(def);
+		SurgeryOperationRegistry.Clear();
+		foreach (var def in LoadOptionalList<SurgeryOperationDef>("surgery_operations.json"))
+			SurgeryOperationRegistry.Register(def);
+		FixtureRegistry.Load();
+		FacilityRegistry.Load();
+		RecipeRegistry.Load();
+		RoomRoleRegistry.Load();
 
-		Races = LoadDict<RacePreset>("res://Data/races.json");
-		Limbs = LoadDict<LimbPreset>("res://Data/limbs.json");
-		Professions = LoadDict<ProfessionPreset>("res://Data/professions.json");
-		Items = LoadDict<ItemPreset>("res://Data/items.json");
-		Actors = LoadDict<ActorPreset>("res://Data/actors.json");
-		Capacities = LoadDict<CapacityDef>("res://Data/capacities.json");
-		Interactions = LoadList<InteractionPreset>("res://Data/interactions.json")
+		NeedCatalog.Load();
+		Races = LoadDict<RacePreset>("races.json");
+		Limbs = LoadDict<LimbPreset>("limbs.json");
+		Professions = LoadDict<ProfessionPreset>("professions.json");
+		Items = LoadDict<ItemPreset>("items.json");
+		Actors = LoadDict<ActorPreset>("actors.json");
+		Capacities = LoadDict<CapacityDef>("capacities.json");
+		Interactions = LoadList<InteractionPreset>("interactions.json")
 			.Select(i => new InteractionDef
 			{
 				Id = i.Id, Name = i.Name, Description = i.Description,
@@ -222,6 +279,7 @@ public static class PresetDB
 			.Where(a => a.Faction == Factions.Hostile)
 			.Select(a => a.Id)
 			.ToArray();
+		_loaded = true;
 	}
 
 	/// <summary>
@@ -238,9 +296,12 @@ public static class PresetDB
 			Id = instanceId,
 			Glyph = preset.Glyph,
 			DisplayName = preset.DisplayName,
+			TemplateId = templateId,
 			Faction = preset.Faction,
 			Gold = preset.Gold,
 		};
+		if (string.Equals(preset.Faction, Factions.Player, StringComparison.Ordinal))
+			actor.PrimaryDomainId = DomainIds.Player;
 
 		if (Races.TryGetValue(preset.RaceId, out var race))
 		{
@@ -248,6 +309,8 @@ public static class PresetDB
 			{
 				Id = race.Id,
 				Name = race.Name,
+				NeedProfileId = race.NeedProfileId,
+				HealthProfileId = race.HealthProfileId,
 				Tags = new(race.Tags),
 			};
 			foreach (var limbId in race.DefaultLimbs)
@@ -282,6 +345,8 @@ public static class PresetDB
 			actor.DialogPersonality = new(preset.DialogPersonality);
 		if (preset.DialogNeeds != null)
 			actor.DialogNeeds = new(preset.DialogNeeds);
+		NeedSystem.EnsureInitialized(actor, currentTurn: 0);
+		HealthSystem.EnsureInitialized(actor, currentTurn: 0);
 
 		return actor;
 	}
@@ -297,6 +362,7 @@ public static class PresetDB
 			Name = preset.Name,
 			MaxDurability = preset.MaxDurability,
 			Durability = preset.MaxDurability,
+			PermanentDamage = 0,
 			Material = preset.Material,
 			BodyPart = preset.BodyPart,
 			EquipLayers = [.. preset.EquipLayers],
@@ -311,29 +377,64 @@ public static class PresetDB
 	public static CapacityDef? GetCapacity(string capId) =>
 		Capacities.GetValueOrDefault(capId);
 
+	public static int ResolveItemMaxDurability(string itemId, string? materialId = null, string? category = null, float weight = 0f)
+	{
+		if (!string.IsNullOrWhiteSpace(itemId) && Items.TryGetValue(itemId, out var preset))
+			return ResolveItemMaxDurability(preset);
+
+		var resolvedMaterialId = string.IsNullOrWhiteSpace(materialId) ? "wood" : materialId!;
+		var resolvedCategory = string.IsNullOrWhiteSpace(category) ? ItemCategories.Misc : category!;
+		return ResolveDerivedItemMaxDurability(resolvedMaterialId, resolvedCategory, weight);
+	}
+
+	public static int ResolveItemMaxDurability(ItemPreset preset)
+	{
+		if (preset.MaxDurability > 0)
+			return preset.MaxDurability;
+
+		var materialId = string.IsNullOrWhiteSpace(preset.Material) ? "wood" : preset.Material;
+		return ResolveDerivedItemMaxDurability(materialId, preset.Category, preset.Weight);
+	}
+
 	/// <summary>根据物品预设 ID 克隆一个新的 Item 实例。</summary>
 	public static Item CloneItem(string itemId)
 	{
 		if (!Items.TryGetValue(itemId, out var preset))
 			throw new ArgumentException($"Unknown item preset: {itemId}");
-		return new Item
+		var item = new Item
 		{
 			Id = preset.Id,
 			Name = preset.Name,
+			MaterialId = preset.Material,
 			Category = preset.Category,
+			SubCategory = preset.SubCategory,
+			TechTier = preset.TechTier,
 			Price = preset.Price,
 			Weight = preset.Weight,
+			MaxStack = Math.Max(1, preset.MaxStack),
+			StackCount = Math.Max(1, preset.StackCount),
+			AmmoType = preset.AmmoType,
+			MagazineSize = preset.MagazineSize,
+			LoadedAmmo = preset.LoadedAmmo > 0 ? preset.LoadedAmmo : preset.MagazineSize,
 			BodyPart = preset.BodyPart,
 			Layer = preset.Layer,
 			CoveredParts = [.. preset.CoveredParts],
+			ColdInsulation = Item.ResolveColdInsulation(preset.ColdInsulation, preset.Tags),
+			HeatInsulation = Item.ClampProtection(preset.HeatInsulation ?? 0f),
+			Waterproofing = Item.ClampProtection(preset.Waterproofing ?? 0f),
+			PortableWarmthC = Item.ClampPortableValue(preset.PortableWarmthC ?? 0f),
+			PortableDryingBonus = Item.ClampPortableValue(preset.PortableDryingBonus ?? 0f),
 			SharpArmor = preset.SharpArmor,
 			BluntArmor = preset.BluntArmor,
 			SharpDamage = preset.SharpDamage,
 			BluntDamage = preset.BluntDamage,
 			GrantedSkills = [.. preset.GrantedSkills],
 			Contents = preset.IsContainer ? [] : null,
+			Surgery = preset.Surgery?.Clone(),
 			Tags = new(preset.Tags),
 		};
+		item.InitializeRuntimeState(instanceId: null, maxDurability: ResolveItemMaxDurability(preset));
+		return item;
 	}
 
 	// ── 内部工具 ─────────────────────────────────────────
@@ -347,9 +448,9 @@ public static class PresetDB
 		Converters = { new JsonStringEnumConverter() },
 	};
 
-	private static Dictionary<string, T> LoadDict<T>(string resPath) where T : class
+	private static Dictionary<string, T> LoadDict<T>(string relativeDataPath) where T : class
 	{
-		var list = LoadList<T>(resPath);
+		var list = LoadList<T>(relativeDataPath);
 		var dict = new Dictionary<string, T>();
 		foreach (var item in list)
 		{
@@ -359,14 +460,37 @@ public static class PresetDB
 		return dict;
 	}
 
-	private static List<T> LoadList<T>(string resPath)
+	private static List<T> LoadList<T>(string relativeDataPath)
 	{
-		using var file = Godot.FileAccess.Open(resPath, Godot.FileAccess.ModeFlags.Read);
-		if (file == null)
-			throw new InvalidOperationException(
-				$"Failed to open preset file: {resPath} (error: {Godot.FileAccess.GetOpenError()})");
-		var json = file.GetAsText();
+		var json = GameDataLocator.ReadTextOrThrow(relativeDataPath);
 		return JsonSerializer.Deserialize<List<T>>(json, JsonOpts) ?? [];
+	}
+
+	private static List<T> LoadOptionalList<T>(string relativeDataPath)
+	{
+		if (!GameDataLocator.TryReadText(relativeDataPath, out var json, out _))
+			return [];
+
+		return JsonSerializer.Deserialize<List<T>>(json, JsonOpts) ?? [];
+	}
+
+	private static int ResolveDerivedItemMaxDurability(string materialId, string category, float weight)
+	{
+		var hardness = Math.Max(0.5f, MaterialRegistry.Get(materialId).Hardness);
+		var categoryBase = category switch
+		{
+			ItemCategories.Weapon => 45f,
+			ItemCategories.Armor => 55f,
+			ItemCategories.Clothing => 32f,
+			ItemCategories.Tool => 42f,
+			ItemCategories.Material => 28f,
+			ItemCategories.Food => 10f,
+			ItemCategories.Consumable => 12f,
+			ItemCategories.Ammo => 8f,
+			_ => 24f,
+		};
+		var derived = categoryBase + hardness * 8f + Math.Max(0f, weight) * 4f;
+		return Math.Max(6, (int)MathF.Round(derived, MidpointRounding.AwayFromZero));
 	}
 
 	private static string GetId<T>(T item)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module;
 
@@ -39,6 +40,7 @@ public sealed class SaveBrowserModule
 		_slots = slots;
 		_titleLabel.Text = title;
 		_subtitleLabel.Text = subtitle;
+		RefreshTexts();
 		RebuildRows();
 		Visible = true;
 	}
@@ -46,6 +48,13 @@ public sealed class SaveBrowserModule
 	public void Close()
 	{
 		Visible = false;
+	}
+
+	public void RefreshTexts()
+	{
+		_backButton.Text = LocalizationService.T("ui.save_browser.back");
+		if (_slots.Count == 0 && _rows.Count > 0)
+			_rows[0].Text = LocalizationService.T("ui.save_browser.empty_row");
 	}
 
 	private void RebuildRows()
@@ -68,7 +77,7 @@ public sealed class SaveBrowserModule
 		{
 			var row = _rows[0];
 			row.Disabled = true;
-			row.Text = "No saves available";
+			row.Text = LocalizationService.T("ui.save_browser.empty_row");
 			return;
 		}
 

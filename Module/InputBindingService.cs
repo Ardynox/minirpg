@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module;
 
@@ -62,7 +63,8 @@ public readonly record struct InputGesture(
 
 	public string ToDisplayString()
 	{
-		if (IsEmpty) return "未绑定";
+		if (IsEmpty)
+			return LocalizationService.T("ui.key_bindings.unbound");
 
 		var parts = new List<string>();
 		if (Ctrl) parts.Add("Ctrl");
@@ -71,9 +73,7 @@ public readonly record struct InputGesture(
 
 		var inputName = Kind switch
 		{
-			InputGestureKind.Key => string.IsNullOrWhiteSpace(OS.GetKeycodeString(Keycode))
-				? Keycode.ToString()
-				: OS.GetKeycodeString(Keycode),
+			InputGestureKind.Key => FormatKeycode(Keycode),
 			InputGestureKind.MouseWheel => MouseButtonCode switch
 			{
 				MouseButton.WheelUp => "WheelUp",
@@ -84,6 +84,26 @@ public readonly record struct InputGesture(
 		};
 		parts.Add(inputName);
 		return string.Join("+", parts);
+	}
+
+	private static string FormatKeycode(Key keycode)
+	{
+		var name = keycode.ToString();
+		if (name.StartsWith("Key", StringComparison.Ordinal) && name.Length == 4 && char.IsDigit(name[3]))
+			return name[3].ToString();
+
+		return keycode switch
+		{
+			Key.None => "None",
+			Key.Space => "Space",
+			Key.Enter => "Enter",
+			Key.Escape => "Escape",
+			Key.Up => "Up",
+			Key.Down => "Down",
+			Key.Left => "Left",
+			Key.Right => "Right",
+			_ => name,
+		};
 	}
 
 	public static bool TryFromEvent(InputEventKey key, out InputGesture gesture)
@@ -111,14 +131,14 @@ public readonly record struct InputGesture(
 
 public sealed class BindingActionDef(
 	string id,
-	string label,
+	string labelKey,
 	InputBindingContext context,
 	string? command,
 	InputGesture primaryDefault,
 	InputGesture secondaryDefault)
 {
 	public string Id { get; } = id;
-	public string Label { get; } = label;
+	public string LabelKey { get; } = labelKey;
 	public InputBindingContext Context { get; } = context;
 	public string? Command { get; } = command;
 	public InputGesture PrimaryDefault { get; } = primaryDefault;
@@ -139,13 +159,18 @@ public sealed class InputBindingService
 
 	private readonly Dictionary<InputBindingContext, List<BindingActionState>> _byContext = [];
 	private readonly Dictionary<string, BindingActionState> _byId = [];
+	private readonly string _savePath;
 
 	public event Action? Changed;
 
-	private string SavePath => ProjectSettings.GlobalizePath($"user://{BindingFileName}");
+	private string SavePath => _savePath;
 
-	public InputBindingService()
+	public InputBindingService(string? savePath = null)
 	{
+		_savePath = string.IsNullOrWhiteSpace(savePath)
+			? ResolveFallbackSavePath()
+			: Path.GetFullPath(savePath);
+
 		foreach (InputBindingContext ctx in Enum.GetValues(typeof(InputBindingContext)))
 			_byContext[ctx] = [];
 
@@ -165,7 +190,14 @@ public sealed class InputBindingService
 		var list = _byContext[context];
 		var result = new List<BindingActionView>(list.Count);
 		foreach (var state in list)
-			result.Add(new BindingActionView(state.Def.Id, state.Def.Label, state.Primary, state.Secondary, state.Def.Command));
+		{
+			result.Add(new BindingActionView(
+				state.Def.Id,
+				LocalizationService.T(state.Def.LabelKey),
+				state.Primary,
+				state.Secondary,
+				state.Def.Command));
+		}
 		return result;
 	}
 
@@ -364,55 +396,67 @@ public sealed class InputBindingService
 		else state.Secondary = gesture;
 	}
 
+	private static string ResolveFallbackSavePath()
+	{
+		var baseDir = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
+		if (string.IsNullOrWhiteSpace(baseDir))
+			baseDir = AppContext.BaseDirectory;
+
+		return Path.Combine(baseDir, "MiniRPG", BindingFileName);
+	}
+
 	private static List<BindingActionDef> BuildDefaults()
 	{
 		var defs = new List<BindingActionDef>
 		{
-			new("move_north", "向上移动", InputBindingContext.Action, "w", InputGesture.FromKey(Key.W), InputGesture.FromKey(Key.Up)),
-			new("move_south", "向下移动", InputBindingContext.Action, "s", InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
-			new("move_west", "向左移动", InputBindingContext.Action, "a", InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
-			new("move_east", "向右移动", InputBindingContext.Action, "d", InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
-			new("look", "查看周围", InputBindingContext.Action, "look", InputGesture.FromKey(Key.L), default),
-			new("toggle_render", "切换渲染", InputBindingContext.Action, ":render", InputGesture.FromKey(Key.R), default),
-			new("interact", "交互", InputBindingContext.Action, ":interact", InputGesture.FromKey(Key.F), InputGesture.FromKey(Key.O)),
-			new("inventory", "背包", InputBindingContext.Action, ":inventory", InputGesture.FromKey(Key.I), default),
-			new("dig", "挖掘", InputBindingContext.Action, ":dig", InputGesture.FromKey(Key.G), default),
-			new("skills", "技能管理", InputBindingContext.Action, ":skills", InputGesture.FromKey(Key.K), default),
-			new("skillbar", "技能栏", InputBindingContext.Action, ":skillbar", InputGesture.FromKey(Key.B), default),
-			new("skill_prev", "上一技能", InputBindingContext.Action, ":skill_prev", InputGesture.FromMouseWheel(MouseButton.WheelUp), default),
-			new("skill_next", "下一技能", InputBindingContext.Action, ":skill_next", InputGesture.FromMouseWheel(MouseButton.WheelDown), default),
-			new("toggle_status", "状态面板", InputBindingContext.Action, ":toggle_status", InputGesture.FromKey(Key.H), default),
-			new("quests", "任务面板", InputBindingContext.Action, ":quests", InputGesture.FromKey(Key.J), default),
-			new("minimap", "小地图", InputBindingContext.Action, ":minimap", InputGesture.FromKey(Key.Tab), default),
-			new("fogmap", "大地图", InputBindingContext.Action, ":fogmap", InputGesture.FromKey(Key.M), default),
-			new("fogmap_center", "大地图居中", InputBindingContext.Action, ":fogmap_center", InputGesture.FromKey(Key.C), default),
-			new("enter_stairs", "上下楼梯", InputBindingContext.Action, "enter", InputGesture.FromKey(Key.Space), default),
-			new("open_settings", "设置", InputBindingContext.Action, ":settings", InputGesture.FromKey(Key.Escape), default),
-			new("open_typing", "输入命令", InputBindingContext.Action, ":typing", InputGesture.FromKey(Key.Enter), InputGesture.FromKey(Key.T)),
-			new("quicksave", "快速存档", InputBindingContext.Action, ":quicksave", InputGesture.FromKey(Key.F5), default),
-			new("quickload", "快速读档", InputBindingContext.Action, ":quickload", InputGesture.FromKey(Key.F9), default),
-			new("status_prev", "状态上一页", InputBindingContext.Action, ":status_prev", InputGesture.FromKey(Key.Comma), default),
-			new("status_next", "状态下一页", InputBindingContext.Action, ":status_next", InputGesture.FromKey(Key.Period), default),
+			new("move_north", "input.action.move_north", InputBindingContext.Action, "w", InputGesture.FromKey(Key.W), InputGesture.FromKey(Key.Up)),
+			new("move_south", "input.action.move_south", InputBindingContext.Action, "s", InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
+			new("move_west", "input.action.move_west", InputBindingContext.Action, "a", InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
+			new("move_east", "input.action.move_east", InputBindingContext.Action, "d", InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
+			new("look", "input.action.look", InputBindingContext.Action, "look", InputGesture.FromKey(Key.L), default),
+			new("inspect_mode", "input.action.inspect_mode", InputBindingContext.Action, ":inspect_mode", InputGesture.FromKey(Key.Asterisk), InputGesture.FromKey(Key.KpMultiply)),
+			new("toggle_render", "input.action.toggle_render", InputBindingContext.Action, ":render", InputGesture.FromKey(Key.R), default),
+			new("interact", "input.action.interact", InputBindingContext.Action, ":interact", InputGesture.FromKey(Key.F), InputGesture.FromKey(Key.O)),
+			new("inventory", "input.action.inventory", InputBindingContext.Action, ":inventory", InputGesture.FromKey(Key.I), default),
+			new("rest", "input.action.rest", InputBindingContext.Action, ":rest", InputGesture.FromKey(Key.Y), default),
+			new("dig", "input.action.dig", InputBindingContext.Action, ":dig", InputGesture.FromKey(Key.G), default),
+			new("skills", "input.action.skills", InputBindingContext.Action, ":skills", InputGesture.FromKey(Key.K), default),
+			new("skillbar", "input.action.skillbar", InputBindingContext.Action, ":skillbar", InputGesture.FromKey(Key.B), default),
+			new("debug_panel", "input.action.debug_panel", InputBindingContext.Action, ":debug_panel", InputGesture.FromKey(Key.F12), default),
+			new("skill_prev", "input.action.skill_prev", InputBindingContext.Action, ":skill_prev", InputGesture.FromMouseWheel(MouseButton.WheelUp), default),
+			new("skill_next", "input.action.skill_next", InputBindingContext.Action, ":skill_next", InputGesture.FromMouseWheel(MouseButton.WheelDown), default),
+			new("toggle_status", "input.action.toggle_status", InputBindingContext.Action, ":toggle_status", InputGesture.FromKey(Key.H), default),
+			new("quests", "input.action.quests", InputBindingContext.Action, ":quests", InputGesture.FromKey(Key.J), default),
+			new("minimap", "input.action.minimap", InputBindingContext.Action, ":minimap", InputGesture.FromKey(Key.Tab), default),
+			new("fogmap", "input.action.fogmap", InputBindingContext.Action, ":fogmap", InputGesture.FromKey(Key.M), default),
+			new("fogmap_center", "input.action.fogmap_center", InputBindingContext.Action, ":fogmap_center", InputGesture.FromKey(Key.C), default),
+			new("enter_stairs", "input.action.enter_stairs", InputBindingContext.Action, "enter", InputGesture.FromKey(Key.Space), default),
+			new("open_settings", "input.action.open_settings", InputBindingContext.Action, ":settings", InputGesture.FromKey(Key.Escape), default),
+			new("open_typing", "input.action.open_typing", InputBindingContext.Action, ":typing", InputGesture.FromKey(Key.Enter), InputGesture.FromKey(Key.T)),
+			new("quicksave", "input.action.quicksave", InputBindingContext.Action, ":quicksave", InputGesture.FromKey(Key.F5), default),
+			new("quickload", "input.action.quickload", InputBindingContext.Action, ":quickload", InputGesture.FromKey(Key.F9), default),
+			new("status_prev", "input.action.status_prev", InputBindingContext.Action, ":status_prev", InputGesture.FromKey(Key.Comma), default),
+			new("status_next", "input.action.status_next", InputBindingContext.Action, ":status_next", InputGesture.FromKey(Key.Period), default),
 
-			new("typing_cancel", "取消输入", InputBindingContext.Typing, null, InputGesture.FromKey(Key.Escape), default),
+			new("typing_cancel", "input.typing.cancel", InputBindingContext.Typing, null, InputGesture.FromKey(Key.Escape), default),
 
-			new("selection_cancel", "取消选择", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Escape), default),
-			new("selection_0", "选择 0", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key0), default),
-			new("selection_1", "选择 1", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key1), default),
-			new("selection_2", "选择 2", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key2), default),
-			new("selection_3", "选择 3", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key3), default),
-			new("selection_4", "选择 4", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key4), default),
-			new("selection_5", "选择 5", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key5), default),
-			new("selection_6", "选择 6", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key6), default),
-			new("selection_7", "选择 7", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key7), default),
-			new("selection_8", "选择 8", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key8), default),
-			new("selection_9", "选择 9", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key9), default),
+			new("selection_cancel", "input.selection.cancel", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Escape), default),
+			new("selection_0", "input.selection.0", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key0), default),
+			new("selection_1", "input.selection.1", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key1), default),
+			new("selection_2", "input.selection.2", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key2), default),
+			new("selection_3", "input.selection.3", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key3), default),
+			new("selection_4", "input.selection.4", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key4), default),
+			new("selection_5", "input.selection.5", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key5), default),
+			new("selection_6", "input.selection.6", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key6), default),
+			new("selection_7", "input.selection.7", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key7), default),
+			new("selection_8", "input.selection.8", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key8), default),
+			new("selection_9", "input.selection.9", InputBindingContext.Selection, null, InputGesture.FromKey(Key.Key9), default),
 
-			new("direction_cancel", "取消方向选择", InputBindingContext.Direction, null, InputGesture.FromKey(Key.Escape), default),
-			new("direction_n", "方向 北", InputBindingContext.Direction, null, InputGesture.FromKey(Key.W), InputGesture.FromKey(Key.Up)),
-			new("direction_s", "方向 南", InputBindingContext.Direction, null, InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
-			new("direction_w", "方向 西", InputBindingContext.Direction, null, InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
-			new("direction_e", "方向 东", InputBindingContext.Direction, null, InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
+			new("direction_cancel", "input.direction.cancel", InputBindingContext.Direction, null, InputGesture.FromKey(Key.Escape), default),
+			new("direction_n", "input.direction.north", InputBindingContext.Direction, null, InputGesture.FromKey(Key.W), InputGesture.FromKey(Key.Up)),
+			new("direction_s", "input.direction.south", InputBindingContext.Direction, null, InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
+			new("direction_w", "input.direction.west", InputBindingContext.Direction, null, InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
+			new("direction_e", "input.direction.east", InputBindingContext.Direction, null, InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
 		};
 
 		return defs;

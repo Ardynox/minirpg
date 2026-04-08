@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[node name="TurnPanel" type="PanelContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 104)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="MarginContainer/VBox"]
+layout_mode = 2
+text = "ui.turn_panel.title"
+
+[node name="StatusText" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="Sep0" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="SummaryText" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="QueueText" type="RichTextLabel" parent="MarginContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false

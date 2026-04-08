@@ -1,0 +1,82 @@
+[
+  {
+    "id": "cook_simple_meal",
+    "name": "Cook Simple Meal",
+    "tags": ["cooking"],
+    "inputs": [
+      { "itemId": "raw_meat", "count": 1 },
+      { "itemId": "berries", "count": 1 }
+    ],
+    "outputs": [
+      { "itemId": "meal_simple", "count": 1 }
+    ],
+    "workTurns": 3,
+    "fuelPerCraft": 1,
+    "requiredProfessionIds": ["cook"],
+    "requiredCapacities": { "manipulation": 0.4 },
+    "outputTarget": "OwnerDomainStockpile"
+  },
+  {
+    "id": "cook_fine_meal",
+    "name": "Cook Fine Meal",
+    "tags": ["cooking"],
+    "inputs": [
+      { "itemId": "raw_meat", "count": 2 },
+      { "itemId": "berries", "count": 1 }
+    ],
+    "outputs": [
+      { "itemId": "meal_fine", "count": 1 }
+    ],
+    "workTurns": 5,
+    "fuelPerCraft": 1,
+    "requiredProfessionIds": ["cook"],
+    "requiredCapacities": { "manipulation": 0.5 },
+    "outputTarget": "OwnerDomainStockpile"
+  },
+  {
+    "id": "forge_iron_sword",
+    "name": "Forge Iron Sword",
+    "tags": ["smithing"],
+    "inputs": [
+      { "itemId": "mat_iron", "count": 6 }
+    ],
+    "outputs": [
+      { "itemId": "sword_iron", "count": 1 }
+    ],
+    "workTurns": 8,
+    "fuelPerCraft": 2,
+    "requiredProfessionIds": ["blacksmith"],
+    "requiredCapacities": { "manipulation": 0.6 },
+    "outputTarget": "OwnerDomainStockpile"
+  },
+  {
+    "id": "stitch_bedroll",
+    "name": "Stitch Bedroll",
+    "tags": ["tailoring"],
+    "inputs": [
+      { "itemId": "mat_cloth", "count": 8 }
+    ],
+    "outputs": [
+      { "itemId": "bedroll", "count": 1 }
+    ],
+    "workTurns": 4,
+    "requiredProfessionIds": ["tailor"],
+    "requiredCapacities": { "manipulation": 0.5 },
+    "outputTarget": "OwnerDomainStockpile"
+  },
+  {
+    "id": "brew_herbal_medicine",
+    "name": "Brew Herbal Medicine",
+    "tags": ["herbalism"],
+    "inputs": [
+      { "itemId": "mat_herb", "count": 4 }
+    ],
+    "outputs": [
+      { "itemId": "herbal_medicine", "count": 1 }
+    ],
+    "workTurns": 4,
+    "requiredProfessionIds": ["herbalist"],
+    "requiredCapacities": { "manipulation": 0.4 },
+    "outputTarget": "OwnerDomainStockpile"
+  }
+]

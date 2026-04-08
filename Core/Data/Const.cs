@@ -20,7 +20,10 @@ public static class Entities
 	public const string Nest = "nest";
 	public const string Door = "door";
 	public const string House = "house";
+	public const string Campfire = "campfire";
+	public const string Fire = "fire";
 	public const string Item = "item";
+	public const string BloodFilth = "blood_filth";
 }
 
 /// <summary>地形 StringId 常量，与 terrains.json 保持一致。</summary>
@@ -52,8 +55,15 @@ public static class Terrains
 /// <summary>能力 ID 常量，与 capacities.json 保持一致。</summary>
 public static class Caps
 {
+	public const string Consciousness = "consciousness";
+	public const string BloodCirculation = "blood_circulation";
+	public const string Moving = "moving";
 	public const string Sight = "sight";
 	public const string Manipulation = "manipulation";
+	public const string Metabolism = "metabolism";
+	public const string Talking = "talking";
+	public const string Eating = "eating";
+	public const string Breathing = "breathing";
 	public const string Hearing = "hearing";
 }
 
@@ -88,6 +98,8 @@ public static class DamageTypes
 	public const string Sharp = "sharp";
 	public const string Blunt = "blunt";
 	public const string Poison = "poison";
+	public const string Lightning = "lightning";
+	public const string Fire = "fire";
 }
 
 /// <summary>物品大类常量。</summary>
@@ -100,5 +112,17 @@ public static class ItemCategories
 	public const string Tool = "tool";
 	public const string Material = "material";
 	public const string Food = "food";
+	public const string Ammo = "ammo";
 	public const string Misc = "misc";
+}
+
+/// <summary>常用物品 tag 常量。</summary>
+public static class ItemTags
+{
+	public const string Healing = "\u6cbb\u7597";
+	public const string Nutrition = "\u9971\u8179";
+	public const string Mood = "\u5fc3\u60c5";
+	public const string RestQuality = "\u4f11\u606f\u8d28\u91cf";
+	public const string Warmth = "\u4fdd\u6696";
+	public const string LegacyWarmth = "\u6dc7\u6fc7\u6ba9";
 }

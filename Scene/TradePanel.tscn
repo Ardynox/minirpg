@@ -36,11 +36,12 @@ offset_right = -6.0
 offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
+focus_mode = 0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
-text = "── 交易 ──"
+text = "ui.trade.title"
 
 [node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -76,19 +77,19 @@ theme_override_constants/separation = 4
 [node name="BuyBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "购买 [E]"
+text = "ui.trade.buy"
 
 [node name="SellBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "出售 [Q]"
+text = "ui.trade.sell"
 
 [node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "关闭 [Esc]"
+text = "ui.common.close_esc"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "↑↓选择 ←→切换买/卖 E确认 Esc关闭"
+text = "ui.trade.hint"

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Render;
 
@@ -15,7 +16,7 @@ namespace MiniRPG.Module.Render;
 /// </summary>
 public static class ResAccess
 {
-	private const string RegistryPath = "res://Data/entity_render.json";
+	private const string RegistryPath = "entity_render.json";
 	private const string Tag = "[ResAccess]";
 
 	// ── 注册表 ──────────────────────────────────────────
@@ -46,13 +47,12 @@ public static class ResAccess
 		if (_loaded) return;
 		_loaded = true;
 
-		if (!Godot.FileAccess.FileExists(RegistryPath))
+		if (!GameDataLocator.TryReadText(RegistryPath, out var json, out var sourceLabel))
 		{
-			GD.PrintErr($"{Tag} 找不到注册表文件：{RegistryPath}");
+			GD.PrintErr($"{Tag} 找不到注册表文件：{sourceLabel}");
 			return;
 		}
 
-		var json = Godot.FileAccess.GetFileAsString(RegistryPath);
 		var opts = new JsonSerializerOptions
 		{
 			PropertyNameCaseInsensitive = true,
@@ -231,7 +231,7 @@ public static class ResAccess
 	/// <summary>entity_render.json 中一条渲染配置。</summary>
 	public class RenderEntry
 	{
-		/// <summary>"spine" / "tile" / "placeholder"</summary>
+		/// <summary>"spine" / "sprite_sheet" / "texture" / "tile" / "placeholder"</summary>
 		[JsonPropertyName("type")]
 		public string Type { get; set; } = "tile";
 
@@ -247,6 +247,25 @@ public static class ResAccess
 		/// <summary>[scaleX, scaleY]</summary>
 		[JsonPropertyName("scale")]
 		public float[]? Scale { get; set; }
+
+		/// <summary>[offsetX, offsetY] in rendered map pixels.</summary>
+		[JsonPropertyName("offset")]
+		public float[]? Offset { get; set; }
+
+		[JsonPropertyName("sheetDir")]
+		public string? SheetDir { get; set; }
+
+		[JsonPropertyName("texturePath")]
+		public string? TexturePath { get; set; }
+
+		[JsonPropertyName("frameWidth")]
+		public int FrameWidth { get; set; }
+
+		[JsonPropertyName("frameHeight")]
+		public int FrameHeight { get; set; }
+
+		[JsonPropertyName("useFacing")]
+		public bool UseFacing { get; set; }
 
 		[JsonPropertyName("tileName")]
 		public string? TileName { get; set; }

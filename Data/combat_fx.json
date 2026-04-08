@@ -1,0 +1,159 @@
+{
+  "defaultAttack": "default_attack",
+  "effects": {
+    "default_attack": {
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_hit_blunt",
+        "duration": 0.18,
+        "scale": 0.34,
+        "tint": "#ffffff",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.5,
+        "risePixels": 52,
+        "tint": "#fff2cf",
+        "layer": 30
+      }
+    },
+    "melee_attack": {
+      "primary": {
+        "kind": "sprite",
+        "anchor": "source",
+        "resourceId": "fx_slash_arc",
+        "duration": 0.2,
+        "scale": 0.36,
+        "tint": "#ffe8c6",
+        "layer": 11,
+        "rotateToTarget": true
+      },
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_hit_blunt",
+        "duration": 0.18,
+        "scale": 0.32,
+        "tint": "#fff4dd",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.5,
+        "risePixels": 52,
+        "tint": "#fff2cf",
+        "layer": 30
+      }
+    },
+    "heavy_attack": {
+      "primary": {
+        "kind": "sprite",
+        "anchor": "source",
+        "resourceId": "fx_slash_arc",
+        "duration": 0.28,
+        "scale": 0.46,
+        "tint": "#ffd08a",
+        "layer": 11,
+        "rotateToTarget": true
+      },
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_hit_blunt",
+        "duration": 0.24,
+        "scale": 0.42,
+        "tint": "#ffcc88",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.55,
+        "risePixels": 60,
+        "tint": "#ffd68a",
+        "layer": 30
+      }
+    },
+    "poison_attack": {
+      "primary": {
+        "kind": "projectile",
+        "anchor": "source",
+        "resourceId": "fx_poison_spit",
+        "duration": 0.24,
+        "scale": 0.28,
+        "tint": "#9dff88",
+        "layer": 13,
+        "rotateToTarget": true
+      },
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_hit_blunt",
+        "duration": 0.2,
+        "scale": 0.28,
+        "tint": "#93ff85",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.55,
+        "risePixels": 58,
+        "tint": "#a6ff89",
+        "layer": 30
+      }
+    },
+    "ranged_attack": {
+      "primary": {
+        "kind": "projectile",
+        "anchor": "source",
+        "resourceId": "fx_arrow_projectile",
+        "duration": 0.22,
+        "scale": 0.22,
+        "tint": "#ffffff",
+        "layer": 13,
+        "rotateToTarget": true
+      },
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_hit_blunt",
+        "duration": 0.18,
+        "scale": 0.24,
+        "tint": "#ffffff",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.5,
+        "risePixels": 54,
+        "tint": "#fff2cf",
+        "layer": 30
+      }
+    },
+    "block": {
+      "primary": {
+        "kind": "sprite",
+        "anchor": "source",
+        "resourceId": "fx_buff_flash",
+        "duration": 0.24,
+        "scale": 0.3,
+        "tint": "#8fd7ff",
+        "layer": 12
+      },
+      "text": {
+        "mode": "block",
+        "anchor": "source",
+        "duration": 0.52,
+        "risePixels": 48,
+        "tint": "#8fd7ff",
+        "layer": 30
+      }
+    }
+  }
+}

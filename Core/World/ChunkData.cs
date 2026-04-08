@@ -37,6 +37,11 @@ public class ChunkData
 
 	/// <summary>此 chunk 内的巢穴列表。</summary>
 	public List<NestData> Nests { get; set; } = [];
+	public byte[] SnowDepth { get; set; } = new byte[Area];
+	public byte[] SandDepth { get; set; } = new byte[Area];
+	public byte[] Wetness { get; set; } = new byte[Area];
+	public byte[] IceDepth { get; set; } = new byte[Area];
+	public int LastWeatherSimTurn { get; set; }
 
 	// ── 便捷访问 ──
 

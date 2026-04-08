@@ -1,10 +1,14 @@
 using System.Collections.Generic;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
 using MiniRPG.Module.Panel;
 
 namespace MiniRPG.Module;
 
 /// <summary>
-/// 浜ゆ槗 UI 娴佺▼缂栨帓锛氳繛鎺?TradeModule / TradePanelModule / PanelManager銆?/// 浠讳綍鏈夌墿鍝佺殑鐢熺墿閮藉彲浠ヤ氦鏄擄紝璐ф簮鏉ヨ嚜瀵规柟鐨?ShopSlots + Inventory銆?/// </summary>
+/// 交易 UI 流程编排：连接 TradeModule、TradePanelModule 和 PanelManager。
+/// 任何拥有物品的生物都可以交易，货源来自对方的 ShopSlots 和 Inventory。
+/// </summary>
 public class TradeUIModule
 {
 	private readonly IGameUI _ui;
@@ -32,19 +36,23 @@ public class TradeUIModule
 		if (player == null || trader == null) return;
 
 		_trader = trader;
+		_panel.State = _ui.State;
+		_panel.TryHandleItemRightClick = _ui.TryHandleItemRightClick;
 		_panel.Open(player, trader);
 		_panels.PushFocus(_panel);
-		_ui.AddLog($"开始与 {trader.DisplayName} 交易");
+		_ui.AddLog(LocalizationService.T("trade.start", ("trader", IdentificationModule.GetActorDisplayName(_ui.State, trader))));
 	}
 
 	public void CloseTrade()
 	{
 		var wasOpen = _panel.Visible;
 		_panel.Close();
+		_panel.State = null;
+		_panel.TryHandleItemRightClick = null;
 		if (wasOpen)
 			_panels.OnPanelClosed(_panel);
 		if (_trader != null && wasOpen)
-			_ui.AddLog($"结束与 {_trader.DisplayName} 的交易");
+			_ui.AddLog(LocalizationService.T("trade.end", ("trader", IdentificationModule.GetActorDisplayName(_ui.State, _trader))));
 		_trader = null;
 		_ui.FlushMap();
 	}
@@ -59,10 +67,10 @@ public class TradeUIModule
 			var good = _panel.GetSelectedBuyGood();
 			if (good == null) return;
 
-			var result = TradeModule.Buy(player, _trader, good);
+			var result = TradeModule.Buy(player, _trader, good, _ui.State);
 			_ui.AddLog(result.Message);
 			if (result.Ok)
-				_ui.AddLog($"  馃挵 鍓╀綑閲戝竵: {player.Gold}G");
+				_ui.AddLog(LocalizationService.T("trade.gold_remaining", ("gold", player.Gold)));
 		}
 		else
 		{
@@ -70,12 +78,24 @@ public class TradeUIModule
 			if (sel == null) return;
 			var (invIdx, _) = sel.Value;
 
-			var result = TradeModule.Sell(player, _trader, invIdx);
+			var result = TradeModule.Sell(player, _trader, invIdx, _ui.State);
 			_ui.AddLog(result.Message);
 			if (result.Ok)
-				_ui.AddLog($"  馃挵 鍓╀綑閲戝竵: {player.Gold}G");
+				_ui.AddLog(LocalizationService.T("trade.gold_remaining", ("gold", player.Gold)));
 		}
 
+		_panel.RefreshData(player, _trader);
+		_panel.RefreshHeader(player, _trader);
+	}
+
+	public void Refresh()
+	{
+		var player = ActorModule.GetPlayer(_ui.State);
+		if (player == null || _trader == null)
+			return;
+
+		_panel.State = _ui.State;
+		_panel.TryHandleItemRightClick = _ui.TryHandleItemRightClick;
 		_panel.RefreshData(player, _trader);
 		_panel.RefreshHeader(player, _trader);
 	}

@@ -175,6 +175,12 @@ public partial class InputModule
 
 	private bool HandleActionKey(InputEventKey key)
 	{
+		if (IsAsteriskKey(key))
+		{
+			CommandReceived?.Invoke(":inspect_mode");
+			return true;
+		}
+
 		if (!_bindings.Resolve(InputBindingContext.Action, key, out var actionId, out var cmd))
 			return false;
 
@@ -198,4 +204,7 @@ public partial class InputModule
 		if (cmd.Length > 0)
 			CommandReceived?.Invoke(cmd);
 	}
+
+	private static bool IsAsteriskKey(InputEventKey key) =>
+		key.Pressed && (key.Keycode == Key.Asterisk || key.Keycode == Key.KpMultiply || key.Unicode == '*');
 }

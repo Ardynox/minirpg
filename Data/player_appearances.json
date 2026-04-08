@@ -1,0 +1,44 @@
+[
+  {
+    "id": "player1",
+    "displayName": "Player 1",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/player1",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "npc1",
+    "displayName": "NPC 1",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/NPC1",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "npc2",
+    "displayName": "NPC 2",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/NPC2",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "npc3",
+    "displayName": "NPC 3",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/NPC3",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "enemy1",
+    "displayName": "Enemy 1",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/Enemy 1",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "enemy2",
+    "displayName": "Enemy 2",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/Enemy 2",
+    "defaultAnim": "Idle"
+  },
+  {
+    "id": "enemy3",
+    "displayName": "Enemy 3",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/Enemy 3",
+    "defaultAnim": "Idle"
+  }
+]

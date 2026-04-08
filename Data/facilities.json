@@ -1,0 +1,238 @@
+[
+  {
+    "id": "shelf",
+    "name": "Shelf",
+    "glyph": "S",
+    "description": "Compact storage shelving for indoor stockpiles.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "S" }
+    ],
+    "useSlots": [
+      { "id": "access", "x": 0, "y": 1, "purpose": "Access" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 12 }
+    ],
+    "maxHitPoints": 32,
+    "tags": ["storage"],
+    "roomTags": ["storage"],
+    "interactions": ["domain_order"]
+  },
+  {
+    "id": "fire_brazier",
+    "name": "Fire Brazier",
+    "glyph": "B",
+    "description": "A fueled heat source for shared interiors.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "B" }
+    ],
+    "useSlots": [
+      { "id": "fuel", "x": 0, "y": 1, "purpose": "Fuel" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_stone", "count": 10 },
+      { "itemId": "mat_wood", "count": 4 }
+    ],
+    "fuelItemIds": ["mat_wood"],
+    "fuelCapacity": 6,
+    "fuelTicksPerItem": 160,
+    "heatPerFuelledTickC": 0.12,
+    "dryingBonusPerFuelledTick": 0.05,
+    "maxHitPoints": 40,
+    "tags": ["heat"],
+    "interactions": ["personal_use", "domain_order"]
+  },
+  {
+    "id": "bed",
+    "name": "Bed",
+    "glyph": "b",
+    "description": "A proper single bed for private rest.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "b" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": false, "glyph": "b" }
+    ],
+    "useSlots": [
+      { "id": "sleep", "x": 0, "y": 0, "purpose": "Sleep" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 24 },
+      { "itemId": "mat_cloth", "count": 8 }
+    ],
+    "maxHitPoints": 46,
+    "tags": ["sleep"],
+    "roomTags": ["dormitory"],
+    "interactions": ["personal_use", "domain_order"]
+  },
+  {
+    "id": "dormitory_bed",
+    "name": "Dormitory Cot",
+    "glyph": "d",
+    "description": "A compact shared cot for common rooms.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "d" }
+    ],
+    "useSlots": [
+      { "id": "sleep", "x": 0, "y": 0, "purpose": "Sleep" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 12 },
+      { "itemId": "mat_cloth", "count": 4 }
+    ],
+    "maxHitPoints": 28,
+    "tags": ["sleep"],
+    "roomTags": ["dormitory"],
+    "interactions": ["personal_use", "domain_order"]
+  },
+  {
+    "id": "stove",
+    "name": "Stove",
+    "glyph": "C",
+    "description": "A multi-tile cooking station with a chimney block.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "C" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": true, "glyph": "c" }
+    ],
+    "useSlots": [
+      { "id": "cook", "x": 0, "y": 1, "purpose": "Work" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_stone", "count": 18 },
+      { "itemId": "mat_wood", "count": 6 }
+    ],
+    "fuelItemIds": ["mat_wood"],
+    "fuelCapacity": 8,
+    "fuelTicksPerItem": 120,
+    "heatPerFuelledTickC": 0.16,
+    "dryingBonusPerFuelledTick": 0.04,
+    "maxHitPoints": 54,
+    "tags": ["cooking", "heat"],
+    "roomTags": ["kitchen"],
+    "interactions": ["personal_use", "domain_order"],
+    "allowedRecipeTags": ["cooking"]
+  },
+  {
+    "id": "butcher_table",
+    "name": "Butcher Table",
+    "glyph": "T",
+    "description": "A rough worktable for processing carcasses.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "T" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": false, "glyph": "t" }
+    ],
+    "useSlots": [
+      { "id": "butcher", "x": 0, "y": 1, "purpose": "Work" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 16 }
+    ],
+    "maxHitPoints": 34,
+    "tags": ["butchery"],
+    "roomTags": ["workshop"],
+    "interactions": ["personal_use", "domain_order"],
+    "allowedRecipeTags": ["butchering"]
+  },
+  {
+    "id": "smithy",
+    "name": "Smithy",
+    "glyph": "F",
+    "description": "A hot forge for metalwork and repairs.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "F" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": true, "glyph": "f" }
+    ],
+    "useSlots": [
+      { "id": "forge", "x": 0, "y": 1, "purpose": "Work" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_stone", "count": 16 },
+      { "itemId": "mat_steel", "count": 8 }
+    ],
+    "fuelItemIds": ["mat_wood"],
+    "fuelCapacity": 10,
+    "fuelTicksPerItem": 140,
+    "heatPerFuelledTickC": 0.18,
+    "dryingBonusPerFuelledTick": 0.03,
+    "maxHitPoints": 60,
+    "tags": ["smithing", "heat"],
+    "roomTags": ["workshop"],
+    "interactions": ["personal_use", "domain_order"],
+    "allowedRecipeTags": ["smithing"]
+  },
+  {
+    "id": "loom",
+    "name": "Loom",
+    "glyph": "L",
+    "description": "A textile workstation for cloth goods.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "L" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": false, "glyph": "l" }
+    ],
+    "useSlots": [
+      { "id": "tailor", "x": 0, "y": 1, "purpose": "Work" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 18 },
+      { "itemId": "mat_cloth", "count": 4 }
+    ],
+    "maxHitPoints": 38,
+    "tags": ["tailoring"],
+    "roomTags": ["workshop"],
+    "interactions": ["personal_use", "domain_order"],
+    "allowedRecipeTags": ["tailoring"]
+  },
+  {
+    "id": "herbal_bench",
+    "name": "Herbal Bench",
+    "glyph": "H",
+    "description": "A clean bench for herb processing and medicine prep.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "H" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": false, "glyph": "h" }
+    ],
+    "useSlots": [
+      { "id": "mix", "x": 0, "y": 1, "purpose": "Work" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 14 },
+      { "itemId": "mat_stone", "count": 6 }
+    ],
+    "maxHitPoints": 34,
+    "tags": ["herbalism"],
+    "roomTags": ["clinic", "workshop"],
+    "interactions": ["personal_use", "domain_order"],
+    "allowedRecipeTags": ["herbalism"]
+  },
+  {
+    "id": "market_stall",
+    "name": "Market Stall",
+    "glyph": "M",
+    "description": "A two-by-two counter for domain-facing trade output.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "M" },
+      { "x": 1, "y": 0, "passable": false, "blocksSight": false, "glyph": "M" },
+      { "x": 0, "y": 1, "passable": false, "blocksSight": false, "glyph": "m" },
+      { "x": 1, "y": 1, "passable": false, "blocksSight": false, "glyph": "m" }
+    ],
+    "useSlots": [
+      { "id": "trade", "x": 0, "y": 2, "purpose": "Trade" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_wood", "count": 20 },
+      { "itemId": "mat_cloth", "count": 6 }
+    ],
+    "maxHitPoints": 42,
+    "tags": ["trade"],
+    "roomTags": ["market"],
+    "interactions": ["domain_order"]
+  }
+]

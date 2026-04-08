@@ -1,6 +1,8 @@
 {
   "chunk_load_radius_xy": 2,
   "chunk_load_radius_z": 1,
+  "critical_chunk_load_radius_xy": 1,
+  "chunk_background_load_budget_per_frame": 2,
   "max_cached_chunks": 512,
   "chunk_evict_padding_xy": 2,
   "chunk_simulation_near_radius_xy": 1,

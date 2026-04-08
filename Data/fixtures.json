@@ -1,0 +1,79 @@
+[
+  {
+    "id": "stair_down",
+    "name": "Stair Down",
+    "material": "stone",
+    "maxDurability": 40,
+    "flammable": false,
+    "burnsInto": null,
+    "removedOnDestroy": false,
+    "blocksSight": false,
+    "controlledFireSource": false
+  },
+  {
+    "id": "stair_up",
+    "name": "Stair Up",
+    "material": "stone",
+    "maxDurability": 40,
+    "flammable": false,
+    "burnsInto": null,
+    "removedOnDestroy": false,
+    "blocksSight": false,
+    "controlledFireSource": false
+  },
+  {
+    "id": "nest",
+    "name": "Nest",
+    "material": "wood",
+    "maxDurability": 16,
+    "flammable": true,
+    "burnsInto": "fire",
+    "removedOnDestroy": true,
+    "blocksSight": false,
+    "controlledFireSource": false
+  },
+  {
+    "id": "door",
+    "name": "Door",
+    "material": "wood",
+    "maxDurability": 18,
+    "flammable": true,
+    "burnsInto": "fire",
+    "removedOnDestroy": true,
+    "blocksSight": false,
+    "controlledFireSource": false
+  },
+  {
+    "id": "house",
+    "name": "House",
+    "material": "wood",
+    "maxDurability": 30,
+    "flammable": true,
+    "burnsInto": "fire",
+    "removedOnDestroy": true,
+    "blocksSight": true,
+    "controlledFireSource": false
+  },
+  {
+    "id": "campfire",
+    "name": "Campfire",
+    "material": "wood",
+    "maxDurability": 24,
+    "flammable": false,
+    "burnsInto": null,
+    "removedOnDestroy": true,
+    "blocksSight": false,
+    "controlledFireSource": true
+  },
+  {
+    "id": "fire",
+    "name": "Fire",
+    "material": "wood",
+    "maxDurability": 10,
+    "flammable": false,
+    "burnsInto": null,
+    "removedOnDestroy": true,
+    "blocksSight": false,
+    "controlledFireSource": false
+  }
+]

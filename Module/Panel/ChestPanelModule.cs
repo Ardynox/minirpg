@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
@@ -16,6 +17,8 @@ public class ChestPanelModule : ListPanelBase
 		void FlushMap();
 		void CloseChestPanel();
 		void OpenPutIntoChestSelection(Item chestItem);
+		void PersistChestItem(Item chestItem);
+		bool TryHandleItemRightClick(Item item);
 	}
 
 	private readonly PanelContainer _panel;
@@ -95,7 +98,7 @@ public class ChestPanelModule : ListPanelBase
 	{
 		var count = GetRowDataCount();
 		if (_cursor >= count) _cursor = Math.Max(0, count - 1);
-		RebuildRows(count, ApplyRowContent, "  (空)");
+		RebuildRows(count, ApplyRowContent, LocalizationService.T("ui.common.empty_inline"));
 		RenderHeader();
 		OnSelectionChanged();
 		UpdateActionButtons();
@@ -110,6 +113,14 @@ public class ChestPanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
+	protected override Button CreateRow(int index)
+	{
+		var row = base.CreateRow(index);
+		var idx = index;
+		row.GuiInput += ev => OnRowInput(ev, idx);
+		return row;
+	}
+
 	protected override void OnRowPressed(int index)
 	{
 		if (index < 0 || index >= GetRowDataCount()) return;
@@ -120,9 +131,28 @@ public class ChestPanelModule : ListPanelBase
 	private void ApplyRowContent(Button row, int i)
 	{
 		var item = _chestItem!.Contents![i];
-		var stats = ItemFormatHelper.InlineStats(item);
-		var weight = $" {item.EffectiveWeight:F1}kg";
-		row.Text = $"{item.Name}  {stats}{weight}";
+		var stats = ItemFormatHelper.InlineStats(_host.State, item);
+		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
+		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
+		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
+		row.Text = $"{ItemFormatHelper.GetDisplayName(_host.State, item)}{statSegment}{weightSegment}";
+	}
+
+	private void OnRowInput(InputEvent ev, int index)
+	{
+		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= GetRowDataCount())
+			return;
+
+		if (mb.ButtonIndex != MouseButton.Right)
+			return;
+
+		_cursor = index;
+		OnSelectionChanged();
+		if (_host.TryHandleItemRightClick(_chestItem!.Contents![index]))
+		{
+			Refresh();
+			_host.FlushMap();
+		}
 	}
 
 	public void TryTake()
@@ -135,7 +165,11 @@ public class ChestPanelModule : ListPanelBase
 		var item = _chestItem.Contents[_cursor];
 		_chestItem.Contents.RemoveAt(_cursor);
 		InventoryModule.Add(player, item);
-		_host.AddLog($"从{_chestItem.Name}中取出了 {item.Name}");
+		_host.AddLog(LocalizationService.T(
+			"log.chest.take_item",
+			("chest", ItemFormatHelper.GetDisplayName(_host.State, _chestItem)),
+			("item", ItemFormatHelper.GetDisplayName(_host.State, item))));
+		_host.PersistChestItem(_chestItem);
 		Refresh();
 		_host.FlushMap();
 	}
@@ -148,7 +182,11 @@ public class ChestPanelModule : ListPanelBase
 		var count = _chestItem.Contents.Count;
 		foreach (var item in _chestItem.Contents) InventoryModule.Add(player, item);
 		_chestItem.Contents.Clear();
-		_host.AddLog($"从{_chestItem.Name}中取出了 {count} 件物品");
+		_host.AddLog(LocalizationService.T(
+			"log.chest.take_all",
+			("chest", ItemFormatHelper.GetDisplayName(_host.State, _chestItem)),
+			("count", count)));
+		_host.PersistChestItem(_chestItem);
 		Refresh();
 		_host.FlushMap();
 	}
@@ -163,8 +201,10 @@ public class ChestPanelModule : ListPanelBase
 	{
 		_header.Clear();
 		var count = _chestItem?.Contents?.Count ?? 0;
-		var name = _chestItem?.Name ?? "宝箱";
-		_header.AppendText($"[center]── {name} ({count}件) ──[/center]");
+		var name = _chestItem == null
+			? LocalizationService.T("ui.chest.default_name")
+			: ItemFormatHelper.GetDisplayName(_host.State, _chestItem);
+		_header.AppendText($"[center]{LocalizationService.T("ui.chest.header", ("name", name), ("count", count))}[/center]");
 	}
 
 	private void UpdateActionButtons()
@@ -180,9 +220,9 @@ public class ChestPanelModule : ListPanelBase
 		var contents = _chestItem?.Contents;
 		if (contents == null || _cursor < 0 || _cursor >= contents.Count)
 		{
-			_detailBox.AppendText("[color=#888888]选择物品查看详情[/color]");
+			_detailBox.AppendText(LocalizationService.T("ui.common.detail_hint.item"));
 			return;
 		}
-		_detailBox.AppendText(ItemFormatHelper.BuildDetail(contents[_cursor]));
+		_detailBox.AppendText(ItemFormatHelper.BuildDetail(_host.State, contents[_cursor]));
 	}
 }

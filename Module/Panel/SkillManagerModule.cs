@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Godot;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
@@ -11,6 +12,11 @@ public class SkillManagerModule : ListPanelBase
 {
 	public override string PanelId => "skill_mgr";
 	public override PanelContainer PanelNode => _panel;
+	public override bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	public string? ArmedSkillId { get; set; }
+	public GameState? State { get; set; }
+
+	public event Action<InteractionDef>? ConfirmRequested;
 
 	private readonly PanelContainer _panel;
 	private readonly RichTextLabel _header;
@@ -23,9 +29,8 @@ public class SkillManagerModule : ListPanelBase
 	private Actor? _player;
 
 	private static readonly SkillTab[] Tabs = [SkillTab.All, SkillTab.Combat, SkillTab.Utility, SkillTab.Social];
-	private static readonly string[] TabLabels = ["全部", "战斗", "工具", "社交"];
+	private static readonly string[] TabLabels = ["All", "Combat", "Utility", "Social"];
 
-	public override bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
 	public override bool HandleCommand(string cmd)
 	{
 		switch (cmd)
@@ -34,10 +39,12 @@ public class SkillManagerModule : ListPanelBase
 			case "down": MoveCursor(1, _filtered.Count); return true;
 			case "left" or "tab_prev": CycleTab(-1); return true;
 			case "right" or "tab_next": CycleTab(1); return true;
+			case "confirm": return ActivateSelectedSkill();
 			case "close": Close(); return true;
 		}
 		return false;
 	}
+
 	public override void OnBlur() { }
 
 	public SkillManagerModule(PanelContainer panel)
@@ -51,7 +58,7 @@ public class SkillManagerModule : ListPanelBase
 		var skillList = leftScroll.GetNode<VBoxContainer>("SkillList");
 		BindListNodes(leftScroll, skillList);
 		_detailText = content.GetNode("RightColumn").GetNode<RichTextLabel>("DetailText");
-		_tabButtons = TabHelper.BuildTabButtons(tabBar, TabLabels, Tabs, SetTab);
+		_tabButtons = TabHelper.BuildTabButtons(tabBar, TabLabels, Tabs, SetTab, PanelId);
 	}
 
 	public void Open(Actor? player)
@@ -64,75 +71,161 @@ public class SkillManagerModule : ListPanelBase
 		Visible = true;
 	}
 
-	public void Close() { Visible = false; _player = null; }
+	public void Close()
+	{
+		Visible = false;
+		_player = null;
+		State = null;
+	}
 
 	public override void Refresh()
 	{
+		_allSkills = _player != null ? SkillQuery.GetSkills(_player) : [];
 		FilterSkills();
 		RenderHeader();
+		UpdateTabTexts();
 		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
-		RebuildRows(_filtered.Count, ApplyRowContent, "  暂无技能");
+		RebuildRows(_filtered.Count, ApplyRowContent, LocalizationService.T("ui.skill_manager.empty"));
 		OnSelectionChanged();
 	}
 
-	public void SetTab(SkillTab tab) { _currentTab = tab; _cursor = 0; Refresh(); }
-	public void CycleTab(int dir) { var idx = Array.IndexOf(Tabs, _currentTab); idx = (idx + dir + Tabs.Length) % Tabs.Length; SetTab(Tabs[idx]); }
+	public void SetTab(SkillTab tab)
+	{
+		_currentTab = tab;
+		_cursor = 0;
+		Refresh();
+	}
+
+	public void CycleTab(int dir)
+	{
+		var idx = Array.IndexOf(Tabs, _currentTab);
+		idx = (idx + dir + Tabs.Length) % Tabs.Length;
+		SetTab(Tabs[idx]);
+	}
 
 	protected override int GetRowDataCount() => _filtered.Count;
-	protected override void OnSelectionChanged() { UpdateRowVisuals(_filtered.Count); RenderDetail(); }
+
+	protected override void OnSelectionChanged()
+	{
+		UpdateRowVisuals(_filtered.Count);
+		RenderDetail();
+	}
+
+	private bool ActivateSelectedSkill()
+	{
+		if (_cursor < 0 || _cursor >= _filtered.Count)
+			return false;
+
+		ConfirmRequested?.Invoke(_filtered[_cursor]);
+		return true;
+	}
+
+	private void UpdateTabTexts()
+	{
+		if (_tabButtons.Count < Tabs.Length)
+			return;
+
+		_tabButtons[0].Text = LocalizationService.T("ui.common.tab.all");
+		_tabButtons[1].Text = LocalizationService.T("skill.category.combat");
+		_tabButtons[2].Text = LocalizationService.T("skill.category.utility");
+		_tabButtons[3].Text = LocalizationService.T("skill.category.social");
+	}
 
 	private void FilterSkills()
 	{
-		if (_currentTab == SkillTab.All) _filtered = [.. _allSkills];
+		if (_currentTab == SkillTab.All)
+		{
+			_filtered = [.. _allSkills];
+		}
 		else
 		{
-			var cat = _currentTab switch { SkillTab.Combat => "combat", SkillTab.Utility => "utility", SkillTab.Social => "social", _ => "" };
-			_filtered = _allSkills.FindAll(s => s.Category == cat);
+			var category = _currentTab switch
+			{
+				SkillTab.Combat => "combat",
+				SkillTab.Utility => "utility",
+				SkillTab.Social => "social",
+				_ => string.Empty,
+			};
+			_filtered = _allSkills.FindAll(skill => skill.Category == category);
 		}
-		if (_cursor >= _filtered.Count) _cursor = Math.Max(0, _filtered.Count - 1);
+
+		if (_cursor >= _filtered.Count)
+			_cursor = Math.Max(0, _filtered.Count - 1);
 	}
 
 	private void RenderHeader()
 	{
-		var combat = _allSkills.FindAll(s => s.Category == "combat").Count;
-		var utility = _allSkills.FindAll(s => s.Category == "utility").Count;
-		var social = _allSkills.FindAll(s => s.Category == "social").Count;
+		var combat = _allSkills.FindAll(skill => skill.Category == "combat").Count;
+		var utility = _allSkills.FindAll(skill => skill.Category == "utility").Count;
+		var social = _allSkills.FindAll(skill => skill.Category == "social").Count;
 		_header.Clear();
-		_header.AppendText($"[center]── 技能管理 ──[/center]\n" +
-			$"[color=#ff6666]战斗: {combat}[/color]  [color=#66ccff]工具: {utility}[/color]  [color=#66ff88]社交: {social}[/color]  [color=#888888]共: {_allSkills.Count}[/color]");
+		_header.AppendText(
+			$"[center]{LocalizationService.T("ui.skill_manager.title")}[/center]\n" +
+			LocalizationService.T("ui.skill.summary",
+				("combat", combat),
+				("utility", utility),
+				("social", social),
+				("total", _allSkills.Count)) +
+			"\n" +
+			$"[color=#888888]{LocalizationService.T("ui.skill_manager.hint")}[/color]");
 	}
 
-	private void ApplyRowContent(Button row, int i)
+	private void ApplyRowContent(Button row, int index)
 	{
-		var skill = _filtered[i];
-		var icon = skill.Category switch { "combat" => "⚔", "utility" => "🔧", "social" => "💬", _ => "◆" };
-		var power = skill.Power > 0 ? $" [{skill.Power}]" : "";
-		row.Text = $" {icon} {skill.Name}{power}";
-		if (i != _cursor && i != _hoverIndex)
-			row.ThemeTypeVariation = skill.Category switch
-			{
-				"combat" => "CombatRowButton",
-				"utility" => "UtilityRowButton",
-				"social" => "SocialRowButton",
-				_ => "RowButton",
-			};
-	}
-
-	protected override void UpdateRowVisuals(int count, bool transparentBg = true)
-	{
-		for (var i = 0; i < _itemRows.Count && i < count; i++)
+		var skill = _filtered[index];
+		var icon = skill.Category switch
 		{
-			if (i == _cursor) _itemRows[i].ThemeTypeVariation = "SelectedRowButton";
-			else if (i == _hoverIndex) _itemRows[i].ThemeTypeVariation = "HoveredRowButton";
-			else
-			{
-				_itemRows[i].ThemeTypeVariation = _filtered[i].Category switch
+			"combat" => "C",
+			"utility" => "U",
+			"social" => "S",
+			_ => "O",
+		};
+		var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
+		var status = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal)
+			? " [ARM]"
+			: cooldownRemaining > 0
+				? $" [CD{cooldownRemaining}]"
+				: "";
+		var power = skill.Power > 0 ? $" [{skill.Power}]" : "";
+		row.Text = $" {icon} {skill.Name}{power}{status}";
+		if (index != _cursor && index != _hoverIndex)
+		{
+			row.ThemeTypeVariation = cooldownRemaining > 0
+				? "DisabledRowButton"
+				: skill.Category switch
 				{
 					"combat" => "CombatRowButton",
 					"utility" => "UtilityRowButton",
 					"social" => "SocialRowButton",
 					_ => "RowButton",
 				};
+		}
+	}
+
+	protected override void UpdateRowVisuals(int count, bool transparentBg = true)
+	{
+		for (var i = 0; i < _itemRows.Count && i < count; i++)
+		{
+			var cooldownRemaining = _player?.GetSkillCooldown(_filtered[i].Id) ?? 0;
+			if (i == _cursor)
+			{
+				_itemRows[i].ThemeTypeVariation = "SelectedRowButton";
+			}
+			else if (i == _hoverIndex)
+			{
+				_itemRows[i].ThemeTypeVariation = "HoveredRowButton";
+			}
+			else
+			{
+				_itemRows[i].ThemeTypeVariation = cooldownRemaining > 0
+					? "DisabledRowButton"
+					: _filtered[i].Category switch
+					{
+						"combat" => "CombatRowButton",
+						"utility" => "UtilityRowButton",
+						"social" => "SocialRowButton",
+						_ => "RowButton",
+					};
 			}
 		}
 	}
@@ -140,60 +233,92 @@ public class SkillManagerModule : ListPanelBase
 	private void RenderDetail()
 	{
 		_detailText.Clear();
-		if (_filtered.Count == 0 || _cursor < 0 || _cursor >= _filtered.Count) { _detailText.AppendText("[color=#888888]选择一个技能查看详情[/color]"); return; }
+		if (_filtered.Count == 0 || _cursor < 0 || _cursor >= _filtered.Count)
+		{
+			_detailText.AppendText(LocalizationService.T("ui.common.detail_hint.skill"));
+			return;
+		}
+
 		var skill = _filtered[_cursor];
+		var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
+		var statusKey = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal)
+			? "ui.skill.detail.status.armed"
+			: cooldownRemaining > 0
+				? "ui.skill.detail.status.cooldown"
+				: "ui.skill.detail.status.ready";
+
 		var sb = new StringBuilder();
-		var color = skill.Category switch { "combat" => "#ff6666", "utility" => "#66ccff", "social" => "#66ff88", _ => "#cccccc" };
-		var catLabel = skill.Category switch { "combat" => "战斗", "utility" => "工具", "social" => "社交", _ => skill.Category };
+		var color = skill.Category switch
+		{
+			"combat" => "#ff6666",
+			"utility" => "#66ccff",
+			"social" => "#66ff88",
+			_ => "#cccccc",
+		};
+		var categoryLabel = GameLocalizer.LocalizeSkillCategory(skill.Category);
 		sb.AppendLine($"[b][color={color}]{skill.Name}[/color][/b]");
-		sb.AppendLine($"[color=#888888]{catLabel}技能[/color]");
+		sb.AppendLine($"[color=#888888]{LocalizationService.T("ui.skill.detail.category_line", ("category", categoryLabel))}[/color]");
 		sb.AppendLine();
-		if (skill.Power > 0) sb.AppendLine($"[color=#ffcc00]威力: {skill.Power}[/color]");
-		if (skill.Cooldown > 0) sb.AppendLine($"[color=#aaaaaa]冷却: {skill.Cooldown} 回合[/color]");
-		if (skill.Range > 1) sb.AppendLine($"[color=#aaaaaa]射程: {skill.Range}[/color]");
-		else if (skill.Range == 0) sb.AppendLine("[color=#aaaaaa]射程: 自身[/color]");
+		sb.AppendLine($"[color=#ffdd88]{LocalizationService.T(statusKey, ("value", cooldownRemaining))}[/color]");
+		sb.AppendLine();
+
+		if (skill.Power > 0)
+			sb.AppendLine($"[color=#ffcc00]{LocalizationService.T("ui.skill.detail.power", ("value", skill.Power))}[/color]");
+		if (skill.Cooldown > 0)
+			sb.AppendLine($"[color=#aaaaaa]{LocalizationService.T("ui.skill.detail.cooldown", ("value", skill.Cooldown))}[/color]");
+		sb.AppendLine($"[color=#aaaaaa]{LocalizationService.T("ui.skill.detail.range", ("value", GameLocalizer.LocalizeRange(skill.Range)))}[/color]");
+
 		if (!string.IsNullOrEmpty(skill.DamageType))
-		{
-			var dmgLabel = skill.DamageType switch { "sharp" => "锐伤", "blunt" => "钝伤", "poison" => "毒伤", _ => skill.DamageType };
-			sb.AppendLine($"[color=#cc8866]伤害类型: {dmgLabel}[/color]");
-		}
+			sb.AppendLine($"[color=#cc8866]{LocalizationService.T("ui.skill.detail.damage_type", ("value", GameLocalizer.LocalizeDamageType(skill.DamageType)))}[/color]");
 		if (!string.IsNullOrEmpty(skill.EffectType))
-		{
-			var effectLabel = skill.EffectType switch
-			{
-				"melee_attack" => "近战攻击", "heavy_attack" => "重击", "poison_attack" => "毒攻击", "drain_attack" => "吸血攻击",
-				"block" => "格挡", "dig" => "挖掘", "trade" => "交易", "talk" => "对话", "tame" => "驯服", "combat" => "战斗", _ => skill.EffectType,
-			};
-			sb.AppendLine($"[color=#aaaaaa]效果: {effectLabel}[/color]");
-		}
+			sb.AppendLine($"[color=#aaaaaa]{LocalizationService.T("ui.skill.detail.effect", ("value", GameLocalizer.LocalizeEffectType(skill.EffectType)))}[/color]");
+
 		sb.AppendLine();
-		if (!string.IsNullOrEmpty(skill.Description)) { sb.AppendLine(skill.Description); sb.AppendLine(); }
+		if (!string.IsNullOrEmpty(skill.Description))
+		{
+			sb.AppendLine(skill.Description);
+			sb.AppendLine();
+		}
+
 		if (skill.Required.Count > 0)
 		{
-			sb.AppendLine("[color=#ffcc00]─── 需求条件 ───[/color]");
-			foreach (var (k, v) in skill.Required) sb.AppendLine($"  [color=#aaaaaa]{k} ≥ {v}[/color]");
+			sb.AppendLine($"[color=#ffcc00]{LocalizationService.T("ui.skill.detail.requirements")}[/color]");
+			foreach (var (key, value) in skill.Required)
+				sb.AppendLine($"  [color=#aaaaaa]{GameLocalizer.LocalizeTagKey(key)} >= {value}[/color]");
 		}
+
 		if (skill.CapacityRequired.Count > 0)
 		{
-			sb.AppendLine("[color=#ffcc00]─── 能力需求 ───[/color]");
-			foreach (var (k, v) in skill.CapacityRequired)
+			sb.AppendLine($"[color=#ffcc00]{LocalizationService.T("ui.skill.detail.capacity_requirements")}[/color]");
+			foreach (var (key, value) in skill.CapacityRequired)
 			{
-				var def = PresetDB.GetCapacity(k);
-				var name = def?.Name ?? k;
-				sb.AppendLine($"  [color=#aaaaaa]{name} ≥ {v * 100:F0}%[/color]");
+				var def = PresetDB.GetCapacity(key);
+				var name = GameLocalizer.LocalizeCapacityName(key, def?.Name ?? key);
+				sb.AppendLine($"  [color=#aaaaaa]{name} >= {value * 100:F0}%[/color]");
 			}
 		}
+
 		var source = GetSkillSource(skill);
-		if (!string.IsNullOrEmpty(source)) { sb.AppendLine(); sb.AppendLine($"[color=#666666]来源: {source}[/color]"); }
+		if (!string.IsNullOrEmpty(source))
+		{
+			sb.AppendLine();
+			sb.AppendLine($"[color=#666666]{LocalizationService.T("ui.skill.detail.source", ("value", source))}[/color]");
+		}
+
 		_detailText.AppendText(sb.ToString());
 	}
 
 	private string GetSkillSource(InteractionDef skill)
 	{
-		if (_player == null) return "";
+		if (_player == null)
+			return string.Empty;
+
 		foreach (var item in _player.Inventory)
+		{
 			if (item.Equipped && item.GrantedSkills.Contains(skill.Id))
-				return $"装备「{item.Name}」";
-		return "自身能力";
+				return LocalizationService.T("ui.skill.source.equipment", ("item", ItemFormatHelper.GetDisplayName(State, item)));
+		}
+
+		return LocalizationService.T("ui.skill.source.innate");
 	}
 }

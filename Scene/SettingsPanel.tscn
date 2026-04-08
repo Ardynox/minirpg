@@ -1,61 +1,613 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://Scene/KeyBindingsView.tscn" id="1_keybindings"]
 
 [node name="SettingsPanel" type="PanelContainer"]
 visible = false
+z_index = 50
 layout_mode = 3
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -220.0
-offset_right = 200.0
-offset_bottom = 220.0
+anchor_left = 0.14
+anchor_top = 0.08
+anchor_right = 0.86
+anchor_bottom = 0.92
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="Header" type="VBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+text = "ui.settings.title"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+text = "ui.settings.subtitle.main_menu"
+horizontal_alignment = 1
+theme_type_variation = &"HintLabel"
+
+[node name="TabBar" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GeneralTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+size_flags_horizontal = 3
+text = "ui.settings.tab.general"
+
+[node name="ControlsTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+size_flags_horizontal = 3
+text = "ui.settings.tab.controls"
+
+[node name="SessionTab" type="Button" parent="Margin/VBox/TabBar"]
+layout_mode = 2
+toggle_mode = true
+size_flags_horizontal = 3
+text = "ui.settings.tab.session"
+
+[node name="ContentScroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Pages" type="VBoxContainer" parent="Margin/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="GeneralPage" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="DisplaySection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.display"
+
+[node name="LanguageRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="VBox"]
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow/Margin/HBox"]
 layout_mode = 2
-text = "设置"
-horizontal_alignment = 1
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
 
-[node name="RenderToggle" type="Button" parent="VBox"]
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow/Margin/HBox/Content"]
 layout_mode = 2
-text = "切换渲染模式 (Emoji / ASCII)"
+text = "ui.settings.language.title"
 
-[node name="WatchModeToggle" type="Button" parent="VBox"]
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow/Margin/HBox/Content"]
 layout_mode = 2
-text = "看海模式：关闭"
+text = ""
+theme_type_variation = &"HintLabel"
 
-[node name="MapEditorBtn" type="Button" parent="VBox"]
+[node name="LanguageOption" type="OptionButton" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/LanguageRow/Margin/HBox"]
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
-text = "地图编辑模式"
 
-[node name="KeyBindingsBtn" type="Button" parent="VBox"]
+[node name="RenderRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "按键绑定..."
+size_flags_horizontal = 3
 
-[node name="LayoutEditBtn" type="Button" parent="VBox"]
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow"]
 layout_mode = 2
-text = "布局编辑模式"
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
 
-[node name="SaveBtn" type="Button" parent="VBox"]
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow/Margin"]
 layout_mode = 2
-text = "保存游戏"
+theme_override_constants/separation = 12
 
-[node name="LoadBtn" type="Button" parent="VBox"]
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow/Margin/HBox"]
 layout_mode = 2
-text = "读取存档"
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
 
-[node name="BackToMenuBtn" type="Button" parent="VBox"]
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow/Margin/HBox/Content"]
 layout_mode = 2
-text = "返回主菜单"
+text = "ui.settings.render.title"
 
-[node name="CloseBtn" type="Button" parent="VBox"]
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow/Margin/HBox/Content"]
 layout_mode = 2
-text = "关闭 (ESC)"
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="RenderToggle" type="Button" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/RenderRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.render.action"
+
+[node name="GameplaySection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.gameplay"
+
+[node name="WatchModeRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.watch_mode.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="WatchModeToggle" type="CheckButton" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/WatchModeRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.state.off"
+
+[node name="ControlsPage" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="ControlOptionsSection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.controls"
+
+[node name="KeyboardTargetingRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.keyboard_targeting.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="KeyboardTargetingToggle" type="CheckButton" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.state.off"
+
+[node name="DebugPanelRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.debug_panel.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="DebugPanelToggle" type="CheckButton" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox/DebugPanelRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.state.off"
+
+[node name="BindingsSection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.bindings"
+
+[node name="BindingsRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.key_bindings.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="BindingsBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox/BindingsRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.key_bindings.open"
+
+[node name="KeyBindingsView" parent="Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox" instance=ExtResource("1_keybindings")]
+visible = false
+
+[node name="SessionPage" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="SaveLoadSection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.save_load"
+
+[node name="SaveRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.save.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="SaveBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/SaveRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.save"
+
+[node name="LoadRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.load.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="LoadBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/SessionPage/SaveLoadSection/Margin/VBox/LoadRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.load"
+
+[node name="ToolsSection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TooltipPanel"
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SectionTitle" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox"]
+layout_mode = 2
+text = "ui.settings.section.tools"
+
+[node name="MapEditorRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.map_editor.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="MapEditorBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/MapEditorRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.map_editor.enter"
+
+[node name="WeatherLabRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.weather_lab.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="WeatherLabBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/WeatherLabRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.weather_lab.open"
+
+[node name="LayoutEditRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.layout_edit.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="LayoutEditBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox/LayoutEditRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.layout_edit"
+
+[node name="Footer" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HintLabel" type="Label" parent="Margin/VBox/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.settings.hint.default"
+theme_type_variation = &"HintLabel"
+
+[node name="BackBtn" type="Button" parent="Margin/VBox/Footer"]
+layout_mode = 2
+text = "ui.settings.back"

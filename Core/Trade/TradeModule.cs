@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Core.Trade;
 
@@ -64,10 +66,10 @@ public static class TradeModule
 	}
 
 	/// <summary>从对方购买一件商品。</summary>
-	public static TradeResult Buy(Actor buyer, Actor trader, TradeGood good)
+	public static TradeResult Buy(Actor buyer, Actor trader, TradeGood good, GameState? state = null)
 	{
 		if (buyer.Gold < good.BuyPrice)
-			return new TradeResult { Message = $"金币不足（需要 {good.BuyPrice}，当前 {buyer.Gold}）" };
+			return new TradeResult { Message = LocalizationService.T("trade.insufficient_gold", ("required", good.BuyPrice), ("current", buyer.Gold)) };
 
 		buyer.Gold -= good.BuyPrice;
 		trader.Gold += good.BuyPrice;
@@ -101,26 +103,35 @@ public static class TradeModule
 		return new TradeResult
 		{
 			Ok = true, Item = bought, Price = good.BuyPrice,
-			Message = $"购买了 {bought.Name}（-{good.BuyPrice}G）",
+			Message = LocalizationService.T(
+				"trade.bought",
+				("item", IdentificationModule.GetItemDisplayName(state, bought)),
+				("price", good.BuyPrice)),
 		};
 	}
 
 	/// <summary>向对方出售背包中指定下标的物品。售价 = 半价。</summary>
-	public static TradeResult Sell(Actor seller, Actor trader, int inventoryIndex)
+	public static TradeResult Sell(Actor seller, Actor trader, int inventoryIndex, GameState? state = null)
 	{
 		if (inventoryIndex < 0 || inventoryIndex >= seller.Inventory.Count)
-			return new TradeResult { Message = "无效的物品编号" };
+			return new TradeResult { Message = LocalizationService.T("inventory.invalid_index") };
 
 		var item = seller.Inventory[inventoryIndex];
+		var itemName = IdentificationModule.GetItemDisplayName(state, item);
 		if (item.Equipped)
-			return new TradeResult { Message = $"请先卸下 {item.Name} 再出售" };
+			return new TradeResult { Message = LocalizationService.T("trade.unequip_before_sell", ("item", itemName)) };
 
 		var sellPrice = item.Price / 2;
 		if (sellPrice <= 0)
-			return new TradeResult { Message = $"{item.Name} 不值钱，无法出售" };
+			return new TradeResult { Message = LocalizationService.T("trade.worthless", ("item", itemName)) };
 
 		if (trader.Gold < sellPrice)
-			return new TradeResult { Message = $"{trader.DisplayName}金币不足，无法收购" };
+			return new TradeResult
+			{
+				Message = LocalizationService.T(
+					"trade.trader_insufficient_gold",
+					("trader", IdentificationModule.GetActorDisplayName(state, trader))),
+			};
 
 		seller.Gold += sellPrice;
 		trader.Gold -= sellPrice;
@@ -131,7 +142,7 @@ public static class TradeModule
 		return new TradeResult
 		{
 			Ok = true, Item = item, Price = sellPrice,
-			Message = $"出售了 {item.Name}（+{sellPrice}G）",
+			Message = LocalizationService.T("trade.sold", ("item", itemName), ("price", sellPrice)),
 		};
 	}
 

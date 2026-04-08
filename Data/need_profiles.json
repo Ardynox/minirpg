@@ -1,0 +1,54 @@
+[
+  {
+    "id": "humanoid_standard",
+    "enabledNeeds": ["hunger", "rest"],
+    "allowMood": true,
+    "allowThoughts": true,
+    "decayPerTurn": {
+      "hunger": 0.12,
+      "rest": 0.1
+    },
+    "restGainPerTurn": 18,
+    "satisfiedThreshold": 85,
+    "npcHungerThreshold": 35,
+    "npcRestThreshold": 30
+  },
+  {
+    "id": "beast_standard",
+    "enabledNeeds": ["hunger", "rest"],
+    "allowMood": true,
+    "allowThoughts": true,
+    "decayPerTurn": {
+      "hunger": 0.14,
+      "rest": 0.11
+    },
+    "restGainPerTurn": 16,
+    "satisfiedThreshold": 85,
+    "npcHungerThreshold": 35,
+    "npcRestThreshold": 30
+  },
+  {
+    "id": "undead_none",
+    "enabledNeeds": [],
+    "allowMood": false,
+    "allowThoughts": false,
+    "decayPerTurn": {},
+    "restGainPerTurn": 0,
+    "satisfiedThreshold": 85,
+    "npcHungerThreshold": 35,
+    "npcRestThreshold": 30
+  },
+  {
+    "id": "slime_basic",
+    "enabledNeeds": ["hunger"],
+    "allowMood": false,
+    "allowThoughts": false,
+    "decayPerTurn": {
+      "hunger": 0.08
+    },
+    "restGainPerTurn": 0,
+    "satisfiedThreshold": 85,
+    "npcHungerThreshold": 35,
+    "npcRestThreshold": 30
+  }
+]

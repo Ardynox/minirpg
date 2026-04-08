@@ -26,15 +26,17 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	private readonly PanelLayoutStore _store = store;
 	private readonly Control _floatingRoot = floatingRoot;
 	private readonly Dictionary<string, DragState> _states = [];
+	private string? _directDragPanelId;
 	private bool _editModeActive;
 	private DragState? _pendingDragState;
 	private DragState? _activeDragState;
 
 	public bool EditModeActive => _editModeActive;
+	public string? DirectDragPanelId => _directDragPanelId;
 
 	public void Initialize() => _store.Load();
 
-	public void RemovePersistedLayout(string panelId) => _store.Remove(panelId);
+	public void RemovePersistedPosition(string panelId) => _store.RemovePosition(panelId);
 
 	public bool HandleGlobalInput(InputEvent ev)
 	{
@@ -57,7 +59,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		Unregister(registration.PanelId);
 
 		var panel = registration.Panel;
-		var handles = registration.DragHandles.Count > 0 ? registration.DragHandles : [panel];
+		var handles = registration.DragHandles;
 		var state = new DragState(registration)
 		{
 			OriginalParent = panel.GetParent(),
@@ -179,6 +181,45 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		}
 	}
 
+	public bool BeginDirectDrag(string panelId, Vector2 pointerGlobalPosition)
+	{
+		if (_editModeActive || !_states.TryGetValue(panelId, out var state) || !state.Registration.Panel.Visible)
+			return false;
+
+		if (_directDragPanelId != null && _directDragPanelId != panelId)
+			StopDirectDrag(persistPosition: true);
+
+		PrepareForDragging(state);
+		BringToFront(state.Registration.Panel);
+		state.DirectDragging = true;
+		state.DragOffset = state.Registration.Panel.GlobalPosition - pointerGlobalPosition;
+		_directDragPanelId = panelId;
+		return true;
+	}
+
+	public bool UpdateDirectDrag(Vector2 pointerGlobalPosition)
+	{
+		if (_directDragPanelId == null || !_states.TryGetValue(_directDragPanelId, out var state) || !state.DirectDragging)
+			return false;
+
+		state.Registration.Panel.GlobalPosition = pointerGlobalPosition + state.DragOffset;
+		return true;
+	}
+
+	public bool StopDirectDrag(bool persistPosition)
+	{
+		if (_directDragPanelId == null || !_states.TryGetValue(_directDragPanelId, out var state))
+			return false;
+
+		state.DirectDragging = false;
+		_directDragPanelId = null;
+
+		if (persistPosition)
+			PersistPanelPosition(state);
+
+		return true;
+	}
+
 	private void ClearSessionState()
 	{
 		_editModeActive = false;
@@ -188,13 +229,14 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		{
 			state.PendingDrag = false;
 			state.Dragging = false;
+			state.DirectDragging = false;
 			state.HasSessionSnapshot = false;
 		}
 	}
 
 	private void ApplyPersistedLayout(DragState state)
 	{
-		if (_store.TryGet(state.Registration.PanelId, out var saved))
+		if (_store.TryGetPosition(state.Registration.PanelId, out var saved))
 		{
 			EnsureFloating(state);
 			state.Registration.Panel.GlobalPosition = saved;
@@ -216,6 +258,12 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 	{
 		if (!_states.TryGetValue(panelId, out var state))
 			return;
+
+		if (!state.Registration.Panel.Visible && _directDragPanelId == panelId)
+		{
+			state.DirectDragging = false;
+			_directDragPanelId = null;
+		}
 
 		if (!state.Registration.Panel.Visible)
 		{
@@ -361,21 +409,21 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 
 			if (!state.Registration.DefaultFloating)
 			{
-				_store.Set(state.Registration.PanelId, panel.GlobalPosition);
+				_store.SetPosition(state.Registration.PanelId, panel.GlobalPosition);
 			}
 			else if (IsNear(panel.GlobalPosition, state.DefaultGlobalPosition))
 			{
-				_store.Remove(state.Registration.PanelId);
+				_store.RemovePosition(state.Registration.PanelId);
 			}
 			else
 			{
-				_store.Set(state.Registration.PanelId, panel.GlobalPosition);
+				_store.SetPosition(state.Registration.PanelId, panel.GlobalPosition);
 			}
 
 			return;
 		}
 
-		_store.Remove(state.Registration.PanelId);
+		_store.RemovePosition(state.Registration.PanelId);
 	}
 
 	private void PrepareForDragging(DragState state)
@@ -467,6 +515,25 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 			_floatingRoot.MoveChild(panel, _floatingRoot.GetChildCount() - 1);
 	}
 
+	private void PersistPanelPosition(DragState state)
+	{
+		var panel = state.Registration.Panel;
+		if (!state.Registration.DefaultFloating)
+		{
+			_store.SetPosition(state.Registration.PanelId, panel.GlobalPosition);
+		}
+		else if (IsNear(panel.GlobalPosition, state.DefaultGlobalPosition))
+		{
+			_store.RemovePosition(state.Registration.PanelId);
+		}
+		else
+		{
+			_store.SetPosition(state.Registration.PanelId, panel.GlobalPosition);
+		}
+
+		_store.Save();
+	}
+
 	private static bool IsNear(Vector2 a, Vector2 b)
 	{
 		return Math.Abs(a.X - b.X) <= PositionEpsilon
@@ -490,6 +557,7 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 		public readonly List<HandleBinding> HandleBindings = [];
 		public bool PendingDrag;
 		public bool Dragging;
+		public bool DirectDragging;
 		public Vector2 PressGlobalPosition;
 		public Vector2 DragOffset;
 		public Action? PanelVisibilityChanged;

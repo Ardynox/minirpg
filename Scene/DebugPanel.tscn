@@ -1,0 +1,361 @@
+[gd_scene format=3]
+
+[node name="DebugPanel" type="PanelContainer"]
+visible = false
+custom_minimum_size = Vector2(620, 820)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="HeaderBar" type="Control" parent="MarginContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+size_flags_horizontal = 3
+
+[node name="Header" type="RichTextLabel" parent="MarginContainer/VBox/HeaderBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = -6.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+focus_mode = 0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "ui.debug_panel.title"
+
+[node name="ContentScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 520)
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="QuickSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="QuickTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.quick"
+
+[node name="GoldRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="GoldLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/GoldRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.quick.gold"
+
+[node name="GoldAmountEdit" type="LineEdit" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/GoldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "1000"
+
+[node name="AddGoldBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/GoldRow"]
+layout_mode = 2
+text = "ui.debug_panel.quick.gold_apply"
+
+[node name="QuickButtons" type="GridContainer" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection"]
+layout_mode = 2
+columns = 3
+
+[node name="Gold100Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.gold_100"
+
+[node name="Gold1000Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.gold_1000"
+
+[node name="Gold5000Btn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.gold_5000"
+
+[node name="HealBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.heal"
+
+[node name="ChestBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.chest"
+
+[node name="GodModeBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.god.enable"
+
+[node name="DownFloorBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.down"
+
+[node name="SpawnNpcBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+text = "ui.debug_panel.quick.npcs"
+
+[node name="QuickSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="SpawnSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpawnTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.spawn"
+
+[node name="FilterRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpawnFilterLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/FilterRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.spawn.filter"
+
+[node name="SpawnFilterOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/FilterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TemplateRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpawnTemplateLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/TemplateRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.spawn.template"
+
+[node name="SpawnTemplateOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/TemplateRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionsRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpawnBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/SpawnSection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.spawn.execute"
+
+[node name="SpawnSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="WeatherSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WeatherTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.weather"
+
+[node name="WeatherStatus" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 72)
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+
+[node name="TypeRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WeatherTypeLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/TypeRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.weather.type"
+
+[node name="WeatherTypeOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/TypeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="IntensityRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WeatherIntensityLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/IntensityRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.weather.intensity"
+
+[node name="WeatherIntensityOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/IntensityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionsRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WeatherStatusBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.weather.status"
+
+[node name="WeatherLockBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.weather.lock"
+
+[node name="WeatherUnlockBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.weather.unlock"
+
+[node name="StepRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WeatherStepLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/StepRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.weather.step"
+
+[node name="WeatherStepEdit" type="LineEdit" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/StepRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "1"
+
+[node name="WeatherStepBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/StepRow"]
+layout_mode = 2
+text = "ui.debug_panel.weather.step_apply"
+
+[node name="ClearRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection"]
+layout_mode = 2
+
+[node name="WeatherClearAccumBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/WeatherSection/ClearRow"]
+layout_mode = 2
+text = "ui.debug_panel.weather.clear_accum"
+
+[node name="WeatherSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="FacilitySection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FacilityTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.facility"
+
+[node name="FacilityStatus" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 96)
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+
+[node name="FacilityRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FacilityLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/FacilityRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.facility.select"
+
+[node name="FacilityOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/FacilityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DirectionRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="DirectionLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/DirectionRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.facility.direction"
+
+[node name="DirectionOption" type="OptionButton" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/DirectionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionsRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FacilityPlaceBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.facility.place"
+
+[node name="FacilityStatusBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.facility.status"
+
+[node name="FacilityDeliverBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.facility.deliver"
+
+[node name="FacilityBuildBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/FacilitySection/ActionsRow"]
+layout_mode = 2
+text = "ui.debug_panel.facility.build"
+
+[node name="FacilitySep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="ExportSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExportTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.export"
+
+[node name="ExportRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExportLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection/ExportRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.export.scenario"
+
+[node name="ExportPresetEdit" type="LineEdit" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection/ExportRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ExportPresetBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/ExportSection/ExportRow"]
+layout_mode = 2
+text = "ui.debug_panel.export.execute"
+
+[node name="ResultsSection" type="VBoxContainer" parent="MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ResultsTitle" type="Label" parent="MarginContainer/VBox/ResultsSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.results"
+
+[node name="ResultsText" type="RichTextLabel" parent="MarginContainer/VBox/ResultsSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 150)
+size_flags_horizontal = 3
+bbcode_enabled = false
+fit_content = false
+scroll_active = true

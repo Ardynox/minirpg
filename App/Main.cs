@@ -1,7 +1,17 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
+using MiniRPG.Core.AI;
+using MiniRPG.Core.Combat;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
+using MiniRPG.Core.Dialog;
+using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
@@ -19,22 +29,53 @@ namespace MiniRPG;
 public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	GroundPanelModule.IHost, ChestPanelModule.IHost
 {
-	private const int ViewW = 21;
-	private const int ViewH = 11;
-	private static readonly string[] EditModeOnlyPanelIds = ["ground", "log"];
+	private const int ViewW = 27;
+	private const int ViewH = 15;
+	private const string HudRootPath = "HudLayer/UI";
+	private const string OverlayRootPath = "OverlayLayer";
+	private const string HeavyTileSetPath = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres";
+	private const string ChestPanelScenePath = "res://Scene/ChestPanel.tscn";
+	private const string DialogPanelScenePath = "res://Scene/DialogPanel.tscn";
+	private const string TradePanelScenePath = "res://Scene/TradePanel.tscn";
+	private const string QuestPanelScenePath = "res://Scene/QuestPanel.tscn";
+	private const string DebugPanelScenePath = "res://Scene/DebugPanel.tscn";
+	private const string ActorInspectPanelScenePath = "res://Scene/ActorInspectPanel.tscn";
+	private const float StartupVisualFloor = 0.06f;
+	private const float StartupVisualPlateau = 0.92f;
+	private const float StartupVisualProgressPerSecond = 0.18f;
+	private const float StartupThreadedLoadTimeoutSeconds = 10f;
+	private const float StartupSyncFallbackProgress = 0.90f;
+	private static readonly string[] LayoutEditablePanelIds =
+		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "dialog", "trade", "quest", "debug", "actor_inspect", "limb_target"];
+	private static readonly string[] DeferredUiScenePaths =
+		[ChestPanelScenePath, DialogPanelScenePath, TradePanelScenePath, QuestPanelScenePath, DebugPanelScenePath, ActorInspectPanelScenePath];
+	private static readonly StartupHeavyLoadStep[] StartupHeavyLoadSteps =
+	[
+		new(HeavyTileSetPath, 0.00f, 0.80f, "ui.startup.status.tileset"),
+	];
 
 	private readonly GameState _state = new();
+	private readonly Godot.Collections.Array _startupThreadProgress = [];
+	private readonly Queue<Action> _postStartupTasks = new();
 
 	private PanelContainer _mapPanelNode = null!;
 	private LogModule _log = null!;
 	private InputModule _inputModule = null!;
 	private InputBindingService _inputBindings = null!;
-	private KeyBindingsUIModule _keyBindingsUI = null!;
-	private TileMapRenderModule _mapRender = null!;
+	private LineEdit _inputBar = null!;
+	private TileMapRenderModule? _mapRender;
 	private MapEditorSession _mapEditor = null!;
 	private MapEditorBarModule _mapEditorBar = null!;
 	private SaveNameDialogModule _saveNameDialog = null!;
+	private CharacterCreationModule _characterCreation = null!;
+	private ConfirmDialogModule _confirmDialog = null!;
+	private FantasyCharacterAnimatable _playerCharacterVisual = null!;
+	private Control _combatFxTextRoot = null!;
+	private CombatFxRegistry _combatFxRegistry = CombatFxRegistry.Empty;
+	private CombatFxPlayer? _combatFxPlayer;
 	private double _watchTimer;
+	private bool _watchModeEnabled;
+	private bool _timelineAutoAdvancePending;
 
 	private bool _skillBarDirty;
 	private bool _layoutResetPending;
@@ -46,90 +87,209 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private PanelManager _panels = null!;
 	private PanelDragService _panelDrag = null!;
+	private PanelLayoutService _panelLayouts = null!;
+	private PanelHoverChromeService _panelChrome = null!;
+	private PauseMenuPanelModule _pauseMenuPanelModule = null!;
 	private SettingsPanelModule _settingsPanelModule = null!;
+	private SettingsFlowCoordinator _settingsFlow = null!;
+	private SettingsFlowModalInputAdapter _settingsFlowModalInput = null!;
+	private IModalInputLayer[] _modalInputLayers = [];
+	private ModalStateController _modalStateController = null!;
+	private MainInputCoordinator _mainInputCoordinator = null!;
+	private MainAppFlowCoordinator _mainAppFlowCoordinator = null!;
+	private DebugPanelController _debugPanelController = null!;
+	private WeatherLabPanelController _weatherLabPanelController = null!;
 	private LayoutEditBarModule _layoutEditBar = null!;
-	private SaveBrowserModule _saveBrowser = null!;
+	private WorldManagerModule _worldManager = null!;
+	private WorldSettingsDialogModule _worldSettingsDialog = null!;
 	private StatusPanelModule _statusPanelModule = null!;
 	private SkillBarModule _skillBar = null!;
 	private SkillManagerModule _skillMgr = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
+	private TurnPanelModule _turnPanelModule = null!;
+	private ThreatHudModule _threatHud = null!;
+	private TargetSummaryHudModule _targetSummaryHud = null!;
+	private NeedsHudModule _needsHud = null!;
+	private HealthAlertsModule _healthAlerts = null!;
+	private Control _startupOverlay = null!;
+	private Label _startupStatusLabel = null!;
+	private ProgressBar _startupProgressBar = null!;
+	private bool _timelineStatusLogPrimed;
+	private TimelineInputLockReason _lastTimelineLockReason;
+	private ThreatHudMode _lastActiveThreatMode;
 
 	private ChestPanelModule? _chestPanel;
 	private DialogPanelModule? _dialogPanel;
 	private TradePanelModule? _tradePanel;
 	private QuestPanelModule? _questPanel;
+	private ActorInspectPanelModule? _actorInspectPanel;
+	private LimbTargetPanelModule? _limbTargetPanel;
 
-	private (int x, int y)? _openChestPos;
+	private (int x, int y, int z)? _openChestPos;
+	private string? _armedSkillId;
+	private bool _inspectModeActive;
+	private bool _skillCastCursorActive;
+	private Vector3I? _inspectWorldCell;
+	private string? _inspectPreviousFocusId;
+	private string? _inspectActorId;
+	private PlayerTargetingContext _playerTargeting = PlayerTargetingContext.Empty;
+	private bool _playerRestModeActive;
+	private bool _enableKeyboardTargeting;
+	private bool _enableDebugPanel = true;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
 	private bool ChestOpen => _panels?.FocusedId == "chest";
+	private bool MapPanelFocused => _panels?.FocusedId == "map";
 	private bool LayoutEditActive => _panelDrag?.EditModeActive == true;
 	private bool MapEditorActive => _mapEditor?.Active == true;
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule? _tradeUI;
 	private DialogUIModule? _dialogUI;
-	private SaveBrowserContext _saveBrowserContext = SaveBrowserContext.MainMenu;
 
-	private enum SaveBrowserContext
+	private bool IsWorldManagerOpen => _worldManager != null && _worldManager.Visible;
+	private bool IsWorldSettingsDialogOpen => _worldSettingsDialog != null && _worldSettingsDialog.Visible;
+	private bool IsSaveNameDialogOpen => _saveNameDialog != null && _saveNameDialog.Visible;
+	private bool IsCharacterCreationOpen => _characterCreation != null && _characterCreation.Visible;
+	private bool IsConfirmDialogOpen => _confirmDialog != null && _confirmDialog.Visible;
+	private bool ResourcesReady => _startupState == StartupState.Ready;
+	private bool RenderReady => _mapRender != null;
+
+	private StartupState _startupState = StartupState.LoadingHeavyAssets;
+	private int _startupLoadIndex = -1;
+	private string? _startupLoadPath;
+	private string? _startupLastLoadPath;
+	private float _startupProgress;
+	private string _startupStatusKey = "ui.startup.status.tileset";
+	private TileSet? _loadedTileSet;
+	private bool _postStartupTasksQueued;
+	private int _postStartupTaskDelayFrames;
+	private ulong _startupLoadStartedAtMsec;
+	private bool _startupSyncFallbackUsed;
+	private bool _busyOperationActive;
+	private float _busyOperationProgress;
+	private string _busyOperationStatusKey = "ui.loading.new_game.prepare";
+
+	private enum StartupState
 	{
-		MainMenu,
-		InGame,
+		LoadingHeavyAssets,
+		CompletingHeavyAssetsSynchronously,
+		Finalizing,
+		Ready,
+		Failed,
 	}
+
+	private readonly record struct StartupHeavyLoadStep(
+		string Path,
+		float ProgressStart,
+		float ProgressEnd,
+		string StatusKey);
 
 
 	// ── 懒加载低频面板 ──────────────────────────────────
 
-	private HBoxContainer TopRow => GetNode<HBoxContainer>("UI/TopRow");
+	private HBoxContainer TopRow => GetNode<HBoxContainer>($"{HudRootPath}/TopRow");
 
 	private ChestPanelModule EnsureChestPanel()
 	{
 		if (_chestPanel != null) return _chestPanel;
-		var scene = GD.Load<PackedScene>("res://Scene/ChestPanel.tscn");
+		var scene = LoadPackedSceneCached(ChestPanelScenePath);
 		var node = scene.Instantiate<PanelContainer>();
 		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
 		_chestPanel = new ChestPanelModule(node, this);
 		_panels.Register(_chestPanel);
-		RegisterAlwaysDraggable(_chestPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDirectDraggable(_chestPanel);
+		RegisterCommonPanelChrome(_chestPanel, "MarginContainer/VBox/HeaderBar/Header", CloseChestPanel);
 		return _chestPanel;
 	}
 
 	private DialogPanelModule EnsureDialogPanel()
 	{
 		if (_dialogPanel != null) return _dialogPanel;
-		var scene = GD.Load<PackedScene>("res://Scene/DialogPanel.tscn");
+		var scene = LoadPackedSceneCached(DialogPanelScenePath);
 		var node = scene.Instantiate<PanelContainer>();
 		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
 		_dialogPanel = new DialogPanelModule(node);
 		_panels.Register(_dialogPanel);
-		RegisterAlwaysDraggable(_dialogPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDirectDraggable(_dialogPanel);
+		RegisterCommonPanelChrome(_dialogPanel, "MarginContainer/VBox/HeaderBar/Header", CloseDialogPanel);
 		return _dialogPanel;
 	}
 
 	private TradePanelModule EnsureTradePanel()
 	{
 		if (_tradePanel != null) return _tradePanel;
-		var scene = GD.Load<PackedScene>("res://Scene/TradePanel.tscn");
+		var scene = LoadPackedSceneCached(TradePanelScenePath);
 		var node = scene.Instantiate<PanelContainer>();
 		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
 		_tradePanel = new TradePanelModule(node);
 		_panels.Register(_tradePanel);
-		RegisterAlwaysDraggable(_tradePanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDirectDraggable(_tradePanel);
+		RegisterCommonPanelChrome(_tradePanel, "MarginContainer/VBox/HeaderBar/Header", CloseTradePanel);
 		return _tradePanel;
 	}
 
 	private QuestPanelModule EnsureQuestPanel()
 	{
 		if (_questPanel != null) return _questPanel;
-		var scene = GD.Load<PackedScene>("res://Scene/QuestPanel.tscn");
+		var scene = LoadPackedSceneCached(QuestPanelScenePath);
 		var node = scene.Instantiate<PanelContainer>();
 		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
 		_questPanel = new QuestPanelModule(node);
 		_panels.Register(_questPanel);
-		RegisterAlwaysDraggable(_questPanel, node.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDirectDraggable(_questPanel);
+		RegisterCommonPanelChrome(_questPanel, "MarginContainer/VBox/HeaderBar/Header", CloseQuestPanel);
 		return _questPanel;
+	}
+
+	private DebugPanelModule CreateDebugPanel(DebugPanelModule.IHost host, Action closeAction)
+	{
+		var scene = LoadPackedSceneCached(DebugPanelScenePath);
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
+		var debugPanel = new DebugPanelModule(node, host);
+		_panels.Register(debugPanel);
+		RegisterAlwaysDirectDraggable(debugPanel);
+		RegisterCommonPanelChrome(debugPanel, "MarginContainer/VBox/HeaderBar/Header", closeAction);
+		return debugPanel;
+	}
+
+	private ActorInspectPanelModule EnsureActorInspectPanel()
+	{
+		if (_actorInspectPanel != null) return _actorInspectPanel;
+		var scene = LoadPackedSceneCached(ActorInspectPanelScenePath);
+		var node = scene.Instantiate<PanelContainer>();
+		TopRow.AddChild(node);
+		LocalizationService.LocalizeTree(node);
+		_actorInspectPanel = new ActorInspectPanelModule(node);
+		_actorInspectPanel.CloseRequested += CloseActorInspectPanel;
+		_panels.Register(_actorInspectPanel);
+		RegisterAlwaysDirectDraggable(_actorInspectPanel);
+		RegisterCommonPanelChrome(_actorInspectPanel, "MarginContainer/VBox/HeaderBar/NameInfo", CloseActorInspectPanel);
+		return _actorInspectPanel;
+	}
+
+	private LimbTargetPanelModule EnsureLimbTargetPanel()
+	{
+		if (_limbTargetPanel != null)
+			return _limbTargetPanel;
+
+		var node = LimbTargetPanelModule.CreateControl(GetNode<Control>(HudRootPath).Theme);
+		TopRow.AddChild(node);
+		_limbTargetPanel = new LimbTargetPanelModule(node);
+		_limbTargetPanel.CloseRequested += CloseLimbTargetPanel;
+		_limbTargetPanel.TargetConfirmed += HandleLimbTargetConfirmed;
+		_panels.Register(_limbTargetPanel);
+		RegisterAlwaysDirectDraggable(_limbTargetPanel);
+		RegisterCommonPanelChrome(_limbTargetPanel, "MarginContainer/VBox/HeaderBar/Header", CloseLimbTargetPanel);
+		return _limbTargetPanel;
 	}
 
 	private TradeUIModule EnsureTradeUI()
@@ -146,19 +306,30 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		return _dialogUI;
 	}
 
-	private void RegisterAlwaysDraggable(IPanel panel, params Control[] dragHandles)
+	private static PackedScene LoadPackedSceneCached(string path)
 	{
+		var scene = ResAccess.Get<PackedScene>(path);
+		if (scene != null)
+			return scene;
+
+		throw new InvalidOperationException($"Failed to load PackedScene: {path}");
+	}
+
+	private void RegisterAlwaysDirectDraggable(IPanel panel)
+	{
+		_panelLayouts.RegisterPanel(panel.PanelId, panel.PanelNode);
 		_panelDrag.Register(new DraggablePanelRegistration(
 			panel.PanelId,
 			panel.PanelNode,
 			PanelDragAvailability.Always,
-			dragHandles,
+			[],
 			DefaultFloating: true
 		));
 	}
 
 	private void RegisterEditModeOnly(string panelId, PanelContainer panelNode, bool defaultFloating, params Control[] dragHandles)
 	{
+		_panelLayouts.RegisterPanel(panelId, panelNode);
 		_panelDrag.Register(new DraggablePanelRegistration(
 			panelId,
 			panelNode,
@@ -166,6 +337,22 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			dragHandles,
 			defaultFloating
 		));
+	}
+
+	private void RegisterCommonPanelChrome(IPanel panel, string titleDragPath, Action closeAction)
+	{
+		var dragHandle = panel.PanelNode.GetNodeOrNull<Control>(titleDragPath);
+		if (dragHandle == null)
+		{
+			GD.PushWarning($"[Main] Missing chrome drag handle '{titleDragPath}' for panel '{panel.PanelId}'.");
+			return;
+		}
+
+		_panelChrome.Register(new PanelHoverChromeRegistration(
+			panel.PanelId,
+			panel.PanelNode,
+			[dragHandle],
+			closeAction));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -183,27 +370,169 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	void IGameUI.CancelSelection() => _inputModule.CancelSelection();
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
+	void IGameUI.SubmitPlayerAction(TimelinePlayerAction action) => SubmitPlayerAction(action);
+	bool IGameUI.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
 	void InventoryPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void InventoryPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
+	void InventoryPanelModule.IHost.SubmitPlayerAction(TimelinePlayerAction action) => SubmitPlayerAction(action);
 	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
 	GameState InventoryPanelModule.IHost.State => _state;
 	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
 	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(chestItem);
-	void InventoryPanelModule.IHost.CloseInventory() => ToggleInventory();
+	void InventoryPanelModule.IHost.CloseInventory() => CloseInventoryPanel();
+	bool InventoryPanelModule.IHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
 	void GroundPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
 	void GroundPanelModule.IHost.FlushMap() => FlushMap();
 	GameState GroundPanelModule.IHost.State => _state;
 	void GroundPanelModule.IHost.OpenChestPanel(Item chestItem) => OpenChestPanel(chestItem);
+	void GroundPanelModule.IHost.OpenCorpseHarvest(Item corpseItem) => OpenCorpseHarvest(corpseItem);
+	void GroundPanelModule.IHost.StripCorpse(Item corpseItem) => SubmitCorpseOperation("strip_corpse", corpseItem);
+	void GroundPanelModule.IHost.ButcherCorpse(Item corpseItem) => SubmitCorpseOperation("butcher_corpse", corpseItem);
 	void GroundPanelModule.IHost.PickupGroundItem(Item item) => PickupGroundItem(ActorModule.GetPlayer(_state)!, item);
+	bool GroundPanelModule.IHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
 	void ChestPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void ChestPanelModule.IHost.FlushMap() => FlushMap();
 	GameState ChestPanelModule.IHost.State => _state;
 	void ChestPanelModule.IHost.CloseChestPanel() => CloseChestPanel();
 	void ChestPanelModule.IHost.OpenPutIntoChestSelection(Item chestItem) => OpenPutIntoChestSelection(chestItem);
+	void ChestPanelModule.IHost.PersistChestItem(Item chestItem) => PersistOpenChestState(chestItem);
+	bool ChestPanelModule.IHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
+
+	private void ProcessTimelineAutoAdvance(double delta)
+	{
+		if (PlayerDead || ActorModule.GetPlayer(_state) == null || (!_watchModeEnabled && !_timelineAutoAdvancePending))
+			return;
+
+		_watchTimer += delta;
+		if (_watchTimer < 0.2)
+			return;
+
+		_watchTimer = 0;
+		WatchModeTick();
+	}
+
+	private void ProcessPlayerRestMode()
+	{
+		if (!_playerRestModeActive || PlayerDead || _watchModeEnabled)
+			return;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+		{
+			_playerRestModeActive = false;
+			return;
+		}
+
+		NeedSystem.Sync(player, _state.Turn);
+		var restValue = NeedSystem.GetNeedValue(player, NeedIds.Rest);
+		if (restValue >= 85f)
+		{
+			_playerRestModeActive = false;
+			return;
+		}
+
+		if (NeedBehaviorModule.HasNearbyThreat(_state, player))
+		{
+			_playerRestModeActive = false;
+			var interrupted = new List<GameEvent>();
+			NeedSystem.ApplyThought(player, "sleep_interrupted", _state.Turn, NeedThoughtSources.Sleep, interrupted, _state);
+			Dispatch(interrupted);
+			return;
+		}
+
+		if (TimelineTurnManager.IsPlayerTurn(_state))
+			SubmitPlayerAction(TimelinePlayerAction.Rest());
+	}
+
+	private void TogglePlayerRestMode()
+	{
+		if (_playerRestModeActive)
+		{
+			_playerRestModeActive = false;
+			return;
+		}
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+		if (!NeedActionModule.HasBedroll(player))
+		{
+			_log.Add(LocalizationService.T("log.rest.needs_bedroll"));
+			return;
+		}
+		if (NeedBehaviorModule.HasNearbyThreat(_state, player))
+		{
+			_log.Add(LocalizationService.T("log.rest.unsafe"));
+			return;
+		}
+
+		_playerRestModeActive = true;
+		Dispatch(
+		[
+			new GameEvent("rest_started")
+			{
+				InitiatorId = player.Id,
+				TargetId = player.Id,
+				TargetActorName = IdentificationModule.GetActorDisplayName(_state, player),
+			},
+		]);
+	}
+
+	private bool IsTimelineInputLocked() =>
+		!PlayerDead && (_timelineAutoAdvancePending || _watchModeEnabled);
+
+	private void SubmitPlayerAction(TimelinePlayerAction action)
+	{
+		_ = SubmitPlayerActionWithResult(action);
+	}
+
+	private TimelineStepResult SubmitPlayerActionWithResult(TimelinePlayerAction action)
+	{
+		var result = TimelineTurnManager.SubmitPlayerAction(_state, action);
+		ApplyTimelineStep(result);
+		return result;
+	}
+
+	private void AdvanceTimelineAutoStep()
+	{
+		var result = TimelineTurnManager.AdvanceAuto(_state, _watchModeEnabled);
+		ApplyTimelineStep(result);
+	}
+
+	private void ApplyTimelineStep(TimelineStepResult result)
+	{
+		if (result.Events.Count > 0)
+			Dispatch(result.Events);
+
+		FinalizeTimelineStepUi();
+		SyncTimelineAutoAdvanceState(emitStatusLog: true);
+	}
+
+	private void SyncTimelineAutoAdvanceState(bool emitStatusLog = false)
+	{
+		var snapshot = TimelineTurnManager.CreateDebugSnapshot(_state, PlayerDead, _watchModeEnabled);
+		_timelineAutoAdvancePending = snapshot.HasPendingAutoAdvance;
+		if (!_timelineAutoAdvancePending)
+			_watchTimer = 0;
+
+		_turnPanelModule.Dirty = true;
+		if (emitStatusLog)
+			UpdateTimelineStatusLog(snapshot);
+		else
+			PrimeTimelineStatusLog(snapshot);
+	}
+
+	private void FinalizeTimelineStepUi()
+	{
+		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
+		FlushMap();
+		CheckChestRange();
+	}
 
 	/// <summary>
 	/// </summary>
@@ -213,27 +542,30 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		PlayerDead = true;
 		CancelLayoutEditMode();
 
-		if (_state.WatchMode)
-		{
-			_state.WatchMode = false;
-			var player = ActorModule.GetPlayer(_state);
-			if (player != null) player.BrainId = null;
-			_settingsPanelModule.SetWatchMode(false);
-		}
+		SetWatchModeEnabled(false, emitLog: false);
 
 		_inputModule.CancelSelection();
+		ClearArmedSkill(restoreFocus: false);
+		EndInspectMode(restoreFocus: false);
+		ClearPlayerTargeting();
+		_playerRestModeActive = false;
+		ResetThreatHud();
+		_timelineAutoAdvancePending = false;
+		_watchTimer = 0;
+		ResetTimelineStatusLog();
 
 		_log.Add("");
 		_log.Add(reason == "incapacitated"
-			? "══════ 😵 你失去了意识 ══════"
-			: "══════ 💀 你死了 ══════");
-		_log.Add($"  鍥炲悎: {_state.Turn}");
-		_log.Add($"  到达: 第 {_state.PlayerZ} 层");
-		_log.Add($"  鍑绘潃: {_state.KillCount}");
+			? LocalizationService.T("death.incapacitated")
+			: LocalizationService.T("death.killed"));
+		_log.Add(LocalizationService.T("death.turn", ("turn", _state.Turn)));
+		_log.Add(LocalizationService.T("death.floor", ("floor", _state.PlayerZ)));
+		_log.Add(LocalizationService.T("death.kills", ("kills", _state.KillCount)));
 		var player2 = ActorModule.GetPlayer(_state);
-		if (player2 != null) _log.Add($"  閲戝竵: {player2.Gold}G");
-		_log.Add("════════════════════════════");
-		_log.Add("按任意键返回主菜单...");
+		if (player2 != null)
+			_log.Add(LocalizationService.T("death.gold", ("gold", player2.Gold)));
+		_log.Add(LocalizationService.T("death.separator"));
+		_log.Add(LocalizationService.T("death.back_to_menu"));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -245,58 +577,108 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		GameConfig.Load();
 		PresetDB.Load();
-		TerrainRegistry.Load("res://Data/terrains.json");
+		LocalizationService.Initialize();
+		LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
+		_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
+		_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
+		TerrainRegistry.Load("terrains.json");
+		GameLocalizer.CaptureBaseSnapshots();
+		GameLocalizer.ApplyPresetTranslations();
 		DialogPool.Load();
 		ResAccess.Load();
+		_combatFxRegistry = CombatFxRegistry.Load();
+		PlayerAppearanceCatalog.LoadProjectCatalog();
 		_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 
 		_session = new GameSessionModule(_state, _fogTracker);
 		_menu = new MenuModule(this);
 
-		_mapPanelNode = GetNode<PanelContainer>("UI/TopRow/MapPanel");
-		var logPanelNode = GetNode<PanelContainer>("UI/LogPanel");
+		_mapPanelNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/MapPanel");
+		var logPanelNode = GetNode<PanelContainer>($"{HudRootPath}/LogPanel");
 		var logContent = logPanelNode.GetNode<RichTextLabel>("MarginContainer/VBox/ContentText");
 		_log = new LogModule(logContent);
-		var lineEdit = GetNode<LineEdit>("UI/InputBar");
-
-		var viewportContainer = GetNode<SubViewportContainer>("UI/TopRow/MapPanel/SubViewportContainer");
-		var subViewport = viewportContainer.GetNode<SubViewport>("SubViewport");
-		var mapRoot = subViewport.GetNode<Node2D>("MapRoot");
-		var tileSet = GD.Load<TileSet>("res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres");
-		var playerSpine = mapRoot.GetNodeOrNull<Node2D>("PlayerSpine");
-		var camera = subViewport.GetNode<Camera2D>("Camera2D");
-		_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
-		_mapRender.Init(mapRoot, tileSet, viewportContainer, subViewport, playerSpine, camera);
+		_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
+		var lineEdit = _inputBar;
 		_mapEditor = new MapEditorSession(_state);
 
-		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>("UI/TopRow/StatusPanel"));
-		_settingsPanelModule = new SettingsPanelModule(GetNode<PanelContainer>("SettingsPanel"));
-		var layoutEditBarNode = GetNode<PanelContainer>("LayoutEditBar");
-		layoutEditBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
-		_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
-		var saveBrowserNode = GetNode<PanelContainer>("SaveBrowser");
-		saveBrowserNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
-		_saveBrowser = new SaveBrowserModule(saveBrowserNode);
-		var mapEditorBarNode = GetNode<PanelContainer>("MapEditorBar");
-		mapEditorBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
-		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
-		var saveNameDialogNode = GetNode<PanelContainer>("SaveNameDialog");
-		saveNameDialogNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
-		_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
+		_startupOverlay = GetNode<Control>($"{OverlayRootPath}/StartupOverlay");
+		_startupStatusLabel = GetNode<Label>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Status");
+		_startupProgressBar = GetNode<ProgressBar>($"{OverlayRootPath}/StartupOverlay/Bar/Margin/VBox/Progress");
+		_combatFxTextRoot = CreateMapOverlayRoot(_mapPanelNode);
 
-		var skillBarNode = GetNode<PanelContainer>("SkillBar");
-		skillBarNode.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
+		var uiTheme = GetNode<Control>(HudRootPath).Theme;
+		var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
+		floatingRoot.Theme = uiTheme;
+		var overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
+		overlayLayer.AddChild(floatingRoot);
+		var threatHudNode = ThreatHudModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(threatHudNode);
+		_threatHud = new ThreatHudModule(threatHudNode);
+		var targetSummaryHudNode = TargetSummaryHudModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(targetSummaryHudNode);
+		_targetSummaryHud = new TargetSummaryHudModule(targetSummaryHudNode);
+		var needsHudNode = NeedsHudModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(needsHudNode);
+		_needsHud = new NeedsHudModule(needsHudNode);
+		var healthAlertsNode = HealthAlertsModule.CreateControl(uiTheme);
+		overlayLayer.AddChild(healthAlertsNode);
+		_healthAlerts = new HealthAlertsModule(healthAlertsNode);
+		_lastActiveThreatMode = ThreatHudMode.Hidden;
+
+		var layoutStore = new PanelLayoutStore();
+		var buttonScaleService = new PanelButtonScaleService();
+		PanelButtonScaleRegistry.Bind(buttonScaleService);
+		_panelLayouts = new PanelLayoutService(layoutStore, buttonScaleService);
+		_panelLayouts.Initialize();
+		_panelDrag = new PanelDragService(layoutStore, floatingRoot);
+		_panelChrome = new PanelHoverChromeService(floatingRoot, _panelLayouts, _panelDrag);
+		_inputBindings = new InputBindingService(ProjectSettings.GlobalizePath("user://keybindings.json"));
+
+		_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TopRow/StatusPanel"));
+		_turnPanelModule = new TurnPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TurnPanel"));
+		var pauseMenuNode = GetNode<PanelContainer>($"{OverlayRootPath}/PauseMenuPanel");
+		pauseMenuNode.Theme = uiTheme;
+		_pauseMenuPanelModule = new PauseMenuPanelModule(pauseMenuNode);
+		var settingsPanelNode = GetNode<PanelContainer>($"{OverlayRootPath}/SettingsPanel");
+		settingsPanelNode.Theme = uiTheme;
+		_settingsPanelModule = new SettingsPanelModule(settingsPanelNode, _inputBindings);
+		var layoutEditBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/LayoutEditBar");
+		layoutEditBarNode.Theme = uiTheme;
+		_layoutEditBar = new LayoutEditBarModule(layoutEditBarNode);
+		var worldManagerNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldManager");
+		worldManagerNode.Theme = uiTheme;
+		_worldManager = new WorldManagerModule(worldManagerNode);
+		var mapEditorBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/MapEditorBar");
+		mapEditorBarNode.Theme = uiTheme;
+		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
+		InitializeWeatherLabPanel(uiTheme);
+		var saveNameDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/SaveNameDialog");
+		saveNameDialogNode.Theme = uiTheme;
+		_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
+		var characterCreationNode = GetNode<PanelContainer>($"{OverlayRootPath}/CharacterCreationDialog");
+		characterCreationNode.Theme = uiTheme;
+		_characterCreation = new CharacterCreationModule(characterCreationNode);
+		var worldSettingsDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldSettingsDialog");
+		worldSettingsDialogNode.Theme = uiTheme;
+		_worldSettingsDialog = new WorldSettingsDialogModule(worldSettingsDialogNode);
+		var confirmDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/ConfirmDialog");
+		confirmDialogNode.Theme = uiTheme;
+		_confirmDialog = new ConfirmDialogModule(confirmDialogNode);
+
+		var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
+		skillBarNode.Theme = uiTheme;
 		_skillBar = new SkillBarModule(skillBarNode);
 		_skillBar.CloseRequested += CloseSkillBarPanel;
-		var skillManagerNode = GetNode<PanelContainer>("UI/TopRow/SkillManager");
+		_skillBar.ConfirmRequested += HandleSkillConfirmRequested;
+		var skillManagerNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/SkillManager");
 		_skillMgr = new SkillManagerModule(skillManagerNode);
-		var inventoryNode = GetNode<PanelContainer>("UI/TopRow/InventoryPanel");
+		var inventoryNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/InventoryPanel");
 		_inventoryPanel = new InventoryPanelModule(inventoryNode, this);
-		var groundNode = GetNode<PanelContainer>("UI/GroundPanel");
+		var groundNode = GetNode<PanelContainer>($"{HudRootPath}/GroundPanel");
 		_groundPanel = new GroundPanelModule(groundNode, this);
 
 		_panels = new PanelManager();
-		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false);
+		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
 		_panels.Register(_statusPanelModule);
 		_panels.Register(_skillBar);
 		_panels.Register(_skillMgr);
@@ -304,41 +686,162 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.Register(_groundPanel);
 		_panels.RegisterPassive(logPanelNode, "log", canFocus: false);
 
-		var floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
-		floatingRoot.Theme = GD.Load<Theme>("res://Assets/UI/Themes/UITheme.tres");
-		AddChild(floatingRoot);
-		_panelDrag = new PanelDragService(new PanelLayoutStore(), floatingRoot);
-		_panelDrag.Initialize();
-		RegisterAlwaysDraggable(_statusPanelModule, _statusPanelModule.PanelNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
-		RegisterAlwaysDraggable(_skillBar, skillBarNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
-		RegisterAlwaysDraggable(_skillMgr, skillManagerNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
-		RegisterAlwaysDraggable(_inventoryPanel, inventoryNode.GetNode<Control>("MarginContainer/VBox/HeaderBar"));
+		RegisterAlwaysDirectDraggable(_statusPanelModule);
+		RegisterAlwaysDirectDraggable(_skillBar);
+		RegisterAlwaysDirectDraggable(_skillMgr);
+		RegisterAlwaysDirectDraggable(_inventoryPanel);
 		RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
 		RegisterEditModeOnly("log", logPanelNode, defaultFloating: false, logContent);
+		RegisterCommonPanelChrome(_statusPanelModule, "MarginContainer/VBox/HeaderBar/NameInfo", CloseStatusPanel);
+		RegisterCommonPanelChrome(_skillBar, "MarginContainer/VBox/HeaderBar/Header", CloseSkillBarPanel);
+		RegisterCommonPanelChrome(_skillMgr, "MarginContainer/VBox/HeaderBar/Header", CloseSkillManagerPanel);
+		RegisterCommonPanelChrome(_inventoryPanel, "MarginContainer/VBox/HeaderBar/Header", CloseInventoryPanel);
 
-		_inputBindings = new InputBindingService();
 		_inputModule = new InputModule(lineEdit, _inputBindings);
-		_keyBindingsUI = new KeyBindingsUIModule(this, _inputBindings);
+		_panels.Register(_pauseMenuPanelModule);
 		_panels.Register(_settingsPanelModule);
-		_panels.Register(_keyBindingsUI);
+		_settingsFlow = new SettingsFlowCoordinator(
+			new PanelManagerSettingsFlowFocusHost(_panels),
+			_pauseMenuPanelModule,
+			_settingsPanelModule);
+		_settingsFlowModalInput = new SettingsFlowModalInputAdapter(_settingsFlow, _panels, FlushMap);
+		_modalInputLayers =
+		[
+			_confirmDialog,
+			_worldManager,
+			_worldSettingsDialog,
+			_saveNameDialog,
+			_characterCreation,
+			_settingsFlowModalInput,
+		];
+		_modalStateController = new ModalStateController(
+			_panelChrome.CloseActiveSettings,
+			HideSettingsPanels,
+			CloseSettingsOverlayIfVisible,
+			() => ExitMapEditor(silent: true),
+			CancelLayoutEditMode,
+			() => _mainAppFlowCoordinator.CloseConfirmDialog(),
+			() => _mainAppFlowCoordinator.CloseWorldManager(),
+			() => _mainAppFlowCoordinator.CloseWorldSettingsDialog(),
+			CloseSaveNameDialog,
+			() => _mainAppFlowCoordinator.CloseCharacterCreationDialog());
+		_mainAppFlowCoordinator = new MainAppFlowCoordinator(
+			_state,
+			_session,
+			_log,
+			_menu,
+			_settingsFlow,
+			_worldManager,
+			_worldSettingsDialog,
+			_characterCreation,
+			_saveNameDialog,
+			_confirmDialog,
+			_inputModule,
+			_panels,
+			_modalStateController,
+			() => ResourcesReady,
+			() => _busyOperationActive,
+			() => LayoutEditActive,
+			() => MapEditorActive,
+			() => _state.World != null,
+			ShowMainMenuWithCurrentContinue,
+			ShowGameHints,
+			ShowWorldCharacterEntryHint,
+			ShowMapEditorHints,
+			FinalizeSessionPanels,
+			DoEnterGame,
+			HideSettingsPanels,
+			() => ClearArmedSkill(restoreFocus: false),
+			() => EndInspectMode(restoreFocus: false),
+			ClearPlayerTargeting,
+			ResetThreatHud,
+			() => _log.Clear(),
+			value => PlayerDead = value,
+			() => SetWatchModeEnabled(false, emitLog: false),
+			() => _playerRestModeActive = false,
+			ResetTimelineStatusLog,
+			() =>
+			{
+				if (_dialogUI != null && _dialogUI.InDialog)
+					_dialogUI.CloseDialog();
+			},
+			() =>
+			{
+				if (_tradeUI != null && _tradeUI.InTrade)
+					_tradeUI.CloseTrade();
+			},
+			() => _skillBar.Close(),
+			CloseDebugPanel,
+			RefreshPlayerCharacterVisual,
+			RefreshLocalizedUi,
+			SyncSettingsUiState,
+			() => SyncTimelineAutoAdvanceState(),
+			_weatherLabPanelController.RefreshSessionState,
+			_weatherLabPanelController.Close,
+			DoSave,
+			DoLoad,
+			BeginLayoutEditMode,
+			EnterMapEditorCore,
+			silent => ExitMapEditor(silent),
+			FlushMap,
+			BeginBusyOperation,
+			ShowBusyOperationStageAsync,
+			EndBusyOperation);
+		_debugPanelController = new DebugPanelController(
+			_state,
+			_session,
+			_log,
+			_panels,
+			CreateDebugPanel,
+			MarkUIDirty,
+			FlushMap,
+			SubmitPlayerActionWithResult,
+			() => _session.GameStarted,
+			() => _menu.InMenu,
+			() => _enableDebugPanel);
+		_mainInputCoordinator = new MainInputCoordinator(
+			_modalInputLayers,
+			() => GetViewport().SetInputAsHandled(),
+			@event => _panelChrome.HandleInput(@event, enabled: true),
+			_panelDrag.HandleGlobalInput,
+			HandleLayoutEditKeyInput,
+			HandleLayoutEditInput,
+			HandleMapEditorKeyInput,
+			HandleMapEditorMouseInput,
+			HandleInspectModeKey,
+			_panels.HandleKey,
+			_inputModule.HandleKeyInput,
+			HandleGameplayMouseInput);
 		_inputModule.CommandReceived += OnCommand;
 
 		_combatUI = new CombatUIModule(this);
-		_settingsPanelModule.RenderToggleRequested += ToggleRender;
-		_settingsPanelModule.WatchModeToggleRequested += ToggleWatchMode;
-		_settingsPanelModule.MapEditorToggleRequested += ToggleMapEditor;
-		_settingsPanelModule.LayoutEditRequested += OpenLayoutEditMode;
-		_settingsPanelModule.SaveRequested += DoSaveCurrent;
-		_settingsPanelModule.LoadRequested += () => OpenSaveBrowser(SaveBrowserContext.InGame);
-		_settingsPanelModule.KeyBindingsRequested += OpenKeyBindingsPanel;
-		_settingsPanelModule.ReturnToMenuRequested += HandleSettingsReturnToMenuRequested;
-		_settingsPanelModule.CloseRequested += CloseSettingsPanel;
-		_keyBindingsUI.CloseRequested += CloseKeyBindingsPanel;
+		_settingsFlow.RenderToggleRequested += ToggleRender;
+		_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
+		_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
+		_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
+		_settingsFlow.MapEditorToggleRequested += _mainAppFlowCoordinator.ToggleMapEditor;
+		_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
+		_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
+		_settingsFlow.SaveRequested += DoSaveCurrent;
+		_settingsFlow.LoadRequested += () => _mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
+		_settingsFlow.LanguageChangedRequested += HandleLanguageChanged;
+		_settingsFlow.QuickSaveRequested += () =>
+		{
+			var path = _session.GetQuickSavePath();
+			DoSave(path, _session.DescribeSavePath(path));
+		};
+		_settingsFlow.QuickLoadRequested += _mainAppFlowCoordinator.HandleQuickLoadRequested;
+		_settingsFlow.ReturnToMenuRequested += _mainAppFlowCoordinator.HandleBackToMenu;
+		_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
 		_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
 		_layoutEditBar.CancelRequested += CancelLayoutEditMode;
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
-		_saveBrowser.CloseRequested += CloseSaveBrowser;
-		_saveBrowser.LoadRequested += HandleSaveBrowserLoadRequested;
+		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
+		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
+		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
+		_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
+		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
+		_worldManager.LegacySaveRequested += _mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested;
 		_mapEditorBar.CategorySelected += category =>
 		{
 			_mapEditor.SelectCategory(category);
@@ -360,420 +863,1097 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		};
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
+		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
+		_characterCreation.CancelRequested += _mainAppFlowCoordinator.HandleCharacterCreationCanceled;
+		_worldSettingsDialog.ConfirmRequested += _mainAppFlowCoordinator.HandleWorldSettingsConfirmed;
+		_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
+		_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;
+		_confirmDialog.CancelRequested += _mainAppFlowCoordinator.CloseConfirmDialog;
 
-		_menu.OnContinue += HandleMenuContinue;
-		_menu.OnNewGame += HandleMenuNewGame;
-		_menu.OnMapEditor += HandleMenuMapEditor;
-		_menu.OnLoadGame += HandleMenuLoadGame;
+		_menu.OnContinue += _mainAppFlowCoordinator.HandleMenuContinue;
+		_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
+		_menu.OnMapEditor += _mainAppFlowCoordinator.HandleMenuMapEditor;
+		_menu.OnWeatherLab += HandleMenuWeatherLab;
 		_menu.OnAutoTest += HandleAutoTest;
 		_menu.OnQuit += () => GetTree().Quit();
-		_menu.OnOpenSettings += OpenMenuSettingsPanel;
+		_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;
 
-		_session.EnsurePresetSavesSeeded();
-		_settingsPanelModule.SetMapEditorActive(false);
-		_menu.ShowMainMenu(_session.HasAnySave());
+		LocalizationService.LocalizeTree(this);
+		_settingsFlow.RefreshTexts();
+		SyncSettingsUiState();
+		ShowMainMenuWithCurrentContinue();
+		RefreshStartupUi();
+		BeginHeavyStartupLoad();
 	}
 
 	/// <summary>每帧更新：驱动异步资源加载 + 脏面板统一刷新 + 看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
+		if (!IsNodeReady())
+			return;
+
+		var snapshot = CaptureRuntimeUiMode();
 		ResAccess.PollAsyncLoads();
-		if (_menu.InMenu) return;
+		PollHeavyStartupLoad();
+		PollPostStartupTasks();
+		_session.ProcessWorldStreaming();
+		_panelChrome.Update(GetViewport().GetMousePosition(), enabled: snapshot.AllowPanelChrome);
+		UpdateThreatHud(delta, snapshot);
+		UpdateTargetSummaryHud(snapshot);
+		_needsHud.Update(ActorModule.GetPlayer(_state), _state.Turn, !snapshot.InMenu);
+		_healthAlerts.Update(_state, ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
+		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();
-		if (_saveBrowser.Visible) return;
-		if (_saveNameDialog.Visible) return;
-		if (MapEditorActive) return;
-		if (LayoutEditActive) return;
+		_mapRender?.AdvanceAnimations(delta);
+		if (snapshot.PausesGameplayLoop) return;
 
-		if (_state.WatchMode && !PlayerDead)
+		ProcessTimelineAutoAdvance(delta);
+		ProcessPlayerRestMode();
+	}
+
+	private RuntimeUiModeSnapshot CaptureRuntimeUiMode()
+	{
+		if (_menu == null
+			|| _session == null
+			|| _settingsFlow == null
+			|| _worldManager == null
+			|| _worldSettingsDialog == null
+			|| _saveNameDialog == null
+			|| _characterCreation == null
+			|| _confirmDialog == null)
 		{
-			_watchTimer += delta;
-			if (_watchTimer >= 0.15)
-			{
-				_watchTimer = 0;
-				WatchModeTick();
-			}
+			return new RuntimeUiModeSnapshot(
+				BusyOperationActive: true,
+				InMenu: true,
+				SessionStarted: false,
+				LayoutEditActive: false,
+				MapEditorActive: false,
+				SettingsOverlayVisible: false,
+				HasVisibleModalLayer: false,
+				AllowPanelChrome: false,
+				AllowPanelDrag: false,
+				BlocksGameplayInput: true,
+				SuppressHudAndAlerts: true,
+				PausesGameplayLoop: true);
 		}
+
+		var busyOperationActive = _busyOperationActive;
+		var inMenu = _menu.InMenu;
+		var sessionStarted = _session.GameStarted;
+		var layoutEditActive = LayoutEditActive;
+		var mapEditorActive = MapEditorActive;
+		var confirmDialogOpen = IsConfirmDialogOpen;
+		var worldManagerOpen = IsWorldManagerOpen;
+		var worldSettingsDialogOpen = IsWorldSettingsDialogOpen;
+		var saveNameDialogOpen = IsSaveNameDialogOpen;
+		var characterCreationOpen = IsCharacterCreationOpen;
+		var settingsOverlayVisible = _settingsFlow.HasVisibleOverlay;
+		var hasVisibleModalLayer = confirmDialogOpen
+			|| worldManagerOpen
+			|| worldSettingsDialogOpen
+			|| saveNameDialogOpen
+			|| characterCreationOpen
+			|| settingsOverlayVisible;
+		return new RuntimeUiModeSnapshot(
+			BusyOperationActive: busyOperationActive,
+			InMenu: inMenu,
+			SessionStarted: sessionStarted,
+			LayoutEditActive: layoutEditActive,
+			MapEditorActive: mapEditorActive,
+			SettingsOverlayVisible: settingsOverlayVisible,
+			HasVisibleModalLayer: hasVisibleModalLayer,
+			AllowPanelChrome: !busyOperationActive && !layoutEditActive && !mapEditorActive && !hasVisibleModalLayer,
+			AllowPanelDrag: !busyOperationActive && !mapEditorActive && !hasVisibleModalLayer,
+			BlocksGameplayInput: busyOperationActive || inMenu || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
+			SuppressHudAndAlerts: !sessionStarted || inMenu || PlayerDead || busyOperationActive || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
+			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive);
 	}
 
 	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
+	private void BeginHeavyStartupLoad()
+	{
+		_startupState = StartupState.LoadingHeavyAssets;
+		_startupLoadIndex = -1;
+		_startupLoadPath = null;
+		_startupLastLoadPath = null;
+		_startupLoadStartedAtMsec = 0;
+		_startupSyncFallbackUsed = false;
+		_startupProgress = 0f;
+		_loadedTileSet = null;
+		StartNextHeavyStartupLoad();
+	}
+
+	private void StartNextHeavyStartupLoad()
+	{
+		_startupLoadIndex++;
+		if (_startupLoadIndex >= StartupHeavyLoadSteps.Length)
+		{
+			BeginHeavyStartupFinalization();
+			return;
+		}
+
+		var step = StartupHeavyLoadSteps[_startupLoadIndex];
+		_startupLoadPath = step.Path;
+		_startupLastLoadPath = step.Path;
+		_startupStatusKey = step.StatusKey;
+		_startupLoadStartedAtMsec = Time.GetTicksMsec();
+		_startupProgress = Mathf.Lerp(step.ProgressStart, step.ProgressEnd, StartupVisualFloor);
+		_startupThreadProgress.Clear();
+
+		var err = ResourceLoader.LoadThreadedRequest(
+			step.Path,
+			string.Empty,
+			useSubThreads: true,
+			ResourceLoader.CacheMode.Reuse);
+		if (err != Error.Ok)
+		{
+			FailHeavyStartupLoad(step.Path, err.ToString());
+			return;
+		}
+
+		RefreshStartupUi();
+	}
+
+	private void BeginHeavyStartupFinalization()
+	{
+		_startupState = StartupState.Finalizing;
+		_startupLoadPath = null;
+		_startupLoadStartedAtMsec = 0;
+		_startupProgress = 0.95f;
+		_startupStatusKey = "ui.startup.status.finalizing";
+		RefreshStartupUi();
+	}
+
+	private void PollHeavyStartupLoad()
+	{
+		switch (_startupState)
+		{
+			case StartupState.LoadingHeavyAssets:
+				PollCurrentHeavyStartupLoad();
+				break;
+			case StartupState.CompletingHeavyAssetsSynchronously:
+				CompleteCurrentHeavyStartupLoadSynchronously();
+				break;
+			case StartupState.Finalizing:
+				FinalizeHeavyStartupLoad();
+				break;
+		}
+	}
+
+	private void PollCurrentHeavyStartupLoad()
+	{
+		if (string.IsNullOrEmpty(_startupLoadPath)
+			|| _startupLoadIndex < 0
+			|| _startupLoadIndex >= StartupHeavyLoadSteps.Length)
+			return;
+
+		var step = StartupHeavyLoadSteps[_startupLoadIndex];
+		_startupThreadProgress.Clear();
+		var status = ResourceLoader.LoadThreadedGetStatus(_startupLoadPath, _startupThreadProgress);
+		UpdateHeavyStartupProgress(step);
+
+		switch (status)
+		{
+			case ResourceLoader.ThreadLoadStatus.InProgress:
+				if (ShouldSwitchToSynchronousHeavyLoad())
+					BeginSynchronousHeavyStartupCompletion(step);
+				return;
+			case ResourceLoader.ThreadLoadStatus.Loaded:
+				_startupLoadStartedAtMsec = 0;
+				_startupProgress = step.ProgressEnd;
+				if (!StoreLoadedHeavyResource(_startupLoadPath))
+					return;
+
+				_startupLoadPath = null;
+				StartNextHeavyStartupLoad();
+				return;
+			case ResourceLoader.ThreadLoadStatus.Failed:
+			case ResourceLoader.ThreadLoadStatus.InvalidResource:
+				FailHeavyStartupLoad(_startupLoadPath, $"status={status}");
+				return;
+			default:
+				return;
+		}
+	}
+
+	private bool ShouldSwitchToSynchronousHeavyLoad()
+	{
+		if (_startupLoadStartedAtMsec == 0)
+			return false;
+
+		var elapsedSeconds = (float)(Time.GetTicksMsec() - _startupLoadStartedAtMsec) / 1000f;
+		return elapsedSeconds >= StartupThreadedLoadTimeoutSeconds;
+	}
+
+	private void BeginSynchronousHeavyStartupCompletion(StartupHeavyLoadStep step)
+	{
+		if (string.IsNullOrEmpty(_startupLoadPath))
+			return;
+
+		_startupState = StartupState.CompletingHeavyAssetsSynchronously;
+		_startupSyncFallbackUsed = true;
+		_startupLoadStartedAtMsec = 0;
+		_startupProgress = Math.Max(step.ProgressEnd, StartupSyncFallbackProgress);
+		GD.Print($"[Startup] Threaded heavy load exceeded {StartupThreadedLoadTimeoutSeconds:F1}s, switching to blocking completion: {_startupLoadPath}");
+		RefreshStartupUi();
+	}
+
+	private void CompleteCurrentHeavyStartupLoadSynchronously()
+	{
+		if (string.IsNullOrEmpty(_startupLoadPath)
+			|| _startupLoadIndex < 0
+			|| _startupLoadIndex >= StartupHeavyLoadSteps.Length)
+			return;
+
+		var path = _startupLoadPath;
+		var step = StartupHeavyLoadSteps[_startupLoadIndex];
+
+		try
+		{
+			var resource = ResourceLoader.LoadThreadedGet(path);
+			_startupProgress = step.ProgressEnd;
+			if (!StoreLoadedHeavyResource(path, resource))
+				return;
+
+			_startupState = StartupState.LoadingHeavyAssets;
+			_startupLoadPath = null;
+			StartNextHeavyStartupLoad();
+		}
+		catch (Exception ex)
+		{
+			FailHeavyStartupLoad(path, $"sync fallback failed: {ex.Message}");
+		}
+	}
+
+	private void UpdateHeavyStartupProgress(StartupHeavyLoadStep step)
+	{
+		var progress = ReadStartupThreadProgress();
+
+		if (_startupLoadStartedAtMsec > 0)
+		{
+			var elapsedSeconds = (float)(Time.GetTicksMsec() - _startupLoadStartedAtMsec) / 1000f;
+			var fallbackProgress = Math.Min(
+				StartupVisualPlateau,
+				StartupVisualFloor + elapsedSeconds * StartupVisualProgressPerSecond);
+			progress = Math.Max(progress, fallbackProgress);
+		}
+
+		_startupProgress = Mathf.Lerp(step.ProgressStart, step.ProgressEnd, progress);
+		RefreshStartupUi();
+	}
+
+	private float ReadStartupThreadProgress()
+	{
+		if (_startupThreadProgress.Count == 0)
+			return 0f;
+
+		return ClampProgressValue(_startupThreadProgress[0]);
+	}
+
+	private static float ClampProgressValue(object? rawProgress)
+	{
+		if (rawProgress == null)
+			return 0f;
+
+		switch (rawProgress)
+		{
+			case float single:
+				return Math.Clamp(single, 0f, 1f);
+			case double doubleValue:
+				return Math.Clamp((float)doubleValue, 0f, 1f);
+			case int intValue:
+				return Math.Clamp((float)intValue, 0f, 1f);
+			case long longValue:
+				return Math.Clamp((float)longValue, 0f, 1f);
+			case decimal decimalValue:
+				return Math.Clamp((float)decimalValue, 0f, 1f);
+			case string text when TryParseProgressText(text, out var parsedText):
+				return parsedText;
+		}
+
+		var rawType = rawProgress.GetType();
+		if (string.Equals(rawType.FullName, "Godot.Variant", StringComparison.Ordinal))
+		{
+			var asSingleMethod = rawType.GetMethod("AsSingle", Type.EmptyTypes);
+			if (asSingleMethod?.Invoke(rawProgress, null) is float variantSingle)
+				return Math.Clamp(variantSingle, 0f, 1f);
+		}
+
+		return TryParseProgressText(Convert.ToString(rawProgress, CultureInfo.InvariantCulture), out var parsedFallback)
+			? parsedFallback
+			: 0f;
+	}
+
+	private static bool TryParseProgressText(string? text, out float progress)
+	{
+		if (!string.IsNullOrWhiteSpace(text)
+			&& (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out progress)
+				|| float.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out progress)))
+		{
+			progress = Math.Clamp(progress, 0f, 1f);
+			return true;
+		}
+
+		progress = 0f;
+		return false;
+	}
+
+	private bool StoreLoadedHeavyResource(string path, Resource? loadedResource = null)
+	{
+		var resource = loadedResource ?? ResourceLoader.LoadThreadedGet(path);
+		switch (path)
+		{
+			case HeavyTileSetPath:
+				_loadedTileSet = resource as TileSet;
+				if (_loadedTileSet != null)
+					return true;
+				break;
+		}
+
+		FailHeavyStartupLoad(path, "unexpected resource type");
+		return false;
+	}
+
+	private void FinalizeHeavyStartupLoad()
+	{
+		if (_startupState != StartupState.Finalizing)
+			return;
+
+		if (_loadedTileSet == null)
+		{
+			FailHeavyStartupLoad("startup", "missing heavy resources during finalization");
+			return;
+		}
+
+		try
+		{
+			var viewportContainer = GetNode<SubViewportContainer>($"{HudRootPath}/TopRow/MapPanel/SubViewportContainer");
+			var subViewport = viewportContainer.GetNode<SubViewport>("SubViewport");
+			var mapRoot = subViewport.GetNode<Node2D>("MapRoot");
+			var camera = subViewport.GetNode<Camera2D>("Camera2D");
+
+			mapRoot.GetNodeOrNull<Node>("PlayerSpine")?.QueueFree();
+			mapRoot.GetNodeOrNull<Node>("PlayerCharacter")?.QueueFree();
+			var playerCharacter = CreatePlayerCharacterNode();
+			mapRoot.AddChild(playerCharacter);
+
+			_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
+			_mapRender.Init(mapRoot, _loadedTileSet, viewportContainer, subViewport, playerCharacter, camera);
+			_mapRender.SetWeatherScreenFxTuning(_weatherLabPanelController?.CurrentTuningSet ?? new WeatherScreenFxTuningSet());
+			_combatFxPlayer = new CombatFxPlayer(_mapRender, _mapRender.CombatFxWorldRoot, _combatFxTextRoot);
+
+			_startupProgress = 1f;
+			_startupState = StartupState.Ready;
+			RefreshStartupUi();
+			QueuePostStartupTasks();
+		}
+		catch (Exception ex)
+		{
+			FailHeavyStartupLoad("startup-finalize", ex.Message);
+		}
+	}
+
+	private void FailHeavyStartupLoad(string path, string reason)
+	{
+		GD.PrintErr($"[Startup] Heavy resource load failed: {path} ({reason})");
+		_startupState = StartupState.Failed;
+		_startupLastLoadPath = path;
+		_startupLoadPath = null;
+		_startupLoadStartedAtMsec = 0;
+		_startupStatusKey = "ui.startup.status.failed";
+		RefreshStartupUi();
+	}
+
+	private void RefreshStartupUi()
+	{
+		if (_startupOverlay == null)
+			return;
+
+		var startupActive = _startupState != StartupState.Ready;
+		var overlayVisible = startupActive || _busyOperationActive;
+		_startupOverlay.Visible = overlayVisible;
+
+		if (startupActive)
+		{
+			_startupStatusLabel.Text = LocalizationService.T(_startupStatusKey);
+			_startupProgressBar.Value = Math.Round(_startupProgress * 100f);
+		}
+		else if (_busyOperationActive)
+		{
+			_startupStatusLabel.Text = LocalizationService.T(_busyOperationStatusKey);
+			_startupProgressBar.Value = Math.Round(_busyOperationProgress * 100f);
+		}
+
+		_startupOverlay.MouseFilter = overlayVisible && (_busyOperationActive || _startupState != StartupState.Failed)
+			? Control.MouseFilterEnum.Stop
+			: Control.MouseFilterEnum.Ignore;
+		RefreshMainMenuContinueState();
+		SyncSettingsUiState();
+	}
+
+	private SettingsUiState BuildSettingsUiState(SettingsEntryContext? context = null)
+	{
+		var resolvedContext = context ?? (_menu.InMenu
+			? SettingsEntryContext.MainMenu
+			: SettingsEntryContext.InGamePause);
+
+		return new SettingsUiState(
+			resolvedContext,
+			LocalizationService.CurrentLocale,
+			RenderReady,
+			_watchModeEnabled,
+			MapEditorActive,
+			_session.GameStarted,
+			_enableKeyboardTargeting,
+			_enableDebugPanel,
+			_weatherLabPanelController?.CanUse == true,
+			_weatherLabPanelController?.Visible == true);
+	}
+
+	private void SyncSettingsUiState(SettingsEntryContext? context = null)
+	{
+		if (_settingsFlow == null)
+			return;
+
+		_settingsFlow.ApplyState(BuildSettingsUiState(context));
+	}
+
+	private void RefreshMainMenuContinueState()
+	{
+		var continueTarget = _session.ResolveContinueTarget();
+		_menu.RefreshMainMenuState(
+			continueTarget.Kind != ContinueTargetKind.None,
+			ResourcesReady,
+			_session.BuildContinueButtonText(continueTarget));
+	}
+
+	private void ShowMainMenuWithCurrentContinue()
+	{
+		var continueTarget = _session.ResolveContinueTarget();
+		_menu.ShowMainMenu(
+			continueTarget.Kind != ContinueTargetKind.None,
+			ResourcesReady,
+			_session.BuildContinueButtonText(continueTarget));
+	}
+
+	private void ToggleKeyboardTargeting()
+	{
+		_enableKeyboardTargeting = !_enableKeyboardTargeting;
+		AppSettingsStore.SaveEnableKeyboardTargeting(_enableKeyboardTargeting);
+		SyncSettingsUiState();
+
+		if (!_enableKeyboardTargeting && _inspectModeActive)
+			EndInspectMode(restoreFocus: false);
+	}
+
+	private void ToggleDebugPanelSetting()
+	{
+		_enableDebugPanel = !_enableDebugPanel;
+		AppSettingsStore.SaveEnableDebugPanel(_enableDebugPanel);
+		if (!_enableDebugPanel)
+			CloseDebugPanel();
+		SyncSettingsUiState();
+	}
+
+	private static Control CreateMapOverlayRoot(Control mapPanel)
+	{
+		mapPanel.GetNodeOrNull<Control>("CombatFxTextRoot")?.QueueFree();
+		var root = new Control
+		{
+			Name = "CombatFxTextRoot",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			ZIndex = 40,
+		};
+		root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		mapPanel.AddChild(root);
+		return root;
+	}
+
+	private Node2D CreatePlayerCharacterNode()
+	{
+		_playerCharacterVisual = new FantasyCharacterAnimatable();
+		_playerCharacterVisual.Name = "PlayerCharacter";
+		RefreshPlayerCharacterVisual();
+		return _playerCharacterVisual;
+	}
+
+	private void RefreshPlayerCharacterVisual()
+	{
+		if (_playerCharacterVisual == null)
+			return;
+
+		var appearance = PlayerAppearanceCatalog.GetOrDefault(_state.PlayerAppearanceId);
+		_playerCharacterVisual.Configure(appearance.SheetDir, appearance.DefaultAnim);
+		_playerCharacterVisual.Visible = false;
+		_playerCharacterVisual.SetMovementDirection(1, 0);
+		ResAccess.RegisterAnimatable(Factions.Player, _playerCharacterVisual);
+		if (!string.IsNullOrWhiteSpace(_state.PlayerId))
+			ResAccess.RegisterAnimatable(_state.PlayerId, _playerCharacterVisual);
+	}
+
+	private void BeginBusyOperation(string statusKey, float progress)
+	{
+		_busyOperationActive = true;
+		_busyOperationStatusKey = statusKey;
+		_busyOperationProgress = Math.Clamp(progress, 0f, 1f);
+		RefreshStartupUi();
+	}
+
+	private void UpdateBusyOperation(string statusKey, float progress)
+	{
+		_busyOperationStatusKey = statusKey;
+		_busyOperationProgress = Math.Clamp(progress, 0f, 1f);
+		RefreshStartupUi();
+	}
+
+	private void EndBusyOperation()
+	{
+		_busyOperationActive = false;
+		_busyOperationProgress = 0f;
+		RefreshStartupUi();
+	}
+
+	private void PlayCombatFx(GameEvent e)
+	{
+		if (_combatFxPlayer == null || _mapRender == null)
+			return;
+
+		var sourceVisible = _mapRender.IsWorldCellVisible(e.SourceX, e.SourceY, _state.PlayerZ);
+		var targetVisible = _mapRender.IsWorldCellVisible(e.TargetX, e.TargetY, _state.PlayerZ);
+		var commands = _combatFxRegistry.Resolve(e, sourceVisible, targetVisible);
+		if (commands.Count == 0)
+			return;
+
+		_combatFxPlayer.Play(commands, _state.PlayerZ);
+	}
+
+	private void PlayWeatherLightningFx(GameEvent e)
+	{
+		if (_combatFxPlayer == null || _mapRender == null)
+			return;
+
+		if (!_mapRender.IsWorldCellVisible(e.TargetX, e.TargetY, _state.PlayerZ))
+			return;
+
+		_combatFxPlayer.Play(
+		[
+			new CombatFxCommand
+			{
+				Kind = CombatFxCommandKind.Sprite,
+				Anchor = CombatFxAnchor.Target,
+				ResourceId = "fx_lightning_strike",
+				WorldX = e.TargetX,
+				WorldY = e.TargetY,
+				TargetWorldX = e.TargetX,
+				TargetWorldY = e.TargetY,
+				DurationSeconds = 0.28f,
+				Scale = 1.25f,
+				Layer = 7,
+			},
+			new CombatFxCommand
+			{
+				Kind = CombatFxCommandKind.Text,
+				Anchor = CombatFxAnchor.Target,
+				Text = e.Damage > 0 ? e.Damage.ToString() : "!",
+				WorldX = e.TargetX,
+				WorldY = e.TargetY,
+				DurationSeconds = 0.55f,
+				Tint = Colors.LightYellow,
+				Layer = 8,
+				RisePixels = 76f,
+			},
+		], _state.PlayerZ);
+	}
+
+	private async Task ShowBusyOperationStageAsync(string statusKey, float progress)
+	{
+		if (!_busyOperationActive)
+			BeginBusyOperation(statusKey, progress);
+		else
+			UpdateBusyOperation(statusKey, progress);
+
+		if (IsInsideTree())
+			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+	}
+
+	private void QueuePostStartupTasks()
+	{
+		if (_postStartupTasksQueued)
+			return;
+
+		_postStartupTasksQueued = true;
+		_postStartupTaskDelayFrames = 1;
+		_postStartupTasks.Enqueue(PrewarmDeferredUiScenes);
+	}
+
+	private void PollPostStartupTasks()
+	{
+		if (_startupState != StartupState.Ready || _postStartupTasks.Count == 0)
+			return;
+
+		if (_postStartupTaskDelayFrames > 0)
+		{
+			_postStartupTaskDelayFrames--;
+			return;
+		}
+
+		var task = _postStartupTasks.Dequeue();
+		try
+		{
+			task();
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"[Startup] Deferred task failed: {ex.Message}");
+		}
+	}
+
+	private void PrewarmDeferredUiScenes()
+	{
+		foreach (var path in DeferredUiScenePaths)
+			ResAccess.RequestAsync(path, _ => { });
+	}
+
 	public override void _UnhandledInput(InputEvent @event)
 	{
-		if (@event is not InputEventKey key) return;
-
-		if (_saveBrowser.Visible)
-		{
-			if (key.Pressed && key.Keycode == Key.Escape)
-			{
-				CloseSaveBrowser();
-				GetViewport().SetInputAsHandled();
-			}
+		if (!IsNodeReady())
 			return;
-		}
 
-		if (_saveNameDialog.Visible)
+		var snapshot = CaptureRuntimeUiMode();
+		if (@event is not InputEventKey key)
 		{
-			if (key.Pressed && key.Keycode == Key.Escape)
-			{
-				CloseSaveNameDialog();
-				GetViewport().SetInputAsHandled();
-			}
-			return;
-		}
-
-		if (LayoutEditActive)
-		{
-			if (key.Pressed && key.Keycode == Key.Escape)
-				CancelLayoutEditMode();
-
-			if (key.Pressed)
+			if (snapshot.BusyOperationActive)
 				GetViewport().SetInputAsHandled();
 			return;
 		}
 
-		if (MapEditorActive)
-		{
-			if (HandleMapEditorKeyInput(key) || key.Pressed)
-				GetViewport().SetInputAsHandled();
-			return;
-		}
-
-		if (_keyBindingsUI.IsOpen)
-		{
-			if (_keyBindingsUI.HandleKey(key) || key.Pressed)
-				GetViewport().SetInputAsHandled();
-			return;
-		}
-
-		if (_menu.InMenu && !_settingsPanelModule.Visible) return;
-		if (_panels.HandleKey(key) || (!_menu.InMenu && _inputModule.HandleKeyInput(key)))
-			GetViewport().SetInputAsHandled();
+		_mainInputCoordinator.HandleUnhandledKey(key, snapshot);
 	}
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	public override void _Input(InputEvent @event)
 	{
-		if (_saveBrowser.Visible)
+		if (!IsNodeReady())
 			return;
 
-		if (_saveNameDialog.Visible)
-			return;
-
-		if (MapEditorActive)
-		{
-			if (HandleMapEditorMouseInput(@event))
-				GetViewport().SetInputAsHandled();
-			return;
-		}
-
-		if (_keyBindingsUI.IsOpen)
-		{
-			if (_keyBindingsUI.HandleMouseInput(@event))
-			{
-				GetViewport().SetInputAsHandled();
-				return;
-			}
-
-			if (@event is InputEventMouseButton keyBindingsMouse
-				&& keyBindingsMouse.Pressed
-				&& !_keyBindingsUI.IsCapturing
-				&& keyBindingsMouse.ButtonIndex == MouseButton.Right)
-			{
-				CloseKeyBindingsPanel();
-				GetViewport().SetInputAsHandled();
-			}
-			return;
-		}
-
-		if (_panelDrag.HandleGlobalInput(@event))
-		{
-			GetViewport().SetInputAsHandled();
-			return;
-		}
-
-		if (LayoutEditActive)
-		{
-			if (@event is InputEventMouseButton editMouse
-				&& editMouse.Pressed
-				&& editMouse.ButtonIndex == MouseButton.Right)
-			{
-				GetViewport().SetInputAsHandled();
-			}
-			return;
-		}
-
-		if (@event is not InputEventMouseButton mb || !mb.Pressed) return;
-		var allowPanelInput = _settingsPanelModule.Visible || (!_menu.InMenu && _session.GameStarted);
-		if (!allowPanelInput) return;
-
-		if (!_settingsPanelModule.Visible
-			&& !_menu.InMenu
-			&& _session.GameStarted
-			&& mb.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-		{
-			if (_inputModule.HandleMouseButtonInput(mb))
-			{
-				GetViewport().SetInputAsHandled();
-				return;
-			}
-		}
-
-		if (mb.ButtonIndex == MouseButton.Right)
-		{
-			if (_panels.CloseFocused())
-			{
-				FlushMap();
-				GetViewport().SetInputAsHandled();
-			}
-			return;
-		}
-
-		if (mb.ButtonIndex != MouseButton.Left) return;
-
-		var hit = _panels.HitTest(mb.GlobalPosition);
-		if (hit == null) return;
-		if (hit == _panels.Focused) return;
-		if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
-		{
-			_inventoryPanel.Visible = true;
-			FlushMap();
-		}
-		_panels.FocusFromPointer(hit);
+		var snapshot = CaptureRuntimeUiMode();
+		_mainInputCoordinator.HandleInput(@event, snapshot);
 	}
 
 	// ══════════════════════════════════════════════════════
 	//  菜单事件处理（MenuModule 回调）
 
-	private void HandleMenuContinue()
+	private bool HandleLayoutEditKeyInput(InputEventKey key)
 	{
-		if (!_session.TryContinue())
-		{
-			DoStartNewGame();
-		}
-		else
-		{
-			_log.Clear();
-			_log.Add("存档已加载 📂");
-		}
-		ShowGameHints();
-		DoEnterGame();
+		if (key.Pressed && key.Keycode == Key.Escape)
+			CancelLayoutEditMode();
+
+		return false;
 	}
 
-	private void HandleMenuNewGame()
-	{
-		DoStartNewGame();
-		ShowGameHints();
-		DoEnterGame();
-	}
+	private static bool HandleLayoutEditInput(InputEvent @event) =>
+		@event is InputEventMouseButton editMouse
+		&& editMouse.Pressed
+		&& editMouse.ButtonIndex == MouseButton.Right;
 
-	private void HandleMenuMapEditor()
+	private bool HandleGameplayMouseInput(InputEvent @event, RuntimeUiModeSnapshot snapshot)
 	{
-		DoStartBlankEditor();
-		DoEnterGame();
-	}
+		if (@event is not InputEventMouseButton mb || !mb.Pressed)
+			return false;
+		if (!snapshot.AllowGameplayInput)
+			return false;
 
-#pragma warning disable CS0162
-	private void HandleMenuLoadGame()
-	{
-		OpenSaveBrowser(SaveBrowserContext.MainMenu);
-		return;
-		if (_session.TryLoadGame())
+		if (HandleGameplayMouseWheelInput(mb, snapshot))
+			return true;
+
+		if (snapshot.AllowPanelChrome && _panelChrome.IsPointerOverInteractiveChrome(mb.GlobalPosition))
+			return false;
+
+		if (mb.ButtonIndex == MouseButton.Right)
 		{
-			_log.Clear();
-			_log.Add("存档已加载 📂");
+			if (GetArmedSkill() != null)
+			{
+				if (TryCastArmedSkillAtMouse(mb.GlobalPosition))
+					return true;
+				return false;
+			}
+
+			if (TryOpenActorInspectPanelAtMouse(mb.GlobalPosition))
+				return true;
+
+			if (_panels.CloseFocused())
+			{
+				FlushMap();
+				return true;
+			}
+
+			return false;
 		}
-		else
+
+		if (mb.ButtonIndex != MouseButton.Left)
+			return false;
+
+		var hit = _panels.HitTest(mb.GlobalPosition);
+		if (hit == null)
+			return false;
+
+		var clearFocusStack = hit.PanelId == "map";
+		if (hit == _panels.Focused && !clearFocusStack)
+			return false;
+
+		if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
 		{
-			_log.Clear();
-			_log.Add("背包是空的");
-			DoStartNewGame();
+			_inventoryPanel.Visible = true;
+			FlushMap();
 		}
-		ShowGameHints();
-		DoEnterGame();
+
+		_panels.FocusFromPointer(hit, clearFocusStack);
+		return false;
 	}
 
-#pragma warning restore CS0162
+	private bool HandleGameplayMouseWheelInput(InputEventMouseButton mb, RuntimeUiModeSnapshot snapshot)
+	{
+		if (!snapshot.AllowGameplayInput
+			|| mb.ButtonIndex is not MouseButton.WheelUp and not MouseButton.WheelDown)
+		{
+			return false;
+		}
+
+		if (MapPanelFocused)
+		{
+			if (mb.AltPressed && !mb.CtrlPressed && !mb.ShiftPressed)
+			{
+				OnCommand(mb.ButtonIndex == MouseButton.WheelUp ? ":skill_prev" : ":skill_next");
+				return true;
+			}
+
+			if (_mapRender != null)
+			{
+				if (_mapRender.StepZoom(mb.ButtonIndex == MouseButton.WheelUp ? 1 : -1))
+					FlushMap();
+				return true;
+			}
+		}
+
+		return _inputModule.HandleMouseButtonInput(mb);
+	}
+
+	private void HandleMenuContinue() => _mainAppFlowCoordinator.HandleMenuContinue();
+
+	private void HandleMenuWorlds() => _mainAppFlowCoordinator.HandleMenuWorlds();
+
+	private void HandleCharacterCreationConfirmed(PlayerCreationOptions options) =>
+		_mainAppFlowCoordinator.HandleCharacterCreationConfirmed(options);
+
+	private void HandleMenuMapEditor() => _mainAppFlowCoordinator.HandleMenuMapEditor();
+
 	private void HandleAutoTest()
 	{
-		DoStartNewGame();
-		DoEnterGame();
+		if (!ResourcesReady || _mapRender == null)
+			return;
+
 		var test = new AutoTestModule();
-		var debugConfig = GameConfig.Debug;
-		test.RunAll(this, _state, _session, _fogTracker, _mapRender, _log,
-			RunTestCommand, FlushMap,
-			delay: debugConfig.AutoTestStepDelay,
-			stopOnFail: debugConfig.AutoTestStopOnFail);
+		test.RunAll(this);
 	}
 
 	/// <summary>供 AutoTestModule 转发命令到 OnCommand。</summary>
 	public void RunTestCommand(string cmd) => OnCommand(cmd);
 
-	private void HandleBackToMenu()
-	{
-		ExitMapEditor(silent: true);
-		CancelLayoutEditMode();
-		CloseSaveBrowser();
-		CloseSaveNameDialog();
-		if (_session.GameStarted)
-			DoSave(GameSessionModule.QuickSavePath, "快速存档");
-		HideSettingsPanels();
-		_inputModule.CancelSelection();
-		_panels.ClearFocus();
-		if (_dialogUI != null && _dialogUI.InDialog) _dialogUI.CloseDialog();
-		if (_tradeUI != null && _tradeUI.InTrade) _tradeUI.CloseTrade();
-		_skillBar.Close();
-		_menu.ShowMainMenu(_session.HasAnySave());
-	}
+	private void HandleBackToMenu() => _mainAppFlowCoordinator.HandleBackToMenu();
 
-	private void DoStartNewGame()
+	private void DoStartNewGame(PlayerCreationOptions? options = null) => _mainAppFlowCoordinator.DoStartNewGame(options);
+
+	private void DoStartBlankEditor() => _mainAppFlowCoordinator.DoStartBlankEditor();
+
+	private void PrepareSessionTransition(bool clearLogs) => _mainAppFlowCoordinator.PrepareSessionTransition(clearLogs);
+
+	private void FinalizeSessionPanels(bool openSkillBar)
 	{
-		ExitMapEditor(silent: true);
-		CancelLayoutEditMode();
-		CloseSaveBrowser();
-		CloseSaveNameDialog();
-		_log.Clear();
-		PlayerDead = false;
-		HideSettingsPanels();
-		_session.NewGame();
-		_settingsPanelModule.SetWatchMode(_state.WatchMode);
-		_settingsPanelModule.SetMapEditorActive(false);
-		_mapRender.ResetOverlays();
-		_skillBar.Open(ActorModule.GetPlayer(_state));
+		ClearArmedSkill(restoreFocus: false);
+		EndInspectMode(restoreFocus: false);
+		ClearPlayerTargeting();
+		ResetThreatHud();
+		RefreshPlayerCharacterVisual();
+		SyncSettingsUiState();
+		SyncTimelineAutoAdvanceState();
+		_mapRender?.ResetOverlays();
+		if (openSkillBar)
+			_skillBar.Open(ActorModule.GetPlayer(_state));
+		else
+			_skillBar.Close();
 		_skillMgr.Close();
 		_inventoryPanel.Visible = false;
 		if (_chestPanel != null) _chestPanel.Visible = false;
 		if (_dialogPanel != null) _dialogPanel.Close();
 		if (_tradePanel != null) _tradePanel.Close();
 		if (_questPanel != null) _questPanel.Close();
+		_debugPanelController.Close();
+		if (_actorInspectPanel != null) _actorInspectPanel.Close();
 		_panels.ClearFocus();
-		_log.Add("新游戏开始");
-	}
-
-	private void DoStartBlankEditor()
-	{
-		ExitMapEditor(silent: true);
-		CancelLayoutEditMode();
-		CloseSaveBrowser();
-		CloseSaveNameDialog();
-		_log.Clear();
-		PlayerDead = false;
-		HideSettingsPanels();
-		_session.NewBlankEditorMap();
-		_settingsPanelModule.SetWatchMode(_state.WatchMode);
-		_settingsPanelModule.SetMapEditorActive(false);
-		_mapRender.ResetOverlays();
-		_skillBar.Close();
-		_skillMgr.Close();
-		_inventoryPanel.Visible = false;
-		if (_chestPanel != null) _chestPanel.Visible = false;
-		if (_dialogPanel != null) _dialogPanel.Close();
-		if (_tradePanel != null) _tradePanel.Close();
-		if (_questPanel != null) _questPanel.Close();
-		_panels.ClearFocus();
-		_log.Add("空白地图编辑已启动");
-		EnterMapEditor(MapEditorEntryMode.MenuBlank);
-		ShowMapEditorHints();
 	}
 
 	private void DoEnterGame()
 	{
+		if (!ResourcesReady)
+			return;
+
 		_menu.EnterGame();
 		_inputModule.EnterActionMode();
+		_weatherLabPanelController.RefreshSessionState(autoOpen: true);
+		SyncTimelineAutoAdvanceState();
 		FlushMap();
 	}
 
 	private void ShowGameHints()
 	{
-		_log.Add("WASD 移动 | L 查看 | R 渲染 | ESC 设置");
-		_log.Add("空格 上下楼 | F 交互 | I 背包 | F5 快存 | F9 快读");
+		_log.Add(LocalizationService.T("hint.game.line1"));
+		_log.Add(LocalizationService.T("hint.game.line2"));
+	}
+
+	private void ShowWorldCharacterEntryHint(string worldName, string characterName)
+	{
+		if (string.IsNullOrWhiteSpace(worldName) || string.IsNullOrWhiteSpace(characterName))
+			return;
+
+		_log.Add(LocalizationService.T(
+			"hint.game.world_entry",
+			("world", worldName),
+			("character", characterName)));
 	}
 
 	private void ShowMapEditorHints()
 	{
-		_log.Add("地图编辑: 左键绘制 | 右键删除当前层 | 滚轮切笔刷 | Tab 切分类");
-		_log.Add("地图编辑: WASD/方向键平移 | ESC 退出编辑 | 空白编辑首次保存会要求命名");
+		_log.Add(LocalizationService.T("hint.map_editor.line1"));
+		_log.Add(LocalizationService.T("hint.map_editor.line2"));
 	}
 
-	private void OpenMenuSettingsPanel()
+	private void HandleLanguageChanged(string locale)
 	{
-		HideSettingsPanels();
-		CloseSaveBrowser();
-		CloseSaveNameDialog();
-		_settingsPanelModule.OpenFromMenu(_state.WatchMode);
-		_settingsPanelModule.SetMapEditorActive(MapEditorActive);
-		_menu.ShowSettingsFromMenu();
-		_panels.SetFocus(_settingsPanelModule);
-	}
-
-	private void OpenGameSettingsPanel()
-	{
-		if (_settingsPanelModule.Visible)
+		AppSettingsStore.SaveLocale(locale);
+		var changed = LocalizationService.SetLocale(locale);
+		SyncSettingsUiState();
+		if (!changed)
 			return;
 
-		HideSettingsPanels();
-		_settingsPanelModule.OpenInGame(_state.WatchMode);
-		_settingsPanelModule.SetMapEditorActive(MapEditorActive);
-		_panels.PushFocus(_settingsPanelModule);
+		GameLocalizer.ApplyPresetTranslations();
+		GameLocalizer.RelocalizeGameState(_state);
+		DialogPool.Load();
+		_mapEditor.RefreshLocalizedBrushes();
+		RefreshLocalizedUi(clearLogs: _session.GameStarted);
+		RefreshStartupUi();
 	}
 
-	private void ToggleSettingsPanel()
+	private void RefreshLocalizedUi(bool clearLogs)
 	{
-		if (_settingsPanelModule.Visible)
+		LocalizationService.LocalizeTree(this);
+		_settingsFlow.RefreshTexts();
+		_weatherLabPanelController.RefreshTexts();
+		SyncSettingsUiState();
+		_worldManager.RefreshTexts();
+		_worldSettingsDialog.RefreshTexts();
+		_characterCreation.RefreshTexts();
+		_mapEditorBar.RefreshTexts();
+		_threatHud.RefreshTexts();
+		_targetSummaryHud.RefreshTexts();
+		_needsHud.RefreshTexts(ActorModule.GetPlayer(_state), _state.Turn);
+		_healthAlerts.RefreshTexts();
+		RefreshMainMenuContinueState();
+		RefreshStartupUi();
+
+		if (MapEditorActive)
+			RefreshMapEditorBar();
+
+		RefreshVisiblePanels();
+		if (IsWorldManagerOpen)
+			RefreshWorldManagerContents();
+
+		if (clearLogs)
 		{
-			CloseSettingsPanel();
-			return;
+			_log.Clear();
+			if (MapEditorActive)
+				ShowMapEditorHints();
+			else
+				ShowGameHints();
 		}
 
-		if (_menu.InMenu)
-			OpenMenuSettingsPanel();
-		else
-			OpenGameSettingsPanel();
+		MarkUIDirty();
+		ProcessDirtyPanels();
+		if (_session.GameStarted && !_menu.InMenu && RenderReady)
+			FlushMap();
 	}
 
-	private void OpenKeyBindingsPanel()
+	private void UpdateThreatHud(double delta, RuntimeUiModeSnapshot uiMode)
 	{
-		if (_keyBindingsUI.IsOpen)
+		if (_threatHud == null)
 			return;
 
-		_keyBindingsUI.Open();
-		_panels.PushFocus(_keyBindingsUI);
+		var snapshot = _session.GameStarted
+			? ThreatHudModule.BuildSnapshot(_state)
+			: ThreatHudSnapshot.Hidden;
+		if (_lastActiveThreatMode != ThreatHudMode.Hidden
+			&& snapshot.Mode == ThreatHudMode.Hidden
+			&& !PlayerDead
+			&& _session.GameStarted
+			&& !_menu.InMenu)
+		{
+			_log.Add(LocalizationService.T("log.awareness.disengaged"));
+		}
+
+		_lastActiveThreatMode = snapshot.Mode;
+		_threatHud.Update(snapshot, delta, uiMode.SuppressHudAndAlerts);
 	}
 
-	private void CloseKeyBindingsPanel()
+	private void UpdateTargetSummaryHud(RuntimeUiModeSnapshot uiMode)
 	{
-		if (!_keyBindingsUI.IsOpen)
+		if (_targetSummaryHud == null)
 			return;
 
-		_keyBindingsUI.Close();
-		_panels.OnPanelClosed(_keyBindingsUI);
+		var snapshot = _session.GameStarted
+			? BuildTargetSummarySnapshot()
+			: TargetSummarySnapshot.Hidden;
+		_targetSummaryHud.Update(snapshot, uiMode.SuppressHudAndAlerts);
 	}
+
+	private TargetSummarySnapshot BuildTargetSummarySnapshot()
+	{
+		var resolution = PlayerTargetingModule.Resolve(_state, _playerTargeting);
+		_playerTargeting = resolution.Context;
+
+		var selection = PlayerTargetingModule.ResolveSummaryTarget(_state, _playerTargeting, IsHudTargetVisible);
+		return TargetSummaryHudModule.BuildSnapshot(_state, selection.Target, selection.MarkCurrentTarget);
+	}
+
+	private bool IsHudTargetVisible(Actor actor) =>
+		_mapRender != null && _mapRender.IsWorldCellVisible(actor.X, actor.Y, actor.Z);
+
+	private void ClearPlayerTargeting()
+	{
+		_playerTargeting = PlayerTargetingContext.Empty;
+	}
+
+	private void SetCurrentTarget(Actor target, PlayerTargetSource source)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null || !PlayerTargetingModule.IsTargetValid(player, target))
+			return;
+
+		_playerTargeting = PlayerTargetingModule.SetTarget(target, source);
+	}
+
+	private PlayerTargetResolution ResolveCurrentTarget()
+	{
+		var resolution = PlayerTargetingModule.Resolve(_state, _playerTargeting);
+		_playerTargeting = resolution.Context;
+		return resolution;
+	}
+
+	private bool TrySubmitSkillOnCurrentTarget(Actor player, InteractionDef skill)
+	{
+		if (!PlayerTargetingModule.TryResolveDirectSkillCast(
+				_state,
+				player,
+				_playerTargeting,
+				skill,
+				out var action,
+				out var normalizedContext))
+		{
+			return false;
+		}
+
+		_playerTargeting = normalizedContext;
+		SubmitPlayerAction(action!);
+		return true;
+	}
+
+	private Vector3I ResolveSkillCursorOriginCell(Actor player)
+	{
+		var origin = PlayerTargetingModule.ResolveCursorOrigin(_state, player, _playerTargeting);
+		return new Vector3I(origin.X, origin.Y, origin.Z);
+	}
+
+	private void ResetThreatHud()
+	{
+		if (_threatHud == null)
+			return;
+
+		_lastActiveThreatMode = ThreatHudMode.Hidden;
+		_threatHud.HideImmediate();
+		_targetSummaryHud.HideImmediate();
+		_healthAlerts.HideImmediate();
+	}
+
+	private void RefreshVisiblePanels()
+	{
+		var player = ActorModule.GetPlayer(_state);
+
+		if (_statusPanelModule.PanelNode.Visible)
+			_statusPanelModule.Refresh(_state, player, _state.PlayerZ, _state.Turn);
+		if (_skillBar.Visible)
+			_skillBar.Refresh(player);
+		if (_skillMgr.Visible)
+			_skillMgr.State = _state;
+		if (_skillMgr.Visible)
+			_skillMgr.Refresh();
+		if (_inventoryPanel.Visible)
+			_inventoryPanel.Refresh();
+		if (_groundPanel.Visible)
+			_groundPanel.Refresh();
+		if (_chestPanel?.Visible == true)
+			_chestPanel.Refresh();
+		if (_questPanel?.Visible == true)
+			_questPanel.Refresh();
+		_debugPanelController.MarkDirty();
+		_debugPanelController.FlushIfDirty();
+		if (_actorInspectPanel?.Visible == true)
+			RefreshActorInspectPanel();
+		if (_tradeUI?.InTrade == true)
+			_tradeUI.Refresh();
+		if (_dialogUI?.InDialog == true)
+			_dialogUI.RefreshCurrentEntry();
+		if (_worldManager.Visible)
+			RefreshWorldManagerContents();
+	}
+
+	private void OpenCharacterCreationDialog(string worldId, string worldName) =>
+		_mainAppFlowCoordinator.OpenCharacterCreationDialog(worldId, worldName);
+
+	private void CloseCharacterCreationDialog() => _mainAppFlowCoordinator.CloseCharacterCreationDialog();
+
+	private void HandleCharacterCreationCanceled() => _mainAppFlowCoordinator.HandleCharacterCreationCanceled();
+
+	private void OpenWorldSettingsDialog() => _mainAppFlowCoordinator.OpenWorldSettingsDialog();
+
+	private void CloseWorldSettingsDialog() => _mainAppFlowCoordinator.CloseWorldSettingsDialog();
+
+	private void HandleWorldSettingsCanceled() => _mainAppFlowCoordinator.HandleWorldSettingsCanceled();
+
+	private void OpenMenuSettingsPanel() => _mainAppFlowCoordinator.OpenMenuSettingsPanel();
+
+	private void ToggleSettingsPanel() => _mainAppFlowCoordinator.ToggleSettingsPanel();
 
 	private void HideSettingsPanels()
 	{
-		CloseKeyBindingsPanel();
-		if (!_settingsPanelModule.Visible)
-			return;
-
-		_settingsPanelModule.Close();
-		_panels.OnPanelClosed(_settingsPanelModule);
+		_panelChrome.CloseActiveSettings();
+		while (_settingsFlow.HasVisibleOverlay)
+			_settingsFlow.CloseActiveOverlay();
 	}
 
-	private void CloseSettingsPanel()
+	private void CloseSettingsOverlayIfVisible()
 	{
-		var openedFromMenu = _settingsPanelModule.Visible && _settingsPanelModule.OpenedFromMenu;
-		HideSettingsPanels();
-		if (openedFromMenu)
-			_menu.ShowMainMenu(_session.HasAnySave());
+		if (_settingsFlow.SettingsVisible)
+			_settingsFlow.CloseActiveOverlay();
 	}
 
-	private void OpenLayoutEditMode()
+	private void OpenLayoutEditMode() => _mainAppFlowCoordinator.OpenLayoutEditMode();
+
+	private void BeginLayoutEditMode()
 	{
 		if (_menu.InMenu || !_session.GameStarted || LayoutEditActive || MapEditorActive)
 			return;
 
 		_layoutResetPending = false;
-		HideSettingsPanels();
+		_modalStateController.Prepare(RuntimeUiResetReason.EnterLayoutEdit);
 		_inputModule.CancelSelection();
 		_inputModule.EnterActionMode();
 		_panels.ClearFocus();
@@ -788,8 +1968,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (_layoutResetPending)
 		{
-			foreach (var panelId in EditModeOnlyPanelIds)
-				_panelDrag.RemovePersistedLayout(panelId);
+			foreach (var panelId in LayoutEditablePanelIds)
+				_panelDrag.RemovePersistedPosition(panelId);
 		}
 
 		_panelDrag.ApplyEditSession();
@@ -819,21 +1999,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		FlushMap();
 	}
 
-	private void EnterMapEditor(MapEditorEntryMode entryMode)
+	private void EnterMapEditor(MapEditorEntryMode entryMode) => _mainAppFlowCoordinator.EnterMapEditor(entryMode);
+
+	private void EnterMapEditorCore(MapEditorEntryMode entryMode)
 	{
-		if (!_session.GameStarted || _state.World == null)
+		if (!ResourcesReady || !_session.GameStarted || _state.World == null)
 			return;
 
-		CancelLayoutEditMode();
-		HideSettingsPanels();
-		CloseSaveBrowser();
-		CloseSaveNameDialog();
+		_modalStateController.Prepare(RuntimeUiResetReason.EnterMapEditor);
 		_inputModule.CancelSelection();
 		_inputModule.EnterActionMode();
 		_panels.ClearFocus();
 		_mapEditor.Enter(entryMode, entryMode == MapEditorEntryMode.MenuBlank ? null : _session.CurrentSavePath);
 		_mapEditorBar.Open(_mapEditor.CanCenterOnPlayer);
-		_settingsPanelModule.SetMapEditorActive(true);
+		_weatherLabPanelController.RefreshSessionState(autoOpen: false);
+		SyncSettingsUiState();
 		RefreshMapEditorBar();
 		FlushMap();
 	}
@@ -847,35 +2027,22 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_mapEditor.Exit();
 		_mapEditorBar.Close();
 		CloseSaveNameDialog();
-		_settingsPanelModule.SetMapEditorActive(false);
+		_weatherLabPanelController.RefreshSessionState(autoOpen: true);
+		SyncSettingsUiState();
 		if (startedFromMenu)
 		{
 			if (!silent)
-				_log.Add("已退出地图编辑，返回主菜单");
-			_menu.ShowMainMenu(_session.HasAnySave());
+				_log.Add(LocalizationService.T("log.map_editor.exit_to_menu"));
+			ShowMainMenuWithCurrentContinue();
 			return;
 		}
 
 		if (!silent)
-			_log.Add("已退出地图编辑模式");
+			_log.Add(LocalizationService.T("log.map_editor.exit"));
 		FlushMap();
 	}
 
-	private void ToggleMapEditor()
-	{
-		if (MapEditorActive)
-		{
-			ExitMapEditor();
-			return;
-		}
-
-		if (_menu.InMenu || !_session.GameStarted)
-			return;
-
-		EnterMapEditor(MapEditorEntryMode.InGame);
-		_log.Add("已进入地图编辑模式");
-		ShowMapEditorHints();
-	}
+	private void ToggleMapEditor() => _mainAppFlowCoordinator.ToggleMapEditor();
 
 	private void RefreshMapEditorBar()
 	{
@@ -927,6 +2094,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private bool HandleMapEditorMouseInput(InputEvent @event)
 	{
+		if (_mapRender == null)
+			return false;
+
 		if (@event is InputEventMouseMotion motion)
 		{
 			if (_mapRender.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var hovered))
@@ -989,6 +2159,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (!MapEditorActive)
 			return;
 
+		_panelChrome.CloseActiveSettings();
 		_saveNameDialog.Open("editor_map");
 	}
 
@@ -1008,16 +2179,615 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_mapEditor.UpdateSavePath(path);
 	}
 
-	private void HandleSettingsReturnToMenuRequested()
+	private void HandleSkillConfirmRequested(InteractionDef skill)
 	{
-		CloseSaveBrowser();
-		if (_settingsPanelModule.OpenedFromMenu)
+		if (!SkillQuery.IsUnifiedCastSkill(skill))
 		{
-			CloseSettingsPanel();
+			_log.Add(LocalizationService.T("log.skill_cast_failed.unsupported", ("skill", skill.Name)));
 			return;
 		}
 
-		HandleBackToMenu();
+		if (string.Equals(_armedSkillId, skill.Id, StringComparison.Ordinal))
+		{
+			ClearArmedSkill();
+			return;
+		}
+
+		if (IsTimelineInputLocked())
+			return;
+
+		ArmSkill(skill.Id);
+	}
+
+	private void ArmSkill(string skillId)
+	{
+		if (string.IsNullOrWhiteSpace(skillId))
+		{
+			ClearArmedSkill();
+			return;
+		}
+
+		_armedSkillId = skillId;
+		CloseLimbTargetPanel();
+		if (_skillCastCursorActive)
+			EndInspectMode();
+
+		RefreshArmedSkillUi();
+	}
+
+	private void ClearArmedSkill(bool restoreFocus = true)
+	{
+		_armedSkillId = null;
+		CloseLimbTargetPanel();
+		RefreshArmedSkillUi();
+		if (_skillCastCursorActive)
+			EndInspectMode(restoreFocus);
+	}
+
+	private void RefreshArmedSkillUi()
+	{
+		_skillBar.ArmedSkillId = _armedSkillId;
+		_skillMgr.ArmedSkillId = _armedSkillId;
+		_skillBarDirty = true;
+		_skillMgr.Dirty = true;
+	}
+
+	private void OpenLimbTargetPanel(Actor target, InteractionDef skill) =>
+		OpenLimbTargetPanel(new LimbTargetPanelModule.LimbTargetRequest
+		{
+			TargetActor = target,
+			Skill = skill,
+			TargetName = IdentificationModule.GetActorDisplayName(_state, target),
+			Options = target.Limbs
+				.Select(limb => new LimbTargetPanelModule.LimbTargetOption
+				{
+					LimbId = limb.Id,
+					Label = limb.Name,
+					CurrentDurability = limb.Durability,
+					MaxDurability = limb.MaxDurability,
+					IsVital = CombatModule.IsVitalLimb(limb),
+					IsMissing = limb.Durability <= 0,
+				})
+				.ToList(),
+		});
+
+	private void OpenLimbTargetPanel(LimbTargetPanelModule.LimbTargetRequest request)
+	{
+		var panel = EnsureLimbTargetPanel();
+		panel.Open(_state, request);
+		_panels.PushFocus(panel);
+	}
+
+	private void OpenOperationTargetPanel(Actor surgeon, Actor target, InteractionDef skill)
+	{
+		var limbIds = SurgeryModule.GetLiveOperationLimbIds(surgeon, target);
+		if (limbIds.Count == 0)
+		{
+			_log.Add(LocalizationService.TOrFallback("log.surgery.no_operation_targets", "No valid operation is available for that target."));
+			return;
+		}
+
+		var request = new LimbTargetPanelModule.LimbTargetRequest
+		{
+			TargetActor = target,
+			Skill = skill,
+			TargetName = IdentificationModule.GetActorDisplayName(_state, target),
+			Options = limbIds
+				.Select(limbId => CreateOperationOption(target, limbId))
+				.ToList(),
+		};
+		OpenLimbTargetPanel(request);
+	}
+
+	private void OpenCorpseHarvest(Item corpseItem)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		var skill = InteractionDefs.Get("harvest_corpse");
+		if (skill == null)
+			return;
+
+		var limbIds = SurgeryModule.GetCorpseHarvestableLimbIds(corpseItem);
+		if (limbIds.Count == 0)
+		{
+			_log.Add(LocalizationService.TOrFallback("log.corpse.no_harvest_targets", "Nothing useful remains to harvest."));
+			return;
+		}
+
+		var request = new LimbTargetPanelModule.LimbTargetRequest
+		{
+			TargetItem = corpseItem,
+			Skill = skill,
+			TargetName = ItemFormatHelper.GetDisplayName(_state, corpseItem),
+			Options = limbIds
+				.Select(limbId => CreateCorpseHarvestOption(limbId))
+				.ToList(),
+		};
+		OpenLimbTargetPanel(request);
+	}
+
+	private LimbTargetPanelModule.LimbTargetOption CreateOperationOption(Actor target, string limbId)
+	{
+		var current = target.Limbs.FirstOrDefault(limb => string.Equals(limb.Id, limbId, StringComparison.Ordinal));
+		var preset = PresetDB.Limbs.GetValueOrDefault(limbId);
+		return new LimbTargetPanelModule.LimbTargetOption
+		{
+			LimbId = limbId,
+			Label = current?.Name ?? preset?.Name ?? limbId,
+			CurrentDurability = current?.Durability ?? 0,
+			MaxDurability = current?.MaxDurability ?? preset?.MaxDurability ?? 0,
+			IsVital = current != null
+				? CombatModule.IsVitalLimb(current)
+				: (preset?.Tags.ContainsKey(CombatModule.VitalTag) ?? false) || (preset?.Tags.ContainsKey("要害") ?? false),
+			IsMissing = current == null || current.Durability <= 0,
+		};
+	}
+
+	private static LimbTargetPanelModule.LimbTargetOption CreateCorpseHarvestOption(string limbId)
+	{
+		var preset = PresetDB.Limbs.GetValueOrDefault(limbId);
+		return new LimbTargetPanelModule.LimbTargetOption
+		{
+			LimbId = limbId,
+			Label = preset?.Name ?? limbId,
+			CurrentDurability = preset?.MaxDurability ?? 0,
+			MaxDurability = preset?.MaxDurability ?? 0,
+			IsVital = (preset?.Tags.ContainsKey(CombatModule.VitalTag) ?? false) || (preset?.Tags.ContainsKey("要害") ?? false),
+			IsMissing = false,
+		};
+	}
+
+	private void SubmitCorpseOperation(string skillId, Item corpseItem)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		SubmitPlayerAction(TimelinePlayerAction.CastSkill(
+			skillId,
+			SkillTargetType.Item,
+			targetItemId: corpseItem.InstanceId,
+			targetX: player.X,
+			targetY: player.Y,
+			targetZ: player.Z));
+	}
+
+	private void CloseLimbTargetPanel()
+	{
+		if (_limbTargetPanel == null || !_limbTargetPanel.Visible)
+			return;
+
+		_limbTargetPanel.Close();
+		_panels.OnPanelClosed(_limbTargetPanel);
+	}
+
+	private void HandleLimbTargetConfirmed(LimbTargetPanelModule.LimbTargetRequest request, LimbTargetPanelModule.LimbTargetOption option)
+	{
+		if (request.TargetItem != null)
+		{
+			CloseLimbTargetPanel();
+			var player = ActorModule.GetPlayer(_state);
+			if (player == null)
+				return;
+
+			SubmitPlayerAction(TimelinePlayerAction.CastSkill(
+				request.Skill.Id,
+				SkillTargetType.Item,
+				targetLimbId: option.LimbId,
+				targetItemId: request.TargetItem.InstanceId,
+				targetX: player.X,
+				targetY: player.Y,
+				targetZ: player.Z));
+			return;
+		}
+
+		var target = request.TargetActor;
+		var limb = target?.Limbs.Find(candidate => string.Equals(candidate.Id, option.LimbId, StringComparison.Ordinal));
+		if (target == null)
+		{
+			CloseLimbTargetPanel();
+			return;
+		}
+
+		CloseLimbTargetPanel();
+		SubmitPlayerAction(TimelinePlayerAction.CastSkill(
+			request.Skill.Id,
+			SkillTargetType.Actor,
+			targetActorId: target.Id,
+			targetLimbId: limb?.Id ?? option.LimbId,
+			targetX: target.X,
+			targetY: target.Y,
+			targetZ: target.Z));
+	}
+
+	private InteractionDef? GetArmedSkill()
+	{
+		if (string.IsNullOrWhiteSpace(_armedSkillId))
+			return null;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+		{
+			ClearArmedSkill(restoreFocus: false);
+			return null;
+		}
+
+		foreach (var skill in SkillQuery.GetAll(player))
+		{
+			if (!string.Equals(skill.Id, _armedSkillId, StringComparison.Ordinal))
+				continue;
+			if (SkillQuery.IsUnifiedCastSkill(skill))
+				return skill;
+			break;
+		}
+
+		ClearArmedSkill();
+		return null;
+	}
+
+	private void HandleInspectToggleCommand()
+	{
+		if (_inspectModeActive)
+		{
+			if (_skillCastCursorActive)
+				_log.Add(LocalizationService.T("ui.skill.targeting.canceled"));
+			EndInspectMode();
+			return;
+		}
+
+		if (IsTimelineInputLocked())
+			return;
+
+		if (!_enableKeyboardTargeting)
+			return;
+
+		if (GetArmedSkill() != null)
+		{
+			StartSkillCastCursorMode();
+			return;
+		}
+
+		StartInspectMode();
+	}
+
+	private void StartSkillCastCursorMode()
+	{
+		var skill = GetArmedSkill();
+		if (skill == null || !_session.GameStarted || _menu.InMenu || _mapRender == null)
+			return;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		_inspectModeActive = true;
+		_skillCastCursorActive = true;
+		_inspectWorldCell = ResolveSkillCursorOriginCell(player);
+		_inspectPreviousFocusId = _panels.FocusedId;
+		CloseActorInspectPanel();
+		_panels.SetFocus("map");
+		_log.Add(LocalizationService.T("ui.skill.targeting.entered", ("skill", skill.Name)));
+		FlushMap();
+	}
+
+	private bool TryCastArmedSkillAtMouse(Vector2 globalPosition)
+	{
+		if (_mapRender == null || !(_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out var worldCell)))
+			return false;
+
+		return TryCastArmedSkillAtWorldCell(worldCell);
+	}
+
+	private bool TryOpenActorInspectPanelAtMouse(Vector2 globalPosition)
+	{
+		if (_mapRender == null || !(_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out var worldCell)))
+			return false;
+
+		var actor = LookModule.TryGetInspectableActor(_state, _fogTracker, worldCell.X, worldCell.Y, worldCell.Z);
+		if (actor == null)
+			return false;
+
+		OpenActorInspectPanel(actor);
+		return true;
+	}
+
+	private bool TryCastArmedSkillAtWorldCell(Vector3I worldCell)
+	{
+		var skill = GetArmedSkill();
+		if (skill == null || IsTimelineInputLocked())
+			return false;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return false;
+
+		var targetType = ActionModule.ResolveSkillTargetType(skill);
+		var targetActor = targetType == SkillTargetType.Actor
+			? ActorModule.GetAt(_state, worldCell.X, worldCell.Y, worldCell.Z)
+			: null;
+		var restoreFocus = _skillCastCursorActive;
+		if (_inspectModeActive)
+			EndInspectMode(restoreFocus);
+
+		if (IsIdentifySkill(skill))
+			return TryHandleIdentifyActorTarget(targetActor);
+
+		switch (targetType)
+		{
+			case SkillTargetType.Self:
+				SubmitPlayerAction(TimelinePlayerAction.CastSkill(skill.Id, SkillTargetType.Self));
+				return true;
+
+			case SkillTargetType.Cell:
+				SubmitPlayerAction(TimelinePlayerAction.CastSkill(
+					skill.Id,
+					SkillTargetType.Cell,
+					targetX: worldCell.X,
+					targetY: worldCell.Y,
+					targetZ: worldCell.Z));
+				return true;
+
+			case SkillTargetType.Actor:
+				if (targetActor != null && string.Equals(skill.EffectType, "operate", StringComparison.Ordinal))
+				{
+					SetCurrentTarget(targetActor, PlayerTargetSource.Explicit);
+					OpenOperationTargetPanel(player, targetActor, skill);
+					return true;
+				}
+
+				if (targetActor != null
+					&& SkillQuery.IsAttackSkill(skill)
+					&& ActionModule.CanCastSkill(
+						_state,
+						player,
+						skill.Id,
+						SkillTargetType.Actor,
+						targetActor: targetActor,
+						targetX: targetActor.X,
+						targetY: targetActor.Y,
+						targetZ: targetActor.Z))
+				{
+					SetCurrentTarget(targetActor, PlayerTargetSource.Explicit);
+					OpenLimbTargetPanel(targetActor, skill);
+					return true;
+				}
+
+				SubmitPlayerAction(TimelinePlayerAction.CastSkill(
+					skill.Id,
+					SkillTargetType.Actor,
+					targetActorId: targetActor?.Id,
+					targetX: worldCell.X,
+					targetY: worldCell.Y,
+					targetZ: worldCell.Z));
+				return true;
+
+			default:
+				return false;
+		}
+	}
+
+	private static bool IsIdentifySkill(InteractionDef skill) =>
+		string.Equals(skill.EffectType, "identify", StringComparison.Ordinal);
+
+	private bool TryHandleIdentifyActorTarget(Actor? targetActor)
+	{
+		if (targetActor == null)
+		{
+			_log.Add(LocalizationService.T("ui.inspect.no_actor"));
+			return true;
+		}
+
+		var identified = IdentificationModule.IdentifyActor(_state, targetActor);
+		var actorName = IdentificationModule.GetActorDisplayName(_state, targetActor);
+		_log.Add(LocalizationService.T(
+			identified ? "log.identify.actor_identified" : "log.identify.actor_known",
+			("target", actorName)));
+
+		OpenActorInspectPanel(targetActor);
+		RefreshVisiblePanels();
+		FlushMap();
+		return true;
+	}
+
+	private bool TryHandleIdentifyItemTarget(Item item)
+	{
+		var skill = GetArmedSkill();
+		if (skill == null || !IsIdentifySkill(skill))
+			return false;
+
+		IdentificationModule.IdentifyItem(_state, item);
+		RefreshVisiblePanels();
+		FlushMap();
+		return true;
+	}
+
+	private bool HandleInspectModeKey(InputEventKey key)
+	{
+		if (!_inspectModeActive || !key.Pressed)
+			return false;
+
+		if (_actorInspectPanel?.Visible == true && _panels.FocusedId == _actorInspectPanel.PanelId)
+			return false;
+
+		if (key.Keycode is Key.Enter or Key.KpEnter)
+		{
+			if (_skillCastCursorActive)
+			{
+				if (_inspectWorldCell is { } worldCell)
+					TryCastArmedSkillAtWorldCell(worldCell);
+			}
+			else
+			{
+				OpenInspectActorPanelAtCursor();
+			}
+			return true;
+		}
+
+		if (key.Keycode == Key.Escape)
+		{
+			if (_skillCastCursorActive)
+				_log.Add(LocalizationService.T("ui.skill.targeting.canceled"));
+			EndInspectMode();
+			return true;
+		}
+
+		if (_inputBindings.Resolve(InputBindingContext.Action, key, out var actionId, out _))
+		{
+			switch (actionId)
+			{
+				case "move_north":
+					MoveInspectCursor(0, -1);
+					return true;
+				case "move_south":
+					MoveInspectCursor(0, 1);
+					return true;
+				case "move_west":
+					MoveInspectCursor(-1, 0);
+					return true;
+				case "move_east":
+					MoveInspectCursor(1, 0);
+					return true;
+				case "inspect_mode":
+					if (_skillCastCursorActive)
+						_log.Add(LocalizationService.T("ui.skill.targeting.canceled"));
+					EndInspectMode();
+					return true;
+			}
+		}
+
+		if (key.Unicode == '*')
+		{
+			if (_skillCastCursorActive)
+				_log.Add(LocalizationService.T("ui.skill.targeting.canceled"));
+			EndInspectMode();
+			return true;
+		}
+
+		return true;
+	}
+
+	private void StartInspectMode()
+	{
+		if (!_session.GameStarted || _menu.InMenu || _mapRender == null)
+			return;
+
+		_inspectModeActive = true;
+		_skillCastCursorActive = false;
+		_inspectWorldCell = new Vector3I(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		_inspectPreviousFocusId = _panels.FocusedId;
+		_panels.SetFocus("map");
+		_log.Add(LocalizationService.T("ui.inspect.entered"));
+		LogInspectCellInfo();
+		FlushMap();
+	}
+
+	private void EndInspectMode(bool restoreFocus = true)
+	{
+		if (!_inspectModeActive)
+			return;
+
+		CloseActorInspectPanel();
+		_inspectModeActive = false;
+		_skillCastCursorActive = false;
+		_inspectWorldCell = null;
+		_mapRender!.InspectWorldCell = null;
+
+		var focusId = restoreFocus ? _inspectPreviousFocusId : null;
+		_inspectPreviousFocusId = null;
+		if (restoreFocus)
+		{
+			if (string.IsNullOrEmpty(focusId))
+				_panels.ClearFocus();
+			else
+				_panels.SetFocus(focusId);
+		}
+
+		FlushMap();
+	}
+
+	private void MoveInspectCursor(int dx, int dy)
+	{
+		if (_inspectWorldCell is not { } current)
+			return;
+
+		var halfW = ViewW / 2;
+		var halfH = ViewH / 2;
+		var nextX = Math.Clamp(current.X + dx, _state.PlayerX - halfW, _state.PlayerX - halfW + ViewW - 1);
+		var nextY = Math.Clamp(current.Y + dy, _state.PlayerY - halfH, _state.PlayerY - halfH + ViewH - 1);
+		if (nextX == current.X && nextY == current.Y)
+			return;
+
+		_inspectWorldCell = new Vector3I(nextX, nextY, _state.PlayerZ);
+		if (!_skillCastCursorActive)
+			LogInspectCellInfo();
+		FlushMap();
+	}
+
+	private void LogInspectCellInfo()
+	{
+		if (_inspectWorldCell is not { } cell)
+			return;
+
+		var info = LookModule.DescribeCell(_state, _fogTracker, cell.X, cell.Y, cell.Z);
+		_log.Add(info.Text);
+	}
+
+	private void OpenInspectActorPanelAtCursor()
+	{
+		if (_inspectWorldCell is not { } cell)
+			return;
+
+		var info = LookModule.DescribeCell(_state, _fogTracker, cell.X, cell.Y, cell.Z);
+		if (info.InspectableActor == null)
+		{
+			_log.Add(LocalizationService.T("ui.inspect.no_actor"));
+			return;
+		}
+
+		OpenActorInspectPanel(info.InspectableActor);
+	}
+
+	private void RefreshActorInspectPanel()
+	{
+		if (_actorInspectPanel == null || !_actorInspectPanel.Visible)
+			return;
+
+		if (string.IsNullOrEmpty(_inspectActorId))
+		{
+			CloseActorInspectPanel();
+			return;
+		}
+
+		var actor = ActorModule.GetById(_state, _inspectActorId);
+		if (actor == null)
+		{
+			CloseActorInspectPanel();
+			return;
+		}
+
+		HealthSystem.Sync(actor, _state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(_state, actor));
+		_actorInspectPanel.Refresh(_state, actor);
+	}
+
+	private void OpenActorInspectPanel(Actor actor)
+	{
+		var panel = EnsureActorInspectPanel();
+		_inspectActorId = actor.Id;
+		HealthSystem.Sync(actor, _state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(_state, actor));
+		panel.Open(_state, actor);
+		_panels.PushFocus(panel);
+	}
+
+	private void CloseActorInspectPanel()
+	{
+		_inspectActorId = null;
+		if (_actorInspectPanel == null || !_actorInspectPanel.Visible)
+			return;
+
+		_actorInspectPanel.Close();
+		_panels.OnPanelClosed(_actorInspectPanel);
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1035,12 +2805,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// </summary>
 	private void OnCommand(string cmd)
 	{
+		var fogMapVisible = _mapRender?.FogMapVisible == true;
+
 		if (PlayerDead)
 		{
 			PlayerDead = false;
-			_menu.ShowMainMenu(_session.HasAnySave());
+			ShowMainMenuWithCurrentContinue();
 			return;
 		}
+
+		if (_playerRestModeActive && cmd != ":rest")
+			_playerRestModeActive = false;
 
 		if (MapEditorActive)
 			return;
@@ -1052,21 +2827,57 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		if (cmd == ":dir_cancel")
 		{
-			_log.Add("已取消");
+			_log.Add(LocalizationService.T("ui.selection.canceled"));
 			return;
 		}
 
+		if (cmd is ":settings" or "settings")
+		{
+			if (fogMapVisible && _mapRender != null)
+			{
+				_mapRender.FogMapVisible = false;
+				_log.Add(LocalizationService.T("log.fog_map.closed"));
+				FlushMap();
+				return;
+			}
+
+			ToggleSettingsPanel();
+			return;
+		}
+
+		if (cmd == ":inspect_mode")
+		{
+			HandleInspectToggleCommand();
+			return;
+		}
+
+		if (cmd == ":debug_panel")
+		{
+			ToggleDebugPanel();
+			return;
+		}
+
+		if (IsTimelineInputLocked())
+			return;
+
 		switch (cmd)
 		{
-			case ":settings" or "settings":
-				CloseKeyBindingsPanel();
-				if (_mapRender.FogMapVisible) { _mapRender.FogMapVisible = false; _log.Add("大地图: 关闭"); FlushMap(); return; }
-				ToggleSettingsPanel(); return;
-			case ":quicksave": DoSave(GameSessionModule.QuickSavePath, "快速存档"); return;
-			case ":quickload": DoLoad(GameSessionModule.QuickSavePath, "快速读档"); return;
+			case ":quicksave":
+			{
+				var path = _session.GetQuickSavePath();
+				DoSave(path, _session.DescribeSavePath(path));
+				return;
+			}
+			case ":quickload":
+			{
+				var path = _session.GetQuickSavePath();
+				DoLoad(path, _session.DescribeSavePath(path));
+				return;
+			}
 			case ":interact" or "interact": DoInteract(); return;
 			case ":dig": StartDig(); return;
 			case ":inventory": ToggleInventory(); return;
+			case ":rest": TogglePlayerRestMode(); return;
 			case ":skills": ToggleSkillManager(); return;
 			case ":skillbar": ToggleSkillBarPanel(); return;
 			case ":skill_prev": if (_skillBar.Visible) _skillBar.StepSelection(-1); return;
@@ -1081,9 +2892,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":fogmap_center": CenterFogMap(); return;
 		}
 
-		if (_settingsPanelModule.Visible) return;
+		if (_settingsFlow.SettingsVisible) return;
 
-		if (_mapRender.FogMapVisible)
+		if (fogMapVisible && _mapRender != null)
 		{
 			switch (cmd)
 			{
@@ -1104,30 +2915,26 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
 			case "save": DoSaveCurrent(); break;
-			case "load": OpenSaveBrowser(SaveBrowserContext.InGame); break;
+			case "load": OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds); break;
 			case "newmap":
-				_session.NewGame();
-				_log.Add("新地图已生成");
+				_session.NewGame(PlayerCreationOptions.CreateDefault());
+				ClearPlayerTargeting();
+				RefreshPlayerCharacterVisual();
+				SyncTimelineAutoAdvanceState();
+				_log.Add(LocalizationService.T("log.game.new_map_generated"));
 				FlushMap();
 				break;
 			default:
 				if (cmd.StartsWith('/'))
-					HandleDebugCommand(cmd);
+					_debugPanelController.HandleCommand(cmd);
 				else
-					_log.Add("未知指令");
+					_log.Add(LocalizationService.T("ui.command.unknown"));
 				break;
 		}
 	}
 
-	private void HandleDebugCommand(string cmd)
-	{
-		var result = DebugModule.HandleCommand(cmd, _state, _session);
-		foreach (var msg in result.Logs) _log.Add(msg);
-		if (result.NeedsFlush) FlushMap();
-	}
-
 	// ══════════════════════════════════════════════════════
-	//  浜や簰娴佺▼
+	//  交互流程
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>F 键智能交互：有相邻 Actor → 交互菜单；否则 → 脚下面板交互。</summary>
@@ -1136,7 +2943,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null) return;
 
-		var targets = InteractionModule.GetAvailableTargets(_state, player);
+		var targets = InteractionModule
+			.GetAvailableTargets(_state, player)
+			.FindAll(target => GetNonCombatInteractions(player, target).Count > 0);
 
 		if (targets.Count > 0)
 		{
@@ -1150,19 +2959,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			foreach (var t in targets)
 			{
 				var target = t;
-				options.Add((target.DisplayName, () => ShowInteractionsFor(player, target)));
+				options.Add((IdentificationModule.GetActorDisplayName(_state, target), () => ShowInteractionsFor(player, target)));
 			}
 
-			var sb = new StringBuilder("选择目标：");
+			var sb = new StringBuilder(LocalizationService.T("ui.interaction.choose_target"));
 			for (var i = 0; i < options.Count; i++)
 				sb.Append($"  [{i + 1}] {options[i].Name}");
 			_log.Add(sb.ToString());
 
 			_inputModule.EnterSelection(n =>
 			{
-			if (n < 1 || n > options.Count) { _log.Add("无效选择"); return; }
+			if (n < 1 || n > options.Count) { _log.Add(LocalizationService.T("ui.selection.invalid")); return; }
 				options[n - 1].Execute();
-			}, () => _log.Add("已取消"));
+			}, () => _log.Add(LocalizationService.T("ui.selection.canceled")));
 			return;
 		}
 
@@ -1174,7 +2983,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 		else
 		{
-			_log.Add("附近没有楼梯 🤷");
+			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
 		}
 	}
 
@@ -1187,7 +2996,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var cellSkills = SkillQuery.GetCellSkills(player);
 		if (cellSkills.Count == 0)
 		{
-			_log.Add("你没有任何地形破坏技能");
+			_log.Add(LocalizationService.T("dig.no_skills"));
 			return;
 		}
 
@@ -1200,11 +3009,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (!hasTargets)
 		{
-			_log.Add("背包是空的");
+			_log.Add(LocalizationService.T("dig.no_targets"));
 			return;
 		}
 
-		_log.Add("閫夋嫨鏂瑰悜 (WASD/鏂瑰悜閿?...");
+		_log.Add(LocalizationService.T("dig.choose_direction"));
 		_inputModule.EnterDirectionMode("dig");
 	}
 
@@ -1234,7 +3043,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (!terrain.Solid || hardness == 0)
 		{
-			_log.Add("背包是空的");
+			_log.Add(LocalizationService.T("dig.invalid_target"));
 			return;
 		}
 
@@ -1251,21 +3060,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (bestSkill == null)
 		{
-			_log.Add($"你没有能破坏 {terrain.StringId} 的技能");
+			_log.Add(LocalizationService.T("dig.cannot_break", ("terrain", GameLocalizer.LocalizeTerrainName(terrain.StringId))));
 			return;
 		}
 
-		var events = InteractionModule.ExecuteDig(_state, player, tx, ty, tz, bestSkill);
-		Dispatch(events);
-		var turnEvents = TurnModule.Tick(_state);
-		Dispatch(turnEvents);
-		FlushMap();
+		SubmitPlayerAction(TimelinePlayerAction.Dig(dx, dy, bestSkill.Id));
 	}
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	private void PickupGroundItem(Actor player, Item itemInfo)
 	{
-		var events = InteractionModule.PickupItem(_state, player, itemInfo.Id);
+		var events = InteractionModule.PickupItem(_state, player, itemInfo.InstanceId);
 		Dispatch(events);
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
@@ -1274,7 +3079,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	private void OpenChestPanel(Item chestItem)
 	{
-		_openChestPos = (_state.PlayerX, _state.PlayerY);
+		_openChestPos = (_state.PlayerX, _state.PlayerY, _state.PlayerZ);
 		var chest = EnsureChestPanel();
 		chest.Open(chestItem);
 		_panels.PushFocus(chest);
@@ -1283,6 +3088,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	private void CloseChestPanel()
 	{
+		if (_chestPanel?.CurrentChest != null)
+			PersistOpenChestState(_chestPanel.CurrentChest);
+
 		_openChestPos = null;
 		if (_chestPanel != null)
 		{
@@ -1298,11 +3106,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void CheckChestRange()
 	{
 		if (_openChestPos == null || _chestPanel == null || !_chestPanel.Visible) return;
-		var (cx, cy) = _openChestPos.Value;
+		var (cx, cy, _) = _openChestPos.Value;
 		var dist = Math.Max(Math.Abs(_state.PlayerX - cx), Math.Abs(_state.PlayerY - cy));
 		if (dist > 1)
 		{
-			_log.Add("你离开了宝箱范围，宝箱已关闭。");
+			_log.Add(LocalizationService.T("log.chest.out_of_range"));
 			CloseChestPanel();
 		}
 	}
@@ -1316,29 +3124,29 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var inv = InventoryModule.List(player);
 		if (inv.Count == 0)
 		{
-			_log.Add("背包是空的");
+			_log.Add(LocalizationService.T("ui.inventory.empty"));
 			return;
 		}
 
-		var sb = new StringBuilder("选择要放入的物品：");
+		var sb = new StringBuilder(LocalizationService.T("ui.chest.choose_put_item"));
 		for (var i = 0; i < inv.Count; i++)
 		{
 			var (_, item) = inv[i];
 			var eqMark = item.Equipped ? "[E]" : "";
-			sb.Append($"  [{i + 1}] {eqMark}{item.Name}");
+			sb.Append($"  [{i + 1}] {eqMark}{ItemFormatHelper.GetDisplayName(_state, item)}");
 		}
-		sb.Append("  [0] 取消");
+		sb.Append(LocalizationService.T("ui.selection.cancel_option"));
 		_log.Add(sb.ToString());
 
 		var chest = EnsureChestPanel();
 		_inputModule.EnterSelection(n =>
 		{
-			if (n == 0) { _log.Add("取消"); _panels.SetFocus(chest); return; }
-			if (n < 1 || n > inv.Count) { _log.Add("无效选择"); _panels.SetFocus(chest); return; }
+			if (n == 0) { _log.Add(LocalizationService.T("ui.selection.canceled")); _panels.SetFocus(chest); return; }
+			if (n < 1 || n > inv.Count) { _log.Add(LocalizationService.T("ui.selection.invalid")); _panels.SetFocus(chest); return; }
 			var (invIdx, item) = inv[n - 1];
 			if (item.Equipped)
 			{
-				_log.Add($"请先卸下 {item.Name}");
+				_log.Add(LocalizationService.T("log.inventory.unequip_first", ("item", ItemFormatHelper.GetDisplayName(_state, item))));
 				_panels.SetFocus(chest);
 				return;
 			}
@@ -1346,19 +3154,37 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			if (removed != null)
 			{
 				chestItem.Contents!.Add(removed);
-				_log.Add($"将 {removed.Name} 放入了 {chestItem.Name}");
+				PersistOpenChestState(chestItem);
+				_log.Add(LocalizationService.T(
+					"log.chest.put_item",
+					("item", ItemFormatHelper.GetDisplayName(_state, removed)),
+					("chest", ItemFormatHelper.GetDisplayName(_state, chestItem))));
 			}
 			_panels.SetFocus(chest);
 			chest.Refresh();
 			FlushMap();
-		}, () => { _log.Add("取消"); _panels.SetFocus(chest); });
+		}, () => { _log.Add(LocalizationService.T("ui.selection.canceled")); _panels.SetFocus(chest); });
+	}
+
+	private void PersistOpenChestState(Item chestItem)
+	{
+		if (_state.World == null || _openChestPos == null)
+			return;
+
+		var (x, y, z) = _openChestPos.Value;
+		_state.World.UpdateGroundItem(x, y, z, chestItem);
 	}
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	// REVIEW: Selection blocks turn progression today, so capturing player/target here is acceptable.
 	private void ShowInteractionsFor(Actor player, Actor target)
 	{
-		var interactions = InteractionModule.GetInteractions(player, target, InteractionDefs.All);
+		var interactions = GetNonCombatInteractions(player, target);
+		if (interactions.Count == 0)
+		{
+			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
+			return;
+		}
 
 		var options = new List<(string Name, Action Execute)>();
 		foreach (var def in interactions)
@@ -1371,7 +3197,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				FlushMap();
 			}));
 		}
-		options.Add(("没什么", () => _log.Add("你转身离开")));
+		options.Add((LocalizationService.T("ui.interaction.nothing"), () => _log.Add(LocalizationService.T("ui.interaction.walk_away"))));
 
 		if (options.Count == 1)
 		{
@@ -1379,17 +3205,22 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
-		var sb = new StringBuilder($"{target.DisplayName}：");
+		var sb = new StringBuilder($"{IdentificationModule.GetActorDisplayName(_state, target)}：");
 		for (var i = 0; i < options.Count; i++)
 			sb.Append($"  [{i + 1}] {options[i].Name}");
 		_log.Add(sb.ToString());
 
 		_inputModule.EnterSelection(n =>
 		{
-			if (n < 1 || n > options.Count) { _log.Add("无效选择"); return; }
+			if (n < 1 || n > options.Count) { _log.Add(LocalizationService.T("ui.selection.invalid")); return; }
 			options[n - 1].Execute();
-		}, () => _log.Add("已取消"));
+		}, () => _log.Add(LocalizationService.T("ui.selection.canceled")));
 	}
+
+private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor target) =>
+	InteractionModule
+		.GetInteractions(player, target, InteractionDefs.All)
+		.FindAll(def => !string.Equals(def.Category, "combat", StringComparison.Ordinal));
 
 	// ══════════════════════════════════════════════════════
 	//  看海模式（AI 自动控制玩家）
@@ -1398,46 +3229,46 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	// REVIEW: Watch mode still toggles BrainId directly on the player actor.
 	private void ToggleWatchMode()
 	{
-		_state.WatchMode = !_state.WatchMode;
+		SetWatchModeEnabled(!_watchModeEnabled);
+	}
+
+	private void SetWatchModeEnabled(bool enabled, bool emitLog = true)
+	{
+		_watchModeEnabled = enabled;
 		_watchTimer = 0;
 
 		var player = ActorModule.GetPlayer(_state);
 		if (player != null)
-			player.BrainId = _state.WatchMode ? "simple" : null;
+			player.BrainId = enabled ? "simple" : null;
 
-		_settingsPanelModule.SetWatchMode(_state.WatchMode);
-		_log.Add(_state.WatchMode ? "看海模式已开启，世界将自动推进" : "看海模式已关闭，恢复手动控制");
+		SyncSettingsUiState();
+		SyncTimelineAutoAdvanceState(emitStatusLog: emitLog);
+		if (!emitLog)
+			return;
+
+		_log.Add(enabled
+			? LocalizationService.T("log.watch_mode.on")
+			: LocalizationService.T("log.watch_mode.off"));
 	}
 
 
 	/// <summary>看海模式每 0.15 秒推进一次回合。</summary>
 	private void WatchModeTick()
 	{
-		var events = TurnModule.TickWatchMode(_state);
-		Dispatch(events);
-		FlushMap();
+		AdvanceTimelineAutoStep();
 	}
 
 	// ══════════════════════════════════════════════════════
-	//  绉诲姩
+	//  移动
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>
+	/// 处理方向键移动：玩家已死时按方向键返回主菜单，
 	/// 否则执行 TryMove → Tick → Dispatch → FlushMap。
+	/// </summary>
 	private void DoMove(int dx, int dy)
 	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null) return;
-
-		var events = ActionModule.TryMove(_state, player, dx, dy);
-		events.AddRange(TurnModule.Tick(_state));
-		Dispatch(events);
-
-		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
-
-		FlushMap();
-		CheckChestRange();
+		SubmitPlayerAction(TimelinePlayerAction.Move(dx, dy));
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1462,19 +3293,38 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 			switch (e.Type)
 			{
-				case "combat_bump" when e.InitiatorId == _state.PlayerId:
-					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Attack_1");
-					_combatUI.HandleCombatBump(e);
+				case "combat_attack":
+					if (e.InitiatorId == _state.PlayerId && e.TargetId != null)
+					{
+						var attackedTarget = ActorModule.GetById(_state, e.TargetId);
+						if (attackedTarget != null)
+							SetCurrentTarget(attackedTarget, PlayerTargetSource.Explicit);
+					}
+					PlayCombatFx(e);
+					if (e.InitiatorId == _state.PlayerId)
+						ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Attack_1");
+					if (e.TargetId == _state.PlayerId)
+						ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Pain");
 					break;
-				case "combat_bump":
-					_combatUI.HandleCombatBump(e);
+				case "combat_block":
+					PlayCombatFx(e);
 					break;
-				case "combat_attack" when e.TargetId == _state.PlayerId:
-					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Pain");
+				case "weather_lightning_strike":
+					PlayWeatherLightningFx(e);
+					if (e.TargetId == _state.PlayerId)
+						ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Pain");
 					break;
 				case "actor_killed" when e.TargetId == _state.PlayerId:
 					ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 					HandlePlayerDeath("killed");
+					break;
+				case "death_blood_loss" when e.TargetId == _state.PlayerId:
+					ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
+					HandlePlayerDeath("blood_loss");
+					break;
+				case "death_infection" when e.TargetId == _state.PlayerId:
+					ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
+					HandlePlayerDeath("infection");
 					break;
 				case "actor_killed":
 					_state.KillCount++;
@@ -1490,6 +3340,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				case "interaction":
 					DispatchInteraction(e);
 					break;
+				case "rest_completed" when e.TargetId == _state.PlayerId:
+					_playerRestModeActive = false;
+					break;
 				case "item_picked_up" or "item_dropped":
 					_groundPanel.Invalidate();
 					break;
@@ -1503,24 +3356,28 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		switch (e.EffectType)
 		{
 			case "trade":
+				if (e.TargetId != null && ActorModule.GetById(_state, e.TargetId) != null)
+					CloseDialogPanel();
 				EnsureTradeUI().OpenTradeMenu(e);
-				break;
-			case "combat":
-				_combatUI.OpenCombatMenu(e);
 				break;
 			case "talk":
 				if (e.TargetId != null)
 				{
 					var talkTarget = ActorModule.GetById(_state, e.TargetId);
-					if (talkTarget != null) { EnsureDialogUI().OpenDialog(talkTarget); break; }
+					if (talkTarget != null)
+					{
+						CloseTradePanel();
+						EnsureDialogUI().OpenDialog(talkTarget);
+						break;
+					}
 				}
-				_log.Add($"{e.TargetActorName}: 「……」");
+				_log.Add(LocalizationService.T("dialog.fallback.line", ("target", e.TargetActorName)));
 				break;
 			case "tame":
-				_log.Add($"你成功驯服了 {e.TargetActorName}，它现在是友方了。");
+				_log.Add(LocalizationService.T("log.interaction.tame_success", ("target", e.TargetActorName)));
 				break;
 			default:
-				_log.Add($"[{e.InteractionName}] {e.TargetActorName}");
+				_log.Add(LocalizationService.T("log.interaction.default", ("name", e.InteractionName), ("target", e.TargetActorName)));
 				break;
 		}
 	}
@@ -1530,18 +3387,61 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	//  楼梯（上行 / 下行）
 	// ══════════════════════════════════════════════════════
 
-	private void DoEnterStairs()
+	private async void DoEnterStairs()
 	{
-		if (ChestOpen) CloseChestPanel();
-		if (_session.TryUseStairs(out var msg))
+		if (_busyOperationActive)
+			return;
+
+		if (!TryFindNearbyStairs(out var goDown))
 		{
-			_log.Add(msg!);
+			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
+			return;
+		}
+
+		BeginBusyOperation("ui.loading.floor.prepare", 18f / 100f);
+		try
+		{
+			await ShowBusyOperationStageAsync("ui.loading.floor.prepare", 0.18f);
+			if (ChestOpen) CloseChestPanel();
+
+			await ShowBusyOperationStageAsync("ui.loading.floor.load", 0.76f);
+			_session.ChangeFloor(goDown);
+
+			await ShowBusyOperationStageAsync("ui.loading.floor.finalize", 0.95f);
+			_log.Add(LocalizationService.T(
+				goDown ? "log.floor.enter_down" : "log.floor.enter_up",
+				("floor", _state.PlayerZ)));
 			FlushMap();
 		}
-		else
+		finally
 		{
-			_log.Add("附近没有可交互的对象 🤷");
+			EndBusyOperation();
 		}
+	}
+
+	private bool TryFindNearbyStairs(out bool goDown)
+	{
+		var px = _state.PlayerX;
+		var py = _state.PlayerY;
+		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
+
+		foreach (var (dx, dy) in dirs)
+		{
+			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairDown))
+			{
+				goDown = true;
+				return true;
+			}
+
+			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairUp))
+			{
+				goDown = false;
+				return true;
+			}
+		}
+
+		goDown = false;
+		return false;
 	}
 
 	private void DoLook() => _log.Add(LookModule.BuildLookText(_state, _fogTracker));
@@ -1551,29 +3451,99 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	// ══════════════════════════════════════════════════════
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
-	private void DoSave(string path, string label = "存档")
+	private void DoSave(string path, string label)
 	{
 		_session.SaveGame(path);
-		_log.Add($"{label}已保存 💾");
+		_log.Add(LocalizationService.T("log.save.saved", ("label", label)));
 	}
 
 	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
-	private void DoLoad(string path, string label = "存档")
+	private async void DoLoad(string path, string label)
 	{
-		ExitMapEditor(silent: true);
-		CloseSaveNameDialog();
-		if (_session.LoadGame(path))
+		if (_busyOperationActive)
+			return;
+
+		BeginBusyOperation("ui.loading.save.prepare", 16f / 100f);
+		try
 		{
-			_settingsPanelModule.SetWatchMode(_state.WatchMode);
-			_settingsPanelModule.SetMapEditorActive(false);
-			_log.Add($"{label}宸插姞杞?馃搨 (Z{_state.PlayerZ})");
+			await ShowBusyOperationStageAsync("ui.loading.save.prepare", 0.16f);
+			ExitMapEditor(silent: true);
+			CloseSaveNameDialog();
+
+			await ShowBusyOperationStageAsync("ui.loading.save.load", 0.76f);
+			var status = _session.LoadGame(path);
+			if (status != SaveLoadStatus.Success)
+			{
+				LogLoadFailure(status, label);
+				return;
+			}
+
+			await ShowBusyOperationStageAsync("ui.loading.save.finalize", 0.95f);
+			ClearArmedSkill(restoreFocus: false);
+			ClearPlayerTargeting();
+			_playerRestModeActive = false;
+			ResetThreatHud();
+			RefreshPlayerCharacterVisual();
+			SyncSettingsUiState();
+			SyncTimelineAutoAdvanceState();
+			RefreshLocalizedUi(clearLogs: false);
+			_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
 			FlushMap();
 		}
-		else
+		finally
 		{
-			_log.Add($"未找到{label}");
+			EndBusyOperation();
 		}
 	}
+
+	private void LogLoadFailure(SaveLoadStatus status, string label)
+	{
+		_log.Add(BuildLoadFailureMessage(status, label));
+	}
+
+	private string BuildLoadFailureMessage(SaveLoadStatus status, string label)
+	{
+		var key = status switch
+		{
+			SaveLoadStatus.Incompatible => "log.save.incompatible",
+			_ => "log.save.not_found",
+		};
+		return LocalizationService.T(key, ("label", label));
+	}
+
+	private void SetWorldManagerStatus(string message, bool isError)
+	{
+	}
+
+	private void ClearWorldManagerStatus()
+	{
+	}
+
+	private (string? WorldId, string? CharacterId) ResolvePreferredWorldManagerSelection()
+	{
+		return (null, null);
+	}
+
+	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
+	{
+		_mainAppFlowCoordinator.LoadFromWorldManager(label, loadAction);
+	}
+
+	private void OpenSwitchConfirmation(
+		string title,
+		string message,
+		IReadOnlyList<ConfirmDialogAction> actions,
+		int defaultActionIndex,
+		Action? onSaveAndSwitch = null,
+		Action? onSwitch = null)
+	{
+		throw new NotSupportedException("OpenSwitchConfirmation is handled by MainAppFlowCoordinator.");
+	}
+
+	private void HandleConfirmDialogActionSelected(string actionId)
+		=> _mainAppFlowCoordinator.HandleConfirmDialogActionSelected(actionId);
+
+	private void CloseConfirmDialog() => _mainAppFlowCoordinator.CloseConfirmDialog();
 
 
 	// ══════════════════════════════════════════════════════
@@ -1586,56 +3556,51 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		DoSave(path, _session.DescribeSavePath(path));
 	}
 
-	private void OpenSaveBrowser(SaveBrowserContext context)
-	{
-		ExitMapEditor(silent: true);
-		CancelLayoutEditMode();
-		CloseSaveNameDialog();
-		_saveBrowserContext = context;
+	private void HandleQuickLoadRequested() => _mainAppFlowCoordinator.HandleQuickLoadRequested();
 
-		var slots = _session.ListSaveSlots();
-		var title = context == SaveBrowserContext.MainMenu ? "读取存档" : "载入存档";
-		var subtitle = slots.Count == 0
-			? "当前没有可读取的存档"
-			: "第一个测试存档是固定测试地图，其余为普通用户存档";
-		_saveBrowser.Open(slots, title, subtitle);
+	private void OpenWorldManager(
+		WorldManagerContext context,
+		WorldLaunchTab initialTab,
+		string? selectedWorldId = null,
+		string? selectedCharacterId = null)
+		=> _mainAppFlowCoordinator.OpenWorldManager(context, initialTab, selectedWorldId, selectedCharacterId);
+
+	private void RefreshWorldManagerContents(string? selectedWorldId = null, string? selectedCharacterId = null)
+		=> _mainAppFlowCoordinator.RefreshWorldManagerContents(selectedWorldId, selectedCharacterId);
+
+	private void CloseWorldManager() => _mainAppFlowCoordinator.CloseWorldManager();
+
+	private void HandleWorldManagerCreateCharacterRequested(string worldId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested(worldId);
+
+	private void HandleWorldManagerContinueCharacterRequested(string worldId, string characterId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested(worldId, characterId);
+
+	private void HandleWorldManagerScenarioRequested(string scenarioId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested(scenarioId);
+
+	private void HandleWorldManagerLegacySaveRequested(SaveSlotInfo slot) =>
+		_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
+
+	private void RequestWorldManagerLoad(string targetLabel, Func<SaveLoadStatus> loadAction)
+	{
+		_mainAppFlowCoordinator.LoadFromWorldManager(targetLabel, loadAction);
 	}
 
-	private void CloseSaveBrowser()
+	private async void LoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
 	{
-		_saveBrowser.Close();
+		_mainAppFlowCoordinator.LoadFromWorldManager(label, loadAction);
+		await Task.CompletedTask;
 	}
 
-	private void HandleSaveBrowserLoadRequested(SaveSlotInfo slot)
-	{
-		ExitMapEditor(silent: true);
-		if (!_session.LoadGame(slot.Path))
-		{
-			_log.Add($"未找到 {slot.DisplayName}");
-			OpenSaveBrowser(_saveBrowserContext);
-			return;
-		}
-
-		CloseSaveBrowser();
-		_settingsPanelModule.SetWatchMode(_state.WatchMode);
-		_settingsPanelModule.SetMapEditorActive(false);
-
-		if (_saveBrowserContext == SaveBrowserContext.MainMenu)
-		{
-			_log.Clear();
-			_log.Add($"{slot.DisplayName} 已加载 📂");
-			ShowGameHints();
-			DoEnterGame();
-			return;
-		}
-
-		HideSettingsPanels();
-		_log.Add($"{slot.DisplayName} 已加载 📂");
-		FlushMap();
-	}
+	private void HandleWorldSettingsConfirmed(string worldName, WorldSettings settings)
+		=> _mainAppFlowCoordinator.HandleWorldSettingsConfirmed(worldName, settings);
 
 	private void ToggleRender()
 	{
+		if (_mapRender == null)
+			return;
+
 		var msg = _mapRender.ToggleRenderMode();
 		if (_session.GameStarted && !_menu.InMenu && msg != null)
 			_log.Add(msg);
@@ -1645,6 +3610,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>立即刷新地图，标记 UI 面板为脏（由 _Process 统一驱动刷新）。</summary>
 	private void FlushMap()
 	{
+		if (_mapRender == null)
+			return;
+
+		_mapRender.InspectWorldCell = _inspectModeActive ? _inspectWorldCell : null;
 		_mapRender.SetEditorView(
 			MapEditorActive,
 			MapEditorActive ? _mapEditor.CameraX : _state.PlayerX,
@@ -1660,8 +3629,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_statusPanelModule.Dirty = true;
 		_skillBarDirty = true;
+		_skillMgr.Dirty = true;
 		if (_inventoryPanel.Visible) _inventoryPanel.Dirty = true;
 		_groundPanel.Dirty = true;
+		_turnPanelModule.Dirty = true;
+		_debugPanelController.MarkDirty();
+		_weatherLabPanelController?.MarkDirty();
+		if (_actorInspectPanel?.Visible == true) _actorInspectPanel.Dirty = true;
 	}
 
 	/// <summary>在 _Process 中统一驱动脏面板刷新，避免单帧重复刷新。</summary>
@@ -1670,21 +3644,26 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_statusPanelModule.Dirty && _statusPanelModule.PanelNode.Visible)
 		{
 			var player = ActorModule.GetPlayer(_state);
-			_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
+			_statusPanelModule.Refresh(_state, player, _state.PlayerZ, _state.Turn);
 		}
+		if (_turnPanelModule.Dirty && _turnPanelModule.PanelNode.Visible)
+			_turnPanelModule.FlushIfDirty(_state, PlayerDead, _watchModeEnabled);
 		if (_skillBarDirty && _skillBar.Visible)
 		{
 			_skillBar.Refresh(ActorModule.GetPlayer(_state));
 			_skillBarDirty = false;
 		}
+		if (_skillMgr.Visible)
+			_skillMgr.FlushIfDirty();
 		if (_inventoryPanel.Visible && _inventoryPanel.Dirty)
 			_inventoryPanel.FlushIfDirty();
 		if (_groundPanel.Dirty)
 			_groundPanel.FlushIfDirty();
+		_debugPanelController.FlushIfDirty();
+		_weatherLabPanelController?.FlushIfDirty();
+		if (_actorInspectPanel?.Visible == true && _actorInspectPanel.Dirty)
+			RefreshActorInspectPanel();
 	}
-
-	// ══════════════════════════════════════════════════════
-	//  鐘舵€侀潰鏉?toggle
 
 	// ══════════════════════════════════════════════════════
 	//  状态面板 toggle
@@ -1695,8 +3674,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var node = _statusPanelModule.PanelNode;
 		if (node.Visible)
 		{
-			node.Visible = false;
-			_panels.OnPanelClosed(_statusPanelModule);
+			CloseStatusPanel();
 		}
 		else
 		{
@@ -1707,8 +3685,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (node.Visible && _statusPanelModule.Dirty)
 		{
 			var player = ActorModule.GetPlayer(_state);
-			_statusPanelModule.Refresh(player, _state.PlayerZ, _state.Turn);
+			_statusPanelModule.Refresh(_state, player, _state.PlayerZ, _state.Turn);
 		}
+	}
+
+	private void CloseStatusPanel()
+	{
+		if (!_statusPanelModule.PanelNode.Visible)
+			return;
+
+		_statusPanelModule.PanelNode.Visible = false;
+		_panels.OnPanelClosed(_statusPanelModule);
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1739,15 +3726,24 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_skillMgr.Visible)
 		{
-			_skillMgr.Close();
-			_panels.OnPanelClosed(_skillMgr);
+			CloseSkillManagerPanel();
 		}
 		else
 		{
 			var player = ActorModule.GetPlayer(_state);
+			_skillMgr.State = _state;
 			_skillMgr.Open(player);
 			_panels.PushFocus(_skillMgr);
 		}
+	}
+
+	private void CloseSkillManagerPanel()
+	{
+		if (!_skillMgr.Visible)
+			return;
+
+		_skillMgr.Close();
+		_panels.OnPanelClosed(_skillMgr);
 	}
 
 
@@ -1760,8 +3756,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var quest = EnsureQuestPanel();
 		if (quest.Visible)
 		{
-			quest.Close();
-			_panels.OnPanelClosed(quest);
+			CloseQuestPanel();
 		}
 		else
 		{
@@ -1769,6 +3764,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_panels.PushFocus(quest);
 		}
 	}
+
+	private void CloseQuestPanel()
+	{
+		if (_questPanel == null || !_questPanel.Visible)
+			return;
+
+		_questPanel.Close();
+		_panels.OnPanelClosed(_questPanel);
+	}
+
+	private void ToggleDebugPanel() => _debugPanelController.Toggle();
+
+	private void CloseDebugPanel() => _debugPanelController.Close();
 
 
 	// ══════════════════════════════════════════════════════
@@ -1779,8 +3787,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (_inventoryPanel.Visible)
 		{
-			_inventoryPanel.Visible = false;
-			_panels.OnPanelClosed(_inventoryPanel);
+			CloseInventoryPanel();
 		}
 		else
 		{
@@ -1790,6 +3797,45 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		FlushMap();
 	}
 
+	private void CloseInventoryPanel()
+	{
+		if (!_inventoryPanel.Visible)
+			return;
+
+		_inventoryPanel.Visible = false;
+		_panels.OnPanelClosed(_inventoryPanel);
+	}
+
+	private void CloseTradePanel()
+	{
+		if (_tradeUI != null && _tradeUI.InTrade)
+		{
+			_tradeUI.CloseTrade();
+			return;
+		}
+
+		if (_tradePanel == null || !_tradePanel.Visible)
+			return;
+
+		_tradePanel.Close();
+		_panels.OnPanelClosed(_tradePanel);
+	}
+
+	private void CloseDialogPanel()
+	{
+		if (_dialogUI != null && _dialogUI.InDialog)
+		{
+			_dialogUI.CloseDialog();
+			return;
+		}
+
+		if (_dialogPanel == null || !_dialogPanel.Visible)
+			return;
+
+		_dialogPanel.Close();
+		_panels.OnPanelClosed(_dialogPanel);
+	}
+
 
 	// ══════════════════════════════════════════════════════
 	//  小地图 / 大地图
@@ -1797,6 +3843,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleMinimap()
 	{
+		if (_mapRender == null)
+			return;
+
 		var msg = _mapRender.ToggleMinimap();
 		if (msg.Length > 0) _log.Add(msg);
 		FlushMap();
@@ -1804,15 +3853,65 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void ToggleFogMap()
 	{
+		if (_mapRender == null)
+			return;
+
 		_log.Add(_mapRender.ToggleFogMap());
 		FlushMap();
 	}
 
 	private void CenterFogMap()
 	{
+		if (_mapRender == null)
+			return;
+
 		_mapRender.CenterFogMap();
 		FlushMap();
 	}
 
 	private void RefreshAllBorders() => _panels.RefreshBorders();
+
+	private void PrimeTimelineStatusLog(TimelineDebugSnapshot snapshot)
+	{
+		_timelineStatusLogPrimed = true;
+		_lastTimelineLockReason = snapshot.InputLockedReason;
+	}
+
+	private void ResetTimelineStatusLog()
+	{
+		_timelineStatusLogPrimed = false;
+		_lastTimelineLockReason = TimelineInputLockReason.None;
+	}
+
+	private void UpdateTimelineStatusLog(TimelineDebugSnapshot snapshot)
+	{
+		if (!_timelineStatusLogPrimed)
+		{
+			PrimeTimelineStatusLog(snapshot);
+			return;
+		}
+
+		var nextReason = snapshot.InputLockedReason;
+		if (nextReason == _lastTimelineLockReason)
+			return;
+
+		if (nextReason == TimelineInputLockReason.None)
+		{
+			if (_lastTimelineLockReason is TimelineInputLockReason.OtherActorsActing or TimelineInputLockReason.WatchMode)
+				_log.Add(LocalizationService.T("log.timeline.player_turn"));
+			_lastTimelineLockReason = nextReason;
+			return;
+		}
+
+		var logKey = nextReason switch
+		{
+			TimelineInputLockReason.OtherActorsActing => "log.timeline.locked.auto",
+			TimelineInputLockReason.WatchMode => "log.timeline.locked.watch",
+			_ => null,
+		};
+		if (logKey != null)
+			_log.Add(LocalizationService.T(logKey));
+
+		_lastTimelineLockReason = nextReason;
+	}
 }

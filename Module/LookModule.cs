@@ -1,10 +1,20 @@
 using System.Collections.Generic;
 using System.Text;
 using MiniRPG.Core.AI;
+using MiniRPG.Core.Combat;
+using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
+using MiniRPG.Module.Panel;
+
 namespace MiniRPG.Module;
 
+public readonly record struct LookCellInfo(
+	PlayerVisionBand VisionBand,
+	string Text,
+	Actor? InspectableActor);
+
 /// <summary>
-/// L 键查看：构建环境信息文本。纯查询，无副作用。
+/// 查看/观察模块：提供玩家周边与任意坐标格子的只读描述。
 /// </summary>
 public static class LookModule
 {
@@ -12,16 +22,50 @@ public static class LookModule
 	{
 		var sb = new StringBuilder();
 		var player = ActorModule.GetPlayer(state);
-		sb.Append($"📍 Z{state.PlayerZ} ({state.PlayerX}, {state.PlayerY})  回合: {state.Turn}");
-		if (player != null) sb.Append($"  💰{player.Gold}G");
+		sb.Append(LocalizationService.T("look.position",
+			("floor", state.PlayerZ),
+			("x", state.PlayerX),
+			("y", state.PlayerY),
+			("turn", state.Turn)));
+		if (player != null)
+			sb.Append(LocalizationService.T("look.gold", ("gold", player.Gold)));
+
+		if (state.World != null)
+		{
+			var weather = GetDisplayWeatherSample(state, state.PlayerX, state.PlayerY, state.PlayerZ);
+			var exposure = player != null
+				? DefaultEnvironmentExposureProvider.Instance.Capture(state, player)
+				: EnvironmentExposureSnapshot.Neutral;
+			var exposureState = DescribeExposureState(state, state.PlayerX, state.PlayerY, state.PlayerZ);
+			sb.Append('\n');
+			sb.Append(LocalizationService.TOrFallback(
+				"look.weather.current.detail",
+				"Weather: {weather} ({intensity}) | {temp}C | {exposure} | Shelter {shelter}% | Heat +{heat}C",
+				("weather", GameLocalizer.LocalizeWeatherName(weather.TypeId)),
+				("intensity", GameLocalizer.LocalizeWeatherIntensity(weather.IntensityId)),
+				("temp", exposure.AmbientTemperature.ToString("0.#")),
+				("exposure", exposureState),
+				("shelter", (exposure.ShelterStrength * 100f).ToString("0")),
+				("heat", exposure.HeatSourceTemperatureBonus.ToString("0.#"))));
+
+			var underfoot = DescribeAccumulation(WeatherSurface.GetSurfaceState(state, state.PlayerX, state.PlayerY, state.PlayerZ));
+			if (!string.IsNullOrEmpty(underfoot))
+			{
+				sb.Append('\n');
+				sb.Append(LocalizationService.TOrFallback("look.weather.underfoot", "Underfoot: {value}", ("value", underfoot)));
+			}
+		}
 
 		if (player != null && player.Limbs.Count > 0)
 		{
-			sb.Append("\n  肢体: ");
+			sb.Append("\n");
+			sb.Append(LocalizationService.T("look.limbs.prefix"));
 			var parts = new List<string>();
 			foreach (var l in player.Limbs)
 			{
-				var vital = l.Tags.ContainsKey("要害") ? "*" : "";
+				var vital = CombatModule.IsVitalLimb(l)
+					? LocalizationService.T("look.vital_marker")
+					: "";
 				parts.Add($"{l.Name}{vital}({l.Durability}/{l.MaxDurability})");
 			}
 			sb.Append(string.Join(" ", parts));
@@ -29,96 +73,324 @@ public static class LookModule
 
 		var standingOn = MapModule.GetFixtureId(state, state.PlayerX, state.PlayerY);
 		if (!string.IsNullOrEmpty(standingOn))
-			sb.Append($"  脚下: {FixtureLabel(standingOn)}");
+			sb.Append(LocalizationService.T("look.underfoot", ("fixture", FixtureLabel(standingOn))));
 
 		var groundItems = MapModule.PeekGroundItems(state, state.PlayerX, state.PlayerY);
 		if (groundItems.Count > 0)
 		{
-			var names = groundItems.ConvertAll(i => i.Name);
-			sb.Append($"\n  📦 地上: {string.Join(", ", names)}  (F 键拾取)");
+			var names = groundItems.ConvertAll(item => FormatLookItem(state, item));
+			sb.Append("\n");
+			sb.Append(LocalizationService.T("look.ground_items", ("items", string.Join(", ", names))));
+		}
+
+		var underfootFire = FireSystem.GetFireIntensityAt(state, state.PlayerX, state.PlayerY, state.PlayerZ);
+		if (underfootFire > 0)
+		{
+			sb.Append("\n");
+			sb.Append(LocalizationService.TOrFallback(
+				"look.underfoot",
+				"  Underfoot: {fixture}",
+				("fixture", $"{GameLocalizer.LocalizeFixtureName(Entities.Fire)} {underfootFire}")));
 		}
 
 		var coActors = ActorModule.GetAllAt(state, state.PlayerX, state.PlayerY);
-		foreach (var a in coActors)
+		foreach (var actor in coActors)
 		{
-			if (a.Id == state.PlayerId) continue;
-			sb.Append($"  同格: {a.DisplayName}");
+			if (actor.Id == state.PlayerId) continue;
+			sb.Append(LocalizationService.T("look.same_tile", ("actor", IdentificationModule.GetActorDisplayName(state, actor))));
 		}
 
 		var dirs = new (string Name, int Dx, int Dy)[]
 		{
-			("上", 0, -1), ("下", 0, 1), ("左", -1, 0), ("右", 1, 0),
+			(LocalizationService.T("look.direction.north"), 0, -1),
+			(LocalizationService.T("look.direction.south"), 0, 1),
+			(LocalizationService.T("look.direction.west"), -1, 0),
+			(LocalizationService.T("look.direction.east"), 1, 0),
 		};
 		foreach (var (name, dx, dy) in dirs)
 		{
 			var tx = state.PlayerX + dx;
 			var ty = state.PlayerY + dy;
-			sb.Append($"  {name}: {CellLabel(state, fogTracker, tx, ty)}");
+			sb.Append($"  {name}: {CellLabel(state, fogTracker, tx, ty, state.PlayerZ)}");
 		}
+
 		return sb.ToString();
 	}
 
-	private static string CellLabel(GameState state, FogOfWarTracker fogTracker, int x, int y)
+	public static LookCellInfo DescribeCell(GameState state, FogOfWarTracker fogTracker, int x, int y, int z)
 	{
-		var band = fogTracker.GetVisionBand(x, y, state.PlayerZ);
+		var band = fogTracker.GetVisionBand(x, y, z);
+		var text = BuildInspectCellText(state, band, x, y, z);
+		var actor = band is PlayerVisionBand.Focused or PlayerVisionBand.Peripheral
+			? GetInspectableActor(state, x, y, z)
+			: null;
+		return new LookCellInfo(band, text, actor);
+	}
+
+	public static Actor? TryGetInspectableActor(GameState state, FogOfWarTracker fogTracker, int x, int y, int z) =>
+		DescribeCell(state, fogTracker, x, y, z).InspectableActor;
+
+	private static string BuildInspectCellText(GameState state, PlayerVisionBand band, int x, int y, int z)
+	{
+		var parts = new List<string>
+		{
+			LocalizationService.T("look.inspect.position",
+				("floor", z),
+				("x", x),
+				("y", y),
+				("vision", LocalizationService.T(GetVisionBandKey(band))))
+		};
+
+		switch (band)
+		{
+			case PlayerVisionBand.Focused:
+			case PlayerVisionBand.Peripheral:
+				AppendFocusedDetails(parts, state, x, y, z);
+				break;
+			case PlayerVisionBand.Memory:
+				parts.Add(LocalizationService.T("look.inspect.summary", ("detail", MemoryCellLabel(state, x, y, z))));
+				break;
+			default:
+				parts.Add(LocalizationService.T("look.inspect.summary", ("detail", LocalizationService.T("look.cell.unknown"))));
+				break;
+		}
+
+		return string.Join("  ", parts);
+	}
+
+	private static void AppendFocusedDetails(List<string> parts, GameState state, int x, int y, int z)
+	{
+		var surface = WeatherSurface.GetSurfaceState(state, x, y, z);
+		var terrain = surface.BaseTerrain.Solid
+			? LocalizationService.T("look.cell.wall")
+			: GameLocalizer.LocalizeTerrainName(surface.EffectiveTerrainId);
+		parts.Add(LocalizationService.T("look.inspect.terrain", ("terrain", terrain)));
+
+		if (surface.IsExposed)
+		{
+			var sample = WeatherRules.GetLocalWeather(state, x, y, z);
+			parts.Add(LocalizationService.TOrFallback(
+				"look.inspect.weather",
+				"Weather: {weather} ({intensity})",
+				("weather", GameLocalizer.LocalizeWeatherName(sample.TypeId)),
+				("intensity", GameLocalizer.LocalizeWeatherIntensity(sample.IntensityId))));
+		}
+
+		var accumulation = DescribeAccumulation(surface);
+		if (!string.IsNullOrEmpty(accumulation))
+			parts.Add(LocalizationService.TOrFallback("look.inspect.accumulation", "Surface: {value}", ("value", accumulation)));
+
+		var fixtureId = MapModule.GetFixtureId(state, x, y, z);
+		if (!string.IsNullOrEmpty(fixtureId))
+			parts.Add(LocalizationService.T("look.inspect.fixture", ("fixture", FixtureLabel(fixtureId))));
+
+		var fireIntensity = FireSystem.GetFireIntensityAt(state, x, y, z);
+		if (fireIntensity > 0)
+		{
+			parts.Add(LocalizationService.TOrFallback(
+				"look.inspect.hazard",
+				"Hazard: {hazard}",
+				("hazard", $"{GameLocalizer.LocalizeFixtureName(Entities.Fire)} {fireIntensity}")));
+		}
+
+		var actors = ActorModule.GetAllAt(state, x, y, z);
+		if (actors.Count > 0)
+			parts.Add(LocalizationService.T("look.inspect.actors", ("actors", string.Join(", ", actors.ConvertAll(actor => IdentificationModule.GetActorDisplayName(state, actor))))));
+
+		var items = MapModule.PeekGroundItems(state, x, y);
+		if (z == state.PlayerZ && items.Count > 0)
+			parts.Add(LocalizationService.T("look.inspect.items", ("items", string.Join(", ", items.ConvertAll(item => FormatLookItem(state, item))))));
+		else if (state.World != null)
+		{
+			var worldItems = state.World.PeekGroundItems(x, y, z);
+			if (worldItems.Count > 0)
+				parts.Add(LocalizationService.T("look.inspect.items", ("items", string.Join(", ", worldItems.ConvertAll(item => FormatLookItem(state, item))))));
+		}
+
+		if (parts.Count == 2)
+			parts.Add(LocalizationService.T("look.inspect.empty"));
+	}
+
+	private static Actor? GetInspectableActor(GameState state, int x, int y, int z)
+	{
+		var actors = ActorModule.GetAllAt(state, x, y, z);
+		if (actors.Count == 0)
+			return null;
+
+		foreach (var actor in actors)
+		{
+			if (actor.Id != state.PlayerId)
+				return actor;
+		}
+
+		return actors[0];
+	}
+
+	private static string GetVisionBandKey(PlayerVisionBand band) => band switch
+	{
+		PlayerVisionBand.Focused => "look.inspect.vision.focused",
+		PlayerVisionBand.Peripheral => "look.inspect.vision.peripheral",
+		PlayerVisionBand.Memory => "look.inspect.vision.memory",
+		_ => "look.inspect.vision.unknown",
+	};
+
+	private static string CellLabel(GameState state, FogOfWarTracker fogTracker, int x, int y, int z)
+	{
+		var band = fogTracker.GetVisionBand(x, y, z);
 		return band switch
 		{
-			PlayerVisionBand.Focused => FocusedCellLabel(state, x, y),
-			PlayerVisionBand.Peripheral => PeripheralCellLabel(state, x, y),
-			PlayerVisionBand.Memory => MemoryCellLabel(state, x, y),
-			_ => "未知",
+			PlayerVisionBand.Focused => FocusedCellLabel(state, x, y, z),
+			PlayerVisionBand.Peripheral => PeripheralCellLabel(state, x, y, z),
+			PlayerVisionBand.Memory => MemoryCellLabel(state, x, y, z),
+			_ => LocalizationService.T("look.cell.unknown"),
 		};
 	}
 
-	private static string FocusedCellLabel(GameState state, int x, int y)
+	private static string FocusedCellLabel(GameState state, int x, int y, int z)
 	{
-		if (MapModule.IsWall(state, x, y)) return "墙 🚧";
-		var actors = ActorModule.GetAllAt(state, x, y);
+		var surface = WeatherSurface.GetSurfaceState(state, x, y, z);
+		if (surface.BaseTerrain.Solid)
+			return LocalizationService.T("look.cell.wall");
+
+		var actors = ActorModule.GetAllAt(state, x, y, z);
 		if (actors.Count > 0)
-		{
-			var names = actors.ConvertAll(a => a.DisplayName);
-			return string.Join("+", names);
-		}
-		var items = MapModule.GetGroundItems(state, x, y);
-		if (items.Count > 0) return $"📦{items.Count}个物品";
-		var f = MapModule.GetFixtureId(state, x, y);
-		if (!string.IsNullOrEmpty(f)) return FixtureLabel(f);
-		return "空地";
+			return string.Join("+", actors.ConvertAll(actor => IdentificationModule.GetActorDisplayName(state, actor)));
+
+		var fireIntensity = FireSystem.GetFireIntensityAt(state, x, y, z);
+		if (fireIntensity > 0)
+			return GameLocalizer.LocalizeFixtureName(Entities.Fire);
+
+		var items = z == state.PlayerZ
+			? MapModule.PeekGroundItems(state, x, y)
+			: state.World!.PeekGroundItems(x, y, z);
+		if (items.Count > 0)
+			return LocalizationService.T("look.cell.items", ("count", items.Count));
+
+		var fixtureId = MapModule.GetFixtureId(state, x, y, z);
+		if (!string.IsNullOrEmpty(fixtureId))
+			return FixtureLabel(fixtureId);
+
+		var accumulation = DescribeAccumulation(surface);
+		return string.IsNullOrEmpty(accumulation)
+			? LocalizationService.T("look.cell.empty")
+			: accumulation;
 	}
 
-	private static string PeripheralCellLabel(GameState state, int x, int y)
+	private static string PeripheralCellLabel(GameState state, int x, int y, int z)
 	{
-		if (state.World!.BlocksSight(x, y, state.PlayerZ)) return "障碍";
+		var surface = WeatherSurface.GetSurfaceState(state, x, y, z);
+		if (surface.BaseTerrain.Solid)
+			return LocalizationService.T("look.cell.obstacle");
 
-		var actors = ActorModule.GetAllAt(state, x, y);
+		var actors = ActorModule.GetAllAt(state, x, y, z);
 		if (actors.Count > 0)
 		{
 			foreach (var actor in actors)
 			{
 				if (actor.Id == state.PlayerId) continue;
 				if (FactionRelation.IsHostile(Factions.Player, actor.Faction))
-					return "敌对身影";
+					return LocalizationService.T("look.cell.hostile_shape");
 			}
 
-			return "活动身影";
+			return LocalizationService.T("look.cell.moving_shape");
 		}
 
-		if (MapModule.GetGroundItems(state, x, y).Count > 0) return "有东西";
-		if (!string.IsNullOrEmpty(MapModule.GetFixtureId(state, x, y))) return "有东西";
-		return "空地";
+		var groundItems = z == state.PlayerZ
+			? MapModule.PeekGroundItems(state, x, y)
+			: state.World!.PeekGroundItems(x, y, z);
+		if (groundItems.Count > 0)
+			return LocalizationService.T("look.cell.something");
+		if (FireSystem.GetFireIntensityAt(state, x, y, z) > 0)
+			return GameLocalizer.LocalizeFixtureName(Entities.Fire);
+		if (!string.IsNullOrEmpty(MapModule.GetFixtureId(state, x, y, z)))
+			return LocalizationService.T("look.cell.something");
+		var accumulation = DescribeAccumulation(surface);
+		return string.IsNullOrEmpty(accumulation)
+			? LocalizationService.T("look.cell.empty")
+			: accumulation;
 	}
 
-	private static string MemoryCellLabel(GameState state, int x, int y) =>
-		state.World!.GetTerrain(x, y, state.PlayerZ).Solid ? "记忆中的墙" : "记忆中的空地";
+	private static string MemoryCellLabel(GameState state, int x, int y, int z)
+	{
+		var surface = WeatherSurface.GetSurfaceState(state, x, y, z);
+		if (surface.BaseTerrain.Solid)
+			return LocalizationService.T("look.cell.memory_wall");
+
+		if (surface.HasSnowCover || surface.HasSandCover || surface.HasIceGloss)
+			return GameLocalizer.LocalizeTerrainName(surface.EffectiveTerrainId);
+
+		var accumulation = DescribeAccumulation(surface);
+		return string.IsNullOrEmpty(accumulation)
+			? LocalizationService.T("look.cell.memory_empty")
+			: accumulation;
+	}
+
+	private static string DescribeAccumulation(WeatherSurfaceState surface)
+	{
+		var parts = new List<string>();
+		if (surface.Accumulation.IceDepth > 0)
+			parts.Add(LocalizationService.TOrFallback("weather.accum.ice", "icy"));
+		if (surface.Accumulation.SnowDepth > 0)
+			parts.Add(LocalizationService.TOrFallback("weather.accum.snow", "snow-covered"));
+		if (surface.Accumulation.SandDepth > 0)
+			parts.Add(LocalizationService.TOrFallback("weather.accum.sand", "sand-covered"));
+		if (surface.Accumulation.Wetness > 0)
+			parts.Add(LocalizationService.TOrFallback("weather.accum.wet", "wet"));
+		return string.Join(", ", parts);
+	}
+
+	private static string FormatLookItem(GameState state, Item item) =>
+		$"{GameLocalizer.LocalizeItemName(item.Id, item.Name)} ({ItemConditionFormatter.BuildInlineDurability(item)})";
+
+	private static WeatherSample GetDisplayWeatherSample(GameState state, int x, int y, int z)
+	{
+		if (state.World == null || state.Weather == null)
+			return new WeatherSample(WeatherType.Clear, WeatherIntensity.Normal);
+
+		return WeatherFieldSampler.Sample(state, x, y, z == 0 ? z : 0, state.Turn, state.Weather.FrontPhase);
+	}
+
+	private static float GetAmbientTemperature(GameState state, Actor? actor, int x, int y, int z)
+	{
+		if (actor != null)
+			return DefaultEnvironmentExposureProvider.Instance.Capture(state, actor).AmbientTemperature;
+
+		if (state.World == null || state.Weather == null)
+			return EnvironmentExposureSnapshot.Neutral.AmbientTemperature;
+
+		if (z != 0)
+			return GameConfig.Weather.UndergroundNeutralTemperatureC;
+
+		var sample = GetDisplayWeatherSample(state, x, y, z);
+		if (state.World.IsWeatherExposed(x, y, z))
+			return sample.AmbientTemperatureC;
+
+		return Lerp(sample.AmbientTemperatureC, GameConfig.Weather.ShelterNeutralTemperatureC, GameConfig.Weather.ShelterTemperatureLerp);
+	}
+
+	private static string DescribeExposureState(GameState state, int x, int y, int z)
+	{
+		if (z != 0)
+			return LocalizationService.TOrFallback("look.weather.exposure.underground", "underground");
+
+		if (state.World?.IsWeatherExposed(x, y, z) == true)
+			return LocalizationService.TOrFallback("look.weather.exposure.exposed", "exposed");
+
+		return LocalizationService.TOrFallback("look.weather.exposure.sheltered", "sheltered");
+	}
+
+	private static float Lerp(float from, float to, float t) =>
+		from + (to - from) * System.Math.Clamp(t, 0f, 1f);
 
 	public static string FixtureLabel(string id) => id switch
 	{
-		Entities.StairDown => "下行楼梯 ⬇️",
-		Entities.StairUp => "上行楼梯 ⬆️",
-		Entities.Nest => "巢穴 🕳️",
-		Entities.House => "房屋 🏠",
-		Entities.Item => "道具 📦",
-		Entities.Door => "门 🚪",
+		Entities.StairDown => LocalizationService.T("fixture.stair_down"),
+		Entities.StairUp => LocalizationService.T("fixture.stair_up"),
+		Entities.Nest => LocalizationService.T("fixture.nest"),
+		Entities.House => LocalizationService.T("fixture.house"),
+		Entities.Item => LocalizationService.T("fixture.item"),
+		Entities.Door => LocalizationService.T("fixture.door"),
+		Entities.Campfire => LocalizationService.TOrFallback("fixture.campfire", "Campfire"),
 		_ => id,
 	};
 }

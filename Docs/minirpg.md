@@ -11,6 +11,8 @@
 - 如果要看当前代码事实、职责边界和调用链，请转到 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
 - 如果要快速定位目录、入口文件和主路径，请转到 [`CODEBASE_MAP.md`](./CODEBASE_MAP.md)。
 - 如果要看遗留问题和技术债，请转到 [`TODO.md`](./TODO.md)。
+- For in-game AutoTest handoff and log inspection workflow, read [`AUTOTEST_AI_GUIDE.md`](./AUTOTEST_AI_GUIDE.md).
+- Runtime diagnostics should prefer the in-game `AutoTest` button and `user://test_results.log` over ad-hoc manual probing when the issue depends on real session/UI state.
 
 ## 当前项目目标
 
@@ -55,6 +57,15 @@
 - 改当前职责边界、入口、模块关系：更新 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。
 - 改目录、入口文件、快速导航信息：更新 [`CODEBASE_MAP.md`](./CODEBASE_MAP.md)。
 - 如果一次改动同时改了约定和事实边界，这三份文档一起改。
+
+### 6. 文本编码与本地化门禁
+
+- 仓库内受控文本文件统一使用 UTF-8；脚本读写必须显式声明编码，禁止依赖系统默认编码或 ANSI 保存。
+- Python 读写文本一律显式传 `encoding="utf-8"`；PowerShell 写文件必须显式使用 `-Encoding utf8`。
+- 任何中文文本、`Data/I18n/*.json`、本地化脚本或场景文本改动后，提交前必须执行：
+  - `python Tools\validate_i18n.py`
+  - `dotnet test Tests\MiniRPG.Tests\MiniRPG.Tests.csproj --filter LocalizationCatalogTests`
+- 如果上述任一命令失败，不应继续生成或覆盖 catalog 文件，先修复编码或 key parity 问题再继续。
 
 ## 当前仍然有效的约束
 

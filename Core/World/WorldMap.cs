@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Core.World;
 
@@ -10,14 +12,64 @@ namespace MiniRPG.Core.World;
 /// </summary>
 public class WorldMap
 {
+	private readonly record struct FacilityOccupancy(
+		string FacilityId,
+		FacilityFootprintCell Cell,
+		bool BlocksSight,
+		bool Passable);
+
+	private const string ItemSnapshotMetaKey = "itemSnapshot";
+	private const string ItemTemplateIdMetaKey = "templateId";
+	private const string ItemInstanceIdMetaKey = "instanceId";
+	private const string ItemCategoryMetaKey = "category";
+	private const string ItemDurabilityMetaKey = "durability";
+	private const string ItemMaxDurabilityMetaKey = "maxDurability";
+	private const string EntityDurabilityMetaKey = "durability";
+	private const string EntityMaxDurabilityMetaKey = "maxDurability";
+	private const string EntityMaterialMetaKey = "material";
+	private const string EntityFlammableMetaKey = "flammable";
+	private const string EntityBlocksSightMetaKey = "blocksSight";
+	private const string EntityControlledFireSourceMetaKey = "controlledFireSource";
+
 	public ChunkManager Chunks { get; }
 	public int WorldSeed { get; }
+	private IReadOnlyDictionary<string, FacilityInstance>? _facilities;
+	private readonly Dictionary<ZoneCell, FacilityOccupancy> _facilityIndex = new();
 
 	public WorldMap(int worldSeed, IMapGenerator generator)
 	{
 		WorldSeed = worldSeed;
 		Chunks = new ChunkManager(worldSeed, generator);
 		Chunks.ApplyRuntimeConfig(GameConfig.WorldRuntime);
+	}
+
+	public void AttachFacilityState(IReadOnlyDictionary<string, FacilityInstance>? facilities)
+	{
+		_facilities = facilities;
+		RebuildFacilityIndex();
+	}
+
+	public void RebuildFacilityIndex()
+	{
+		_facilityIndex.Clear();
+		if (_facilities == null || _facilities.Count == 0)
+			return;
+
+		foreach (var facility in _facilities.Values.OrderBy(static facility => facility.Id, StringComparer.Ordinal))
+		{
+			var def = FacilityRegistry.Get(facility.FacilityDefId);
+			if (def == null)
+				continue;
+
+			foreach (var (worldX, worldY, _, footprintCell) in EnumerateFootprint(def, facility.AnchorX, facility.AnchorY, facility.Z, facility.Rotation))
+			{
+				_facilityIndex[new ZoneCell(worldX, worldY, facility.Z)] = new FacilityOccupancy(
+					facility.Id,
+					footprintCell,
+					BlocksSight: ShouldFacilityBlockSight(facility, footprintCell),
+					Passable: IsFacilityPassable(facility, footprintCell));
+			}
+		}
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -109,6 +161,32 @@ public class WorldMap
 	public CellEntity? GetFirstEntity(int x, int y, int z, CellEntityType type) =>
 		GetEntities(x, y, z).FirstOrDefault(e => e.Type == type);
 
+	public CellEntity? GetEntity(int x, int y, int z, CellEntityType type, string entityId) =>
+		GetEntities(x, y, z).FirstOrDefault(entity =>
+			entity.Type == type
+			&& string.Equals(entity.EntityId, entityId, StringComparison.Ordinal));
+
+	public bool UpdateEntity(int x, int y, int z, CellEntityType type, string entityId, Action<CellEntity> update)
+	{
+		var (chunk, lx, ly) = Resolve(x, y, z);
+		var idx = ly * ChunkData.Size + lx;
+		if (!chunk.Entities.TryGetValue(idx, out var list))
+			return false;
+
+		for (var i = 0; i < list.Count; i++)
+		{
+			var entity = list[i];
+			if (entity.Type != type || !string.Equals(entity.EntityId, entityId, StringComparison.Ordinal))
+				continue;
+
+			update(entity);
+			chunk.Dirty = true;
+			return true;
+		}
+
+		return false;
+	}
+
 	// ══════════════════════════════════════════════════════
 	//  查询
 	// ══════════════════════════════════════════════════════
@@ -125,10 +203,13 @@ public class WorldMap
 		if (GetTerrain(x, y, z).Solid)
 			return true;
 
+		if (TryGetFacilityOccupancy(x, y, z, out var occupancy) && occupancy.BlocksSight)
+			return true;
+
 		foreach (var entity in GetEntities(x, y, z))
 		{
 			if (entity.Type != CellEntityType.Fixture) continue;
-			if (FixtureBlocksSight(entity.EntityId))
+			if (FixtureBlocksSight(entity))
 				return true;
 		}
 
@@ -136,7 +217,49 @@ public class WorldMap
 	}
 
 	public bool IsWalkable(int x, int y, int z) =>
-		!IsSolid(x, y, z);
+		!IsSolid(x, y, z)
+		&& (!TryGetFacilityOccupancy(x, y, z, out var occupancy) || occupancy.Passable);
+
+	public bool IsWeatherExposed(int x, int y, int z) =>
+		z == 0 && !BlocksSight(x, y, z);
+
+	/// <summary>
+	/// 按坐标查询 Actor。
+	/// 已加载 chunk 优先走 chunk.ActorIds 索引；未加载 chunk 回退为全表扫描，
+	/// 以保持未加载区域的原有查询语义。
+	/// </summary>
+	public List<Actor> GetActorsAt(int x, int y, int z, Dictionary<string, Actor> actors)
+	{
+		if (actors.Count == 0)
+			return [];
+
+		var coord = CoordUtil.WorldToChunk(x, y, z);
+		if (!Chunks.IsLoaded(coord))
+			return ScanActorsAt(x, y, z, actors);
+
+		var chunk = Chunks.GetOrLoad(coord);
+		if (chunk.ActorIds.Count == 0)
+			return [];
+
+		var result = new List<Actor>(chunk.ActorIds.Count);
+		foreach (var actorId in chunk.ActorIds)
+		{
+			if (!actors.TryGetValue(actorId, out var actor))
+				continue;
+
+			if (actor.X == x && actor.Y == y && actor.Z == z)
+				result.Add(actor);
+		}
+
+		result.Sort(static (left, right) => string.Compare(left.Id, right.Id, System.StringComparison.Ordinal));
+		return result;
+	}
+
+	public Actor? GetActorAt(int x, int y, int z, Dictionary<string, Actor> actors) =>
+		GetActorsAt(x, y, z, actors).FirstOrDefault();
+
+	public Actor? GetHostileActorAt(int x, int y, int z, Dictionary<string, Actor> actors) =>
+		GetActorsAt(x, y, z, actors).FirstOrDefault(static actor => actor.Faction == Factions.Hostile);
 
 	/// <summary>
 	/// 渲染用：获取格子的显示字符。
@@ -148,7 +271,20 @@ public class WorldMap
 		if (actor != null) return actor.Glyph;
 
 		var entities = GetEntities(x, y, z);
-		if (entities.Count > 0) return entities[^1].Glyph;
+		if (entities.Count > 0)
+		{
+			var top = entities[^1];
+			if (TryGetFacilityOccupancy(x, y, z, out var facility)
+				&& top.Type is CellEntityType.Item or CellEntityType.Container)
+			{
+				return facility.Cell.Glyph;
+			}
+
+			return top.Glyph;
+		}
+
+		if (TryGetFacilityOccupancy(x, y, z, out var occupancyForDisplay))
+			return occupancyForDisplay.Cell.Glyph;
 
 		return GetTerrain(x, y, z).Glyph;
 	}
@@ -156,17 +292,90 @@ public class WorldMap
 	/// <summary>该格是否有 Actor 或非地形实体（不依赖 Glyph 比较）。</summary>
 	public bool HasActorOrEntity(int x, int y, int z, Dictionary<string, Actor> actors)
 	{
-		foreach (var a in actors.Values)
-			if (a.X == x && a.Y == y && a.Z == z) return true;
-		return GetEntities(x, y, z).Count > 0;
+		return GetActorsAt(x, y, z, actors).Count > 0
+			|| GetEntities(x, y, z).Count > 0
+			|| _facilityIndex.ContainsKey(new ZoneCell(x, y, z));
 	}
 
-	private static Actor? GetDisplayActor(int x, int y, int z, Dictionary<string, Actor> actors)
+	public bool TryGetFacilityAt(int x, int y, int z, out FacilityInstance? facility)
 	{
-		Actor? best = null;
-		foreach (var a in actors.Values)
+		if (TryGetFacilityOccupancy(x, y, z, out var occupancy)
+			&& _facilities != null
+			&& _facilities.TryGetValue(occupancy.FacilityId, out var resolved))
 		{
-			if (a.X != x || a.Y != y || a.Z != z) continue;
+			facility = resolved;
+			return true;
+		}
+
+		facility = null;
+		return false;
+	}
+
+	public bool TryGetFacilityAt(int x, int y, int z, out FacilityInstance? facility, out FacilityFootprintCell? footprintCell)
+	{
+		if (TryGetFacilityOccupancy(x, y, z, out var occupancy)
+			&& _facilities != null
+			&& _facilities.TryGetValue(occupancy.FacilityId, out var resolved))
+		{
+			facility = resolved;
+			footprintCell = occupancy.Cell.Clone();
+			return true;
+		}
+
+		facility = null;
+		footprintCell = null;
+		return false;
+	}
+
+	public List<ZoneCell> GetFootprintCells(FacilityInstance facility)
+	{
+		var def = FacilityRegistry.Get(facility.FacilityDefId);
+		return def == null
+			? []
+			: GetFootprintCells(def, facility.AnchorX, facility.AnchorY, facility.Z, facility.Rotation);
+	}
+
+	public List<ZoneCell> GetFootprintCells(FacilityDef def, int anchorX, int anchorY, int z, FacilityRotation rotation) =>
+		EnumerateFootprint(def, anchorX, anchorY, z, rotation)
+			.Select(static cell => new ZoneCell(cell.WorldX, cell.WorldY, cell.WorldZ))
+			.ToList();
+
+	public List<ZoneCell> GetFacilityBlockers(FacilityDef def, int anchorX, int anchorY, int z, FacilityRotation rotation)
+	{
+		var blockers = new List<ZoneCell>();
+		foreach (var (worldX, worldY, worldZ, _) in EnumerateFootprint(def, anchorX, anchorY, z, rotation))
+		{
+			if (GetTerrain(worldX, worldY, worldZ).Solid)
+			{
+				blockers.Add(new ZoneCell(worldX, worldY, worldZ));
+				continue;
+			}
+
+			if (TryGetFacilityAt(worldX, worldY, worldZ, out _))
+			{
+				blockers.Add(new ZoneCell(worldX, worldY, worldZ));
+				continue;
+			}
+
+			if (GetEntities(worldX, worldY, worldZ).Any(static entity =>
+				entity.Type is CellEntityType.Fixture or CellEntityType.Container or CellEntityType.Hazard or CellEntityType.Corpse))
+			{
+				blockers.Add(new ZoneCell(worldX, worldY, worldZ));
+			}
+		}
+
+		return blockers;
+	}
+
+	public bool CanPlaceFacility(FacilityDef def, int anchorX, int anchorY, int z, FacilityRotation rotation) =>
+		GetFacilityBlockers(def, anchorX, anchorY, z, rotation).Count == 0;
+
+	private Actor? GetDisplayActor(int x, int y, int z, Dictionary<string, Actor> actors)
+	{
+		var occupants = GetActorsAt(x, y, z, actors);
+		Actor? best = null;
+		foreach (var a in occupants)
+		{
 			if (best == null) { best = a; continue; }
 			if (a.Faction == Factions.Player) { best = a; break; }
 			if (a.Faction == Factions.Hostile && best.Faction != Factions.Hostile) best = a;
@@ -181,11 +390,17 @@ public class WorldMap
 	public bool HasFixture(int x, int y, int z, string fixtureId) =>
 		GetEntities(x, y, z).Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId);
 
-	private static bool FixtureBlocksSight(string fixtureId) => fixtureId switch
+	private static bool FixtureBlocksSight(CellEntity fixture)
 	{
-		Entities.House => true,
-		_ => false,
-	};
+		if (fixture.Meta != null
+			&& fixture.Meta.TryGetValue(EntityBlocksSightMetaKey, out var rawBlocksSight)
+			&& bool.TryParse(rawBlocksSight, out var blocksSight))
+		{
+			return blocksSight;
+		}
+
+		return FixtureRegistry.Get(fixture.EntityId)?.BlocksSight ?? fixture.EntityId == Entities.House;
+	}
 
 	public string GetFixtureId(int x, int y, int z)
 	{
@@ -201,7 +416,13 @@ public class WorldMap
 		if (string.IsNullOrEmpty(glyph))
 			return;
 
-		chunk.PushEntity(lx, ly, new CellEntity { Type = CellEntityType.Fixture, Glyph = glyph, EntityId = entityId });
+		chunk.PushEntity(lx, ly, new CellEntity
+		{
+			Type = CellEntityType.Fixture,
+			Glyph = glyph,
+			EntityId = entityId,
+			Meta = BuildFixtureMeta(entityId),
+		});
 		if (entityId == Entities.Nest)
 		{
 			var coord = CoordUtil.LocalToWorld(chunk.Coord, lx, ly);
@@ -226,26 +447,16 @@ public class WorldMap
 
 	public void PlaceItem(int x, int y, int z, Item item)
 	{
-		var meta = new Dictionary<string, string>
-		{
-			["name"] = item.Name,
-			["price"] = item.Price.ToString(),
-			["tags"] = SerializeItemTags(item.Tags),
-		};
-
-		if (item.IsContainer && item.Contents != null)
-		{
-			var json = System.Text.Json.JsonSerializer.Serialize(
-				item.Contents.Select(c => c.Id).ToList());
-			meta["contents"] = json;
-		}
+		item.EnsureRuntimeState();
+		if (TryMergeGroundItem(x, y, z, item))
+			return;
 
 		PushEntity(x, y, z, new CellEntity
 		{
 			Type = CellEntityType.Item,
 			Glyph = item.IsContainer ? "C" : "!",
-			EntityId = item.Id,
-			Meta = meta,
+			EntityId = item.InstanceId,
+			Meta = BuildItemMeta(item),
 		});
 	}
 
@@ -275,51 +486,126 @@ public class WorldMap
 		return items;
 	}
 
+	public bool UpdateGroundItem(int x, int y, int z, Item item)
+	{
+		item.EnsureRuntimeState();
+		var (chunk, lx, ly) = Resolve(x, y, z);
+		var idx = ly * ChunkData.Size + lx;
+		if (!chunk.Entities.TryGetValue(idx, out var list))
+			return false;
+
+		for (var i = 0; i < list.Count; i++)
+		{
+			if (list[i].Type != CellEntityType.Item || !string.Equals(list[i].EntityId, item.InstanceId, System.StringComparison.Ordinal))
+				continue;
+
+			list[i].Glyph = item.IsContainer ? "C" : "!";
+			list[i].Meta = BuildItemMeta(item);
+			chunk.Dirty = true;
+			return true;
+		}
+
+		return false;
+	}
+
+	public static string ResolveGroundItemTemplateId(CellEntity entity)
+	{
+		if (entity.Meta != null
+			&& entity.Meta.TryGetValue(ItemTemplateIdMetaKey, out var templateId)
+			&& !string.IsNullOrWhiteSpace(templateId))
+		{
+			return templateId;
+		}
+
+		return entity.EntityId;
+	}
+
 	private static Item RestoreItemFromEntity(CellEntity entity)
 	{
-		var item = PresetDB.Items.ContainsKey(entity.EntityId)
-			? PresetDB.CloneItem(entity.EntityId)
-			: new Item
-			{
-				Id = entity.EntityId,
-				Name = (entity.Meta ?? new()).GetValueOrDefault("name", entity.EntityId),
-				Price = int.TryParse((entity.Meta ?? new()).GetValueOrDefault("price", "0"), out var p) ? p : 0,
-				Tags = DeserializeItemTags((entity.Meta ?? new()).GetValueOrDefault("tags", "")),
-			};
-
-		if (entity.Meta != null && entity.Meta.TryGetValue("contents", out var contentsJson))
+		if (entity.Meta != null
+			&& entity.Meta.TryGetValue(ItemSnapshotMetaKey, out var snapshotJson)
+			&& ItemSnapshotMapper.Deserialize(snapshotJson) is { } snapshotItem)
 		{
-			var ids = System.Text.Json.JsonSerializer.Deserialize<List<string>>(contentsJson) ?? [];
-			item.Contents ??= [];
-			item.Contents.Clear();
-			foreach (var cid in ids)
-			{
-				if (PresetDB.Items.ContainsKey(cid))
-					item.Contents.Add(PresetDB.CloneItem(cid));
-			}
+			if (!string.IsNullOrWhiteSpace(entity.EntityId))
+				snapshotItem.InstanceId = entity.EntityId;
+			snapshotItem.EnsureRuntimeState();
+			return snapshotItem;
 		}
 
-		return item;
+		return ItemSnapshotMapper.CreateLegacyItem(entity.EntityId, entity.Meta);
 	}
 
-	private static string SerializeItemTags(Dictionary<string, int> tags)
+	private static Dictionary<string, string> BuildItemMeta(Item item)
 	{
-		var parts = new List<string>();
-		foreach (var (k, v) in tags) parts.Add($"{k}={v}");
-		return string.Join(";", parts);
-	}
-
-	private static Dictionary<string, int> DeserializeItemTags(string raw)
-	{
-		var tags = new Dictionary<string, int>();
-		if (string.IsNullOrEmpty(raw)) return tags;
-		foreach (var pair in raw.Split(';'))
+		item.EnsureRuntimeState();
+		return new Dictionary<string, string>(System.StringComparer.Ordinal)
 		{
-			var kv = pair.Split('=', 2);
-			if (kv.Length == 2 && int.TryParse(kv[1], out var val)) tags[kv[0]] = val;
-		}
-		return tags;
+			[ItemSnapshotMetaKey] = ItemSnapshotMapper.Serialize(item),
+			[ItemTemplateIdMetaKey] = item.Id,
+			[ItemInstanceIdMetaKey] = item.InstanceId,
+			[ItemCategoryMetaKey] = item.Category,
+			[ItemDurabilityMetaKey] = item.Durability.ToString(),
+			[ItemMaxDurabilityMetaKey] = item.MaxDurability.ToString(),
+		};
 	}
+
+	private bool TryMergeGroundItem(int x, int y, int z, Item item)
+	{
+		if (!item.IsStackable)
+			return false;
+
+		var (chunk, lx, ly) = Resolve(x, y, z);
+		var idx = ly * ChunkData.Size + lx;
+		if (!chunk.Entities.TryGetValue(idx, out var list))
+			return false;
+
+		for (var i = 0; i < list.Count; i++)
+		{
+			if (list[i].Type != CellEntityType.Item)
+				continue;
+
+			var existing = RestoreItemFromEntity(list[i]);
+			if (!existing.CanStackWith(item))
+				continue;
+
+			existing.MergeFrom(item);
+			list[i].Meta = BuildItemMeta(existing);
+			chunk.Dirty = true;
+			if (item.SafeStackCount <= 0)
+				return true;
+		}
+
+		return item.SafeStackCount <= 0;
+	}
+
+	private static Dictionary<string, string>? BuildFixtureMeta(string entityId)
+	{
+		var def = FixtureRegistry.Get(entityId);
+		if (def == null)
+			return null;
+
+		return new Dictionary<string, string>(StringComparer.Ordinal)
+		{
+			[EntityDurabilityMetaKey] = Math.Max(0, def.MaxDurability).ToString(),
+			[EntityMaxDurabilityMetaKey] = Math.Max(0, def.MaxDurability).ToString(),
+			[EntityMaterialMetaKey] = def.Material ?? string.Empty,
+			[EntityFlammableMetaKey] = def.Flammable.ToString(),
+			[EntityBlocksSightMetaKey] = def.BlocksSight.ToString(),
+			[EntityControlledFireSourceMetaKey] = def.ControlledFireSource.ToString(),
+		};
+	}
+
+	public static string ResolveFixtureGlyph(string fixtureId) => fixtureId switch
+	{
+		Entities.StairDown => ">",
+		Entities.StairUp => "<",
+		Entities.Nest => "N",
+		Entities.Door => "D",
+		Entities.House => "H",
+		Entities.Campfire => "*",
+		Entities.Fire => "*",
+		_ => string.IsNullOrWhiteSpace(fixtureId) ? string.Empty : fixtureId[..1],
+	};
 
 	// ══════════════════════════════════════════════════════
 	//  Chunk Actor 注册
@@ -353,4 +639,70 @@ public class WorldMap
 		if (Chunks.IsLoaded(cc))
 			Chunks.GetOrLoad(cc).ActorIds.Remove(actor.Id);
 	}
+
+	/// <summary>
+	/// 重新构建当前已加载 chunk 的 actor 索引。
+	/// 主要用于读档后恢复了 state.Actors，但 WorldMap 刚重建的场景。
+	/// </summary>
+	public void RebuildLoadedActorIndex(Dictionary<string, Actor> actors)
+	{
+		foreach (var chunk in Chunks.LoadedChunks.Values)
+			chunk.ActorIds.Clear();
+
+		foreach (var actor in actors.Values)
+			RegisterActor(actor);
+	}
+
+	private static List<Actor> ScanActorsAt(int x, int y, int z, Dictionary<string, Actor> actors) =>
+		actors.Values
+			.Where(actor => actor.X == x && actor.Y == y && actor.Z == z)
+			.OrderBy(static actor => actor.Id, StringComparer.Ordinal)
+			.ToList();
+
+	private bool TryGetFacilityOccupancy(int x, int y, int z, out FacilityOccupancy occupancy) =>
+		_facilityIndex.TryGetValue(new ZoneCell(x, y, z), out occupancy);
+
+	private static bool ShouldFacilityBlockSight(FacilityInstance facility, FacilityFootprintCell cell) =>
+		facility.Stage is FacilityStage.Construct or FacilityStage.Active or FacilityStage.Broken
+		&& cell.BlocksSight;
+
+	private static bool IsFacilityPassable(FacilityInstance facility, FacilityFootprintCell cell) =>
+		facility.Stage is FacilityStage.Blueprint or FacilityStage.DeliverMaterials
+			? true
+			: cell.Passable;
+
+	private static IEnumerable<(int WorldX, int WorldY, int WorldZ, FacilityFootprintCell FootprintCell)> EnumerateFootprint(
+		FacilityDef def,
+		int anchorX,
+		int anchorY,
+		int z,
+		FacilityRotation rotation)
+	{
+		var effectiveRotation = def.CanRotate ? rotation : FacilityRotation.North;
+		var anchorCell = def.GetAnchorCell();
+		foreach (var cell in def.Footprint)
+		{
+			var (rotatedX, rotatedY) = RotateOffset(cell.X - anchorCell.X, cell.Y - anchorCell.Y, effectiveRotation);
+			yield return (
+				anchorX + rotatedX,
+				anchorY + rotatedY,
+				z,
+				new FacilityFootprintCell
+				{
+					X = rotatedX,
+					Y = rotatedY,
+					Passable = cell.Passable,
+					BlocksSight = cell.BlocksSight,
+					Glyph = string.IsNullOrWhiteSpace(cell.Glyph) ? def.Glyph : cell.Glyph,
+				});
+		}
+	}
+
+	private static (int X, int Y) RotateOffset(int x, int y, FacilityRotation rotation) => rotation switch
+	{
+		FacilityRotation.East => (-y, x),
+		FacilityRotation.South => (-x, -y),
+		FacilityRotation.West => (y, -x),
+		_ => (x, y),
+	};
 }
