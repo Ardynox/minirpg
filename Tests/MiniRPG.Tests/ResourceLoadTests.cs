@@ -16,6 +16,7 @@ public sealed class ResourceLoadTests
 		LocalizationService.SetLocale("en", notify: false);
 		GameConfig.Load();
 		PresetDB.Load();
+		GameLocalizer.ApplyPresetTranslations();
 		HealthCatalog.Load();
 	}
 
@@ -91,6 +92,7 @@ public sealed class ResourceLoadTests
 		var subCategory = ItemSubcategoryRegistry.Get("firearm_rifle");
 		Assert.NotNull(subCategory);
 		Assert.Equal(ItemCategories.Weapon, subCategory!.Category);
+		Assert.Equal("Rifle", subCategory.Name);
 
 		var ammoProfile = AmmoProfileRegistry.Get("rifle_round");
 		Assert.NotNull(ammoProfile);
@@ -106,16 +108,18 @@ public sealed class ResourceLoadTests
 	}
 
 	[Fact]
-	public void InventoryAndTradeMessages_HideUnknownItemNames_WhenStateProvided()
+	public void InventoryAndTradeMessages_UseShapeDescriptions_WhenStateProvided()
 	{
 		var state = new GameState();
 		var actor = CreateActor("player", Factions.Player);
 		var trader = CreateActor("merchant", Factions.Friendly);
 		var hiddenItem = new Item
 		{
-			Id = "mystery_blade",
-			Name = "Ancient Sword",
+			Id = "mystery_rifle",
+			Name = "Prototype Thunderbolt",
 			Category = ItemCategories.Weapon,
+			SubCategory = "firearm_rifle",
+			MaterialId = "steel",
 			Price = 20,
 		};
 
@@ -124,13 +128,89 @@ public sealed class ResourceLoadTests
 
 		var dropResult = InventoryModule.Drop(actor, 0, state);
 		Assert.DoesNotContain(hiddenItem.Name, dropResult.Message, StringComparison.Ordinal);
-		Assert.Contains("Unknown", dropResult.Message, StringComparison.Ordinal);
+		Assert.Contains("Rifle", dropResult.Message, StringComparison.Ordinal);
 
 		actor.Inventory.Add(hiddenItem);
 		var sellResult = TradeModule.Sell(actor, trader, 0, state);
 		Assert.True(sellResult.Ok);
 		Assert.DoesNotContain(hiddenItem.Name, sellResult.Message, StringComparison.Ordinal);
-		Assert.Contains("Unknown", sellResult.Message, StringComparison.Ordinal);
+		Assert.Contains("Rifle", sellResult.Message, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void UnidentifiedItemDetail_UsesShapeAndMaterialWithoutRevealingRealName()
+	{
+		var state = new GameState();
+		var hiddenItem = new Item
+		{
+			Id = "mystery_rifle",
+			Name = "Prototype Thunderbolt",
+			Category = ItemCategories.Weapon,
+			SubCategory = "firearm_rifle",
+			MaterialId = "steel",
+			SharpDamage = 12,
+		};
+
+		var displayName = IdentificationModule.GetItemDisplayName(state, hiddenItem);
+		var detail = IdentificationModule.BuildUnknownItemDetail(state, hiddenItem);
+
+		Assert.Equal("Rifle", displayName);
+		Assert.Contains("Rifle", detail, StringComparison.Ordinal);
+		Assert.Contains("Material:", detail, StringComparison.Ordinal);
+		Assert.Contains("Steel", detail, StringComparison.Ordinal);
+		Assert.DoesNotContain(hiddenItem.Name, detail, StringComparison.Ordinal);
+		Assert.DoesNotContain("Damage:", detail, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void UnidentifiedItemDisplayName_FollowsFallbackOrder()
+	{
+		var state = new GameState();
+		var categoryOnly = new Item
+		{
+			Id = "mystery_blade",
+			Name = "Ancient Sword",
+			Category = ItemCategories.Weapon,
+		};
+		var materialOnly = new Item
+		{
+			Id = "mystery_fragment",
+			Name = "Alien Fragment",
+			Category = string.Empty,
+			MaterialId = "steel",
+		};
+		var missingMetadata = new Item
+		{
+			Name = "Ghost Relic",
+			Category = string.Empty,
+		};
+
+		Assert.Equal("Weapon", IdentificationModule.GetItemDisplayName(state, categoryOnly));
+		Assert.Equal("Steel", IdentificationModule.GetItemDisplayName(state, materialOnly));
+		Assert.Equal("Unknown item", IdentificationModule.GetItemDisplayName(state, missingMetadata));
+	}
+
+	[Fact]
+	public void IdentifiedItems_StillUseRealNameAndFullDetail()
+	{
+		var state = new GameState();
+		var identifiedItem = new Item
+		{
+			Id = "mystery_rifle",
+			Name = "Prototype Thunderbolt",
+			Category = ItemCategories.Weapon,
+			SubCategory = "firearm_rifle",
+			MaterialId = "steel",
+			SharpDamage = 12,
+		};
+
+		IdentificationModule.IdentifyItem(state, identifiedItem);
+		var displayName = IdentificationModule.GetItemDisplayName(state, identifiedItem);
+		var detail = IdentificationModule.BuildUnknownItemDetail(state, identifiedItem);
+
+		Assert.Equal(identifiedItem.Name, displayName);
+		Assert.Contains(identifiedItem.Name, detail, StringComparison.Ordinal);
+		Assert.Contains("Damage:", detail, StringComparison.Ordinal);
 	}
 
 	private static Actor CreateActor(string id, string faction) => new()

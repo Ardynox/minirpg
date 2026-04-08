@@ -16,6 +16,7 @@ public static class GameLocalizer
 	private static readonly Dictionary<string, string> BaseCapacityNames = [];
 	private static readonly Dictionary<string, string> BaseCapacityDescriptions = [];
 	private static readonly Dictionary<string, string> BaseCategoryNames = [];
+	private static readonly Dictionary<string, string> BaseItemSubcategoryNames = [];
 	private static readonly Dictionary<string, string> BaseInteractionNames = [];
 	private static readonly Dictionary<string, string> BaseInteractionDescriptions = [];
 	private static bool _snapshotsCaptured;
@@ -44,6 +45,8 @@ public static class GameLocalizer
 		}
 		foreach (var category in ItemCategoryDef.All.Values)
 			BaseCategoryNames[category.Id] = category.Name;
+		foreach (var subcategory in ItemSubcategoryRegistry.All.Values)
+			BaseItemSubcategoryNames[subcategory.Id] = subcategory.Name;
 		foreach (var interaction in PresetDB.Interactions)
 		{
 			BaseInteractionNames[interaction.Id] = interaction.Name;
@@ -83,6 +86,9 @@ public static class GameLocalizer
 
 		foreach (var category in ItemCategoryDef.All.Values)
 			category.Name = LocalizeItemCategoryName(category.Id, BaseCategoryNames.GetValueOrDefault(category.Id, category.Name));
+
+		foreach (var subcategory in ItemSubcategoryRegistry.All.Values)
+			subcategory.Name = LocalizeItemSubcategoryName(subcategory.Id, BaseItemSubcategoryNames.GetValueOrDefault(subcategory.Id, subcategory.Name));
 
 		foreach (var interaction in PresetDB.Interactions)
 		{
@@ -128,6 +134,9 @@ public static class GameLocalizer
 
 	public static string LocalizeItemCategoryName(string categoryId, string fallback) =>
 		LocalizeDataValue($"data.item_category.{categoryId}.name", fallback, HumanizeId(categoryId));
+
+	public static string LocalizeItemSubcategoryName(string subcategoryId, string fallback) =>
+		LocalizeDataValue($"data.item_subcategory.{subcategoryId}.name", fallback, HumanizeId(subcategoryId));
 
 	public static string LocalizeInteractionName(string interactionId, string fallback) =>
 		LocalizeDataValue($"data.interaction.{interactionId}.name", fallback, HumanizeId(interactionId));

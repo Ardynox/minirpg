@@ -90,11 +90,16 @@ public static class IdentificationModule
 
 		var sb = new StringBuilder();
 		sb.Append($"[color=#ffffff]{GetItemDisplayName(state, item)}[/color]");
-		sb.AppendLine($"  [color=#888888][{GameLocalizer.LocalizeItemCategoryName(item.Category, item.Category)}][/color]");
+		sb.AppendLine($"  [color=#888888][{GetUnknownItemCategoryLabel(item)}][/color]");
+		if (!string.IsNullOrWhiteSpace(item.MaterialId))
+		{
+			var materialName = GameLocalizer.LocalizeMaterialName(item.MaterialId, item.MaterialId);
+			sb.AppendLine($"[color=#8ecae6]{LocalizationService.TOrFallback("item.detail.material", "Material:")}[/color] {materialName}");
+		}
 		if (item.IsContainer)
-			sb.AppendLine($"[color=#66ccff]{Localize("未知容器", "Unknown container")}[/color]");
+			sb.AppendLine($"[color=#66ccff]{LocalizationService.T("item.detail.container")}[/color]");
 		sb.AppendLine($"[color=#ffaa66]{ItemConditionFormatter.BuildDetailDurability(item)}[/color]");
-		sb.Append($"[color=#888888]{Localize("鉴定后显示完整属性。", "Identify this item to reveal its properties.")}[/color]");
+		sb.Append($"[color=#888888]{LocalizationService.TOrFallback("item.unidentified.reveal_hint", "Identify this item to reveal its properties.")}[/color]");
 		return sb.ToString();
 	}
 
@@ -115,10 +120,22 @@ public static class IdentificationModule
 
 	private static string BuildUnknownItemName(Item item)
 	{
-		var category = GameLocalizer.LocalizeItemCategoryName(item.Category, item.Category);
-		return LocalizationService.CurrentLocale == "en"
-			? $"Unknown {category}"
-			: $"未知{category}";
+		if (!string.IsNullOrWhiteSpace(item.SubCategory))
+			return GameLocalizer.LocalizeItemSubcategoryName(item.SubCategory, item.SubCategory);
+		if (!string.IsNullOrWhiteSpace(item.Category))
+			return GameLocalizer.LocalizeItemCategoryName(item.Category, item.Category);
+		if (!string.IsNullOrWhiteSpace(item.MaterialId))
+			return GameLocalizer.LocalizeMaterialName(item.MaterialId, item.MaterialId);
+
+		return LocalizationService.TOrFallback("item.unidentified.fallback_name", "Unknown item");
+	}
+
+	private static string GetUnknownItemCategoryLabel(Item item)
+	{
+		if (!string.IsNullOrWhiteSpace(item.Category))
+			return GameLocalizer.LocalizeItemCategoryName(item.Category, item.Category);
+
+		return LocalizationService.TOrFallback("item.unidentified.generic_category", "Item");
 	}
 
 	private static string LocalizeFaction(string faction) => faction switch
