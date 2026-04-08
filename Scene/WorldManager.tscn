@@ -140,6 +140,33 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
+[node name="DangerSection" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="DangerTitle" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection"]
+layout_mode = 2
+text = "ui.world_manager.danger.title"
+
+[node name="DangerHint" type="Label" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection"]
+layout_mode = 2
+autowrap_mode = 3
+text = "ui.world_manager.danger.hint"
+
+[node name="DangerActions" type="VBoxContainer" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DeleteSaveDataBtn" type="Button" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.world_manager.delete_save_data"
+
+[node name="CleanAssetsBtn" type="Button" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.world_manager.clean_assets"
+
 [node name="ScenariosPage" type="VBoxContainer" parent="Margin/VBox/Pages"]
 visible = false
 layout_mode = 1
@@ -203,11 +230,6 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.world_manager.create_world"
-
-[node name="DeleteWorldBtn" type="Button" parent="Margin/VBox/Footer"]
-layout_mode = 2
-theme_type_variation = "ActionButton"
-text = "ui.world_manager.delete_world"
 
 [node name="CreateCharacterBtn" type="Button" parent="Margin/VBox/Footer"]
 layout_mode = 2

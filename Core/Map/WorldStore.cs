@@ -134,6 +134,22 @@ public sealed class ContinueTarget
 	public string Label { get; init; } = string.Empty;
 }
 
+public sealed class WorldStorageMigrationItem
+{
+	public string WorldId { get; init; } = string.Empty;
+	public string SourcePath { get; init; } = string.Empty;
+	public bool Success { get; init; }
+	public string Message { get; init; } = string.Empty;
+}
+
+public sealed class WorldStorageMigrationReport
+{
+	public IReadOnlyList<WorldStorageMigrationItem> Results { get; init; } = Array.Empty<WorldStorageMigrationItem>();
+	public int SuccessCount => Results.Count(static item => item.Success);
+	public int FailureCount => Results.Count(static item => !item.Success);
+	public IReadOnlyList<WorldStorageMigrationItem> Failures => Results.Where(static item => !item.Success).ToArray();
+}
+
 public sealed class WorldStore
 {
 	private static readonly JsonSerializerOptions JsonOptions = new()
@@ -152,7 +168,10 @@ public sealed class WorldStore
 
 	public string UserDataRoot => _userDataRoot;
 	public string SaveDirectory => Path.Combine(_userDataRoot, "save");
-	public string WorldsDirectory => Path.Combine(_userDataRoot, "worlds");
+	public string LegacyWorldsDirectory => Path.Combine(_userDataRoot, "worlds");
+	public string WorldManifestsDirectory => Path.Combine(_userDataRoot, "world_manifests");
+	public string WorldSavesDirectory => Path.Combine(_userDataRoot, "world_saves");
+	public string WorldAssetsDirectory => Path.Combine(_userDataRoot, "world_assets");
 
 	public string CreateWorldId(string displayName) => CreateSluggedId(displayName, "world");
 
@@ -175,8 +194,7 @@ public sealed class WorldStore
 
 	public void SaveWorld(WorldManifest manifest)
 	{
-		Directory.CreateDirectory(GetWorldDirectory(manifest.WorldId));
-		Directory.CreateDirectory(GetCharacterDirectory(manifest.WorldId));
+		Directory.CreateDirectory(WorldManifestsDirectory);
 		var json = JsonSerializer.Serialize(manifest, JsonOptions);
 		File.WriteAllText(GetWorldManifestPath(manifest.WorldId), json);
 	}
@@ -207,11 +225,11 @@ public sealed class WorldStore
 
 	public IReadOnlyList<WorldManifest> ListWorlds()
 	{
-		if (!Directory.Exists(WorldsDirectory))
+		if (!Directory.Exists(WorldManifestsDirectory))
 			return Array.Empty<WorldManifest>();
 
 		var result = new List<WorldManifest>();
-		foreach (var path in Directory.EnumerateFiles(WorldsDirectory, "world.json", SearchOption.AllDirectories))
+		foreach (var path in Directory.EnumerateFiles(WorldManifestsDirectory, "*.json", SearchOption.TopDirectoryOnly))
 		{
 			try
 			{
@@ -246,7 +264,7 @@ public sealed class WorldStore
 
 	public IReadOnlyList<WorldCharacterEntryInfo> ListWorldCharacters(string worldId, string worldName)
 	{
-		var characterDir = GetCharacterDirectory(worldId);
+		var characterDir = GetWorldSaveDirectory(worldId);
 		if (!Directory.Exists(characterDir))
 			return Array.Empty<WorldCharacterEntryInfo>();
 
@@ -293,6 +311,20 @@ public sealed class WorldStore
 		return File.Exists(path);
 	}
 
+	public bool HasWorldSaveData(string worldId)
+	{
+		var saveDirectory = GetWorldSaveDirectory(worldId);
+		return Directory.Exists(saveDirectory)
+			&& Directory.EnumerateFiles(saveDirectory, "*.json", SearchOption.TopDirectoryOnly).Any();
+	}
+
+	public bool HasWorldAssets(string worldId)
+	{
+		var assetDirectory = GetWorldAssetDirectory(worldId);
+		return Directory.Exists(assetDirectory)
+			&& Directory.EnumerateFileSystemEntries(assetDirectory, "*", SearchOption.AllDirectories).Any();
+	}
+
 	public void UpdateWorldLastPlayed(string worldId, DateTimeOffset playedAtUtc, string? characterId)
 	{
 		if (!TryLoadWorld(worldId, out var manifest))
@@ -303,24 +335,192 @@ public sealed class WorldStore
 		SaveWorld(manifest);
 	}
 
-	public bool DeleteWorld(string worldId)
+	public bool DeleteWorldSaveData(string worldId)
 	{
 		if (string.IsNullOrWhiteSpace(worldId))
 			return false;
 
-		var worldsRoot = Path.GetFullPath(WorldsDirectory);
-		var worldDirectory = Path.GetFullPath(GetWorldDirectory(worldId));
-		var expectedPrefix = worldsRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-			+ Path.DirectorySeparatorChar;
-		if (!worldDirectory.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+		if (!TryLoadWorld(worldId, out var manifest))
 			return false;
 
-		if (!Directory.Exists(worldDirectory))
+		var saveDirectory = GetWorldSaveDirectory(worldId);
+		if (!DeleteDirectoryIfExists(WorldSavesDirectory, saveDirectory))
+			return false;
+
+		manifest.LastPlayedAtUtc = null;
+		manifest.LastPlayedCharacterId = null;
+		SaveWorld(manifest);
+		return true;
+	}
+
+	public bool DeleteWorldAssets(string worldId)
+	{
+		if (string.IsNullOrWhiteSpace(worldId))
+			return false;
+
+		return DeleteDirectoryIfExists(WorldAssetsDirectory, GetWorldAssetDirectory(worldId));
+	}
+
+	public WorldStorageMigrationReport MigrateLegacyWorldLayout()
+	{
+		if (!Directory.Exists(LegacyWorldsDirectory))
+			return new WorldStorageMigrationReport();
+
+		var results = new List<WorldStorageMigrationItem>();
+		var manifestPaths = Directory
+			.EnumerateFiles(LegacyWorldsDirectory, "world.json", SearchOption.AllDirectories)
+			.ToArray();
+		foreach (var manifestPath in manifestPaths)
+		{
+			var sourceDirectory = Path.GetDirectoryName(manifestPath) ?? string.Empty;
+			var sourceWorldId = Path.GetFileName(sourceDirectory);
+			var targetWorldId = sourceWorldId;
+			try
+			{
+				if (!TryLoadManifestAtPath(manifestPath, out var manifest))
+				{
+					results.Add(new WorldStorageMigrationItem
+					{
+						WorldId = sourceWorldId,
+						SourcePath = sourceDirectory,
+						Success = false,
+						Message = "Failed to read legacy world manifest.",
+					});
+					continue;
+				}
+
+				targetWorldId = string.IsNullOrWhiteSpace(manifest.WorldId)
+					? sourceWorldId
+					: manifest.WorldId;
+				manifest.WorldId = targetWorldId;
+
+				CleanupMigratedWorldTargets(targetWorldId);
+				SaveWorld(manifest);
+				CopyLegacyCharacterSaves(sourceDirectory, targetWorldId);
+				if (!VerifyMigratedWorld(manifest, sourceDirectory))
+				{
+					CleanupMigratedWorldTargets(targetWorldId);
+					results.Add(new WorldStorageMigrationItem
+					{
+						WorldId = targetWorldId,
+						SourcePath = sourceDirectory,
+						Success = false,
+						Message = "Migrated world verification failed.",
+					});
+					continue;
+				}
+
+				if (!DeleteDirectoryIfExists(LegacyWorldsDirectory, sourceDirectory))
+				{
+					CleanupMigratedWorldTargets(targetWorldId);
+					results.Add(new WorldStorageMigrationItem
+					{
+						WorldId = targetWorldId,
+						SourcePath = sourceDirectory,
+						Success = false,
+						Message = "Failed to remove legacy world directory after migration.",
+					});
+					continue;
+				}
+
+				results.Add(new WorldStorageMigrationItem
+				{
+					WorldId = targetWorldId,
+					SourcePath = sourceDirectory,
+					Success = true,
+					Message = "Legacy world migrated successfully.",
+				});
+			}
+			catch (Exception ex)
+			{
+				CleanupMigratedWorldTargets(targetWorldId);
+				results.Add(new WorldStorageMigrationItem
+				{
+					WorldId = targetWorldId,
+					SourcePath = sourceDirectory,
+					Success = false,
+					Message = ex.Message,
+				});
+			}
+		}
+
+		return new WorldStorageMigrationReport { Results = results };
+	}
+
+	public string GetWorldManifestPath(string worldId) => Path.Combine(WorldManifestsDirectory, worldId + ".json");
+
+	public string GetWorldSaveDirectory(string worldId) => Path.Combine(WorldSavesDirectory, worldId);
+
+	public string GetWorldAssetDirectory(string worldId) => Path.Combine(WorldAssetsDirectory, worldId);
+
+	public string GetCharacterSavePath(string worldId, string characterId) =>
+		Path.Combine(GetWorldSaveDirectory(worldId), characterId + ".json");
+
+	private bool VerifyMigratedWorld(WorldManifest manifest, string sourceDirectory)
+	{
+		if (!TryLoadWorld(manifest.WorldId, out _))
+			return false;
+
+		var legacyCharacterDirectory = Path.Combine(sourceDirectory, "characters");
+		if (!Directory.Exists(legacyCharacterDirectory))
+			return true;
+
+		foreach (var sourcePath in Directory.EnumerateFiles(legacyCharacterDirectory, "*.json", SearchOption.TopDirectoryOnly))
+		{
+			var targetPath = Path.Combine(GetWorldSaveDirectory(manifest.WorldId), Path.GetFileName(sourcePath));
+			if (!File.Exists(targetPath))
+				return false;
+
+			var sourceLength = new FileInfo(sourcePath).Length;
+			var targetLength = new FileInfo(targetPath).Length;
+			if (sourceLength != targetLength)
+				return false;
+		}
+
+		return true;
+	}
+
+	private void CopyLegacyCharacterSaves(string sourceDirectory, string worldId)
+	{
+		var legacyCharacterDirectory = Path.Combine(sourceDirectory, "characters");
+		if (!Directory.Exists(legacyCharacterDirectory))
+			return;
+
+		var targetSaveDirectory = GetWorldSaveDirectory(worldId);
+		Directory.CreateDirectory(targetSaveDirectory);
+		foreach (var sourcePath in Directory.EnumerateFiles(legacyCharacterDirectory, "*.json", SearchOption.TopDirectoryOnly))
+		{
+			var targetPath = Path.Combine(targetSaveDirectory, Path.GetFileName(sourcePath));
+			File.Copy(sourcePath, targetPath, overwrite: true);
+		}
+	}
+
+	private void CleanupMigratedWorldTargets(string worldId)
+	{
+		var manifestPath = GetWorldManifestPath(worldId);
+		if (File.Exists(manifestPath))
+			File.Delete(manifestPath);
+
+		var saveDirectory = GetWorldSaveDirectory(worldId);
+		if (Directory.Exists(saveDirectory))
+			Directory.Delete(saveDirectory, recursive: true);
+	}
+
+	private static bool TryLoadManifestAtPath(string manifestPath, out WorldManifest manifest)
+	{
+		manifest = null!;
+		if (!File.Exists(manifestPath))
 			return false;
 
 		try
 		{
-			Directory.Delete(worldDirectory, recursive: true);
+			var json = File.ReadAllText(manifestPath);
+			var loaded = JsonSerializer.Deserialize<WorldManifest>(json, JsonOptions);
+			if (loaded == null)
+				return false;
+
+			loaded.Settings ??= WorldSettings.CreateDefault();
+			manifest = loaded;
 			return true;
 		}
 		catch
@@ -329,14 +529,33 @@ public sealed class WorldStore
 		}
 	}
 
-	public string GetWorldDirectory(string worldId) => Path.Combine(WorldsDirectory, worldId);
+	private static bool DeleteDirectoryIfExists(string rootDirectory, string targetDirectory)
+	{
+		if (!IsPathWithinRoot(rootDirectory, targetDirectory))
+			return false;
 
-	public string GetWorldManifestPath(string worldId) => Path.Combine(GetWorldDirectory(worldId), "world.json");
+		if (!Directory.Exists(targetDirectory))
+			return true;
 
-	public string GetCharacterDirectory(string worldId) => Path.Combine(GetWorldDirectory(worldId), "characters");
+		try
+		{
+			Directory.Delete(targetDirectory, recursive: true);
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-	public string GetCharacterSavePath(string worldId, string characterId) =>
-		Path.Combine(GetCharacterDirectory(worldId), characterId + ".json");
+	private static bool IsPathWithinRoot(string rootDirectory, string targetDirectory)
+	{
+		var normalizedRoot = Path.GetFullPath(rootDirectory)
+			.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+			+ Path.DirectorySeparatorChar;
+		var normalizedTarget = Path.GetFullPath(targetDirectory);
+		return normalizedTarget.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+	}
 
 	private static string CreateSluggedId(string displayName, string fallbackPrefix)
 	{

@@ -841,7 +841,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
 		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
 		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
-		_worldManager.DeleteWorldRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteWorldRequested;
+		_worldManager.DeleteSaveDataRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested;
+		_worldManager.CleanAssetsRequested += _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested;
 		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
 		_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
 		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
@@ -3577,8 +3578,11 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 	private void HandleWorldManagerCreateCharacterRequested(string worldId)
 		=> _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested(worldId);
 
-	private void HandleWorldManagerDeleteWorldRequested(string worldId)
-		=> _mainAppFlowCoordinator.HandleWorldManagerDeleteWorldRequested(worldId);
+	private void HandleWorldManagerDeleteSaveDataRequested(string worldId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested(worldId);
+
+	private void HandleWorldManagerCleanAssetsRequested(string worldId)
+		=> _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested(worldId);
 
 	private void HandleWorldManagerContinueCharacterRequested(string worldId, string characterId)
 		=> _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested(worldId, characterId);

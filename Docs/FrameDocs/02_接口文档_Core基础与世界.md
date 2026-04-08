@@ -122,6 +122,13 @@
 
 ### `WorldStore.cs`
 
+Storage layout notes:
+- Runtime persistence now uses three explicit layers: `world_manifests/<worldId>.json`, `world_saves/<worldId>/<characterId>.json`, and `world_assets/<worldId>/...`.
+- Legacy `worlds/<worldId>/world.json + characters/` is migration input only and is not part of normal runtime reads or writes.
+- `MigrateLegacyWorldLayout()` runs per world with copy, verify, and delete semantics, and reports failures without exposing half-migrated worlds.
+- `DeleteWorldSaveData()` removes character/run saves but preserves the manifest shell so the world can stay in the list and accept new characters later.
+- `DeleteWorldAssets()` removes only attached asset data and does not affect the manifest or character saves.
+
 | 类型 | 归类 | 语义 / 关键字段组 | 主要消费方 |
 | --- | --- | --- | --- |
 | `WorldSettings` | DTO | 世界 seed、生成器、气候、季节、文明度、各项百分比参数 | `WorldSettingsDialogModule`、`WorldStore`、`GameSessionModule` |

@@ -7,15 +7,20 @@ namespace MiniRPG.Tests;
 public sealed class WorldManagerModuleTests
 {
 	[Fact]
-	public void SceneAndModule_IncludeDeleteWorldBinding()
+	public void SceneAndModule_IncludeDangerZoneBindings()
 	{
 		var moduleSource = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "Module", "WorldManagerModule.cs"));
 		var sceneSource = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "Scene", "WorldManager.tscn"));
 
-		Assert.Contains("public event Action<string>? DeleteWorldRequested;", moduleSource);
-		Assert.Contains("_deleteWorldButton = panel.GetNode<Button>(\"Margin/VBox/Footer/DeleteWorldBtn\");", moduleSource);
-		Assert.Contains("[node name=\"DeleteWorldBtn\" type=\"Button\" parent=\"Margin/VBox/Footer\"]", sceneSource);
-		Assert.Contains("text = \"ui.world_manager.delete_world\"", sceneSource);
+		Assert.Contains("public event Action<string>? DeleteSaveDataRequested;", moduleSource);
+		Assert.Contains("public event Action<string>? CleanAssetsRequested;", moduleSource);
+		Assert.Contains("_deleteSaveDataButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/DeleteSaveDataBtn\");", moduleSource);
+		Assert.Contains("_cleanAssetsButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/CleanAssetsBtn\");", moduleSource);
+		Assert.DoesNotContain("DeleteWorldRequested", moduleSource);
+		Assert.Contains("[node name=\"DangerSection\" type=\"VBoxContainer\" parent=\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn\"]", sceneSource);
+		Assert.Contains("text = \"ui.world_manager.delete_save_data\"", sceneSource);
+		Assert.Contains("text = \"ui.world_manager.clean_assets\"", sceneSource);
+		Assert.DoesNotContain("DeleteWorldBtn", sceneSource);
 	}
 
 	private static string ResolveRepoRoot()

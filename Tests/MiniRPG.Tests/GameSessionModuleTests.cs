@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
@@ -85,20 +86,20 @@ public sealed class GameSessionModuleTests
 	}
 
 	[Fact]
-	public void DeleteWorld_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
+	public void DeleteWorldSaveData_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
 	{
 		TestSupport.EnsureGameplayDataLoaded();
 		using var _ = new ContinueStateScope();
-		var root = TestSupport.CreateTempDirectory("session-delete-active-world");
+		var root = TestSupport.CreateTempDirectory("session-delete-active-world-save-data");
 		try
 		{
 			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
 			var manifest = session.CreateWorld("Alpha");
 			session.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
 
-			var status = session.DeleteWorld(manifest.WorldId);
+			var status = session.DeleteWorldSaveData(manifest.WorldId);
 
-			Assert.Equal(WorldDeletionStatus.ActiveWorldLocked, status);
+			Assert.Equal(WorldSaveDataDeletionStatus.ActiveWorldLocked, status);
 			Assert.Contains(session.ListWorlds(), entry => entry.WorldId == manifest.WorldId);
 		}
 		finally
@@ -108,31 +109,134 @@ public sealed class GameSessionModuleTests
 	}
 
 	[Fact]
-	public void DeleteWorld_ClearsStoredContinueState_ForDeletedWorld()
+	public void DeleteWorldSaveData_ClearsStoredContinueStateAndKeepsWorldShell()
 	{
+		TestSupport.EnsureGameplayDataLoaded();
 		using var _ = new ContinueStateScope();
-		var root = TestSupport.CreateTempDirectory("session-delete-continue");
+		var root = TestSupport.CreateTempDirectory("session-delete-save-data-continue");
 		try
 		{
-			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
-			var manifest = session.CreateWorld("Alpha");
+			var sourceSession = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = sourceSession.CreateWorld("Alpha");
+			var entry = sourceSession.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+			var legacyPath = Path.Combine(sourceSession.SaveDirectory, "legacy-slot.json");
+			Directory.CreateDirectory(sourceSession.SaveDirectory);
+			SaveModule.WriteSaveFile(CreateMinimalSaveFile("legacy-slot"), legacyPath);
 
 			AppSettingsStore.SaveContinueState(new ContinueState
 			{
 				LastContinueKind = "world_character",
 				LastWorldId = manifest.WorldId,
-				LastCharacterId = "rook-00000001",
-				LastLegacySavePath = "legacy-slot.json",
+				LastCharacterId = entry.CharacterId,
+				LastLegacySavePath = legacyPath,
 			});
 
-			var status = session.DeleteWorld(manifest.WorldId);
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var status = session.DeleteWorldSaveData(manifest.WorldId);
 			var continueState = AppSettingsStore.LoadContinueState();
+			var continueTarget = session.ResolveContinueTarget();
+			var world = Assert.Single(session.ListWorlds());
 
-			Assert.Equal(WorldDeletionStatus.Success, status);
+			Assert.Equal(WorldSaveDataDeletionStatus.Success, status);
 			Assert.Null(continueState.LastContinueKind);
 			Assert.Null(continueState.LastWorldId);
 			Assert.Null(continueState.LastCharacterId);
-			Assert.Equal("legacy-slot.json", continueState.LastLegacySavePath);
+			Assert.Equal(legacyPath, continueState.LastLegacySavePath);
+			Assert.Equal(ContinueTargetKind.LegacySave, continueTarget.Kind);
+			Assert.Equal(Path.GetFullPath(legacyPath), continueTarget.SavePath);
+			Assert.Equal(manifest.WorldId, world.WorldId);
+			Assert.Equal(0, world.CharacterCount);
+			Assert.Empty(world.Characters);
+			Assert.Null(world.LastPlayedAtUtc);
+			Assert.Null(world.LastPlayedCharacterId);
+			Assert.False(Directory.Exists(Path.Combine(root, "world_saves", manifest.WorldId)));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorldAssets_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-active-world-assets");
+		try
+		{
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha");
+			var assetDirectory = Path.Combine(root, "world_assets", manifest.WorldId, "cache");
+			Directory.CreateDirectory(assetDirectory);
+			File.WriteAllText(Path.Combine(assetDirectory, "chunk-0.bin"), "cached");
+			session.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+
+			var status = session.DeleteWorldAssets(manifest.WorldId);
+
+			Assert.Equal(WorldAssetCleanupStatus.ActiveWorldLocked, status);
+			Assert.True(Directory.Exists(Path.Combine(root, "world_assets", manifest.WorldId)));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorldAssets_ReturnsNoAssets_WhenWorldHasNoAssets()
+	{
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-world-assets-empty");
+		try
+		{
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha");
+
+			var status = session.DeleteWorldAssets(manifest.WorldId);
+
+			Assert.Equal(WorldAssetCleanupStatus.NoAssets, status);
+			Assert.Contains(session.ListWorlds(), entry => entry.WorldId == manifest.WorldId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void Constructor_MigratesLegacyWorldLayoutBeforeResolvingContinueTarget()
+	{
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-legacy-world-migration");
+		try
+		{
+			var legacyWorldDirectory = Path.Combine(root, "worlds", "alpha-00000001");
+			WriteLegacyWorldManifest(legacyWorldDirectory, "alpha-00000001", "Alpha");
+			WriteWorldCharacterSave(
+				Path.Combine(legacyWorldDirectory, "characters", "rook-00000001.json"),
+				"alpha-00000001",
+				"Alpha",
+				"rook-00000001",
+				"Rook");
+			AppSettingsStore.SaveContinueState(new ContinueState
+			{
+				LastContinueKind = "world_character",
+				LastWorldId = "alpha-00000001",
+				LastCharacterId = "rook-00000001",
+			});
+
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var continueTarget = session.ResolveContinueTarget();
+			var world = Assert.Single(session.ListWorlds());
+
+			Assert.Equal(ContinueTargetKind.WorldCharacter, continueTarget.Kind);
+			Assert.Equal("alpha-00000001", continueTarget.WorldId);
+			Assert.Equal("rook-00000001", continueTarget.CharacterId);
+			Assert.Equal("alpha-00000001", world.WorldId);
+			Assert.False(Directory.Exists(legacyWorldDirectory));
+			Assert.True(File.Exists(Path.Combine(root, "world_manifests", "alpha-00000001.json")));
+			Assert.True(File.Exists(Path.Combine(root, "world_saves", "alpha-00000001", "rook-00000001.json")));
 		}
 		finally
 		{
@@ -405,4 +509,50 @@ public sealed class GameSessionModuleTests
 			},
 		},
 	};
+
+	private static void WriteLegacyWorldManifest(string worldDirectory, string worldId, string displayName)
+	{
+		Directory.CreateDirectory(worldDirectory);
+		File.WriteAllText(
+			Path.Combine(worldDirectory, "world.json"),
+			JsonSerializer.Serialize(new WorldManifest
+			{
+				WorldId = worldId,
+				DisplayName = displayName,
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = new DateTimeOffset(2026, 4, 7, 8, 0, 0, TimeSpan.Zero),
+				LastPlayedAtUtc = new DateTimeOffset(2026, 4, 7, 9, 0, 0, TimeSpan.Zero),
+				LastPlayedCharacterId = "rook-00000001",
+			}));
+	}
+
+	private static void WriteWorldCharacterSave(
+		string path,
+		string worldId,
+		string worldName,
+		string characterId,
+		string characterName)
+	{
+		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+		File.WriteAllText(path, $$"""
+		{
+		  "version": 5,
+		  "header": {
+		    "title": "{{characterName}}",
+		    "savedAtUtc": "2026-04-07T10:15:00+00:00",
+		    "turn": 12,
+		    "playerZ": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer",
+		    "worldId": "{{worldId}}",
+		    "worldName": "{{worldName}}",
+		    "characterId": "{{characterId}}",
+		    "characterName": "{{characterName}}"
+		  },
+		  "payload": {
+		    "unexpected": "shape"
+		  }
+		}
+		""");
+	}
 }

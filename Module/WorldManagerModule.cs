@@ -42,8 +42,9 @@ public sealed class WorldManagerModule : IModalInputLayer
 	private readonly VBoxContainer _characterList;
 	private readonly VBoxContainer _scenarioList;
 	private readonly VBoxContainer _legacyList;
+	private readonly Button _deleteSaveDataButton;
+	private readonly Button _cleanAssetsButton;
 	private readonly Button _createWorldButton;
-	private readonly Button _deleteWorldButton;
 	private readonly Button _createCharacterButton;
 	private readonly Button _continueCharacterButton;
 	private readonly Button _backButton;
@@ -65,7 +66,8 @@ public sealed class WorldManagerModule : IModalInputLayer
 
 	public event Action? CloseRequested;
 	public event Action? CreateWorldRequested;
-	public event Action<string>? DeleteWorldRequested;
+	public event Action<string>? DeleteSaveDataRequested;
+	public event Action<string>? CleanAssetsRequested;
 	public event Action<string>? CreateCharacterRequested;
 	public event Action<string, string>? ContinueCharacterRequested;
 	public event Action<string>? ScenarioRequested;
@@ -89,8 +91,9 @@ public sealed class WorldManagerModule : IModalInputLayer
 		_characterList = panel.GetNode<VBoxContainer>("Margin/VBox/Pages/WorldsPage/Body/DetailColumn/CharacterListScroll/CharacterList");
 		_scenarioList = panel.GetNode<VBoxContainer>("Margin/VBox/Pages/ScenariosPage/ScenarioListScroll/ScenarioList");
 		_legacyList = panel.GetNode<VBoxContainer>("Margin/VBox/Pages/LegacyPage/LegacyListScroll/LegacyList");
+		_deleteSaveDataButton = panel.GetNode<Button>("Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/DeleteSaveDataBtn");
+		_cleanAssetsButton = panel.GetNode<Button>("Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/CleanAssetsBtn");
 		_createWorldButton = panel.GetNode<Button>("Margin/VBox/Footer/CreateWorldBtn");
-		_deleteWorldButton = panel.GetNode<Button>("Margin/VBox/Footer/DeleteWorldBtn");
 		_createCharacterButton = panel.GetNode<Button>("Margin/VBox/Footer/CreateCharacterBtn");
 		_continueCharacterButton = panel.GetNode<Button>("Margin/VBox/Footer/ContinueCharacterBtn");
 		_backButton = panel.GetNode<Button>("Margin/VBox/Footer/BackBtn");
@@ -98,12 +101,17 @@ public sealed class WorldManagerModule : IModalInputLayer
 		_worldsTabButton.Pressed += () => SwitchTab(WorldLaunchTab.Worlds);
 		_scenariosTabButton.Pressed += () => SwitchTab(WorldLaunchTab.Scenarios);
 		_legacyTabButton.Pressed += () => SwitchTab(WorldLaunchTab.LegacySaves);
-		_createWorldButton.Pressed += () => CreateWorldRequested?.Invoke();
-		_deleteWorldButton.Pressed += () =>
+		_deleteSaveDataButton.Pressed += () =>
 		{
 			if (!string.IsNullOrWhiteSpace(_selectedWorldId))
-				DeleteWorldRequested?.Invoke(_selectedWorldId);
+				DeleteSaveDataRequested?.Invoke(_selectedWorldId);
 		};
+		_cleanAssetsButton.Pressed += () =>
+		{
+			if (!string.IsNullOrWhiteSpace(_selectedWorldId))
+				CleanAssetsRequested?.Invoke(_selectedWorldId);
+		};
+		_createWorldButton.Pressed += () => CreateWorldRequested?.Invoke();
 		_createCharacterButton.Pressed += () =>
 		{
 			if (!string.IsNullOrWhiteSpace(_selectedWorldId))
@@ -338,7 +346,6 @@ public sealed class WorldManagerModule : IModalInputLayer
 		_scenariosPage.Visible = _currentTab == WorldLaunchTab.Scenarios;
 		_legacyPage.Visible = _currentTab == WorldLaunchTab.LegacySaves;
 		_createWorldButton.Visible = _currentTab == WorldLaunchTab.Worlds;
-		_deleteWorldButton.Visible = _currentTab == WorldLaunchTab.Worlds;
 		_createCharacterButton.Visible = _currentTab == WorldLaunchTab.Worlds;
 		_continueCharacterButton.Visible = _currentTab == WorldLaunchTab.Worlds;
 
@@ -393,7 +400,8 @@ public sealed class WorldManagerModule : IModalInputLayer
 				index => SelectCharacterButtonByIndex(index, false));
 			_characterButtons[0].Disabled = true;
 			_characterButtons[0].Text = LocalizationService.T("ui.world_manager.empty_characters");
-			_deleteWorldButton.Disabled = true;
+			_deleteSaveDataButton.Disabled = true;
+			_cleanAssetsButton.Disabled = true;
 			_createCharacterButton.Disabled = true;
 			_continueCharacterButton.Disabled = true;
 			_worldsListFocus = WorldsListFocus.Worlds;
@@ -402,7 +410,8 @@ public sealed class WorldManagerModule : IModalInputLayer
 
 		_selectedWorldTitle.Text = selectedWorld.DisplayName;
 		_selectedWorldSummary.Text = selectedWorld.Summary;
-		_deleteWorldButton.Disabled = false;
+		_deleteSaveDataButton.Disabled = selectedWorld.Characters.Count == 0;
+		_cleanAssetsButton.Disabled = false;
 		_createCharacterButton.Disabled = false;
 
 		var characters = selectedWorld.Characters;
@@ -417,6 +426,7 @@ public sealed class WorldManagerModule : IModalInputLayer
 		{
 			_characterButtons[0].Disabled = true;
 			ConfigureRowButton(_characterButtons[0], LocalizationService.T("ui.world_manager.empty_characters"), string.Empty, selected: false);
+			_deleteSaveDataButton.Disabled = true;
 			_continueCharacterButton.Disabled = true;
 			_worldsListFocus = WorldsListFocus.Worlds;
 			return;

@@ -7,6 +7,8 @@ using System.Diagnostics;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Event;
+using MiniRPG.Core.Event.Workers;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.World;
 
@@ -25,6 +27,7 @@ public class GameSessionModule
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
 	private readonly WorldStore _worldStore;
+	private readonly WorldStorageMigrationReport _worldStorageMigrationReport;
 
 	private ActiveSessionKind _activeSessionKind = ActiveSessionKind.None;
 	private IViewMode _viewMode = new SingleLayerViewMode();
@@ -53,12 +56,15 @@ public class GameSessionModule
 	public IViewMode ViewMode => _viewMode;
 	public bool RequiresSwitchConfirmation => GameStarted && _activeSessionKind != ActiveSessionKind.None;
 	public bool CanSaveAndSwitchCurrentSession => _activeSessionKind == ActiveSessionKind.WorldCharacter;
+	public bool HasWorldStorageMigrationFailures => _worldStorageMigrationReport.FailureCount > 0;
+	public int WorldStorageMigrationFailureCount => _worldStorageMigrationReport.FailureCount;
 
 	public GameSessionModule(GameState state, FogOfWarTracker fogTracker, string? userDataRoot = null)
 	{
 		_state = state;
 		_fogTracker = fogTracker;
 		_worldStore = new WorldStore(userDataRoot ?? ResolveUserDataDir());
+		_worldStorageMigrationReport = _worldStore.MigrateLegacyWorldLayout();
 	}
 
 	public void NewGame(PlayerCreationOptions? options)
@@ -71,6 +77,8 @@ public class GameSessionModule
 		_fogTracker.Clear();
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
+		PartyModule.Initialize(_state);
+		EnsureStorytellerWorkers();
 		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 		ResetSessionContext(ActiveSessionKind.None);
 		GameStarted = true;
@@ -84,25 +92,47 @@ public class GameSessionModule
 		return _worldStore.CreateWorld(displayName, resolvedSettings);
 	}
 
-	public WorldDeletionStatus DeleteWorld(string worldId)
+	public WorldSaveDataDeletionStatus DeleteWorldSaveData(string worldId)
 	{
 		if (string.IsNullOrWhiteSpace(worldId))
-			return WorldDeletionStatus.NotFound;
+			return WorldSaveDataDeletionStatus.NotFound;
 
 		if (_activeSessionKind == ActiveSessionKind.WorldCharacter
 			&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal))
 		{
-			return WorldDeletionStatus.ActiveWorldLocked;
+			return WorldSaveDataDeletionStatus.ActiveWorldLocked;
 		}
 
 		if (!_worldStore.TryLoadWorld(worldId, out _))
-			return WorldDeletionStatus.NotFound;
+			return WorldSaveDataDeletionStatus.NotFound;
 
-		if (!_worldStore.DeleteWorld(worldId))
-			return WorldDeletionStatus.Failed;
+		if (!_worldStore.DeleteWorldSaveData(worldId))
+			return WorldSaveDataDeletionStatus.Failed;
 
 		ClearContinueStateForDeletedWorld(worldId);
-		return WorldDeletionStatus.Success;
+		return WorldSaveDataDeletionStatus.Success;
+	}
+
+	public WorldAssetCleanupStatus DeleteWorldAssets(string worldId)
+	{
+		if (string.IsNullOrWhiteSpace(worldId))
+			return WorldAssetCleanupStatus.NotFound;
+
+		if (_activeSessionKind == ActiveSessionKind.WorldCharacter
+			&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal))
+		{
+			return WorldAssetCleanupStatus.ActiveWorldLocked;
+		}
+
+		if (!_worldStore.TryLoadWorld(worldId, out _))
+			return WorldAssetCleanupStatus.NotFound;
+
+		if (!_worldStore.HasWorldAssets(worldId))
+			return WorldAssetCleanupStatus.NoAssets;
+
+		return _worldStore.DeleteWorldAssets(worldId)
+			? WorldAssetCleanupStatus.Success
+			: WorldAssetCleanupStatus.Failed;
 	}
 
 	public IReadOnlyList<WorldEntryInfo> ListWorlds()
@@ -673,6 +703,8 @@ public class GameSessionModule
 		_state.Weather ??= WeatherState.CreateDefault(_state.WorldSeed);
 		MapGenModule.InitializeWorld(_state);
 		EnsurePlayerActor();
+		PartyModule.EnsureValid(_state);
+		EnsureStorytellerWorkers();
 		ActorModule.InitializeMissingHomePositions(_state);
 		_state.World?.RebuildLoadedActorIndex(_state.Actors);
 		SyncViewMode();
@@ -959,6 +991,18 @@ public class GameSessionModule
 		Debug.WriteLine(message);
 		Console.Error.WriteLine(message);
 	}
+
+	private static bool _storytellerWorkersRegistered;
+
+	private static void EnsureStorytellerWorkers()
+	{
+		if (_storytellerWorkersRegistered) return;
+		_storytellerWorkersRegistered = true;
+
+		Storyteller.RegisterWorker("raid", new RaidIncidentWorker());
+		Storyteller.RegisterWorker("wanderer_join", new WandererJoinIncidentWorker());
+		Storyteller.RegisterWorker("trader_visit", new TraderVisitIncidentWorker());
+	}
 }
 
 public sealed class SaveSlotInfo
@@ -979,10 +1023,19 @@ public enum SaveSlotKind
 	UserSave,
 }
 
-public enum WorldDeletionStatus
+public enum WorldSaveDataDeletionStatus
 {
 	Success,
 	NotFound,
 	ActiveWorldLocked,
+	Failed,
+}
+
+public enum WorldAssetCleanupStatus
+{
+	Success,
+	NotFound,
+	ActiveWorldLocked,
+	NoAssets,
 	Failed,
 }

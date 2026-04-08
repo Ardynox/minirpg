@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using MiniRPG.Core.Map;
 using Xunit;
 
@@ -116,9 +117,45 @@ public sealed class WorldStoreTests
 	}
 
 	[Fact]
-	public void DeleteWorld_RemovesManifestAndCharacterSaves()
+	public void DeleteWorldSaveData_RemovesCharacterSavesButKeepsManifest()
 	{
-		var root = TestSupport.CreateTempDirectory("world-store-delete");
+		var root = TestSupport.CreateTempDirectory("world-store-delete-saves");
+		try
+		{
+			var store = new WorldStore(root);
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "alpha-00000001",
+				DisplayName = "Alpha",
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = DateTimeOffset.UtcNow,
+				LastPlayedAtUtc = new DateTimeOffset(2026, 4, 7, 9, 0, 0, TimeSpan.Zero),
+				LastPlayedCharacterId = "rook-00000001",
+			});
+
+			var characterPath = store.GetCharacterSavePath("alpha-00000001", "rook-00000001");
+			WriteWorldCharacterSave(characterPath, "alpha-00000001", "Alpha", "rook-00000001", "Rook");
+
+			var deleted = store.DeleteWorldSaveData("alpha-00000001");
+
+			Assert.True(deleted);
+			Assert.True(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.False(Directory.Exists(store.GetWorldSaveDirectory("alpha-00000001")));
+			Assert.True(store.TryLoadWorld("alpha-00000001", out var manifest));
+			Assert.NotNull(manifest);
+			Assert.Null(manifest.LastPlayedAtUtc);
+			Assert.Null(manifest.LastPlayedCharacterId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorldAssets_RemovesOnlyAssetDirectory()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-delete-assets");
 		try
 		{
 			var store = new WorldStore(root);
@@ -131,13 +168,90 @@ public sealed class WorldStoreTests
 			});
 
 			var characterPath = store.GetCharacterSavePath("alpha-00000001", "rook-00000001");
-			File.WriteAllText(characterPath, "{}");
+			WriteWorldCharacterSave(characterPath, "alpha-00000001", "Alpha", "rook-00000001", "Rook");
+			var assetDirectory = Path.Combine(store.GetWorldAssetDirectory("alpha-00000001"), "chunks");
+			Directory.CreateDirectory(assetDirectory);
+			File.WriteAllText(Path.Combine(assetDirectory, "chunk-0.bin"), "cached");
 
-			var deleted = store.DeleteWorld("alpha-00000001");
+			var deleted = store.DeleteWorldAssets("alpha-00000001");
 
 			Assert.True(deleted);
-			Assert.False(Directory.Exists(store.GetWorldDirectory("alpha-00000001")));
-			Assert.Empty(store.ListWorlds());
+			Assert.True(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.True(File.Exists(characterPath));
+			Assert.False(Directory.Exists(store.GetWorldAssetDirectory("alpha-00000001")));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void MigrateLegacyWorldLayout_MovesManifestAndCharacterSavesIntoSplitDirectories()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-migrate-success");
+		try
+		{
+			var store = new WorldStore(root);
+			var legacyWorldDirectory = Path.Combine(store.LegacyWorldsDirectory, "alpha-00000001");
+			WriteLegacyWorldManifest(legacyWorldDirectory, "alpha-00000001", "Alpha");
+			WriteWorldCharacterSave(
+				Path.Combine(legacyWorldDirectory, "characters", "rook-00000001.json"),
+				"alpha-00000001",
+				"Alpha",
+				"rook-00000001",
+				"Rook");
+
+			var report = store.MigrateLegacyWorldLayout();
+
+			Assert.Equal(1, report.SuccessCount);
+			Assert.Equal(0, report.FailureCount);
+			Assert.False(Directory.Exists(legacyWorldDirectory));
+			Assert.True(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.True(File.Exists(store.GetCharacterSavePath("alpha-00000001", "rook-00000001")));
+			var world = Assert.Single(store.ListWorlds());
+			Assert.Equal("alpha-00000001", world.WorldId);
+			var character = Assert.Single(store.ListWorldCharacters("alpha-00000001", "Alpha"));
+			Assert.Equal("rook-00000001", character.CharacterId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void MigrateLegacyWorldLayout_KeepsFailedLegacyWorldsHiddenWhileMigratingOthers()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-migrate-partial");
+		try
+		{
+			var store = new WorldStore(root);
+			var migratedWorldDirectory = Path.Combine(store.LegacyWorldsDirectory, "alpha-00000001");
+			WriteLegacyWorldManifest(migratedWorldDirectory, "alpha-00000001", "Alpha");
+			WriteWorldCharacterSave(
+				Path.Combine(migratedWorldDirectory, "characters", "rook-00000001.json"),
+				"alpha-00000001",
+				"Alpha",
+				"rook-00000001",
+				"Rook");
+
+			var failedWorldDirectory = Path.Combine(store.LegacyWorldsDirectory, "broken-00000002");
+			Directory.CreateDirectory(failedWorldDirectory);
+			File.WriteAllText(Path.Combine(failedWorldDirectory, "world.json"), "{not-json}");
+
+			var report = store.MigrateLegacyWorldLayout();
+
+			Assert.Equal(1, report.SuccessCount);
+			Assert.Equal(1, report.FailureCount);
+			var failure = Assert.Single(report.Failures);
+			Assert.Equal("broken-00000002", failure.WorldId);
+			Assert.False(Directory.Exists(migratedWorldDirectory));
+			Assert.True(Directory.Exists(failedWorldDirectory));
+			Assert.True(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.False(File.Exists(store.GetWorldManifestPath("broken-00000002")));
+			var world = Assert.Single(store.ListWorlds());
+			Assert.Equal("alpha-00000001", world.WorldId);
 		}
 		finally
 		{
@@ -197,5 +311,51 @@ public sealed class WorldStoreTests
 		{
 			TestSupport.TryDeleteDirectory(root);
 		}
+	}
+
+	private static void WriteLegacyWorldManifest(string worldDirectory, string worldId, string displayName)
+	{
+		Directory.CreateDirectory(worldDirectory);
+		File.WriteAllText(
+			Path.Combine(worldDirectory, "world.json"),
+			JsonSerializer.Serialize(new WorldManifest
+			{
+				WorldId = worldId,
+				DisplayName = displayName,
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = new DateTimeOffset(2026, 4, 7, 8, 0, 0, TimeSpan.Zero),
+				LastPlayedAtUtc = new DateTimeOffset(2026, 4, 7, 9, 0, 0, TimeSpan.Zero),
+				LastPlayedCharacterId = "rook-00000001",
+			}));
+	}
+
+	private static void WriteWorldCharacterSave(
+		string path,
+		string worldId,
+		string worldName,
+		string characterId,
+		string characterName)
+	{
+		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+		File.WriteAllText(path, $$"""
+		{
+		  "version": 5,
+		  "header": {
+		    "title": "{{characterName}}",
+		    "savedAtUtc": "2026-04-07T10:15:00+00:00",
+		    "turn": 12,
+		    "playerZ": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer",
+		    "worldId": "{{worldId}}",
+		    "worldName": "{{worldName}}",
+		    "characterId": "{{characterId}}",
+		    "characterName": "{{characterName}}"
+		  },
+		  "payload": {
+		    "unexpected": "shape"
+		  }
+		}
+		""");
 	}
 }
