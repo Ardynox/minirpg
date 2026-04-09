@@ -248,7 +248,7 @@ internal sealed class MainAppFlowCoordinator
 		_resetTimelineStatusLog();
 	}
 
-	public async void HandleMenuContinue()
+	public void HandleMenuContinue()
 	{
 		if (!_resourcesReady() || _busyOperationActive())
 			return;
@@ -257,37 +257,35 @@ internal sealed class MainAppFlowCoordinator
 		if (continueTarget.Kind == ContinueTargetKind.None)
 			return;
 
-		_beginBusyOperation("ui.loading.continue.prepare", 0.15f);
-		try
+		var prepared = continueTarget.Kind switch
 		{
-			await _showBusyOperationStageAsync("ui.loading.continue.prepare", 0.15f);
-			PrepareSessionTransition(true);
-
-			await _showBusyOperationStageAsync("ui.loading.continue.load", 0.70f);
-			var loaded = continueTarget.Kind switch
-			{
-				ContinueTargetKind.WorldCharacter => _session.LoadWorldCharacter(continueTarget.WorldId!, continueTarget.CharacterId!),
-				ContinueTargetKind.LegacySave => _session.LoadGame(continueTarget.SavePath!),
-				_ => SaveLoadStatus.NotFound,
-			};
-			if (loaded != SaveLoadStatus.Success)
-				return;
-
-			await _showBusyOperationStageAsync("ui.loading.continue.finalize", 0.95f);
-			_refreshPlayerCharacterVisual();
-			_clearLog();
-			_log.Add(LocalizationService.T(
-				"log.save.loaded",
-				("label", continueTarget.Label),
-				("floor", _state.PlayerZ)));
-			_refreshLocalizedUi(false);
-			_showGameHints();
-			_doEnterGame();
-		}
-		finally
-		{
-			_endBusyOperation();
-		}
+			ContinueTargetKind.WorldCharacter => _session.PrepareLoadWorldCharacter(continueTarget.WorldId!, continueTarget.CharacterId!),
+			ContinueTargetKind.LegacySave => _session.PrepareLoadGame(continueTarget.SavePath!),
+			_ => PreparedSessionLoad.FromFailure(SaveLoadStatus.NotFound),
+		};
+		StartPreparedLoad(
+			prepared,
+			selectedCandidateActorId => CommitPreparedLoadAsync(
+				prepared,
+				selectedCandidateActorId,
+				continueTarget.Label,
+				ContinueLoadStages,
+				clearLogs: true,
+				onSuccess: recoveredCandidate =>
+				{
+					_refreshPlayerCharacterVisual();
+					_clearLog();
+					LogRecoverySuccess(recoveredCandidate);
+					_log.Add(LocalizationService.T(
+						"log.save.loaded",
+						("label", continueTarget.Label),
+						("floor", _state.PlayerZ)));
+					_refreshLocalizedUi(false);
+					_showGameHints();
+					_doEnterGame();
+				},
+				onFailure: _ => { }),
+			onPreviewFailure: _ => { });
 	}
 
 	public void HandleMenuWorlds()
@@ -482,9 +480,30 @@ internal sealed class MainAppFlowCoordinator
 
 	public void HandleQuickLoadRequested()
 	{
-		_hideSettingsPanels();
 		var path = _session.GetQuickSavePath();
-		_doLoad(path, _session.DescribeSavePath(path));
+		var label = _session.DescribeSavePath(path);
+		var prepared = _session.PrepareLoadGame(path);
+		StartPreparedLoad(
+			prepared,
+			selectedCandidateActorId => CommitPreparedLoadAsync(
+				prepared,
+				selectedCandidateActorId,
+				label,
+				SaveLoadStages,
+				clearLogs: false,
+				onSuccess: recoveredCandidate =>
+				{
+					_refreshPlayerCharacterVisual();
+					_syncSettingsUiState(null);
+					_refreshLocalizedUi(false);
+					LogRecoverySuccess(recoveredCandidate);
+					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
+					_refreshWeatherLabSessionState(true);
+					_syncTimelineAutoAdvanceState();
+					_flushMap();
+				},
+				onFailure: status => LogLoadFailure(status, label)),
+			onPreviewFailure: status => LogLoadFailure(status, label));
 	}
 
 	public void OpenWorldManager(
@@ -533,6 +552,7 @@ internal sealed class MainAppFlowCoordinator
 	public void CloseWorldManager()
 	{
 		CloseConfirmDialog();
+		CloseLoadRecoveryDialog();
 		_worldManager.Close();
 		if (_worldManagerContext == WorldManagerContext.MainMenu)
 			_refreshMainMenuContinueState();
@@ -616,7 +636,7 @@ internal sealed class MainAppFlowCoordinator
 			"ui.continue_target.world_character",
 			("character", character.CharacterName),
 			("world", world?.DisplayName ?? character.WorldName));
-		RequestWorldManagerLoad(targetLabel, () => _session.LoadWorldCharacter(worldId, characterId));
+		RequestWorldManagerLoad(targetLabel, () => _session.PrepareLoadWorldCharacter(worldId, characterId));
 	}
 
 	public void HandleWorldManagerScenarioRequested(string scenarioId)
@@ -627,73 +647,93 @@ internal sealed class MainAppFlowCoordinator
 			return;
 
 		var targetLabel = LocalizationService.T("ui.session_label.scenario", ("name", scenario.DisplayName));
-		RequestWorldManagerLoad(targetLabel, () => _session.LoadPresetScenario(scenarioId));
+		RequestWorldManagerLoad(targetLabel, () => _session.PrepareLoadPresetScenario(scenarioId));
 	}
 
 	public void HandleWorldManagerLegacySaveRequested(SaveSlotInfo slot) =>
 		RequestWorldManagerLoad(
 			LocalizationService.T("ui.session_label.legacy_save", ("name", slot.DisplayName)),
-			() => _session.LoadGame(slot.SourcePath));
+			() => _session.PrepareLoadGame(slot.SourcePath));
 
-	public void LoadFromMainMenu(string label, Func<SaveLoadStatus> loadAction)
-	{
-		_worldManagerContext = WorldManagerContext.MainMenu;
-		ClearWorldManagerStatus();
-		LoadFromWorldManager(label, loadAction);
-	}
-
-	public async void LoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
+	public void LoadFromMainMenu(string label, Func<PreparedSessionLoad> prepareAction)
 	{
 		if (_busyOperationActive())
 			return;
 
-		_beginBusyOperation("ui.loading.save.prepare", 0.16f);
-		try
-		{
-			await _showBusyOperationStageAsync("ui.loading.save.prepare", 0.16f);
-			_exitMapEditor(true);
-			_closeWeatherLabPanel(true);
+		_worldManagerContext = WorldManagerContext.MainMenu;
+		ClearWorldManagerStatus();
+		var prepared = prepareAction();
+		StartPreparedLoad(
+			prepared,
+			selectedCandidateActorId => CommitPreparedLoadAsync(
+				prepared,
+				selectedCandidateActorId,
+				label,
+				SaveLoadStages,
+				clearLogs: true,
+				onSuccess: recoveredCandidate =>
+				{
+					_refreshPlayerCharacterVisual();
+					_syncSettingsUiState(null);
+					_refreshLocalizedUi(false);
+					_clearLog();
+					LogRecoverySuccess(recoveredCandidate);
+					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
+					_showGameHints();
+					_doEnterGame();
+				},
+				onFailure: status => LogLoadFailure(status, label)),
+			onPreviewFailure: status => LogLoadFailure(status, label));
+	}
 
-			await _showBusyOperationStageAsync("ui.loading.save.load", 0.76f);
-			var status = loadAction();
-			if (status != SaveLoadStatus.Success)
+	public void LoadFromWorldManager(string label, Func<PreparedSessionLoad> prepareAction)
+	{
+		if (_busyOperationActive())
+			return;
+
+		var prepared = prepareAction();
+		StartPreparedLoad(
+			prepared,
+			selectedCandidateActorId => CommitPreparedLoadAsync(
+				prepared,
+				selectedCandidateActorId,
+				label,
+				SaveLoadStages,
+				clearLogs: _worldManagerContext == WorldManagerContext.MainMenu,
+				onSuccess: recoveredCandidate =>
+				{
+					ClearWorldManagerStatus();
+					_refreshPlayerCharacterVisual();
+					_syncSettingsUiState(null);
+					_refreshLocalizedUi(false);
+
+					if (_worldManagerContext == WorldManagerContext.MainMenu)
+					{
+						_clearLog();
+						LogRecoverySuccess(recoveredCandidate);
+						_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
+						_showGameHints();
+						_doEnterGame();
+						return;
+					}
+
+					LogRecoverySuccess(recoveredCandidate);
+					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
+					_refreshWeatherLabSessionState(true);
+					_syncTimelineAutoAdvanceState();
+					_flushMap();
+				},
+				onFailure: status =>
+				{
+					SetWorldManagerStatus(BuildLoadFailureMessage(status, label), isError: true);
+					LogLoadFailure(status, label);
+				}),
+			onPreviewFailure: status =>
 			{
 				SetWorldManagerStatus(BuildLoadFailureMessage(status, label), isError: true);
 				LogLoadFailure(status, label);
 				RefreshWorldManagerContents();
-				return;
-			}
-
-			await _showBusyOperationStageAsync("ui.loading.save.finalize", 0.95f);
-			ClearWorldManagerStatus();
-			CloseWorldManager();
-			_clearArmedSkill();
-			_clearPlayerTargeting();
-			_stopPlayerRestMode();
-			_resetThreatHud();
-			_refreshPlayerCharacterVisual();
-			_syncSettingsUiState(null);
-			_refreshLocalizedUi(false);
-
-			_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-			if (_worldManagerContext == WorldManagerContext.MainMenu)
-			{
-				_clearLog();
-				_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-				_showGameHints();
-				_doEnterGame();
-				return;
-			}
-
-			_refreshWeatherLabSessionState(true);
-			_hideSettingsPanels();
-			_syncTimelineAutoAdvanceState();
-			_flushMap();
-		}
-		finally
-		{
-			_endBusyOperation();
-		}
+			});
 	}
 
 	public void HandleConfirmDialogActionSelected(string actionId)
@@ -710,6 +750,26 @@ internal sealed class MainAppFlowCoordinator
 		_confirmDialogActions.Clear();
 	}
 
+	public async void HandleLoadRecoveryConfirmed(string actorId)
+	{
+		if (_busyOperationActive())
+			return;
+
+		var pending = _pendingPreparedLoad;
+		if (pending == null)
+			return;
+
+		CloseLoadRecoveryDialog();
+		await pending.CommitAsync(actorId);
+	}
+
+	public void CloseLoadRecoveryDialog()
+	{
+		_pendingPreparedLoad = null;
+		if (_loadRecoveryDialog.Visible)
+			_loadRecoveryDialog.Close();
+	}
+
 	private void FinalizeNewGameStart()
 	{
 		_finalizeSessionPanels(true);
@@ -724,12 +784,104 @@ internal sealed class MainAppFlowCoordinator
 		_showMapEditorHints();
 	}
 
-	private void RequestWorldManagerLoad(string targetLabel, Func<SaveLoadStatus> loadAction)
+	private void StartPreparedLoad(
+		PreparedSessionLoad preparedLoad,
+		Func<string?, Task> commitAsync,
+		Action<SaveLoadStatus> onPreviewFailure)
+	{
+		if (preparedLoad.Status != SaveLoadStatus.Success)
+		{
+			onPreviewFailure(preparedLoad.Status);
+			return;
+		}
+
+		if (preparedLoad.Recovery == null)
+		{
+			_ = commitAsync(null);
+			return;
+		}
+
+		CloseLoadRecoveryDialog();
+		_pendingPreparedLoad = new PendingPreparedLoad
+		{
+			CommitAsync = commitAsync,
+		};
+		CloseConfirmDialog();
+		_loadRecoveryDialog.Open(preparedLoad.Recovery);
+	}
+
+	private async Task CommitPreparedLoadAsync(
+		PreparedSessionLoad preparedLoad,
+		string? selectedCandidateActorId,
+		string label,
+		BusyLoadStages stages,
+		bool clearLogs,
+		Action<PreparedLoadCandidate?> onSuccess,
+		Action<SaveLoadStatus> onFailure)
+	{
+		if (_busyOperationActive())
+			return;
+
+		var recoveredCandidate = ResolveRecoveredCandidate(preparedLoad, selectedCandidateActorId);
+		_beginBusyOperation(stages.PrepareKey, stages.PrepareProgress);
+		try
+		{
+			await _showBusyOperationStageAsync(stages.PrepareKey, stages.PrepareProgress);
+			PrepareSessionTransition(clearLogs);
+
+			await _showBusyOperationStageAsync(stages.LoadKey, stages.LoadProgress);
+			var status = _session.CommitPreparedLoad(preparedLoad, selectedCandidateActorId);
+			if (status != SaveLoadStatus.Success)
+			{
+				onFailure(status);
+				return;
+			}
+
+			await _showBusyOperationStageAsync(stages.FinalizeKey, stages.FinalizeProgress);
+			onSuccess(recoveredCandidate);
+		}
+		finally
+		{
+			_endBusyOperation();
+		}
+	}
+
+	private static PreparedLoadCandidate? ResolveRecoveredCandidate(
+		PreparedSessionLoad preparedLoad,
+		string? selectedCandidateActorId)
+	{
+		if (preparedLoad.Recovery == null)
+			return null;
+
+		foreach (var candidate in preparedLoad.Recovery.Candidates)
+		{
+			if (string.Equals(candidate.ActorId, selectedCandidateActorId, StringComparison.Ordinal))
+				return candidate;
+		}
+
+		return null;
+	}
+
+	private void LogRecoverySuccess(PreparedLoadCandidate? recoveredCandidate)
+	{
+		if (recoveredCandidate == null)
+			return;
+
+		_log.Add(LocalizationService.T(
+			"log.save.recovered_player_binding",
+			("name", recoveredCandidate.DisplayName),
+			("actorId", recoveredCandidate.ActorId),
+			("x", recoveredCandidate.X),
+			("y", recoveredCandidate.Y),
+			("z", recoveredCandidate.Z)));
+	}
+
+	private void RequestWorldManagerLoad(string targetLabel, Func<PreparedSessionLoad> prepareAction)
 	{
 		ClearWorldManagerStatus();
 		if (_worldManagerContext != WorldManagerContext.InGame || !_session.RequiresSwitchConfirmation)
 		{
-			LoadFromWorldManager(targetLabel, loadAction);
+			LoadFromWorldManager(targetLabel, prepareAction);
 			return;
 		}
 
@@ -748,8 +900,8 @@ internal sealed class MainAppFlowCoordinator
 					new ConfirmDialogAction("cancel", LocalizationService.T("ui.confirm_switch.action.cancel")),
 				],
 				defaultActionIndex: 0,
-				onSaveAndSwitch: () => SaveCurrentSessionAndLoadFromWorldManager(targetLabel, loadAction),
-				onSwitch: () => LoadFromWorldManager(targetLabel, loadAction));
+				onSaveAndSwitch: () => SaveCurrentSessionAndLoadFromWorldManager(targetLabel, prepareAction),
+				onSwitch: () => LoadFromWorldManager(targetLabel, prepareAction));
 			return;
 		}
 
@@ -764,14 +916,14 @@ internal sealed class MainAppFlowCoordinator
 				new ConfirmDialogAction("cancel", LocalizationService.T("ui.confirm_switch.action.cancel")),
 			],
 			defaultActionIndex: 0,
-			onSwitch: () => LoadFromWorldManager(targetLabel, loadAction));
+			onSwitch: () => LoadFromWorldManager(targetLabel, prepareAction));
 	}
 
-	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
+	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<PreparedSessionLoad> prepareAction)
 	{
 		var path = _session.GetPreferredSavePath();
 		_doSave(path, _session.DescribeSavePath(path));
-		LoadFromWorldManager(label, loadAction);
+		LoadFromWorldManager(label, prepareAction);
 	}
 
 	private void OpenSwitchConfirmation(
@@ -919,4 +1071,17 @@ internal sealed class MainAppFlowCoordinator
 		};
 		return LocalizationService.T(key, ("label", label));
 	}
+
+	private sealed class PendingPreparedLoad
+	{
+		public required Func<string?, Task> CommitAsync { get; init; }
+	}
+
+	private readonly record struct BusyLoadStages(
+		string PrepareKey,
+		float PrepareProgress,
+		string LoadKey,
+		float LoadProgress,
+		string FinalizeKey,
+		float FinalizeProgress);
 }

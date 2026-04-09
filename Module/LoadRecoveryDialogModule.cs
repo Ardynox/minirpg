@@ -95,10 +95,18 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 				return MoveSelection(1);
 			case Key.Enter:
 			case Key.KpEnter:
+				if (ResolveFocusOwner() is Button)
+					return false;
 				return ConfirmCurrentSelection();
 			default:
 				return false;
 		}
+	}
+
+	private Control? ResolveFocusOwner()
+	{
+		var viewport = _panel.GetViewport();
+		return viewport?.GuiGetFocusOwner();
 	}
 
 	private void RefreshCandidateList()

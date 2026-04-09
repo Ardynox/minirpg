@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Multiplayer;
 
 namespace MiniRPG.Core.Map;
 
@@ -133,6 +134,93 @@ public sealed class SavePayload
 
 	[JsonPropertyName("economicDomains")]
 	public List<EconomicDomain>? EconomicDomains { get; set; }
+
+	[JsonPropertyName("room")]
+	public RoomRuntimeSnapshot? Room { get; set; }
+}
+
+public sealed class RoomRuntimeSnapshot
+{
+	[JsonPropertyName("roomId")]
+	public string? RoomId { get; set; }
+
+	[JsonPropertyName("roomCode")]
+	public string? RoomCode { get; set; }
+
+	[JsonPropertyName("players")]
+	public List<RoomPlayerStateSnapshot>? Players { get; set; }
+
+	[JsonPropertyName("interactionReservations")]
+	public List<InteractionReservationSnapshot>? InteractionReservations { get; set; }
+
+	[JsonPropertyName("actorControlBindings")]
+	public List<ActorControlBindingSnapshot>? ActorControlBindings { get; set; }
+
+	[JsonPropertyName("lastSnapshotSequence")]
+	public long LastSnapshotSequence { get; set; }
+}
+
+public sealed class RoomPlayerStateSnapshot
+{
+	[JsonPropertyName("playerSessionId")]
+	public string? PlayerSessionId { get; set; }
+
+	[JsonPropertyName("displayName")]
+	public string? DisplayName { get; set; }
+
+	[JsonPropertyName("primaryActorId")]
+	public string? PrimaryActorId { get; set; }
+
+	[JsonPropertyName("delegatedActorIds")]
+	public List<string>? DelegatedActorIds { get; set; }
+
+	[JsonPropertyName("currentControllerActorIds")]
+	public List<string>? CurrentControllerActorIds { get; set; }
+
+	[JsonPropertyName("joinToken")]
+	public string? JoinToken { get; set; }
+
+	[JsonPropertyName("reconnectToken")]
+	public string? ReconnectToken { get; set; }
+
+	[JsonPropertyName("reconnectDeadlineUtc")]
+	public DateTimeOffset? ReconnectDeadlineUtc { get; set; }
+
+	[JsonPropertyName("connected")]
+	public bool Connected { get; set; }
+
+	[JsonPropertyName("isRoomOwner")]
+	public bool IsRoomOwner { get; set; }
+}
+
+public sealed class InteractionReservationSnapshot
+{
+	[JsonPropertyName("reservationKey")]
+	public string? ReservationKey { get; set; }
+
+	[JsonPropertyName("playerSessionId")]
+	public string? PlayerSessionId { get; set; }
+
+	[JsonPropertyName("lastHeartbeatUtc")]
+	public DateTimeOffset LastHeartbeatUtc { get; set; }
+
+	[JsonPropertyName("expiresAtUtc")]
+	public DateTimeOffset ExpiresAtUtc { get; set; }
+}
+
+public sealed class ActorControlBindingSnapshot
+{
+	[JsonPropertyName("actorId")]
+	public string? ActorId { get; set; }
+
+	[JsonPropertyName("primaryOwnerPlayerId")]
+	public string? PrimaryOwnerPlayerId { get; set; }
+
+	[JsonPropertyName("temporaryControllerPlayerId")]
+	public string? TemporaryControllerPlayerId { get; set; }
+
+	[JsonPropertyName("canBeDelegated")]
+	public bool CanBeDelegated { get; set; } = true;
 }
 
 public sealed class WeatherStateSnapshot

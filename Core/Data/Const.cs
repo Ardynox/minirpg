@@ -54,6 +54,11 @@ public static class Terrains
 	public const string Dirt = "dirt";
 	public const string Stone = "stone";
 	public const string GrassBlock = "grass_block";
+	public const string OreCoal = "ore_coal";
+	public const string OreIron = "ore_iron";
+	public const string OreCopper = "ore_copper";
+	public const string OreGold = "ore_gold";
+	public const string OreCrystal = "ore_crystal";
 }
 
 /// <summary>能力 ID 常量，与 capacities.json 保持一致。</summary>

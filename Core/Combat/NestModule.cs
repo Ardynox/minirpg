@@ -30,15 +30,20 @@ public static class NestModule
 		var monsterTemplates = ActorTemplates.MonsterIds.ToArray();
 		if (monsterTemplates.Length == 0) return events;
 		var nearbyRadius = Math.Max(0, GameConfig.WorldRuntime.NestNearbyCountRadius);
-
-		var playerChunk = CoordUtil.WorldToChunk(state.PlayerX, state.PlayerY, state.PlayerZ);
 		var r = state.World.Chunks.LoadRadiusXY;
-
-		for (var cy = playerChunk.Cy - r; cy <= playerChunk.Cy + r; cy++)
-		for (var cx = playerChunk.Cx - r; cx <= playerChunk.Cx + r; cx++)
+		var coords = new HashSet<ChunkCoord>();
+		foreach (var anchor in RoomRuntimeModule.GetWorldAnchors(state))
 		{
-			var coord = new ChunkCoord(cx, cy, state.PlayerZ);
-			if (!state.World.Chunks.IsLoaded(coord)) continue;
+			var playerChunk = CoordUtil.WorldToChunk(anchor.Position);
+			for (var cy = playerChunk.Cy - r; cy <= playerChunk.Cy + r; cy++)
+			for (var cx = playerChunk.Cx - r; cx <= playerChunk.Cx + r; cx++)
+				coords.Add(new ChunkCoord(cx, cy, playerChunk.Cz));
+		}
+
+		foreach (var coord in coords)
+		{
+			if (!state.World.Chunks.IsLoaded(coord))
+				continue;
 			var chunk = state.World.Chunks.GetOrLoad(coord);
 
 			foreach (var nest in chunk.Nests)
@@ -46,10 +51,10 @@ public static class NestModule
 				nest.TurnsSinceSpawn++;
 				if (nest.TurnsSinceSpawn < nest.SpawnInterval) continue;
 
-				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, nearbyRadius);
+				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, coord.Cz, nearbyRadius);
 				if (nearby >= nest.MaxSpawned) continue;
 
-				var slot = FindSpawnSlot(state, nest, rng);
+				var slot = FindSpawnSlot(state, nest, coord.Cz, rng);
 				if (slot is null) continue;
 
 				var (sx, sy) = slot.Value;
@@ -59,36 +64,36 @@ public static class NestModule
 				var monster = ActorTemplates.Spawn(templateId, $"nest_{_nestSpawnCounter++}");
 				monster.X = sx;
 				monster.Y = sy;
-				monster.Z = state.PlayerZ;
+				monster.Z = coord.Cz;
 				ActorModule.Add(state, monster);
 				nest.TurnsSinceSpawn = 0;
-				events.Add(new GameEvent("monster_spawned") { TargetX = sx, TargetY = sy });
+				events.Add(new GameEvent("monster_spawned") { TargetX = sx, TargetY = sy, TargetZ = coord.Cz });
 			}
 		}
 
 		return events;
 	}
 
-	private static (int, int)? FindSpawnSlot(GameState state, NestData nest, Random rng)
+	private static (int, int)? FindSpawnSlot(GameState state, NestData nest, int z, Random rng)
 	{
 		var candidates = new List<(int, int)>();
 		foreach (var (dx, dy) in GridDirections.Cardinal)
 		{
 			var nx = nest.X + dx;
 			var ny = nest.Y + dy;
-			if (MapModule.IsWalkable(state, nx, ny) && ActorModule.GetAllAt(state, nx, ny).Count == 0)
+			if (MapModule.IsWalkable(state, nx, ny, z) && ActorModule.GetAllAt(state, nx, ny, z).Count == 0)
 				candidates.Add((nx, ny));
 		}
 		return candidates.Count == 0 ? null : candidates[rng.Next(candidates.Count)];
 	}
 
-	private static int CountNearbyMonsters(GameState state, int cx, int cy, int radius)
+	private static int CountNearbyMonsters(GameState state, int cx, int cy, int z, int radius)
 	{
 		var count = 0;
 		foreach (var actor in state.Actors.Values)
 		{
 			if (actor.Faction != Factions.Hostile) continue;
-			if (actor.Z != state.PlayerZ) continue;
+			if (actor.Z != z) continue;
 			var adx = actor.X - cx;
 			var ady = actor.Y - cy;
 			if (adx >= -radius && adx <= radius && ady >= -radius && ady <= radius)

@@ -68,48 +68,65 @@ public class FogOfWarTracker
 	{
 		if (state.World == null) return;
 
-		var z = state.PlayerZ;
-		_currentZ = z;
+		_currentZ = state.PlayerZ;
+		_fullVisible = [];
+		_directionalVisible = [];
 
-		if (!_seen.TryGetValue(z, out var seenSet))
-		{
-			seenSet = new HashSet<long>();
-			_seen[z] = seenSet;
-		}
-
-		var player = ActorModule.GetPlayer(state);
-		var sight = System.Math.Max(0f, player?.GetCapacity(Caps.Sight) ?? 1.0f);
-		var baseRadius = BaseVisionRadius;
-		if (z == 0 && state.World.IsWeatherExposed(state.PlayerX, state.PlayerY, z))
-		{
-			var weather = WeatherRules.GetLocalWeather(state, state.PlayerX, state.PlayerY, z);
-			baseRadius = System.Math.Max(1, (int)System.MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
-		}
-
-		var vision = VisionRangeScaler.ScaleDirectional(
-			baseRadius,
-			sight,
-			RearVisionRatio,
-			MinimumVisionRadius,
-			MinimumRearVisionRadius,
-			AmbientLight);
-		var frontRadius = vision.FrontRadius;
-		var rearRadius = vision.RearRadius;
-
-		var cx = state.PlayerX;
-		var cy = state.PlayerY;
 		var world = state.World;
-		bool isOpaque(int x, int y) => world.BlocksSight(x, y, z);
+		var visionActors = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false);
+		if (visionActors.Count == 0)
+		{
+			var fallback = ActorModule.GetPlayer(state);
+			if (fallback != null)
+				visionActors = [fallback];
+		}
 
-		_fullVisible = ShadowcastFOV.Compute(cx, cy, frontRadius, isOpaque);
+		foreach (var actor in visionActors)
+		{
+			if (!_seen.TryGetValue(actor.Z, out var seenSet))
+			{
+				seenSet = new HashSet<long>();
+				_seen[actor.Z] = seenSet;
+			}
 
-		var facingX = player?.FacingX ?? 0;
-		var facingY = player?.FacingY ?? 1;
-		_directionalVisible = ShadowcastFOV.ComputeDirectional(
-			cx, cy, frontRadius, rearRadius, facingX, facingY, _fullVisible);
+			var sight = System.Math.Max(0f, actor.GetCapacity(Caps.Sight));
+			var baseRadius = BaseVisionRadius;
+			if (actor.Z == 0 && world.IsWeatherExposed(actor.X, actor.Y, actor.Z))
+			{
+				var weather = WeatherRules.GetLocalWeather(state, actor.X, actor.Y, actor.Z);
+				baseRadius = System.Math.Max(1, (int)System.MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
+			}
 
-		foreach (var (vx, vy) in _fullVisible)
-			seenSet.Add(Pack(vx, vy));
+			var vision = VisionRangeScaler.ScaleDirectional(
+				baseRadius,
+				sight,
+				RearVisionRatio,
+				MinimumVisionRadius,
+				MinimumRearVisionRadius,
+				AmbientLight);
+			var frontRadius = vision.FrontRadius;
+			var rearRadius = vision.RearRadius;
+			bool isOpaque(int x, int y) => world.BlocksSight(x, y, actor.Z);
+
+			var fullVisible = ShadowcastFOV.Compute(actor.X, actor.Y, frontRadius, isOpaque);
+			var directionalVisible = ShadowcastFOV.ComputeDirectional(
+				actor.X,
+				actor.Y,
+				frontRadius,
+				rearRadius,
+				actor.FacingX,
+				actor.FacingY,
+				fullVisible);
+
+			foreach (var (vx, vy) in fullVisible)
+				seenSet.Add(Pack(vx, vy));
+
+			if (actor.Z != _currentZ)
+				continue;
+
+			_fullVisible.UnionWith(fullVisible);
+			_directionalVisible.UnionWith(directionalVisible);
+		}
 	}
 
 	public PlayerVisionBand GetVisionBand(int x, int y, int z)

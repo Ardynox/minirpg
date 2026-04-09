@@ -23,6 +23,7 @@ public sealed class VoxelBlockIsometricGenerator : IMapGenerator
 	{
 		var heightNoise = new PerlinNoise(worldSeed ^ 0x5A17A11);
 		var moistureNoise = new PerlinNoise(worldSeed ^ 0x27B91E3);
+		var oreNoise = new PerlinNoise(worldSeed ^ 0x7734A91);
 		var cz = chunk.Coord.Cz;
 
 		for (var ly = 0; ly < ChunkData.Size; ly++)
@@ -39,6 +40,7 @@ public sealed class VoxelBlockIsometricGenerator : IMapGenerator
 			var surfaceZ = -(int)System.Math.Round(mixedHeight * MaxElevation);
 
 			var terrainId = ClassifyVoxel(cz, surfaceZ, moisture);
+			terrainId = TryApplyOre(terrainId, cz, wx, wy, oreNoise);
 			chunk.SetTerrain(lx, ly, terrainId);
 		}
 	}
@@ -95,5 +97,31 @@ public sealed class VoxelBlockIsometricGenerator : IMapGenerator
 		if (depth <= 14)
 			return TerrainRegistry.GetId(Terrains.WallGranite);
 		return TerrainRegistry.GetId(Terrains.WallObsidian);
+	}
+
+	private static ushort TryApplyOre(ushort baseTerrainId, int currentZ, int wx, int wy, PerlinNoise oreNoise)
+	{
+		if (currentZ <= 0)
+			return baseTerrainId;
+		if (baseTerrainId != TerrainRegistry.GetId(Terrains.WallStone)
+			&& baseTerrainId != TerrainRegistry.GetId(Terrains.WallGranite)
+			&& baseTerrainId != TerrainRegistry.GetId(Terrains.WallObsidian))
+		{
+			return baseTerrainId;
+		}
+
+		var oreBand = oreNoise.FBM3D(wx * 0.07, wy * 0.07, currentZ * 0.11, 3, 0.57);
+		if (currentZ >= 2 && currentZ <= 8 && oreBand > 0.73)
+			return TerrainRegistry.GetId(Terrains.OreCoal);
+		if (currentZ >= 4 && currentZ <= 16 && oreBand > 0.79)
+			return TerrainRegistry.GetId(Terrains.OreCopper);
+		if (currentZ >= 6 && currentZ <= 22 && oreBand > 0.83)
+			return TerrainRegistry.GetId(Terrains.OreIron);
+		if (currentZ >= 10 && oreBand > 0.88)
+			return TerrainRegistry.GetId(Terrains.OreGold);
+		if (currentZ >= 14 && oreBand > 0.91)
+			return TerrainRegistry.GetId(Terrains.OreCrystal);
+
+		return baseTerrainId;
 	}
 }

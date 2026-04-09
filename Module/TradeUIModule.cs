@@ -62,27 +62,38 @@ public class TradeUIModule
 		var player = ActorModule.GetPlayer(_ui.State);
 		if (player == null || _trader == null) return;
 
+		ServerActionResult result;
 		if (tab == TradeTab.Buy)
 		{
 			var good = _panel.GetSelectedBuyGood();
 			if (good == null) return;
-
-			var result = TradeModule.Buy(player, _trader, good, _ui.State);
-			_ui.AddLog(result.Message);
-			if (result.Ok)
-				_ui.AddLog(LocalizationService.T("trade.gold_remaining", ("gold", player.Gold)));
+			result = ServerActionGateway.Execute(_ui.State, new TradeBuyClientCommand
+			{
+				ActorId = player.Id,
+				TraderActorId = _trader.Id,
+				GoodSource = good.From == TradeGood.Source.Inventory
+					? TradeGoodSourceKind.Inventory
+					: TradeGoodSourceKind.Shop,
+				GoodIndex = good.Index,
+			});
 		}
 		else
 		{
 			var sel = _panel.GetSelectedSellItem();
 			if (sel == null) return;
 			var (invIdx, _) = sel.Value;
-
-			var result = TradeModule.Sell(player, _trader, invIdx, _ui.State);
-			_ui.AddLog(result.Message);
-			if (result.Ok)
-				_ui.AddLog(LocalizationService.T("trade.gold_remaining", ("gold", player.Gold)));
+			result = ServerActionGateway.Execute(_ui.State, new TradeSellClientCommand
+			{
+				ActorId = player.Id,
+				TraderActorId = _trader.Id,
+				InventoryIndex = invIdx,
+			});
 		}
+
+		foreach (var log in result.Logs)
+			_ui.AddLog(log);
+		if (result.Events.Count > 0)
+			_ui.Dispatch(result.Events);
 
 		_panel.RefreshData(player, _trader);
 		_panel.RefreshHeader(player, _trader);

@@ -931,85 +931,128 @@ public static class MonsterMapAssetGenerator
     public static string GenerateProceduralVoxelTiles(string rootPath)
     {
         var outputDirectory = Path.Combine(rootPath, "Assets", "Art", "Generated", "voxel_tiles");
+        var overlaysDirectory = Path.Combine(outputDirectory, "overlays");
+        var oresDirectory = Path.Combine(outputDirectory, "ores");
         Directory.CreateDirectory(outputDirectory);
+        Directory.CreateDirectory(overlaysDirectory);
+        Directory.CreateDirectory(oresDirectory);
 
         const int tileSize = 32;
-        var configs = new[]
+        var baseConfigs = new[]
         {
-            new TileConfig(
-                Name: "stone",
-                Base: Rgba(124, 127, 132),
-                Dark: Rgba(82, 86, 92),
-                Light: Rgba(171, 176, 184),
-                SpeckleCount: 86,
-                CrackCount: 5,
-                GrainStrength: 18,
-                SeedOffset: 101),
-            new TileConfig(
-                Name: "dirt",
-                Base: Rgba(123, 87, 58),
-                Dark: Rgba(78, 51, 31),
-                Light: Rgba(159, 117, 82),
-                SpeckleCount: 74,
-                CrackCount: 3,
-                GrainStrength: 16,
-                SeedOffset: 211),
-            new TileConfig(
-                Name: "grass_top",
-                Base: Rgba(83, 149, 71),
-                Dark: Rgba(45, 96, 36),
-                Light: Rgba(126, 193, 96),
-                SpeckleCount: 68,
-                CrackCount: 2,
-                GrainStrength: 14,
-                SeedOffset: 307),
+            new TileConfig("stone", Rgba(124, 127, 132), Rgba(82, 86, 92), Rgba(171, 176, 184), 86, 5, 18, 101),
+            new TileConfig("dirt", Rgba(123, 87, 58), Rgba(78, 51, 31), Rgba(159, 117, 82), 74, 3, 16, 211),
+            new TileConfig("grass_top", Rgba(83, 149, 71), Rgba(45, 96, 36), Rgba(126, 193, 96), 68, 2, 14, 307),
+            new TileConfig("sand", Rgba(214, 193, 134), Rgba(168, 146, 94), Rgba(236, 217, 166), 52, 1, 12, 401),
+            new TileConfig("gravel", Rgba(140, 138, 132), Rgba(93, 91, 86), Rgba(186, 184, 176), 82, 3, 15, 499),
+            new TileConfig("mud", Rgba(104, 79, 58), Rgba(67, 47, 31), Rgba(138, 108, 81), 62, 2, 14, 557),
+            new TileConfig("clay", Rgba(142, 122, 114), Rgba(99, 82, 76), Rgba(182, 160, 150), 55, 2, 11, 631),
+            new TileConfig("snow", Rgba(232, 236, 242), Rgba(186, 194, 207), Rgba(250, 252, 255), 48, 1, 10, 709),
+            new TileConfig("ash", Rgba(109, 106, 112), Rgba(74, 71, 76), Rgba(145, 141, 149), 64, 2, 13, 773),
+            new TileConfig("plank", Rgba(163, 118, 74), Rgba(112, 74, 41), Rgba(199, 153, 103), 36, 1, 9, 853),
+            new TileConfig("brick", Rgba(132, 109, 96), Rgba(86, 67, 57), Rgba(168, 145, 130), 34, 2, 9, 919),
+            new TileConfig("brick_mossy", Rgba(118, 122, 95), Rgba(71, 84, 58), Rgba(153, 161, 124), 40, 2, 10, 977),
+            new TileConfig("brick_cracked", Rgba(124, 103, 94), Rgba(74, 58, 53), Rgba(162, 139, 128), 38, 4, 11, 1031),
         };
 
         var generated = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
-        foreach (var config in configs)
+        foreach (var config in baseConfigs)
         {
-            generated[config.Name] = BuildProceduralTile(tileSize, config);
+            var tile = BuildProceduralTile(tileSize, config);
+            if (config.Name.StartsWith("plank", StringComparison.OrdinalIgnoreCase))
+                ApplyWoodPlankLines(tile, config.SeedOffset + 17);
+            if (config.Name.StartsWith("brick", StringComparison.OrdinalIgnoreCase))
+                ApplyBrickPattern(tile, config.SeedOffset + 29);
+            generated[config.Name] = tile;
         }
 
+        var generatedPaths = new List<string>();
         try
         {
             foreach (var entry in generated)
             {
                 var path = Path.Combine(outputDirectory, $"tile_{entry.Key}.png");
                 entry.Value.Save(path, ImageFormat.Png);
+                generatedPaths.Add(Path.GetFileName(path));
             }
 
             using var grassSide = BuildGrassSideTile(tileSize, generated["dirt"], generated["grass_top"]);
             grassSide.Save(Path.Combine(outputDirectory, "tile_grass_side.png"), ImageFormat.Png);
+            generatedPaths.Add("tile_grass_side.png");
 
-            using (var atlas = BuildTileAtlas(tileSize,
-                       generated["stone"],
-                       generated["dirt"],
-                       generated["grass_top"],
-                       grassSide))
+            using var logSide = BuildLogSideTile(tileSize, Rgba(132, 94, 62), Rgba(83, 56, 33), Rgba(168, 126, 82), 1177);
+            logSide.Save(Path.Combine(outputDirectory, "tile_log_side.png"), ImageFormat.Png);
+            generatedPaths.Add("tile_log_side.png");
+
+            using var logTop = BuildLogTopTile(tileSize, Rgba(138, 100, 66), Rgba(86, 59, 34), Rgba(184, 137, 92), 1213);
+            logTop.Save(Path.Combine(outputDirectory, "tile_log_top.png"), ImageFormat.Png);
+            generatedPaths.Add("tile_log_top.png");
+
+            using var atlas = BuildTileAtlas(tileSize, generated["stone"], generated["dirt"], generated["grass_top"], grassSide);
+            atlas.Save(Path.Combine(outputDirectory, "tile_atlas_voxel_basic.png"), ImageFormat.Png);
+            generatedPaths.Add("tile_atlas_voxel_basic.png");
+
+            var oreDefs = new[]
             {
-                atlas.Save(Path.Combine(outputDirectory, "tile_atlas_voxel_basic.png"), ImageFormat.Png);
+                new OreConfig("coal", Rgba(42, 44, 49), Rgba(20, 21, 24), 22, 1901),
+                new OreConfig("iron", Rgba(189, 138, 99), Rgba(141, 95, 63), 20, 1931),
+                new OreConfig("copper", Rgba(198, 122, 78), Rgba(147, 79, 47), 21, 1973),
+                new OreConfig("gold", Rgba(226, 186, 62), Rgba(171, 129, 34), 18, 2017),
+                new OreConfig("crystal", Rgba(123, 223, 237), Rgba(73, 154, 173), 16, 2063),
+            };
+
+            foreach (var ore in oreDefs)
+            {
+                using var overlay = BuildOreOverlayTile(tileSize, ore);
+                overlay.Save(Path.Combine(oresDirectory, $"overlay_ore_{ore.Name}.png"), ImageFormat.Png);
+                generatedPaths.Add($"ores/overlay_ore_{ore.Name}.png");
+
+                using var oreStone = ComposeOverlay(generated["stone"], overlay, 0.92f);
+                oreStone.Save(Path.Combine(oresDirectory, $"tile_stone_ore_{ore.Name}.png"), ImageFormat.Png);
+                generatedPaths.Add($"ores/tile_stone_ore_{ore.Name}.png");
             }
+
+            for (var stage = 0; stage <= 7; stage++)
+            {
+                using var crack = BuildCrackOverlay(tileSize, stage, 3111 + stage * 31);
+                crack.Save(Path.Combine(overlaysDirectory, $"overlay_crack_{stage}.png"), ImageFormat.Png);
+                generatedPaths.Add($"overlays/overlay_crack_{stage}.png");
+            }
+
+            using var moss = BuildTintOverlay(tileSize, Rgba(82, 137, 71, 180), 0.38f, 3301);
+            moss.Save(Path.Combine(overlaysDirectory, "overlay_moss.png"), ImageFormat.Png);
+            generatedPaths.Add("overlays/overlay_moss.png");
+
+            using var frost = BuildTintOverlay(tileSize, Rgba(198, 228, 250, 175), 0.42f, 3349);
+            frost.Save(Path.Combine(overlaysDirectory, "overlay_frost.png"), ImageFormat.Png);
+            generatedPaths.Add("overlays/overlay_frost.png");
+
+            using var scorch = BuildTintOverlay(tileSize, Rgba(74, 56, 48, 190), 0.35f, 3391);
+            scorch.Save(Path.Combine(overlaysDirectory, "overlay_scorch.png"), ImageFormat.Png);
+            generatedPaths.Add("overlays/overlay_scorch.png");
+
+            using var wet = BuildTintOverlay(tileSize, Rgba(54, 79, 117, 150), 0.30f, 3433);
+            wet.Save(Path.Combine(overlaysDirectory, "overlay_wet.png"), ImageFormat.Png);
+            generatedPaths.Add("overlays/overlay_wet.png");
         }
         finally
         {
             foreach (var texture in generated.Values)
-            {
                 texture.Dispose();
-            }
         }
 
         var readmePath = Path.Combine(outputDirectory, "README.txt");
-        File.WriteAllText(readmePath,
-            "Procedural voxel tile output\n" +
-            "- tile_stone.png\n" +
-            "- tile_dirt.png\n" +
-            "- tile_grass_top.png\n" +
-            "- tile_grass_side.png\n" +
-            "- tile_atlas_voxel_basic.png (2x2 atlas order: stone, dirt, grass_top, grass_side)\n" +
-            "\n" +
-            "Regenerate via:\n" +
-            "dotnet run --project Tools/MonsterMapAssetGenerator/MonsterMapAssetGenerator.csproj -- generate-voxel-tiles\n");
+        var lines = new List<string>
+        {
+            "Procedural voxel tile output",
+            "",
+            "Generated resources:",
+        };
+        lines.AddRange(generatedPaths.ConvertAll(static entry => $"- {entry}"));
+        lines.Add(string.Empty);
+        lines.Add("Regenerate via:");
+        lines.Add("dotnet run --project Tools/MonsterMapAssetGenerator/MonsterMapAssetGenerator.csproj -- generate-voxel-tiles");
+        File.WriteAllLines(readmePath, lines);
 
         return outputDirectory;
     }
@@ -1074,9 +1117,7 @@ public static class MonsterMapAssetGenerator
         for (var y = 0; y < size; y++)
         {
             for (var x = 0; x < size; x++)
-            {
                 side.SetPixel(x, y, dirt.GetPixel(x, y));
-            }
         }
 
         var capHeight = Math.Max(6, size / 4);
@@ -1102,6 +1143,177 @@ public static class MonsterMapAssetGenerator
         }
 
         return side;
+    }
+
+    private static Bitmap BuildLogSideTile(int size, Color baseColor, Color darkColor, Color lightColor, int seed)
+    {
+        var tile = BuildProceduralTile(size, new TileConfig("log_side", baseColor, darkColor, lightColor, 42, 0, 9, seed));
+        using var graphics = CreateGraphics(tile);
+        using var darkPen = new Pen(Color.FromArgb(110, darkColor), 1f);
+        using var lightPen = new Pen(Color.FromArgb(85, lightColor), 1f);
+        for (var y = 2; y < size; y += 4)
+        {
+            graphics.DrawLine(darkPen, 0, y, size - 1, y);
+            if (y + 1 < size)
+                graphics.DrawLine(lightPen, 0, y + 1, size - 1, y + 1);
+        }
+
+        return tile;
+    }
+
+    private static Bitmap BuildLogTopTile(int size, Color centerColor, Color ringColor, Color barkColor, int seed)
+    {
+        var tile = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        var cx = (size - 1) * 0.5f;
+        var cy = (size - 1) * 0.5f;
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var dx = x - cx;
+                var dy = y - cy;
+                var dist = (float)Math.Sqrt(dx * dx + dy * dy) / (size * 0.5f);
+                var noise = SampleValueNoise(x, y, seed, 4, size);
+                var ring = (float)(Math.Sin((dist * 14f) + noise * 4f) * 0.5f + 0.5f);
+                var tone = Blend(centerColor, ringColor, Math.Clamp(ring * 0.8f, 0f, 1f));
+                if (dist > 0.86f)
+                    tone = Blend(tone, barkColor, Math.Clamp((dist - 0.86f) * 5f, 0f, 1f));
+                tile.SetPixel(x, y, tone);
+            }
+        }
+
+        return tile;
+    }
+
+    private static void ApplyWoodPlankLines(Bitmap tile, int seed)
+    {
+        var rng = new Random(seed);
+        for (var y = 3; y < tile.Height; y += 6)
+        {
+            for (var x = 0; x < tile.Width; x++)
+            {
+                var jitter = rng.Next(-8, 9);
+                tile.SetPixel(x, y, ShiftColor(tile.GetPixel(x, y), jitter));
+            }
+        }
+    }
+
+    private static void ApplyBrickPattern(Bitmap tile, int seed)
+    {
+        var rng = new Random(seed);
+        var mortar = Rgba(88, 78, 72);
+        for (var y = 0; y < tile.Height; y++)
+        {
+            if (y % 8 == 0)
+            {
+                for (var x = 0; x < tile.Width; x++)
+                    tile.SetPixel(x, y, Blend(tile.GetPixel(x, y), mortar, 0.65f));
+            }
+        }
+
+        for (var x = 0; x < tile.Width; x += 8)
+        {
+            var offset = ((x / 8) & 1) == 0 ? 4 : 0;
+            for (var y = offset; y < tile.Height; y += 8)
+            {
+                tile.SetPixel(x, y, Blend(tile.GetPixel(x, y), mortar, 0.72f));
+                if (x + 1 < tile.Width)
+                    tile.SetPixel(x + 1, y, Blend(tile.GetPixel(x + 1, y), mortar, 0.42f));
+            }
+        }
+
+        for (var i = 0; i < 18; i++)
+        {
+            var x = rng.Next(1, tile.Width - 1);
+            var y = rng.Next(1, tile.Height - 1);
+            tile.SetPixel(x, y, ShiftColor(tile.GetPixel(x, y), rng.Next(-22, 18)));
+        }
+    }
+
+    private static Bitmap BuildOreOverlayTile(int size, OreConfig ore)
+    {
+        var overlay = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        var rng = new Random(ore.SeedOffset + size * 7);
+        for (var i = 0; i < ore.NuggetCount; i++)
+        {
+            var x = rng.Next(1, size - 1);
+            var y = rng.Next(1, size - 1);
+            overlay.SetPixel(x, y, ore.Color);
+            if (rng.NextDouble() < 0.55)
+                overlay.SetPixel(Math.Clamp(x + rng.Next(-1, 2), 0, size - 1), Math.Clamp(y + rng.Next(-1, 2), 0, size - 1), ore.Shade);
+            if (rng.NextDouble() < 0.45)
+                overlay.SetPixel(Math.Clamp(x + rng.Next(-1, 2), 0, size - 1), Math.Clamp(y + rng.Next(-1, 2), 0, size - 1), Color.FromArgb(180, ore.Color));
+        }
+
+        return overlay;
+    }
+
+    private static Bitmap ComposeOverlay(Bitmap baseTile, Bitmap overlay, float alpha)
+    {
+        var result = new Bitmap(baseTile.Width, baseTile.Height, PixelFormat.Format32bppArgb);
+        for (var y = 0; y < result.Height; y++)
+        {
+            for (var x = 0; x < result.Width; x++)
+            {
+                var baseColor = baseTile.GetPixel(x, y);
+                var over = overlay.GetPixel(x, y);
+                if (over.A == 0)
+                {
+                    result.SetPixel(x, y, baseColor);
+                    continue;
+                }
+
+                var strength = (over.A / 255f) * alpha;
+                result.SetPixel(x, y, Blend(baseColor, over, strength));
+            }
+        }
+
+        return result;
+    }
+
+    private static Bitmap BuildCrackOverlay(int size, int stage, int seed)
+    {
+        var image = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        var rng = new Random(seed + stage * 41);
+        var crackColor = Rgba(34, 30, 28, 90 + stage * 18);
+        var branches = 2 + stage;
+        for (var b = 0; b < branches; b++)
+        {
+            var x = rng.Next(0, size);
+            var y = rng.Next(0, size);
+            var length = size / 2 + stage * 2;
+            var angle = rng.NextDouble() * Math.PI * 2;
+            for (var i = 0; i < length; i++)
+            {
+                x = Math.Clamp((int)Math.Round(x + Math.Cos(angle)), 0, size - 1);
+                y = Math.Clamp((int)Math.Round(y + Math.Sin(angle)), 0, size - 1);
+                image.SetPixel(x, y, crackColor);
+                if (stage >= 3 && rng.NextDouble() < 0.18)
+                    image.SetPixel(Math.Clamp(x + rng.Next(-1, 2), 0, size - 1), Math.Clamp(y + rng.Next(-1, 2), 0, size - 1), Color.FromArgb(crackColor.A / 2, crackColor));
+                angle += (rng.NextDouble() - 0.5) * 0.4;
+            }
+        }
+
+        return image;
+    }
+
+    private static Bitmap BuildTintOverlay(int size, Color tint, float coverage, int seed)
+    {
+        var image = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var noise = SampleValueNoise(x, y, seed, 5, size);
+                if (noise < 1f - coverage)
+                    continue;
+
+                var strength = Math.Clamp((noise - (1f - coverage)) / Math.Max(coverage, 0.01f), 0f, 1f);
+                image.SetPixel(x, y, Color.FromArgb((int)(tint.A * strength), tint));
+            }
+        }
+
+        return image;
     }
 
     private static Bitmap BuildTileAtlas(int tileSize, Bitmap stone, Bitmap dirt, Bitmap grassTop, Bitmap grassSide)
@@ -1348,5 +1560,12 @@ public static class MonsterMapAssetGenerator
         int SpeckleCount,
         int CrackCount,
         int GrainStrength,
+        int SeedOffset);
+
+    private readonly record struct OreConfig(
+        string Name,
+        Color Color,
+        Color Shade,
+        int NuggetCount,
         int SeedOffset);
 }

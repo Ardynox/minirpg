@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Multiplayer;
 
 namespace MiniRPG.Core.AI;
 
-public readonly record struct AwarenessTurnContext(Actor? Player, bool PlayerIsDead);
+public readonly record struct AwarenessTurnContext(IReadOnlyList<Actor> PlayerTargets);
 
 public static class AwarenessModule
 {
@@ -15,8 +16,18 @@ public static class AwarenessModule
 
 	public static AwarenessTurnContext CreateTurnContext(GameState state)
 	{
-		var player = ActorModule.GetPlayer(state);
-		return new AwarenessTurnContext(player, player == null || CombatModule.IsDead(player));
+		var targets = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false)
+			.Where(static actor => !CombatModule.IsDead(actor))
+			.DistinctBy(static actor => actor.Id)
+			.ToArray();
+		if (targets.Length == 0)
+		{
+			var player = ActorModule.GetPlayer(state);
+			if (player != null && !CombatModule.IsDead(player))
+				targets = [player];
+		}
+
+		return new AwarenessTurnContext(targets);
 	}
 
 	public static List<GameEvent> UpdateForTurn(GameState state, Actor actor, Perception perception) =>
@@ -29,25 +40,39 @@ public static class AwarenessModule
 		AwarenessTurnContext context)
 	{
 		var events = new List<GameEvent>();
-		var player = context.Player;
-		if (player == null
-			|| string.Equals(player.Id, actor.Id, StringComparison.Ordinal)
-			|| context.PlayerIsDead
-			|| !FactionRelation.IsHostile(actor.Faction, player.Faction))
+		var playerTargets = context.PlayerTargets
+			.Where(target =>
+				!string.Equals(target.Id, actor.Id, StringComparison.Ordinal)
+				&& !CombatModule.IsDead(target)
+				&& FactionRelation.IsHostile(actor.Faction, target.Faction))
+			.ToArray();
+		if (playerTargets.Length == 0)
 		{
 			Reset(actor);
 			return events;
 		}
 
-		var canSeePlayer = perception.NearbyActors.Any(other => string.Equals(other.Id, player.Id, StringComparison.Ordinal));
+		var visibleTarget = perception.NearbyActors
+			.Where(other => playerTargets.Any(target => string.Equals(target.Id, other.Id, StringComparison.Ordinal)))
+			.OrderBy(other => Distance(actor, other))
+			.FirstOrDefault();
+		var trackedTarget = ResolveTrackedTarget(actor, playerTargets);
+		var currentTarget = visibleTarget ?? trackedTarget;
+		if (currentTarget == null)
+		{
+			Reset(actor);
+			return events;
+		}
+
+		var canSeePlayer = visibleTarget != null;
 		if (canSeePlayer)
-			actor.RememberAlertTarget(player);
+			actor.RememberAlertTarget(currentTarget);
 
 		switch (actor.AwarenessState)
 		{
 			case AwarenessState.Idle:
 				if (canSeePlayer)
-					ChangeState(state, actor, player, AwarenessState.Suspicious, events);
+					ChangeState(state, actor, currentTarget, AwarenessState.Suspicious, events);
 				else
 					actor.StateTurns++;
 				break;
@@ -55,11 +80,11 @@ public static class AwarenessModule
 			case AwarenessState.Suspicious:
 				if (canSeePlayer)
 				{
-					ChangeState(state, actor, player, AwarenessState.Alerted, events);
+					ChangeState(state, actor, currentTarget, AwarenessState.Alerted, events);
 				}
 				else if (actor.StateTurns >= 1 || IsAtLastKnownPosition(actor))
 				{
-					ChangeState(state, actor, player, AwarenessState.Idle, events, clearTarget: true);
+					ChangeState(state, actor, currentTarget, AwarenessState.Idle, events, clearTarget: true);
 				}
 				else
 				{
@@ -74,18 +99,18 @@ public static class AwarenessModule
 				}
 				else
 				{
-					ChangeState(state, actor, player, AwarenessState.Searching, events);
+					ChangeState(state, actor, currentTarget, AwarenessState.Searching, events);
 				}
 				break;
 
 			case AwarenessState.Searching:
 				if (canSeePlayer)
 				{
-					ChangeState(state, actor, player, AwarenessState.Alerted, events);
+					ChangeState(state, actor, currentTarget, AwarenessState.Alerted, events);
 				}
 				else if (actor.SearchTurnsRemaining <= 1)
 				{
-					ChangeState(state, actor, player, AwarenessState.Idle, events, clearTarget: true);
+					ChangeState(state, actor, currentTarget, AwarenessState.Idle, events, clearTarget: true);
 				}
 				else
 				{
@@ -149,6 +174,22 @@ public static class AwarenessModule
 		actor.X == actor.LastKnownTargetX
 		&& actor.Y == actor.LastKnownTargetY
 		&& actor.Z == actor.LastKnownTargetZ;
+
+	private static Actor? ResolveTrackedTarget(Actor actor, IReadOnlyList<Actor> playerTargets)
+	{
+		var remembered = playerTargets.FirstOrDefault(target =>
+			string.Equals(target.Id, actor.AlertTargetActorId, StringComparison.Ordinal));
+		if (remembered != null)
+			return remembered;
+
+		return playerTargets
+			.OrderBy(target => Distance(actor, target))
+			.ThenBy(target => target.Id, StringComparer.Ordinal)
+			.FirstOrDefault();
+	}
+
+	private static int Distance(Actor actor, Actor target) =>
+		Math.Abs(actor.X - target.X) + Math.Abs(actor.Y - target.Y) + Math.Abs(actor.Z - target.Z);
 
 	private static void Reset(Actor actor)
 	{

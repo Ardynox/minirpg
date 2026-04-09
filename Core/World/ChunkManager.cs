@@ -63,10 +63,23 @@ public class ChunkManager
 
 	public void UpdateLoadedChunks(WorldCoord center, int currentTurn)
 	{
-		var chunkCenter = CoordUtil.WorldToChunk(center);
-		LoadCriticalWindow(chunkCenter, currentTurn);
-		RebuildPendingLoadQueue(chunkCenter, currentTurn);
-		EvictDistant(chunkCenter);
+		UpdateLoadedChunks([center], currentTurn);
+	}
+
+	public void UpdateLoadedChunks(IEnumerable<WorldCoord> centers, int currentTurn)
+	{
+		var chunkCenters = centers
+			.Select(CoordUtil.WorldToChunk)
+			.Distinct()
+			.ToList();
+		if (chunkCenters.Count == 0)
+			return;
+
+		foreach (var chunkCenter in chunkCenters)
+			LoadCriticalWindow(chunkCenter, currentTurn);
+
+		RebuildPendingLoadQueue(chunkCenters, currentTurn);
+		EvictDistant(chunkCenters);
 	}
 
 	public void ProcessPendingLoads(int currentTurn, int? budgetOverride = null)
@@ -120,11 +133,11 @@ public class ChunkManager
 		}
 	}
 
-	private void RebuildPendingLoadQueue(ChunkCoord center, int currentTurn)
+	private void RebuildPendingLoadQueue(IReadOnlyList<ChunkCoord> centers, int currentTurn)
 	{
 		_pendingLoadQueue.Clear();
 
-		foreach (var coord in EnumerateBackgroundWindow(center))
+		foreach (var coord in EnumerateBackgroundWindow(centers))
 		{
 			if (_loaded.TryGetValue(coord, out var loaded))
 			{
@@ -136,29 +149,33 @@ public class ChunkManager
 		}
 	}
 
-	private IEnumerable<ChunkCoord> EnumerateBackgroundWindow(ChunkCoord center)
+	private IEnumerable<ChunkCoord> EnumerateBackgroundWindow(IReadOnlyList<ChunkCoord> centers)
 	{
-		var queued = new List<(ChunkCoord Coord, int Priority)>();
-		for (var cz = center.Cz - LoadRadiusZ; cz <= center.Cz + LoadRadiusZ; cz++)
-		for (var cy = center.Cy - LoadRadiusXY; cy <= center.Cy + LoadRadiusXY; cy++)
-		for (var cx = center.Cx - LoadRadiusXY; cx <= center.Cx + LoadRadiusXY; cx++)
+		var queued = new Dictionary<ChunkCoord, int>();
+		foreach (var center in centers)
 		{
-			var dx = Math.Abs(cx - center.Cx);
-			var dy = Math.Abs(cy - center.Cy);
-			var dz = Math.Abs(cz - center.Cz);
-			if (dz == 0 && dx <= CriticalLoadRadiusXY && dy <= CriticalLoadRadiusXY)
-				continue;
+			for (var cz = center.Cz - LoadRadiusZ; cz <= center.Cz + LoadRadiusZ; cz++)
+			for (var cy = center.Cy - LoadRadiusXY; cy <= center.Cy + LoadRadiusXY; cy++)
+			for (var cx = center.Cx - LoadRadiusXY; cx <= center.Cx + LoadRadiusXY; cx++)
+			{
+				var dx = Math.Abs(cx - center.Cx);
+				var dy = Math.Abs(cy - center.Cy);
+				var dz = Math.Abs(cz - center.Cz);
+				if (dz == 0 && dx <= CriticalLoadRadiusXY && dy <= CriticalLoadRadiusXY)
+					continue;
 
-			var priority = dz * 100 + dx + dy;
-			queued.Add((new ChunkCoord(cx, cy, cz), priority));
+				var coord = new ChunkCoord(cx, cy, cz);
+				var priority = dz * 100 + dx + dy;
+				if (!queued.TryGetValue(coord, out var currentPriority) || priority < currentPriority)
+					queued[coord] = priority;
+			}
 		}
 
-		queued.Sort((a, b) => a.Priority.CompareTo(b.Priority));
-		foreach (var (coord, _) in queued)
+		foreach (var (coord, _) in queued.OrderBy(static entry => entry.Value).ThenBy(static entry => entry.Key.Cz).ThenBy(static entry => entry.Key.Cy).ThenBy(static entry => entry.Key.Cx))
 			yield return coord;
 	}
 
-	private void EvictDistant(ChunkCoord center)
+	private void EvictDistant(IReadOnlyList<ChunkCoord> centers)
 	{
 		if (_loaded.Count <= MaxCachedChunks)
 			return;
@@ -168,11 +185,15 @@ public class ChunkManager
 
 		foreach (var (coord, chunk) in _loaded)
 		{
-			var dx = Math.Abs(coord.Cx - center.Cx);
-			var dy = Math.Abs(coord.Cy - center.Cy);
-			var dz = Math.Abs(coord.Cz - center.Cz);
+			var nearAnyCenter = centers.Any(center =>
+			{
+				var dx = Math.Abs(coord.Cx - center.Cx);
+				var dy = Math.Abs(coord.Cy - center.Cy);
+				var dz = Math.Abs(coord.Cz - center.Cz);
+				return dx <= evictRadius && dy <= evictRadius && dz <= LoadRadiusZ + 1;
+			});
 
-			if (dx > evictRadius || dy > evictRadius || dz > LoadRadiusZ + 1)
+			if (!nearAnyCenter)
 				toEvict.Add(coord);
 		}
 

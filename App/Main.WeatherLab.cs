@@ -32,6 +32,6 @@ public partial class Main
 
 		_mainAppFlowCoordinator.LoadFromMainMenu(
 			LocalizationService.T("ui.main_menu.weather_lab"),
-			() => _session.LoadPresetScenario(WeatherLabPresetScenarioId));
+			() => _session.PrepareLoadPresetScenario(WeatherLabPresetScenarioId));
 	}
 }

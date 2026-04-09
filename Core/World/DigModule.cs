@@ -42,6 +42,8 @@ public static class DigModule
 			if (rubbleId == 0)
 				rubbleId = TerrainRegistry.GetId(Terrains.Rubble);
 			world.SetTerrainId(tx, ty, tz, rubbleId);
+			TrySpawnDigDrop(state, tx, ty, tz, terrain.StringId);
+			TryCreateVerticalStairsAfterBreak(world, actor.X, actor.Y, actor.Z, tx, ty, tz);
 
 			return [new GameEvent("dig_success")
 			{
@@ -89,6 +91,60 @@ public static class DigModule
 		var limbHardness = actor.GetLimbHardness(Caps.Manipulation);
 		var power = (1 + skillLevel) * manipulation * 5f * (1f + limbHardness / 10f);
 		return Math.Max(1, (int)power);
+	}
+
+	private static void TrySpawnDigDrop(GameState state, int tx, int ty, int tz, string terrainId)
+	{
+		if (state.World == null)
+			return;
+
+		var dropItemId = ResolveDigDropItemId(terrainId);
+		if (string.IsNullOrWhiteSpace(dropItemId))
+			return;
+
+		try
+		{
+			var item = PresetDB.CloneItem(dropItemId);
+			item.StackCount = 1;
+			state.World.PlaceItem(tx, ty, tz, item);
+		}
+		catch (ArgumentException)
+		{
+			// Ignore unknown presets to keep dig path resilient.
+		}
+	}
+
+	private static string ResolveDigDropItemId(string terrainId) => terrainId switch
+	{
+		Terrains.OreCoal => "mat_coal",
+		Terrains.OreIron => "mat_iron",
+		Terrains.OreCopper => "mat_copper",
+		Terrains.OreGold => "mat_gold",
+		Terrains.OreCrystal => "mat_crystal",
+		_ => string.Empty,
+	};
+
+	private static void TryCreateVerticalStairsAfterBreak(WorldMap world, int actorX, int actorY, int actorZ, int tx, int ty, int tz)
+	{
+		if (tx != actorX || ty != actorY)
+			return;
+		if (tz == actorZ)
+			return;
+
+		if (tz > actorZ)
+		{
+			if (!world.HasFixture(actorX, actorY, actorZ, Entities.StairDown))
+				world.SetFixture(actorX, actorY, actorZ, WorldMap.ResolveFixtureGlyph(Entities.StairDown), Entities.StairDown);
+			if (!world.HasFixture(actorX, actorY, tz, Entities.StairUp))
+				world.SetFixture(actorX, actorY, tz, WorldMap.ResolveFixtureGlyph(Entities.StairUp), Entities.StairUp);
+		}
+		else
+		{
+			if (!world.HasFixture(actorX, actorY, actorZ, Entities.StairUp))
+				world.SetFixture(actorX, actorY, actorZ, WorldMap.ResolveFixtureGlyph(Entities.StairUp), Entities.StairUp);
+			if (!world.HasFixture(actorX, actorY, tz, Entities.StairDown))
+				world.SetFixture(actorX, actorY, tz, WorldMap.ResolveFixtureGlyph(Entities.StairDown), Entities.StairDown);
+		}
 	}
 
 	private static GameEvent DigFailed(Actor actor, string reason) =>

@@ -86,6 +86,201 @@ public sealed class GameSessionModuleTests
 	}
 
 	[Fact]
+	public void PrepareLoadGame_WhenPlayerIdMissingWithSingleCandidate_RequiresExplicitRecoveryCommit()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-load-recovery-single");
+		try
+		{
+			var sourceState = new GameState();
+			var sourceSession = new GameSessionModule(sourceState, new FogOfWarTracker(), root);
+			sourceSession.NewGame(CreateOptions("Rook"));
+			var path = WritePreparedLoadSave(root, "single-candidate.json", sourceState, saveFile =>
+			{
+				saveFile.Payload.PlayerId = "missing-player";
+			});
+
+			var restoredState = new GameState();
+			var restoredSession = new GameSessionModule(restoredState, new FogOfWarTracker(), root);
+			var prepared = restoredSession.PrepareLoadGame(path);
+
+			Assert.Equal(SaveLoadStatus.Success, prepared.Status);
+			var recovery = Assert.IsType<PreparedLoadRecovery>(prepared.Recovery);
+			var candidate = Assert.Single(recovery.Candidates);
+			Assert.Equal("missing-player", recovery.MissingPlayerId);
+			Assert.Equal(SaveLoadStatus.Incompatible, restoredSession.CommitPreparedLoad(prepared));
+
+			var status = restoredSession.CommitPreparedLoad(prepared, candidate.ActorId);
+
+			Assert.Equal(SaveLoadStatus.Success, status);
+			Assert.True(restoredSession.GameStarted);
+			Assert.Equal(candidate.ActorId, restoredState.PlayerId);
+			Assert.True(restoredState.Actors.ContainsKey(candidate.ActorId));
+			Assert.Equal(candidate.X, restoredState.PlayerX);
+			Assert.Equal(candidate.Y, restoredState.PlayerY);
+			Assert.Equal(candidate.Z, restoredState.PlayerZ);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void PrepareLoadGame_WhenPlayerIdMissingWithMultipleCandidates_ExposesCandidatesAndRequiresSelectedId()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-load-recovery-multi");
+		try
+		{
+			var sourceState = new GameState();
+			var sourceSession = new GameSessionModule(sourceState, new FogOfWarTracker(), root);
+			sourceSession.NewGame(CreateOptions("Rook"));
+			var path = WritePreparedLoadSave(root, "multi-candidate.json", sourceState, saveFile =>
+			{
+				saveFile.Payload.PlayerId = "missing-player";
+				AddPlayerRecoveryCandidate(saveFile, sourceState.PlayerId, "player_twin", "Rook Twin", 8, 7, 0);
+			});
+
+			var restoredState = new GameState();
+			var restoredSession = new GameSessionModule(restoredState, new FogOfWarTracker(), root);
+			var prepared = restoredSession.PrepareLoadGame(path);
+
+			Assert.Equal(SaveLoadStatus.Success, prepared.Status);
+			var recovery = Assert.IsType<PreparedLoadRecovery>(prepared.Recovery);
+			Assert.Equal(2, recovery.Candidates.Count);
+			Assert.True(recovery.Candidates.Any(candidate => candidate.ActorId == sourceState.PlayerId));
+			var selectedCandidate = Assert.Single(recovery.Candidates.Where(candidate => candidate.ActorId == "player_twin"));
+
+			Assert.Equal(SaveLoadStatus.Incompatible, restoredSession.CommitPreparedLoad(prepared, "unknown-candidate"));
+			Assert.Empty(restoredState.Actors);
+
+			var status = restoredSession.CommitPreparedLoad(prepared, selectedCandidate.ActorId);
+
+			Assert.Equal(SaveLoadStatus.Success, status);
+			Assert.Equal(selectedCandidate.ActorId, restoredState.PlayerId);
+			Assert.True(restoredState.Actors.ContainsKey(selectedCandidate.ActorId));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void PrepareLoadGame_WhenPlayerIdMissingAndNoCandidates_ReturnsIncompatible_AndLegacyLoadDoesNotSpawnFallback()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-load-recovery-none");
+		try
+		{
+			var sourceState = new GameState();
+			var sourceSession = new GameSessionModule(sourceState, new FogOfWarTracker(), root);
+			sourceSession.NewGame(CreateOptions("Rook"));
+			var path = WritePreparedLoadSave(root, "no-candidate.json", sourceState, saveFile =>
+			{
+				saveFile.Payload.PlayerId = "missing-player";
+				foreach (var actor in saveFile.Payload.Actors)
+				{
+					if (actor.Faction == Factions.Player)
+						actor.Faction = "neutral";
+				}
+			});
+
+			var previewSession = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var prepared = previewSession.PrepareLoadGame(path);
+
+			Assert.Equal(SaveLoadStatus.Incompatible, prepared.Status);
+			Assert.Null(prepared.Recovery);
+
+			var legacyState = new GameState();
+			var legacySession = new GameSessionModule(legacyState, new FogOfWarTracker(), root);
+			var status = legacySession.LoadGame(path);
+
+			Assert.Equal(SaveLoadStatus.Incompatible, status);
+			Assert.False(legacySession.GameStarted);
+			Assert.Empty(legacyState.Actors);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void PrepareLoadGame_DoesNotMutateCurrentState_WhenRecoveryIsAbandoned()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-load-recovery-abandon");
+		try
+		{
+			var currentState = new GameState();
+			var currentSession = new GameSessionModule(currentState, new FogOfWarTracker(), root);
+			currentSession.NewGame(CreateOptions("Current"));
+			var originalPlayerId = currentState.PlayerId;
+			var originalTurn = currentState.Turn;
+			var originalActorCount = currentState.Actors.Count;
+
+			var badSavePath = WritePreparedLoadSave(root, "abandon-candidate.json", currentState, saveFile =>
+			{
+				saveFile.Payload.PlayerId = "missing-player";
+			});
+
+			var prepared = currentSession.PrepareLoadGame(badSavePath);
+
+			Assert.Equal(SaveLoadStatus.Success, prepared.Status);
+			Assert.NotNull(prepared.Recovery);
+			Assert.Equal(originalPlayerId, currentState.PlayerId);
+			Assert.Equal(originalTurn, currentState.Turn);
+			Assert.Equal(originalActorCount, currentState.Actors.Count);
+			Assert.True(currentSession.GameStarted);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void LoadGame_StrictWrapper_DoesNotSilentlyRebindPlayerId()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-load-recovery-strict");
+		try
+		{
+			var sourceState = new GameState();
+			var sourceSession = new GameSessionModule(sourceState, new FogOfWarTracker(), root);
+			sourceSession.NewGame(CreateOptions("Rook"));
+			var path = WritePreparedLoadSave(root, "strict-single-candidate.json", sourceState, saveFile =>
+			{
+				saveFile.Payload.PlayerId = "missing-player";
+			});
+
+			var currentState = new GameState();
+			var currentSession = new GameSessionModule(currentState, new FogOfWarTracker(), root);
+			currentSession.NewGame(CreateOptions("Current"));
+			var originalPlayerId = currentState.PlayerId;
+			var originalActorCount = currentState.Actors.Count;
+
+			var status = currentSession.LoadGame(path);
+
+			Assert.Equal(SaveLoadStatus.Incompatible, status);
+			Assert.Equal(originalPlayerId, currentState.PlayerId);
+			Assert.Equal(originalActorCount, currentState.Actors.Count);
+			Assert.True(currentState.Actors.ContainsKey(originalPlayerId));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void DeleteWorldSaveData_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
 	{
 		TestSupport.EnsureGameplayDataLoaded();
@@ -474,6 +669,47 @@ public sealed class GameSessionModuleTests
 			ProfessionId = defaults.ProfessionId,
 			AppearanceId = defaults.AppearanceId,
 		};
+	}
+
+	private static string WritePreparedLoadSave(
+		string root,
+		string fileName,
+		GameState state,
+		Action<SaveFile> mutate)
+	{
+		var saveFile = SaveModule.BuildSnapshot(state);
+		mutate(saveFile);
+		var path = Path.Combine(root, fileName);
+		SaveModule.WriteSaveFile(saveFile, path);
+		return path;
+	}
+
+	private static void AddPlayerRecoveryCandidate(
+		SaveFile saveFile,
+		string sourceActorId,
+		string newActorId,
+		string displayName,
+		int x,
+		int y,
+		int z)
+	{
+		var clone = SaveModule.DeserializeSaveFile(SaveModule.SerializeSaveFile(saveFile));
+		Assert.NotNull(clone);
+
+		var candidate = clone!.Payload.Actors.First(snapshot => snapshot.Id == sourceActorId);
+		candidate.Id = newActorId;
+		candidate.DisplayName = displayName;
+		candidate.X = x;
+		candidate.Y = y;
+		candidate.Z = z;
+		saveFile.Payload.Actors.Add(candidate);
+
+		var timelineActor = clone.Payload.Timeline.Actors.FirstOrDefault(snapshot => snapshot.ActorId == sourceActorId);
+		if (timelineActor == null)
+			return;
+
+		timelineActor.ActorId = newActorId;
+		saveFile.Payload.Timeline.Actors.Add(timelineActor);
 	}
 
 	private static SaveFile CreateMinimalSaveFile(string title) => new()

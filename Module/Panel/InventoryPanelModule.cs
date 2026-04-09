@@ -241,11 +241,15 @@ public class InventoryPanelModule : ListPanelBase
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null || _cursor < 0 || _cursor >= _displayItems.Count) return false;
 		var (invIdx, _) = _displayItems[_cursor];
-		var result = InventoryModule.ToggleEquip(player, invIdx, _host.State);
-		_host.AddLog(result.Message);
+		var result = ServerActionGateway.Execute(_host.State, new InventoryToggleEquipClientCommand
+		{
+			ActorId = player.Id,
+			InventoryIndex = invIdx,
+		});
+		ApplyServerActionResult(result);
 		Refresh();
 		_host.FlushMap();
-		return true;
+		return result.Ok;
 	}
 
 	public bool TryUse()
@@ -286,11 +290,15 @@ public class InventoryPanelModule : ListPanelBase
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null || _cursor < 0 || _cursor >= _displayItems.Count) return false;
 		var (invIdx, _) = _displayItems[_cursor];
-		var events = InteractionModule.DropItem(_host.State, player, invIdx);
-		_host.Dispatch(events);
+		var result = ServerActionGateway.Execute(_host.State, new InventoryDropClientCommand
+		{
+			ActorId = player.Id,
+			InventoryIndex = invIdx,
+		});
+		ApplyServerActionResult(result);
 		Refresh();
 		_host.FlushMap();
-		return true;
+		return result.Ok;
 	}
 
 	private void RebuildList(Actor player)
@@ -535,5 +543,14 @@ public class InventoryPanelModule : ListPanelBase
 			return LocalizationService.T("ui.inventory.filter.all");
 
 		return ItemSubcategoryRegistry.Get(filterId)?.Name ?? filterId;
+	}
+
+	private void ApplyServerActionResult(ServerActionResult result)
+	{
+		foreach (var log in result.Logs)
+			_host.AddLog(log);
+
+		if (result.Events.Count > 0)
+			_host.Dispatch(result.Events);
 	}
 }

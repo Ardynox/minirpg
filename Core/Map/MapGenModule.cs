@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
@@ -55,8 +56,8 @@ public static class MapGenModule
 		state.World.Chunks.OnChunkLoad = SaveModule.LoadChunkFromCache;
 		state.World.Chunks.OnChunkUnload = SaveModule.SaveChunkToCache;
 
-		var center = new WorldCoord(state.PlayerX, state.PlayerY, state.PlayerZ);
-		state.World.Chunks.UpdateLoadedChunks(center, state.Turn);
+		var anchors = RoomRuntimeModule.GetWorldAnchors(state).Select(static anchor => anchor.Position).ToArray();
+		state.World.Chunks.UpdateLoadedChunks(anchors, state.Turn);
 	}
 
 	/// <summary>在玩家位置放置一个新生成的玩家 Actor。</summary>

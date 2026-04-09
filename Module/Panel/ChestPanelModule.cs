@@ -15,6 +15,8 @@ public class ChestPanelModule : ListPanelBase
 		GameState State { get; }
 		void AddLog(string msg);
 		void FlushMap();
+		void TakeChestItem(Item chestItem, int itemIndex);
+		void TakeAllChestItems(Item chestItem);
 		void CloseChestPanel();
 		void OpenPutIntoChestSelection(Item chestItem);
 		void PersistChestItem(Item chestItem);
@@ -160,17 +162,7 @@ public class ChestPanelModule : ListPanelBase
 	{
 		if (_chestItem?.Contents == null) return;
 		if (_cursor < 0 || _cursor >= _chestItem.Contents.Count) return;
-		var player = ActorModule.GetPlayer(_host.State);
-		if (player == null) return;
-
-		var item = _chestItem.Contents[_cursor];
-		_chestItem.Contents.RemoveAt(_cursor);
-		InventoryModule.Add(player, item);
-		_host.AddLog(LocalizationService.T(
-			"log.chest.take_item",
-			("chest", ItemFormatHelper.GetDisplayName(_host.State, _chestItem)),
-			("item", ItemFormatHelper.GetDisplayName(_host.State, item))));
-		_host.PersistChestItem(_chestItem);
+		_host.TakeChestItem(_chestItem, _cursor);
 		Refresh();
 		_host.FlushMap();
 	}
@@ -178,16 +170,7 @@ public class ChestPanelModule : ListPanelBase
 	public void TryTakeAll()
 	{
 		if (_chestItem?.Contents == null) return;
-		var player = ActorModule.GetPlayer(_host.State);
-		if (player == null) return;
-		var count = _chestItem.Contents.Count;
-		foreach (var item in _chestItem.Contents) InventoryModule.Add(player, item);
-		_chestItem.Contents.Clear();
-		_host.AddLog(LocalizationService.T(
-			"log.chest.take_all",
-			("chest", ItemFormatHelper.GetDisplayName(_host.State, _chestItem)),
-			("count", count)));
-		_host.PersistChestItem(_chestItem);
+		_host.TakeAllChestItems(_chestItem);
 		Refresh();
 		_host.FlushMap();
 	}

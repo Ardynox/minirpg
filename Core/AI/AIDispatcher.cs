@@ -24,15 +24,20 @@ public static class AIDispatcher
 	public static void Register(string id, IBrainModule brain) => _brains[id] = brain;
 
 	public static List<GameEvent> TickAll(GameState state, int viewCenterX, int viewCenterY, int viewRange) =>
-		TickAllInternal(state, viewCenterX, viewCenterY, viewRange, captureProfile: false).Events;
+		TickAll(state, [new WorldCoord(viewCenterX, viewCenterY, state.PlayerZ)], viewRange);
 
 	public static AIDispatchResult TickAllProfiled(GameState state, int viewCenterX, int viewCenterY, int viewRange) =>
-		TickAllInternal(state, viewCenterX, viewCenterY, viewRange, captureProfile: true);
+		TickAllProfiled(state, [new WorldCoord(viewCenterX, viewCenterY, state.PlayerZ)], viewRange);
+
+	public static List<GameEvent> TickAll(GameState state, IReadOnlyList<WorldCoord> viewAnchors, int viewRange) =>
+		TickAllInternal(state, viewAnchors, viewRange, captureProfile: false).Events;
+
+	public static AIDispatchResult TickAllProfiled(GameState state, IReadOnlyList<WorldCoord> viewAnchors, int viewRange) =>
+		TickAllInternal(state, viewAnchors, viewRange, captureProfile: true);
 
 	private static AIDispatchResult TickAllInternal(
 		GameState state,
-		int viewCenterX,
-		int viewCenterY,
+		IReadOnlyList<WorldCoord> viewAnchors,
 		int viewRange,
 		bool captureProfile)
 	{
@@ -62,7 +67,7 @@ public static class AIDispatcher
 			if (!state.Actors.ContainsKey(actor.Id) || CombatModule.IsDead(actor))
 				continue;
 
-			var detail = Classify(state, actor, viewCenterX, viewCenterY, viewRange);
+			var detail = Classify(state, actor, viewAnchors, viewRange);
 			if (detail == SimDetail.Summary && actor.AwarenessState != AwarenessState.Idle)
 				detail = SimDetail.Simplified;
 			if (detail == SimDetail.Summary)
@@ -377,6 +382,14 @@ public static class AIDispatcher
 
 	internal static SimDetail Classify(GameState state, Actor actor, int cx, int cy, int range)
 	{
+		return Classify(state, actor, [new WorldCoord(cx, cy, actor.Z)], range);
+	}
+
+	internal static SimDetail Classify(GameState state, Actor actor, IReadOnlyList<WorldCoord> anchors, int range)
+	{
+		if (anchors.Count == 0)
+			return SimDetail.Summary;
+
 		var simplifiedMultiplier = Math.Max(1, GameConfig.AIVision.SimplifiedActivationRangeMultiplier);
 		var scaledRange = VisionRangeScaler.ScaleRadius(range, actor.GetCapacity(Caps.Sight));
 		if (actor.Z == 0
@@ -387,7 +400,21 @@ public static class AIDispatcher
 			scaledRange = Math.Max(1, (int)MathF.Round(scaledRange * WeatherRules.GetAiVisionMultiplier(weather)));
 		}
 
-		var dist = Math.Abs(actor.X - cx) + Math.Abs(actor.Y - cy);
+		var bestDist = int.MaxValue;
+		foreach (var anchor in anchors)
+		{
+			if (anchor.Z != actor.Z)
+				continue;
+
+			var anchorDistance = Math.Abs(actor.X - anchor.X) + Math.Abs(actor.Y - anchor.Y);
+			if (anchorDistance < bestDist)
+				bestDist = anchorDistance;
+		}
+
+		if (bestDist == int.MaxValue)
+			return SimDetail.Summary;
+
+		var dist = bestDist;
 		if (dist <= scaledRange)
 			return SimDetail.Full;
 		if (dist <= scaledRange * simplifiedMultiplier)

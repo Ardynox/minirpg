@@ -122,6 +122,32 @@ public sealed class SettingsPanelModuleTests
 		Assert.Equal("ui.settings.hint.bindings", SettingsPanelModule.GetFooterHintKey(keyBindingsMode: true));
 	}
 
+	[Fact]
+	public void CanActivateRow_BlocksRenderAndZoomRows_WhenRenderIsNotReady()
+	{
+		var state = CreateState(
+			context: SettingsEntryContext.InGamePause,
+			renderReady: false,
+			canOpenSessionTab: true);
+
+		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.Render, state));
+		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
+		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
+	}
+
+	[Fact]
+	public void CanActivateRow_AllowsRenderAndZoomRows_WhenRenderIsReady()
+	{
+		var state = CreateState(
+			context: SettingsEntryContext.InGamePause,
+			renderReady: true,
+			canOpenSessionTab: true);
+
+		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.Render, state));
+		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
+		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
+	}
+
 	private static SettingsUiState CreateState(
 		SettingsEntryContext context,
 		bool renderReady = false,

@@ -132,6 +132,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private LimbTargetPanelModule? _limbTargetPanel;
 
 	private (int x, int y, int z)? _openChestPos;
+	private OpenContainerContext? _openChestContext;
 	private string? _armedSkillId;
 	private bool _inspectModeActive;
 	private bool _skillCastCursorActive;
@@ -194,6 +195,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		float ProgressStart,
 		float ProgressEnd,
 		string StatusKey);
+
+	private readonly record struct OpenContainerContext(
+		ContainerSourceKind Source,
+		string ContainerInstanceId,
+		string? OwnerActorId,
+		int X,
+		int Y,
+		int Z);
 
 
 	// ── 懒加载低频面板 ──────────────────────────────────
@@ -390,7 +399,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
 	GameState InventoryPanelModule.IHost.State => _state;
 	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
-	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(chestItem);
+	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(
+		chestItem,
+		ContainerSourceKind.Inventory,
+		ActorModule.GetPlayer(_state)?.Id);
 	void InventoryPanelModule.IHost.CloseInventory() => CloseInventoryPanel();
 	bool InventoryPanelModule.IHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
@@ -398,7 +410,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
 	void GroundPanelModule.IHost.FlushMap() => FlushMap();
 	GameState GroundPanelModule.IHost.State => _state;
-	void GroundPanelModule.IHost.OpenChestPanel(Item chestItem) => OpenChestPanel(chestItem);
+	void GroundPanelModule.IHost.OpenChestPanel(Item chestItem) => OpenChestPanel(chestItem, ContainerSourceKind.Ground);
 	void GroundPanelModule.IHost.OpenCorpseHarvest(Item corpseItem) => OpenCorpseHarvest(corpseItem);
 	void GroundPanelModule.IHost.StripCorpse(Item corpseItem) => SubmitCorpseOperation("strip_corpse", corpseItem);
 	void GroundPanelModule.IHost.ButcherCorpse(Item corpseItem) => SubmitCorpseOperation("butcher_corpse", corpseItem);
@@ -407,6 +419,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	void ChestPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void ChestPanelModule.IHost.FlushMap() => FlushMap();
+	void ChestPanelModule.IHost.TakeChestItem(Item chestItem, int itemIndex) => TakeChestItem(chestItem, itemIndex);
+	void ChestPanelModule.IHost.TakeAllChestItems(Item chestItem) => TakeAllChestItems(chestItem);
 	GameState ChestPanelModule.IHost.State => _state;
 	void ChestPanelModule.IHost.CloseChestPanel() => CloseChestPanel();
 	void ChestPanelModule.IHost.OpenPutIntoChestSelection(Item chestItem) => OpenPutIntoChestSelection(chestItem);
@@ -539,8 +553,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void FinalizeTimelineStepUi()
 	{
-		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
+		var anchors = RoomRuntimeModule.GetWorldAnchors(_state).Select(static anchor => anchor.Position).ToArray();
+		_state.World?.Chunks.UpdateLoadedChunks(anchors, _state.Turn);
 		FlushMap();
 		CheckChestRange();
 	}
@@ -808,8 +822,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				RefreshLocalizedUi,
 				SyncSettingsUiState,
 				() => SyncTimelineAutoAdvanceState(),
-				_weatherLabPanelController.RefreshSessionState,
-				_weatherLabPanelController.Close,
+				RefreshWeatherLabSessionStateForCoordinator,
+				CloseWeatherLabPanelForCoordinator,
 				DoSave,
 				BeginLayoutEditMode,
 				EnterMapEditorCore,
@@ -2979,6 +2993,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			HandleDigDirection(cmd[":dig_".Length..]);
 			return;
 		}
+		if (cmd is ":dig_up" or "dig_up")
+		{
+			HandleDigDirection("up");
+			return;
+		}
+		if (cmd is ":dig_down" or "dig_down")
+		{
+			HandleDigDirection("down");
+			return;
+		}
 		if (cmd == ":dir_cancel")
 		{
 			_log.Add(LocalizationService.T("ui.selection.canceled"));
@@ -3068,6 +3092,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
 			case "enter": DoEnterStairs(); break;
+			case ":climb_down":
+			case "climb_down": DoClimb(true); break;
+			case ":climb_up":
+			case "climb_up": DoClimb(false); break;
 			case "save": DoSaveCurrent(); break;
 			case "load": OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds); break;
 			case "newmap":
@@ -3167,7 +3195,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
-		_log.Add(LocalizationService.T("dig.choose_direction"));
+		_log.Add(LocalizationService.T("dig.choose_direction") + " (W/A/S/D + U上挖 + J下挖)");
 		_inputModule.EnterDirectionMode("dig");
 	}
 
@@ -3177,19 +3205,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null) return;
 
-		var (dx, dy) = dir switch
+		var (dx, dy, dz) = dir switch
 		{
-			"n" => (0, -1),
-			"s" => (0, 1),
-			"w" => (-1, 0),
-			"e" => (1, 0),
-			_ => (0, 0),
+			"n" => (0, -1, 0),
+			"s" => (0, 1, 0),
+			"w" => (-1, 0, 0),
+			"e" => (1, 0, 0),
+			"u" or "up" => (0, 0, -1),
+			"d" or "down" => (0, 0, 1),
+			_ => (0, 0, 0),
 		};
-		if (dx == 0 && dy == 0) return;
+		if (dx == 0 && dy == 0 && dz == 0) return;
 
 		var tx = player.X + dx;
 		var ty = player.Y + dy;
-		var tz = player.Z;
+		var tz = player.Z + dz;
 
 		if (_state.World == null) return;
 		var terrain = _state.World.GetTerrain(tx, ty, tz);
@@ -3224,16 +3254,30 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	private void PickupGroundItem(Actor player, Item itemInfo)
 	{
-		var events = InteractionModule.PickupItem(_state, player, itemInfo.InstanceId);
-		Dispatch(events);
+		var result = ServerActionGateway.Execute(_state, new PickupClientCommand
+		{
+			ActorId = player.Id,
+			ItemInstanceId = itemInfo.InstanceId,
+		});
+		ApplyServerActionResult(result);
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 	}
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
-	private void OpenChestPanel(Item chestItem)
+	private void OpenChestPanel(Item chestItem, ContainerSourceKind source, string? ownerActorId = null)
 	{
-		_openChestPos = (_state.PlayerX, _state.PlayerY, _state.PlayerZ);
+		chestItem.EnsureRuntimeState();
+		_openChestContext = new OpenContainerContext(
+			source,
+			chestItem.InstanceId,
+			ownerActorId,
+			_state.PlayerX,
+			_state.PlayerY,
+			_state.PlayerZ);
+		_openChestPos = source == ContainerSourceKind.Ground
+			? (_state.PlayerX, _state.PlayerY, _state.PlayerZ)
+			: null;
 		var chest = EnsureChestPanel();
 		chest.Open(chestItem);
 		_panels.PushFocus(chest);
@@ -3245,6 +3289,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_chestPanel?.CurrentChest != null)
 			PersistOpenChestState(_chestPanel.CurrentChest);
 
+		_openChestContext = null;
 		_openChestPos = null;
 		if (_chestPanel != null)
 		{
@@ -3304,16 +3349,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_panels.SetFocus(chest);
 				return;
 			}
-			var removed = InventoryModule.RemoveAt(player, invIdx);
-			if (removed != null)
+			var result = ExecuteOpenChestCommand(new ChestPutClientCommand
 			{
-				chestItem.Contents!.Add(removed);
-				PersistOpenChestState(chestItem);
-				_log.Add(LocalizationService.T(
-					"log.chest.put_item",
-					("item", ItemFormatHelper.GetDisplayName(_state, removed)),
-					("chest", ItemFormatHelper.GetDisplayName(_state, chestItem))));
-			}
+				ActorId = player.Id,
+				InventoryIndex = invIdx,
+			});
+			ApplyServerActionResult(result);
 			_panels.SetFocus(chest);
 			chest.Refresh();
 			FlushMap();
@@ -3322,11 +3363,93 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void PersistOpenChestState(Item chestItem)
 	{
-		if (_state.World == null || _openChestPos == null)
+		if (_state.World == null || _openChestContext == null || _openChestContext.Value.Source != ContainerSourceKind.Ground)
 			return;
 
-		var (x, y, z) = _openChestPos.Value;
+		var (x, y, z) = (_openChestContext.Value.X, _openChestContext.Value.Y, _openChestContext.Value.Z);
 		_state.World.UpdateGroundItem(x, y, z, chestItem);
+	}
+
+	private void TakeChestItem(Item chestItem, int itemIndex)
+	{
+		if (chestItem.Contents == null || itemIndex < 0 || itemIndex >= chestItem.Contents.Count)
+			return;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		var result = ExecuteOpenChestCommand(new ChestTakeClientCommand
+		{
+			ActorId = player.Id,
+			ItemInstanceId = chestItem.Contents[itemIndex].InstanceId,
+		});
+		ApplyServerActionResult(result);
+	}
+
+	private void TakeAllChestItems(Item chestItem)
+	{
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		var result = ExecuteOpenChestCommand(new ChestTakeAllClientCommand
+		{
+			ActorId = player.Id,
+		});
+		ApplyServerActionResult(result);
+	}
+
+	private ServerActionResult ExecuteOpenChestCommand(ClientCommand command)
+	{
+		if (_openChestContext == null)
+		{
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("ui.chest.closed", "Container is no longer available."),
+				"missing_open_container");
+		}
+
+		var context = _openChestContext.Value;
+		return command switch
+		{
+			ChestTakeClientCommand take => ServerActionGateway.Execute(_state, take with
+			{
+				ContainerSource = context.Source,
+				ContainerInstanceId = context.ContainerInstanceId,
+				ContainerOwnerActorId = context.OwnerActorId,
+				ContainerX = context.X,
+				ContainerY = context.Y,
+				ContainerZ = context.Z,
+			}),
+			ChestTakeAllClientCommand takeAll => ServerActionGateway.Execute(_state, takeAll with
+			{
+				ContainerSource = context.Source,
+				ContainerInstanceId = context.ContainerInstanceId,
+				ContainerOwnerActorId = context.OwnerActorId,
+				ContainerX = context.X,
+				ContainerY = context.Y,
+				ContainerZ = context.Z,
+			}),
+			ChestPutClientCommand put => ServerActionGateway.Execute(_state, put with
+			{
+				ContainerSource = context.Source,
+				ContainerInstanceId = context.ContainerInstanceId,
+				ContainerOwnerActorId = context.OwnerActorId,
+				ContainerX = context.X,
+				ContainerY = context.Y,
+				ContainerZ = context.Z,
+			}),
+			_ => ServerActionGateway.Execute(_state, command),
+		};
+	}
+
+	private void ApplyServerActionResult(ServerActionResult result)
+	{
+		foreach (var log in result.Logs)
+			_log.Add(log);
+
+		if (result.Events.Count > 0)
+			Dispatch(result.Events);
 	}
 
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
@@ -3554,6 +3677,25 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 			return;
 		}
 
+		await ExecuteClimb(goDown);
+	}
+
+	private async void DoClimb(bool goDown)
+	{
+		if (_busyOperationActive)
+			return;
+
+		if (!CanClimbAtPlayerCell(goDown))
+		{
+			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
+			return;
+		}
+
+		await ExecuteClimb(goDown);
+	}
+
+	private async Task ExecuteClimb(bool goDown)
+	{
 		BeginBusyOperation("ui.loading.floor.prepare", 18f / 100f);
 		try
 		{
@@ -3598,6 +3740,25 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 		goDown = false;
 		return false;
+	}
+
+	private bool CanClimbAtPlayerCell(bool goDown)
+	{
+		if (_state.World == null)
+			return false;
+
+		var px = _state.PlayerX;
+		var py = _state.PlayerY;
+		var pz = _state.PlayerZ;
+		var targetZ = goDown ? pz + 1 : pz - 1;
+
+		var hasVerticalAnchor = goDown
+			? MapModule.HasFixture(_state, px, py, pz, Entities.StairDown)
+			: MapModule.HasFixture(_state, px, py, pz, Entities.StairUp);
+		if (!hasVerticalAnchor)
+			return false;
+
+		return _state.World.IsWalkable(px, py, targetZ);
 	}
 
 	private void DoLook() => _log.Add(LookModule.BuildLookText(_state, _fogTracker));
@@ -3680,7 +3841,7 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		return (null, null);
 	}
 
-	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
+	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<PreparedSessionLoad> loadAction)
 	{
 		_mainAppFlowCoordinator.LoadFromWorldManager(label, loadAction);
 	}
@@ -3711,6 +3872,12 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		var path = _session.GetPreferredSavePath();
 		DoSave(path, _session.DescribeSavePath(path));
 	}
+
+	private void RefreshWeatherLabSessionStateForCoordinator(bool autoOpen) =>
+		_weatherLabPanelController.RefreshSessionState(autoOpen);
+
+	private void CloseWeatherLabPanelForCoordinator(bool resetRuntime) =>
+		_weatherLabPanelController.Close(resetRuntime);
 
 	private void HandleQuickLoadRequested() => _mainAppFlowCoordinator.HandleQuickLoadRequested();
 
@@ -3744,12 +3911,12 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 	private void HandleWorldManagerLegacySaveRequested(SaveSlotInfo slot) =>
 		_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
 
-	private void RequestWorldManagerLoad(string targetLabel, Func<SaveLoadStatus> loadAction)
+	private void RequestWorldManagerLoad(string targetLabel, Func<PreparedSessionLoad> loadAction)
 	{
 		_mainAppFlowCoordinator.LoadFromWorldManager(targetLabel, loadAction);
 	}
 
-	private async void LoadFromWorldManager(string label, Func<SaveLoadStatus> loadAction)
+	private async void LoadFromWorldManager(string label, Func<PreparedSessionLoad> loadAction)
 	{
 		_mainAppFlowCoordinator.LoadFromWorldManager(label, loadAction);
 		await Task.CompletedTask;
@@ -4011,7 +4178,7 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		CloseDebugPanel();
 		CloseActorInspectPanel();
 		CloseLimbTargetPanel();
-		_weatherLabPanelController?.Close();
+		_weatherLabPanelController?.Close(resetRuntime: false);
 		_hideGroundAndLogPanelsIfVisible();
 	}
 

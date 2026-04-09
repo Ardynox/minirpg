@@ -19,7 +19,7 @@ namespace MiniRPG.Core.Map;
 public static class SaveModule
 {
 	public const int MinimumCompatibleVersion = 5;
-	public const int CurrentVersion = 6;
+	public const int CurrentVersion = 7;
 
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{
@@ -164,6 +164,7 @@ public static class SaveModule
 			EconomicDomains = MapList(
 				state.EconomicDomains.Values.OrderBy(static domain => domain.Id, StringComparer.Ordinal),
 				static domain => domain.Clone()),
+			Room = BuildRoomSnapshot(state.Room),
 		};
 
 		return new SaveFile
@@ -219,6 +220,9 @@ public static class SaveModule
 			NeedSystem.EnsureInitialized(actor, state.Turn);
 			HealthSystem.EnsureInitialized(actor, state.Turn);
 		}
+		state.Room = CreateRoomRuntimeState(payload.Room);
+		RoomRuntimeModule.RefreshControlledActorIds(state);
+		RoomRuntimeModule.SyncLegacyPlayerAlias(state);
 		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
@@ -335,6 +339,116 @@ public static class SaveModule
 		}
 
 		return result;
+	}
+
+	private static RoomRuntimeSnapshot? BuildRoomSnapshot(RoomRuntimeState room)
+	{
+		if (!room.IsActive)
+			return null;
+
+		return new RoomRuntimeSnapshot
+		{
+			RoomId = room.RoomId,
+			RoomCode = room.RoomCode,
+			Players = MapList(
+				room.Players.Values.OrderBy(static player => player.PlayerSessionId, StringComparer.Ordinal),
+				static player => new RoomPlayerStateSnapshot
+				{
+					PlayerSessionId = player.PlayerSessionId,
+					DisplayName = player.DisplayName,
+					PrimaryActorId = player.PrimaryActorId,
+					DelegatedActorIds = [.. player.DelegatedActorIds.OrderBy(static id => id, StringComparer.Ordinal)],
+					CurrentControllerActorIds = [.. player.CurrentControllerActorIds.OrderBy(static id => id, StringComparer.Ordinal)],
+					JoinToken = player.JoinToken,
+					ReconnectToken = player.ReconnectToken,
+					ReconnectDeadlineUtc = player.ReconnectDeadlineUtc,
+					Connected = player.Connected,
+					IsRoomOwner = player.IsRoomOwner,
+				}),
+			InteractionReservations = MapList(
+				room.InteractionReservations.Values.OrderBy(static reservation => reservation.ReservationKey, StringComparer.Ordinal),
+				static reservation => new InteractionReservationSnapshot
+				{
+					ReservationKey = reservation.ReservationKey,
+					PlayerSessionId = reservation.PlayerSessionId,
+					LastHeartbeatUtc = reservation.LastHeartbeatUtc,
+					ExpiresAtUtc = reservation.ExpiresAtUtc,
+				}),
+			ActorControlBindings = MapList(
+				room.ActorControlBindings.OrderBy(static entry => entry.Key, StringComparer.Ordinal),
+				static entry => new ActorControlBindingSnapshot
+				{
+					ActorId = entry.Key,
+					PrimaryOwnerPlayerId = entry.Value.PrimaryOwnerPlayerId,
+					TemporaryControllerPlayerId = entry.Value.TemporaryControllerPlayerId,
+					CanBeDelegated = entry.Value.CanBeDelegated,
+				}),
+			LastSnapshotSequence = room.LastSnapshotSequence,
+		};
+	}
+
+	private static RoomRuntimeState CreateRoomRuntimeState(RoomRuntimeSnapshot? snapshot)
+	{
+		var room = new RoomRuntimeState();
+		if (snapshot == null)
+			return room;
+
+		room.RoomId = snapshot.RoomId ?? string.Empty;
+		room.RoomCode = snapshot.RoomCode ?? string.Empty;
+		room.LastSnapshotSequence = snapshot.LastSnapshotSequence;
+
+		foreach (var player in snapshot.Players ?? [])
+		{
+			if (string.IsNullOrWhiteSpace(player.PlayerSessionId))
+				continue;
+
+			room.Players[player.PlayerSessionId] = new RoomPlayerState
+			{
+				PlayerSessionId = player.PlayerSessionId,
+				DisplayName = player.DisplayName ?? player.PlayerSessionId,
+				PrimaryActorId = player.PrimaryActorId ?? string.Empty,
+				DelegatedActorIds = player.DelegatedActorIds != null
+					? [.. player.DelegatedActorIds]
+					: [],
+				CurrentControllerActorIds = player.CurrentControllerActorIds != null
+					? [.. player.CurrentControllerActorIds]
+					: [],
+				JoinToken = player.JoinToken ?? string.Empty,
+				ReconnectToken = player.ReconnectToken ?? string.Empty,
+				ReconnectDeadlineUtc = player.ReconnectDeadlineUtc,
+				Connected = player.Connected,
+				IsRoomOwner = player.IsRoomOwner,
+			};
+		}
+
+		foreach (var reservation in snapshot.InteractionReservations ?? [])
+		{
+			if (string.IsNullOrWhiteSpace(reservation.ReservationKey))
+				continue;
+
+			room.InteractionReservations[reservation.ReservationKey] = new InteractionReservation
+			{
+				ReservationKey = reservation.ReservationKey,
+				PlayerSessionId = reservation.PlayerSessionId ?? string.Empty,
+				LastHeartbeatUtc = reservation.LastHeartbeatUtc,
+				ExpiresAtUtc = reservation.ExpiresAtUtc,
+			};
+		}
+
+		foreach (var binding in snapshot.ActorControlBindings ?? [])
+		{
+			if (string.IsNullOrWhiteSpace(binding.ActorId))
+				continue;
+
+			room.ActorControlBindings[binding.ActorId] = new ActorControlBinding
+			{
+				PrimaryOwnerPlayerId = binding.PrimaryOwnerPlayerId ?? string.Empty,
+				TemporaryControllerPlayerId = binding.TemporaryControllerPlayerId,
+				CanBeDelegated = binding.CanBeDelegated,
+			};
+		}
+
+		return room;
 	}
 
 	private static ChunkSnapshot BuildChunkSnapshot(ChunkCoord coord, ChunkData chunk) => new()

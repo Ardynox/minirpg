@@ -144,7 +144,22 @@ public partial class InputModule
 	private bool HandleDirectionKey(InputEventKey key)
 	{
 		if (!_bindings.Resolve(InputBindingContext.Direction, key, out var actionId, out _))
-			return false;
+		{
+			var fallbackDir = key.Keycode switch
+			{
+				Key.U => "up",
+				Key.J => "down",
+				_ => null,
+			};
+
+			if (fallbackDir == null)
+				return false;
+
+			var fallbackPrefix = _directionPrefix;
+			SetFocus(InputFocus.Action);
+			CommandReceived?.Invoke($":{fallbackPrefix}_{fallbackDir}");
+			return true;
+		}
 
 		if (actionId == "direction_cancel")
 		{
@@ -159,8 +174,20 @@ public partial class InputModule
 			"direction_s" => "s",
 			"direction_w" => "w",
 			"direction_e" => "e",
+			"direction_up" => "up",
+			"direction_down" => "down",
 			_ => null,
 		};
+
+		if (dir == null)
+		{
+			dir = key.Keycode switch
+			{
+				Key.U => "up",
+				Key.J => "down",
+				_ => null,
+			};
+		}
 
 		if (dir != null)
 		{

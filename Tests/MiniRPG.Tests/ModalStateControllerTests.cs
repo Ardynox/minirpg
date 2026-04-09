@@ -15,6 +15,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.ExitMapEditor,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
 			ActionIds.CloseWorldSettingsDialog,
 			ActionIds.CloseSaveNameDialog,
@@ -27,6 +28,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.ExitMapEditor,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldSettingsDialog,
 			ActionIds.CloseSaveNameDialog,
 			ActionIds.CloseCharacterCreationDialog,
@@ -36,6 +38,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.ClosePanelChromeSettings,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
 			ActionIds.CloseWorldSettingsDialog,
 			ActionIds.CloseSaveNameDialog,
@@ -46,6 +49,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.ClosePanelChromeSettings,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
 			ActionIds.CloseSaveNameDialog,
 			ActionIds.CloseCharacterCreationDialog,
@@ -55,6 +59,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.ClosePanelChromeSettings,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
 			ActionIds.CloseWorldSettingsDialog,
 			ActionIds.CloseSaveNameDialog,
@@ -65,6 +70,7 @@ public sealed class ModalStateControllerTests
 			ActionIds.HideSettingsPanels,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
 			ActionIds.CloseWorldSettingsDialog,
 			ActionIds.CloseSaveNameDialog,
@@ -98,6 +104,7 @@ public sealed class ModalStateControllerTests
 		public const string ExitMapEditor = "exit_map_editor";
 		public const string CancelLayoutEdit = "cancel_layout_edit";
 		public const string CloseConfirmDialog = "close_confirm_dialog";
+		public const string CloseLoadRecoveryDialog = "close_load_recovery_dialog";
 		public const string CloseWorldManager = "close_world_manager";
 		public const string CloseWorldSettingsDialog = "close_world_settings_dialog";
 		public const string CloseSaveNameDialog = "close_save_name_dialog";
@@ -111,6 +118,7 @@ public sealed class ModalStateControllerTests
 			ExitMapEditor,
 			CancelLayoutEdit,
 			CloseConfirmDialog,
+			CloseLoadRecoveryDialog,
 			CloseWorldManager,
 			CloseWorldSettingsDialog,
 			CloseSaveNameDialog,
@@ -134,6 +142,7 @@ public sealed class ModalStateControllerTests
 				Count(ActionIds.ExitMapEditor),
 				Count(ActionIds.CancelLayoutEdit),
 				Count(ActionIds.CloseConfirmDialog),
+				Count(ActionIds.CloseLoadRecoveryDialog),
 				Count(ActionIds.CloseWorldManager),
 				Count(ActionIds.CloseWorldSettingsDialog),
 				Count(ActionIds.CloseSaveNameDialog),

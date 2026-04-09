@@ -636,9 +636,9 @@ public class GameSessionModule
 	{
 		if (goDown) MapModule.GoDown(_state);
 		else MapModule.GoUp(_state);
+
 		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
 		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
-		MapModule.PlacePlayerAtFixture(_state, goDown ? Entities.StairUp : Entities.StairDown);
 	}
 
 	private void InitializeWorld(PlayerCreationOptions? options = null)

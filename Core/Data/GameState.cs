@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Social;
 using MiniRPG.Core.World;
 using MiniRPG.Core.Zone;
@@ -65,6 +66,7 @@ public class GameState
 	public List<StockpileZone> StockpileZones { get; set; } = [];
 	public Dictionary<string, EconomicDomain> EconomicDomains { get; set; } = new(StringComparer.Ordinal);
 	public JobBoardState JobBoardState { get; set; } = new();
+	public RoomRuntimeState Room { get; set; } = new();
 
 	// ── 队伍 ──
 	public PartyState Party { get; set; } = new();
@@ -117,6 +119,7 @@ public class GameState
 		StockpileZones.Clear();
 		EconomicDomains.Clear();
 		JobBoardState = new JobBoardState();
+		Room = new RoomRuntimeState();
 		Party = new PartyState();
 		StorytellerState = new StorytellerState();
 		SocialState = new SocialState();

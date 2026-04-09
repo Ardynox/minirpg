@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
@@ -29,7 +30,8 @@ public static class TurnModule
 		events.AddRange(AdvanceWorld(state));
 
 		var viewRange = Math.Max(0, GameConfig.AIVision.ActivationViewRange);
-		events.AddRange(AIDispatcher.TickAll(state, state.PlayerX, state.PlayerY, viewRange));
+		var anchors = RoomRuntimeModule.GetWorldAnchors(state).Select(static anchor => anchor.Position).ToArray();
+		events.AddRange(AIDispatcher.TickAll(state, anchors, viewRange));
 		return events;
 	}
 
@@ -43,7 +45,8 @@ public static class TurnModule
 		var advanceWorldMs = ProfilingClock.ElapsedMs(advanceWorldStart);
 
 		var viewRange = Math.Max(0, GameConfig.AIVision.ActivationViewRange);
-		var dispatchResult = AIDispatcher.TickAllProfiled(state, state.PlayerX, state.PlayerY, viewRange);
+		var anchors = RoomRuntimeModule.GetWorldAnchors(state).Select(static anchor => anchor.Position).ToArray();
+		var dispatchResult = AIDispatcher.TickAllProfiled(state, anchors, viewRange);
 		events.AddRange(dispatchResult.Events);
 
 		return new TurnTickResult
