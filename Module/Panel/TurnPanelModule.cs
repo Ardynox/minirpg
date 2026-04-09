@@ -89,11 +89,9 @@ public sealed class TurnPanelModule
 			$"[color={UIColors.HexDim}]T:[/color]{snapshot.WorldTurn}");
 	}
 
-	private void RenderRenderMode(bool isIsometricMode)
+	private void RenderRenderMode(bool _)
 	{
-		var modeText = isIsometricMode
-			? LocalizationService.T("render.view_mode.iso_only")
-			: LocalizationService.T("render.view_mode.tilemap");
+		var modeText = LocalizationService.T("render.view_mode.iso_only");
 		_renderModeLabel.Clear();
 		_renderModeLabel.AppendText(
 			$"[color={UIColors.HexDim}]{LocalizationService.T("ui.turn_panel.render_mode")}:[/color] {modeText}");

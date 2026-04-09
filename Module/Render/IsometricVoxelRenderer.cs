@@ -15,6 +15,8 @@ public class IsometricVoxelRenderer
 {
 	private const int DefaultViewDepthAbove = 4;
 	private const int DefaultViewDepthBelow = 2;
+	private const int DefaultCharacterSheetFrameWidth = 128;
+	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
 	private static readonly float IsoSkewAngle = Mathf.Atan(0.5f);
@@ -31,6 +33,7 @@ public class IsometricVoxelRenderer
 	private readonly List<Sprite2D> _spritePool = [];
 	private int _spriteCount;
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
+	private readonly List<EntityDrawCommand> _entityCommands = [];
 	private int _lastDrawCommandCount;
 
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
@@ -54,6 +57,20 @@ public class IsometricVoxelRenderer
 		[Terrains.Lava] = new Color(1.0f, 0.3f, 0.0f),
 		[Terrains.Floor] = new Color(0.6f, 0.55f, 0.45f),
 		[Terrains.Rubble] = new Color(0.5f, 0.45f, 0.35f),
+	};
+
+	private static readonly Dictionary<string, string> CharacterSheetMap = new(StringComparer.OrdinalIgnoreCase)
+	{
+		["Idle"] = "Idle",
+		["Walk"] = "Walk",
+		["Run"] = "Run",
+		["Attack_1"] = "Attack1",
+		["Attack1"] = "Attack1",
+		["Pain"] = "TakeDamage",
+		["TakeDamage"] = "TakeDamage",
+		["Die"] = "Die",
+		["Special_1"] = "Special1",
+		["Special1"] = "Special1",
 	};
 
 	public IsometricVoxelRenderer(GameState state, FogOfWarTracker fogTracker, int viewW, int viewH)
@@ -121,16 +138,9 @@ public class IsometricVoxelRenderer
 		}
 
 		_drawCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
-		_lastDrawCommandCount = _drawCommands.Count;
-
-		foreach (var cmd in _drawCommands)
-		{
-			if (cmd.DrawTop) DrawBlockTop(cmd);
-			if (cmd.DrawLeftSide) DrawLeftSide(cmd);
-			if (cmd.DrawRightSide) DrawRightSide(cmd);
-		}
-
-		RenderEntities(cx, cy, cz, halfW, halfH, zMin, zMax);
+		CollectEntityCommands(cx, cy, cz, halfW, halfH, zMin, zMax);
+		_lastDrawCommandCount = _drawCommands.Count + _entityCommands.Count;
+		RenderScene();
 		EndFrame();
 		UpdateCamera(cx, cy, cz);
 	}
@@ -150,6 +160,9 @@ public class IsometricVoxelRenderer
 		var textures = GetOrCreateTextures(cmd.Terrain);
 		if (textures.Top == null) return;
 		var s = AcquireSprite();
+		s.Centered = true;
+		s.RegionEnabled = false;
+		s.Scale = Vector2.One;
 		s.Texture = textures.Top;
 		s.Position = cmd.ScreenPos;
 		s.Skew = 0f;
@@ -163,6 +176,9 @@ public class IsometricVoxelRenderer
 		var textures = GetOrCreateTextures(cmd.Terrain);
 		if (textures.Left == null) return;
 		var s = AcquireSprite();
+		s.Centered = true;
+		s.RegionEnabled = false;
+		s.Scale = Vector2.One;
 		s.Texture = textures.Left;
 		// Left side hangs from the left-bottom edge of the diamond
 		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + IsoCoordUtil.ZStep / 2f);
@@ -177,6 +193,9 @@ public class IsometricVoxelRenderer
 		var textures = GetOrCreateTextures(cmd.Terrain);
 		if (textures.Right == null) return;
 		var s = AcquireSprite();
+		s.Centered = true;
+		s.RegionEnabled = false;
+		s.Scale = Vector2.One;
 		s.Texture = textures.Right;
 		// Right side hangs from the right-bottom edge of the diamond
 		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + IsoCoordUtil.ZStep / 2f);
@@ -380,9 +399,9 @@ public class IsometricVoxelRenderer
 	private static readonly Vector2 EntitySpriteBaseOffset = new(0f, -8f);
 	private readonly Dictionary<string, ImageTexture> _entityMarkerCache = new();
 
-	private void RenderEntities(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
+	private void CollectEntityCommands(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
-		var cmds = new List<(long Key, Vector2 Pos, Actor? Actor, string Label, Color Tint)>();
+		_entityCommands.Clear();
 
 		foreach (var actor in _state.Actors.Values)
 		{
@@ -391,8 +410,12 @@ public class IsometricVoxelRenderer
 			var tint = GetVisionTint(actor.X, actor.Y, actor.Z);
 			if (tint.A <= 0f) continue;
 			var label = actor.Id == _state.PlayerId ? "P" : (actor.Faction == Factions.Hostile ? "!" : "?");
-			cmds.Add((IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
-				IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z), actor, label, tint));
+			_entityCommands.Add(new EntityDrawCommand(
+				IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
+				IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z),
+				actor,
+				label,
+				tint));
 		}
 
 		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
@@ -406,48 +429,93 @@ public class IsometricVoxelRenderer
 			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			var key = IsoCoordUtil.SortKey(wx, wy, wz);
 			foreach (var e in entities)
-				cmds.Add((key, pos, null, e.Glyph, tint));
+				_entityCommands.Add(new EntityDrawCommand(key, pos, null, e.Glyph, tint));
 		}
 
-		cmds.Sort(static (a, b) => a.Key.CompareTo(b.Key));
-		foreach (var (_, pos, actor, label, tint) in cmds)
+		_entityCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+	}
+
+	private void RenderScene()
+	{
+		var terrainIndex = 0;
+		var entityIndex = 0;
+		while (terrainIndex < _drawCommands.Count || entityIndex < _entityCommands.Count)
 		{
-			if (actor != null && TryDrawActorSprite(pos, actor, tint))
+			if (entityIndex >= _entityCommands.Count
+				|| (terrainIndex < _drawCommands.Count && _drawCommands[terrainIndex].SortKey <= _entityCommands[entityIndex].SortKey))
+			{
+				var terrain = _drawCommands[terrainIndex++];
+				if (terrain.DrawTop) DrawBlockTop(terrain);
+				if (terrain.DrawLeftSide) DrawLeftSide(terrain);
+				if (terrain.DrawRightSide) DrawRightSide(terrain);
 				continue;
-			DrawEntityMarker(pos, label, tint);
+			}
+
+			var entity = _entityCommands[entityIndex++];
+			if (entity.Actor != null && TryDrawActorSprite(entity.ScreenPos, entity.Actor, entity.Tint))
+				continue;
+			DrawEntityMarker(entity.ScreenPos, entity.Label, entity.Tint);
 		}
 	}
 
 	private bool TryDrawActorSprite(Vector2 pos, Actor actor, Color tint)
 	{
-		var entry = ResolveActorTextureEntry(actor);
-		if (entry?.TexturePath is not { Length: > 0 } texturePath)
+		if (!TryResolveActorSpriteVisual(actor, out var visual))
 			return false;
 
-		var texture = ResAccess.Get<Texture2D>(texturePath);
-		if (texture == null)
-			return false;
-
-		var region = ResolveEntitySpriteRegion(entry, actor, texture);
-		var scale = ResolveEntitySpriteScale(entry.Scale);
-		var offset = ResolveEntitySpriteOffset(entry.Offset);
-		var size = region?.Size ?? texture.GetSize();
-
+		var size = visual.Region?.Size ?? visual.Texture.GetSize();
 		var sprite = AcquireSprite();
 		sprite.Centered = false;
-		sprite.Texture = texture;
+		sprite.Texture = visual.Texture;
 		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
-		sprite.RegionEnabled = region != null;
-		if (region is { } r)
-			sprite.RegionRect = r;
-		sprite.Scale = scale;
+		sprite.RegionEnabled = visual.Region != null;
+		if (visual.Region is { } region)
+			sprite.RegionRect = region;
+		sprite.Scale = visual.Scale;
 		sprite.Skew = 0f;
 		sprite.ZIndex = 1;
 		sprite.Modulate = tint;
-		sprite.Position = pos + EntitySpriteBaseOffset + offset + new Vector2(
-			-(size.X * scale.X) / 2f,
-			-(size.Y * scale.Y));
+		sprite.Position = pos + EntitySpriteBaseOffset + visual.Offset + new Vector2(
+			-(size.X * visual.Scale.X) / 2f,
+			-(size.Y * visual.Scale.Y));
 		sprite.Visible = true;
+		return true;
+	}
+
+	private bool TryResolveActorSpriteVisual(Actor actor, out ActorSpriteVisual visual)
+	{
+		visual = default;
+		var entry = ResolveActorRenderEntry(actor);
+		if (entry == null)
+			return false;
+
+		Texture2D? texture = null;
+		Rect2? region = null;
+		if (IsTextureEntry(entry) && entry.TexturePath is { Length: > 0 } texturePath)
+		{
+			texture = ResAccess.Get<Texture2D>(texturePath);
+			if (texture != null)
+				region = ResolveEntitySpriteRegion(entry, actor, texture);
+		}
+		else if (IsSpriteSheetEntry(entry))
+		{
+			var sheetPath = ResolveCharacterSheetPath(entry);
+			if (sheetPath.Length > 0)
+			{
+				texture = ResAccess.Get<Texture2D>(sheetPath);
+				if (texture != null)
+					region = ResolveCharacterSheetRegion(entry, actor, texture);
+			}
+		}
+
+		if (texture == null)
+			return false;
+
+		visual = new ActorSpriteVisual(
+			texture,
+			region,
+			ResolveEntitySpriteScale(entry.Scale),
+			ResolveEntitySpriteOffset(entry.Offset));
 		return true;
 	}
 
@@ -489,20 +557,77 @@ public class IsometricVoxelRenderer
 		return new Rect2(0, row * frameHeight, frameWidth, frameHeight);
 	}
 
-	private ResAccess.RenderEntry? ResolveActorTextureEntry(Actor actor)
+	private ResAccess.RenderEntry? ResolveActorRenderEntry(Actor actor)
 	{
-		var direct = ResAccess.GetEntry(actor.Id);
-		if (IsTextureEntry(direct))
-			return direct;
-
-		if (actor.Faction == Factions.Hostile && actor.Race?.Id is { Length: > 0 } raceId)
+		if (actor.Id == _state.PlayerId)
 		{
-			var byRace = ResAccess.GetEntry(raceId);
-			if (IsTextureEntry(byRace))
-				return byRace;
+			var appearance = PlayerAppearanceCatalog.GetOrDefault(_state.PlayerAppearanceId);
+			var tuning = ResAccess.GetEntry("player");
+			return new ResAccess.RenderEntry
+			{
+				Type = "sprite_sheet",
+				SheetDir = appearance.SheetDir,
+				DefaultAnim = appearance.DefaultAnim,
+				Scale = tuning?.Scale,
+				Offset = tuning?.Offset,
+				FrameWidth = tuning?.FrameWidth ?? 0,
+				FrameHeight = tuning?.FrameHeight ?? 0,
+				UseFacing = true,
+			};
 		}
 
+		if (TryGetSupportedActorEntry(actor.Id, out var direct))
+			return direct;
+		if (!string.IsNullOrWhiteSpace(actor.TemplateId) && TryGetSupportedActorEntry(actor.TemplateId, out var template))
+			return template;
+		if (actor.Race?.Id is { Length: > 0 } raceId && TryGetSupportedActorEntry(raceId, out var race))
+			return race;
+
 		return null;
+	}
+
+	private static bool TryGetSupportedActorEntry(string key, out ResAccess.RenderEntry? entry)
+	{
+		entry = ResAccess.GetEntry(key);
+		return IsTextureEntry(entry) || IsSpriteSheetEntry(entry);
+	}
+
+	private static bool IsSpriteSheetEntry(ResAccess.RenderEntry? entry) =>
+		entry != null
+		&& string.Equals(entry.Type, "sprite_sheet", StringComparison.OrdinalIgnoreCase)
+		&& !string.IsNullOrWhiteSpace(entry.SheetDir);
+
+	private static string ResolveCharacterSheetPath(ResAccess.RenderEntry entry)
+	{
+		if (string.IsNullOrWhiteSpace(entry.SheetDir))
+			return string.Empty;
+		var animationKey = string.IsNullOrWhiteSpace(entry.DefaultAnim) ? "Idle" : entry.DefaultAnim!;
+		var sheetKey = CharacterSheetMap.TryGetValue(animationKey, out var resolved) ? resolved : "Idle";
+		return $"{entry.SheetDir!.TrimEnd('/')}/{sheetKey}.png";
+	}
+
+	private static Rect2? ResolveCharacterSheetRegion(ResAccess.RenderEntry entry, Actor actor, Texture2D texture)
+	{
+		var textureWidth = (int)texture.GetWidth();
+		var textureHeight = (int)texture.GetHeight();
+		if (textureWidth <= 0 || textureHeight <= 0)
+			return null;
+
+		var frameWidth = entry.FrameWidth > 0
+			? Math.Min(entry.FrameWidth, textureWidth)
+			: Math.Min(DefaultCharacterSheetFrameWidth, textureWidth);
+		var frameHeight = entry.FrameHeight > 0
+			? Math.Min(entry.FrameHeight, textureHeight)
+			: Math.Min(DefaultCharacterSheetFrameHeight, textureHeight);
+		if (frameWidth <= 0 || frameHeight <= 0)
+			return null;
+
+		var rowCount = Math.Max(1, textureHeight / frameHeight);
+		var row = Math.Clamp(
+			DirectionalSpriteHelper.ResolveDirectionRow(actor.FacingX, actor.FacingY),
+			0,
+			rowCount - 1);
+		return new Rect2(0, row * frameHeight, frameWidth, frameHeight);
 	}
 
 	private static bool IsTextureEntry(ResAccess.RenderEntry? entry) =>
@@ -515,6 +640,7 @@ public class IsometricVoxelRenderer
 		var s = AcquireSprite();
 		s.Centered = true;
 		s.RegionEnabled = false;
+		s.Scale = Vector2.One;
 		s.Texture = GetEntityMarkerTexture(label);
 		s.Position = pos - new Vector2(0, IsoCoordUtil.TileHalfH * 0.5f);
 		s.Skew = 0f;
@@ -590,6 +716,19 @@ public class IsometricVoxelRenderer
 		public TerrainDef Terrain;
 		public bool DrawTop, DrawLeftSide, DrawRightSide;
 	}
+
+	private readonly record struct EntityDrawCommand(
+		long SortKey,
+		Vector2 ScreenPos,
+		Actor? Actor,
+		string Label,
+		Color Tint);
+
+	private readonly record struct ActorSpriteVisual(
+		Texture2D Texture,
+		Rect2? Region,
+		Vector2 Scale,
+		Vector2 Offset);
 
 	private record struct CachedBlockTextures(Texture2D? Top, Texture2D? Left, Texture2D? Right);
 }

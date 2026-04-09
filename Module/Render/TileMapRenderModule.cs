@@ -320,7 +320,7 @@ public class TileMapRenderModule
 		worldCell = Vector3I.Zero;
 		if (_state.World == null) return false;
 
-		var cz = _state.PlayerZ;
+		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
 		var zMin = cz - 4;
 		var zMax = cz + 2;
 
@@ -392,10 +392,44 @@ public class TileMapRenderModule
 		// 等距模式：委托给体素渲染器
 		if (_isometricMode && _voxelRenderer != null)
 		{
+			_animatedTiles.Clear();
 			ClearLayers();
+			BeginGroundItemFrame();
+			BeginWeatherFrame();
+			BeginEntitySpriteFrame();
 			HidePlayerVisual();
+			_lastPlayerWorldPosition = null;
+
+			if (_state.World == null)
+			{
+				_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
+				UpdateWeatherScreenFxOverlay(0d);
+				EndEntitySpriteFrame();
+				EndWeatherFrame();
+				EndGroundItemFrame();
+				CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
+				return;
+			}
+
+			if (_editorViewActive)
+			{
+				_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
+			}
+			else
+			{
+				_fogTracker.Update(_state);
+				RefreshWeatherScreenFxTarget();
+				_viewCenterX = _state.PlayerX;
+				_viewCenterY = _state.PlayerY;
+				_viewCenterZ = _state.PlayerZ;
+			}
+
 			_voxelRenderer.Render();
 			_tileDrawCommandCount = _voxelRenderer.LastDrawCommandCount;
+			UpdateWeatherScreenFxOverlay(0d);
+			EndEntitySpriteFrame();
+			EndWeatherFrame();
+			EndGroundItemFrame();
 			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
 		}
