@@ -1,5 +1,4 @@
 using System;
-using Godot;
 using MiniRPG.Module.Panel;
 using Xunit;
 
@@ -15,12 +14,15 @@ public sealed class SettingsFlowModalInputAdapterTests
 		Assert.False(harness.Adapter.Visible);
 		Assert.False(harness.Adapter.HandleKeyInputCore(
 			harness.SettingsOverlay.HandleKey,
-			harness.CloseFocusedPanel));
+			harness.HandlePanelKey));
 		Assert.False(harness.Adapter.HandleMouseInputCore(
 			harness.SettingsOverlay.HandleMouse,
+			harness.CloseFocusedPanel,
 			isPressedRightClick: true));
 		Assert.Equal(0, harness.SettingsOverlay.HandleKeyCalls);
 		Assert.Equal(0, harness.SettingsOverlay.HandleMouseCalls);
+		Assert.Equal(0, harness.PanelKeyCalls);
+		Assert.Equal(0, harness.CloseFocusedCalls);
 		Assert.Equal(0, harness.FlushMapCalls);
 	}
 
@@ -30,68 +32,72 @@ public sealed class SettingsFlowModalInputAdapterTests
 		var harness = new Harness();
 		harness.SettingsOverlay.HandleKeyResult = true;
 		harness.OpenSettingsOverlay();
-		harness.FocusPanel();
 
 		var handled = harness.Adapter.HandleKeyInputCore(
 			harness.SettingsOverlay.HandleKey,
-			harness.CloseFocusedPanel);
+			harness.HandlePanelKey);
 
 		Assert.True(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleKeyCalls);
-		Assert.Equal(0, harness.Panel.CloseCommandCount);
-		Assert.True(harness.Panel.Visible);
+		Assert.Equal(0, harness.PanelKeyCalls);
 	}
 
 	[Fact]
 	public void HandleKeyInput_FallsBackToPanelManager_WhenSettingsOverlayDoesNotConsume()
 	{
-		var harness = new Harness();
+		var harness = new Harness
+		{
+			PanelKeyResult = true,
+		};
 		harness.OpenSettingsOverlay();
-		harness.FocusPanel();
 
 		var handled = harness.Adapter.HandleKeyInputCore(
 			harness.SettingsOverlay.HandleKey,
-			harness.CloseFocusedPanel);
+			harness.HandlePanelKey);
 
 		Assert.True(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleKeyCalls);
-		Assert.Equal(1, harness.Panel.CloseCommandCount);
-		Assert.False(harness.Panel.Visible);
+		Assert.Equal(1, harness.PanelKeyCalls);
 	}
 
 	[Fact]
 	public void HandleMouseInput_RightClickFlushesOnlyWhenFocusedPanelCloses()
 	{
-		var harness = new Harness();
+		var harness = new Harness
+		{
+			CloseFocusedResult = true,
+		};
 		harness.OpenSettingsOverlay();
-		harness.FocusPanel();
 
 		var handled = harness.Adapter.HandleMouseInputCore(
 			harness.SettingsOverlay.HandleMouse,
+			harness.CloseFocusedPanel,
 			isPressedRightClick: true);
 
 		Assert.True(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleMouseCalls);
-		Assert.Equal(1, harness.Panel.CloseCommandCount);
+		Assert.Equal(1, harness.CloseFocusedCalls);
 		Assert.Equal(1, harness.FlushMapCalls);
 	}
 
 	[Fact]
 	public void HandleMouseInput_DoesNotFlushForNonRightClick()
 	{
-		var harness = new Harness();
+		var harness = new Harness
+		{
+			CloseFocusedResult = true,
+		};
 		harness.OpenSettingsOverlay();
-		harness.FocusPanel();
 
 		var handled = harness.Adapter.HandleMouseInputCore(
 			harness.SettingsOverlay.HandleMouse,
+			harness.CloseFocusedPanel,
 			isPressedRightClick: false);
 
 		Assert.False(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleMouseCalls);
-		Assert.Equal(0, harness.Panel.CloseCommandCount);
+		Assert.Equal(0, harness.CloseFocusedCalls);
 		Assert.Equal(0, harness.FlushMapCalls);
-		Assert.True(harness.Panel.Visible);
 	}
 
 	[Fact]
@@ -102,11 +108,12 @@ public sealed class SettingsFlowModalInputAdapterTests
 
 		var handled = harness.Adapter.HandleMouseInputCore(
 			harness.SettingsOverlay.HandleMouse,
+			harness.CloseFocusedPanel,
 			isPressedRightClick: true);
 
 		Assert.False(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleMouseCalls);
-		Assert.Equal(0, harness.Panel.CloseCommandCount);
+		Assert.Equal(1, harness.CloseFocusedCalls);
 		Assert.Equal(0, harness.FlushMapCalls);
 	}
 
@@ -114,7 +121,6 @@ public sealed class SettingsFlowModalInputAdapterTests
 	{
 		private readonly FakeFocusHost _focusHost = new();
 		private readonly FakePauseMenuOverlay _pauseOverlay = new();
-		private readonly PanelManager _panels = new();
 
 		public Harness()
 		{
@@ -135,25 +141,31 @@ public sealed class SettingsFlowModalInputAdapterTests
 				MapZoomMax: 2.4f,
 				MapZoomCurrent: 1.0f));
 
-			Panel = new FakePanel("inventory");
-			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, _panels, () => FlushMapCalls++);
+			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, new PanelManager(), () => FlushMapCalls++);
 		}
 
 		public SettingsFlowCoordinator SettingsFlow { get; }
 		public FakeSettingsOverlay SettingsOverlay { get; }
-		public FakePanel Panel { get; }
 		public SettingsFlowModalInputAdapter Adapter { get; }
 		public int FlushMapCalls { get; private set; }
+		public int PanelKeyCalls { get; private set; }
+		public int CloseFocusedCalls { get; private set; }
+		public bool PanelKeyResult { get; set; }
+		public bool CloseFocusedResult { get; set; }
 
 		public void OpenSettingsOverlay() => SettingsFlow.OpenSettings(SettingsEntryContext.InGamePause, SettingsTab.General);
 
-		public void FocusPanel()
+		public bool HandlePanelKey()
 		{
-			Panel.Visible = true;
-			_panels.SetFocus(Panel);
+			PanelKeyCalls++;
+			return PanelKeyResult;
 		}
 
-		public bool CloseFocusedPanel() => _panels.CloseFocused();
+		public bool CloseFocusedPanel()
+		{
+			CloseFocusedCalls++;
+			return CloseFocusedResult;
+		}
 	}
 
 	private sealed class FakePauseMenuOverlay : IPauseMenuOverlay
@@ -275,22 +287,10 @@ public sealed class SettingsFlowModalInputAdapterTests
 		{
 		}
 
-		public bool HandleKeyInput(InputEventKey key)
-		{
-			HandleKeyCalls++;
-			return HandleKeyResult;
-		}
-
 		public bool HandleKey()
 		{
 			HandleKeyCalls++;
 			return HandleKeyResult;
-		}
-
-		public bool HandleMouseInput(InputEvent @event)
-		{
-			HandleMouseCalls++;
-			return HandleMouseResult;
 		}
 
 		public bool HandleMouse()
@@ -298,6 +298,10 @@ public sealed class SettingsFlowModalInputAdapterTests
 			HandleMouseCalls++;
 			return HandleMouseResult;
 		}
+
+		public bool HandleKeyInput(Godot.InputEventKey key) => throw new NotSupportedException();
+
+		public bool HandleMouseInput(Godot.InputEvent @event) => throw new NotSupportedException();
 	}
 
 	private sealed class FakeFocusHost : ISettingsFlowFocusHost
@@ -346,25 +350,6 @@ public sealed class SettingsFlowModalInputAdapterTests
 					break;
 				}
 			}
-		}
-	}
-
-	private sealed class FakePanel(string panelId) : IPanel, ISettingsFlowPanel
-	{
-		public string PanelId => panelId;
-		public PanelContainer PanelNode => null!;
-		public bool Visible { get; set; } = true;
-		public bool Dirty { get; set; }
-		public int CloseCommandCount { get; private set; }
-
-		public bool HandleCommand(string cmd)
-		{
-			if (!string.Equals(cmd, "close", StringComparison.Ordinal))
-				return false;
-
-			CloseCommandCount++;
-			Visible = false;
-			return true;
 		}
 	}
 }

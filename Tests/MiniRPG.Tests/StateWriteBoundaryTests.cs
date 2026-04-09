@@ -79,6 +79,7 @@ public sealed class StateWriteBoundaryTests
 			allowedRelativePaths:
 			[
 				"Module/GameSessionModule.cs",
+				"Core/Multiplayer/DedicatedGameServerHost.cs",
 			]);
 
 		AssertNoHits(

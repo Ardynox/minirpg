@@ -17,6 +17,7 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 
 	public event Action<string>? RecoveryConfirmed;
 	public event Action? CancelRequested;
+	internal Func<Control?> FocusOwnerResolver { get; set; }
 
 	public LoadRecoveryDialogModule(PanelContainer panel)
 	{
@@ -26,6 +27,7 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 		_candidateList = panel.GetNode<ItemList>("Margin/VBox/CandidateList");
 		_confirmButton = panel.GetNode<Button>("Margin/VBox/Footer/ConfirmBtn");
 		_cancelButton = panel.GetNode<Button>("Margin/VBox/Footer/CancelBtn");
+		FocusOwnerResolver = ResolveFocusOwnerFromViewport;
 
 		_candidateList.SelectMode = ItemList.SelectModeEnum.Single;
 		_candidateList.ItemSelected += index =>
@@ -52,7 +54,7 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 	{
 		ArgumentNullException.ThrowIfNull(recovery);
 		_recovery = recovery;
-		_selectedIndex = recovery.Candidates.Count > 0 ? 0 : -1;
+		_selectedIndex = LoadRecoveryDialogLogic.GetInitialSelectedIndex(recovery);
 		Visible = true;
 		RefreshTexts();
 		if (_candidateList.IsInsideTree())
@@ -84,26 +86,26 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 		if (!Visible || !key.Pressed || key.Echo || key.AltPressed || key.CtrlPressed || key.MetaPressed)
 			return false;
 
-		switch (key.Keycode)
-		{
-			case Key.Escape:
-				CancelRequested?.Invoke();
-				return true;
-			case Key.Up:
-				return MoveSelection(-1);
-			case Key.Down:
-				return MoveSelection(1);
-			case Key.Enter:
-			case Key.KpEnter:
-				if (ResolveFocusOwner() is Button)
-					return false;
-				return ConfirmCurrentSelection();
-			default:
-				return false;
-		}
+		var result = LoadRecoveryDialogLogic.HandleKey(
+			_recovery,
+			_selectedIndex,
+			key.Keycode,
+			ShouldBlockConfirm(FocusOwnerResolver()));
+		if (!result.Handled)
+			return false;
+
+		_selectedIndex = result.SelectedIndex;
+		ApplySelectionState();
+		if (result.CancelRequested)
+			CancelRequested?.Invoke();
+		if (!string.IsNullOrWhiteSpace(result.ConfirmedActorId))
+			RecoveryConfirmed?.Invoke(result.ConfirmedActorId);
+		return true;
 	}
 
-	private Control? ResolveFocusOwner()
+	internal static bool ShouldBlockConfirm(Control? focusOwner) => focusOwner is Button;
+
+	private Control? ResolveFocusOwnerFromViewport()
 	{
 		var viewport = _panel.GetViewport();
 		return viewport?.GuiGetFocusOwner();
@@ -121,27 +123,17 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 		foreach (var candidate in _recovery.Candidates)
 			_candidateList.AddItem(BuildCandidateText(candidate));
 
-		if (_recovery.Candidates.Count == 0)
-		{
-			_selectedIndex = -1;
-			_confirmButton.Disabled = true;
-			return;
-		}
-
-		_selectedIndex = Math.Clamp(_selectedIndex, 0, _recovery.Candidates.Count - 1);
-		_candidateList.Select(_selectedIndex);
-		_confirmButton.Disabled = false;
+		_selectedIndex = LoadRecoveryDialogLogic.NormalizeSelection(_recovery, _selectedIndex);
+		ApplySelectionState();
 	}
 
 	private bool MoveSelection(int delta)
 	{
-		if (_recovery == null || _recovery.Candidates.Count == 0)
+		if (!LoadRecoveryDialogLogic.TryMoveSelection(_recovery, _selectedIndex, delta, out var nextIndex))
 			return false;
 
-		var current = _selectedIndex < 0 ? 0 : _selectedIndex;
-		_selectedIndex = Math.Clamp(current + delta, 0, _recovery.Candidates.Count - 1);
-		_candidateList.Select(_selectedIndex);
-		_confirmButton.Disabled = false;
+		_selectedIndex = nextIndex;
+		ApplySelectionState();
 		return true;
 	}
 
@@ -159,6 +151,14 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 		_ = ConfirmCurrentSelection();
 	}
 
+	private void ApplySelectionState()
+	{
+		if (_recovery != null && _selectedIndex >= 0 && _selectedIndex < _recovery.Candidates.Count)
+			_candidateList.Select(_selectedIndex);
+
+		_confirmButton.Disabled = !LoadRecoveryDialogLogic.CanConfirm(_recovery, _selectedIndex);
+	}
+
 	private static string BuildCandidateText(PreparedLoadCandidate candidate) =>
 		LocalizationService.T(
 			"ui.load_recovery.candidate",
@@ -167,4 +167,88 @@ public sealed class LoadRecoveryDialogModule : IModalInputLayer
 			("x", candidate.X),
 			("y", candidate.Y),
 			("z", candidate.Z));
+}
+
+internal static class LoadRecoveryDialogLogic
+{
+	public static int GetInitialSelectedIndex(PreparedLoadRecovery? recovery) =>
+		recovery is { Candidates.Count: > 0 } ? 0 : -1;
+
+	public static int NormalizeSelection(PreparedLoadRecovery? recovery, int selectedIndex)
+	{
+		if (recovery == null || recovery.Candidates.Count == 0)
+			return -1;
+
+		return Math.Clamp(selectedIndex, 0, recovery.Candidates.Count - 1);
+	}
+
+	public static bool CanConfirm(PreparedLoadRecovery? recovery, int selectedIndex) =>
+		recovery != null
+		&& selectedIndex >= 0
+		&& selectedIndex < recovery.Candidates.Count;
+
+	public static bool TryMoveSelection(PreparedLoadRecovery? recovery, int selectedIndex, int delta, out int nextIndex)
+	{
+		nextIndex = selectedIndex;
+		if (recovery == null || recovery.Candidates.Count == 0)
+			return false;
+
+		var current = selectedIndex < 0 ? 0 : selectedIndex;
+		nextIndex = Math.Clamp(current + delta, 0, recovery.Candidates.Count - 1);
+		return true;
+	}
+
+	public static bool TryConfirm(PreparedLoadRecovery? recovery, int selectedIndex, out string actorId)
+	{
+		actorId = string.Empty;
+		if (!CanConfirm(recovery, selectedIndex))
+			return false;
+
+		actorId = recovery!.Candidates[selectedIndex].ActorId;
+		return true;
+	}
+
+	public static LoadRecoveryDialogKeyResult HandleKey(
+		PreparedLoadRecovery? recovery,
+		int selectedIndex,
+		Key keycode,
+		bool confirmBlockedByFocus)
+	{
+		switch (keycode)
+		{
+			case Key.Escape:
+				return new LoadRecoveryDialogKeyResult(true, selectedIndex, CancelRequested: true);
+
+			case Key.Up:
+				return TryMoveSelection(recovery, selectedIndex, -1, out var previousIndex)
+					? new LoadRecoveryDialogKeyResult(true, previousIndex)
+					: LoadRecoveryDialogKeyResult.Unhandled(selectedIndex);
+
+			case Key.Down:
+				return TryMoveSelection(recovery, selectedIndex, 1, out var nextIndex)
+					? new LoadRecoveryDialogKeyResult(true, nextIndex)
+					: LoadRecoveryDialogKeyResult.Unhandled(selectedIndex);
+
+			case Key.Enter:
+			case Key.KpEnter:
+				if (confirmBlockedByFocus)
+					return LoadRecoveryDialogKeyResult.Unhandled(selectedIndex);
+
+				return TryConfirm(recovery, selectedIndex, out var actorId)
+					? new LoadRecoveryDialogKeyResult(true, selectedIndex, ConfirmedActorId: actorId)
+					: LoadRecoveryDialogKeyResult.Unhandled(selectedIndex);
+
+			default:
+				return LoadRecoveryDialogKeyResult.Unhandled(selectedIndex);
+		}
+	}
+}
+
+internal readonly record struct LoadRecoveryDialogKeyResult(
+	bool Handled,
+	int SelectedIndex,
+	bool CancelRequested = false,
+	string? ConfirmedActorId = null)
+{
+	public static LoadRecoveryDialogKeyResult Unhandled(int selectedIndex) => new(false, selectedIndex);
 }

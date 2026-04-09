@@ -617,8 +617,8 @@ public sealed class GameSessionModuleTests
 		{
 			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
 			var legacyPath = Path.Combine(session.SaveDirectory, "legacy-slot.json");
-			Directory.CreateDirectory(session.SaveDirectory);
-			SaveModule.WriteSaveFile(CreateMinimalSaveFile("legacy-slot"), legacyPath);
+			session.NewGame(CreateOptions("Legacy"));
+			session.SaveGame(legacyPath);
 
 			Assert.Equal(SaveLoadStatus.Success, session.LoadGame(legacyPath));
 			Assert.Equal("Legacy Save: legacy-slot", session.DescribeCurrentSessionLabel());

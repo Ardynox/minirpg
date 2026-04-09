@@ -81,9 +81,14 @@ public sealed class ItemWorldRenderRegistryTests
 			.ToList();
 
 		var configuredIds = new HashSet<string>(mappingRoot.Items!.Keys, StringComparer.Ordinal);
-		var missingIds = presetIds.Where(id => !configuredIds.Contains(id)).ToArray();
+		var missingIds = presetIds
+			.Where(id => !configuredIds.Contains(id))
+			.OrderBy(static id => id, StringComparer.Ordinal)
+			.ToArray();
 
-		Assert.Empty(missingIds);
+		Assert.True(
+			missingIds.Length == 0,
+			"Missing item world render mapping ids: " + string.Join(", ", missingIds));
 	}
 
 	private static string GetRepoPath(params string[] segments)

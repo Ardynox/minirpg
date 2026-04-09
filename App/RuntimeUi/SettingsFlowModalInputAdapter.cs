@@ -38,10 +38,14 @@ internal sealed class SettingsFlowModalInputAdapter(
 			&& overlayMouse.ButtonIndex == MouseButton.Right;
 		return HandleMouseInputCore(
 			() => _settingsFlow.HandleMouseInput(@event),
+			_panels.CloseFocused,
 			isPressedRightClick);
 	}
 
-	internal bool HandleMouseInputCore(Func<bool> handleSettingsMouseInput, bool isPressedRightClick)
+	internal bool HandleMouseInputCore(
+		Func<bool> handleSettingsMouseInput,
+		Func<bool> closeFocusedPanel,
+		bool isPressedRightClick)
 	{
 		if (!Visible)
 			return false;
@@ -49,7 +53,7 @@ internal sealed class SettingsFlowModalInputAdapter(
 		if (handleSettingsMouseInput())
 			return true;
 
-		if (!isPressedRightClick || !_panels.CloseFocused())
+		if (!isPressedRightClick || !closeFocusedPanel())
 		{
 			return false;
 		}
@@ -57,4 +61,7 @@ internal sealed class SettingsFlowModalInputAdapter(
 		_flushMap();
 		return true;
 	}
+
+	internal bool HandleMouseInputCore(Func<bool> handleSettingsMouseInput, bool isPressedRightClick) =>
+		HandleMouseInputCore(handleSettingsMouseInput, _panels.CloseFocused, isPressedRightClick);
 }

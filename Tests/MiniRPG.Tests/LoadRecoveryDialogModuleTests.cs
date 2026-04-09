@@ -1,4 +1,3 @@
-using Godot;
 using MiniRPG.Module;
 using Xunit;
 
@@ -7,13 +6,9 @@ namespace MiniRPG.Tests;
 public sealed class LoadRecoveryDialogModuleTests
 {
 	[Fact]
-	public void HandleKeyInput_ConfirmReturnsCurrentlySelectedCandidate()
+	public void HandleKey_ConfirmReturnsCurrentlySelectedCandidate()
 	{
-		var module = new LoadRecoveryDialogModule(CreatePanel());
-		string? confirmedActorId = null;
-		module.RecoveryConfirmed += actorId => confirmedActorId = actorId;
-
-		module.Open(new PreparedLoadRecovery
+		var recovery = new PreparedLoadRecovery
 		{
 			MissingPlayerId = "missing-player",
 			Candidates =
@@ -21,78 +16,66 @@ public sealed class LoadRecoveryDialogModuleTests
 				new PreparedLoadCandidate { ActorId = "player_a", DisplayName = "Rook", X = 1, Y = 2, Z = 0 },
 				new PreparedLoadCandidate { ActorId = "player_b", DisplayName = "Rook Twin", X = 3, Y = 4, Z = 0 },
 			],
-		});
+		};
 
-		Assert.True(module.HandleKeyInput(new InputEventKey { Pressed = true, Keycode = Key.Down }));
-		Assert.True(module.HandleKeyInput(new InputEventKey { Pressed = true, Keycode = Key.Enter }));
-		Assert.Equal("player_b", confirmedActorId);
+		var moved = LoadRecoveryDialogLogic.HandleKey(recovery, selectedIndex: 0, Godot.Key.Down, confirmBlockedByFocus: false);
+		var confirmed = LoadRecoveryDialogLogic.HandleKey(recovery, moved.SelectedIndex, Godot.Key.Enter, confirmBlockedByFocus: false);
+
+		Assert.True(moved.Handled);
+		Assert.Equal(1, moved.SelectedIndex);
+		Assert.True(confirmed.Handled);
+		Assert.Equal("player_b", confirmed.ConfirmedActorId);
 	}
 
 	[Fact]
-	public void HandleKeyInput_EscapeRaisesCancel()
+	public void HandleKey_EscapeRequestsCancel()
 	{
-		var module = new LoadRecoveryDialogModule(CreatePanel());
-		var cancelCount = 0;
-		module.CancelRequested += () => cancelCount++;
-
-		module.Open(new PreparedLoadRecovery
+		var recovery = new PreparedLoadRecovery
 		{
 			MissingPlayerId = "missing-player",
 			Candidates =
 			[
 				new PreparedLoadCandidate { ActorId = "player_a", DisplayName = "Rook", X = 1, Y = 2, Z = 0 },
 			],
-		});
+		};
 
-		Assert.True(module.HandleKeyInput(new InputEventKey { Pressed = true, Keycode = Key.Escape }));
-		Assert.Equal(1, cancelCount);
+		var result = LoadRecoveryDialogLogic.HandleKey(recovery, selectedIndex: 0, Godot.Key.Escape, confirmBlockedByFocus: false);
+
+		Assert.True(result.Handled);
+		Assert.True(result.CancelRequested);
 	}
 
 	[Fact]
-	public void HandleKeyInput_EnterDoesNotBypassFocusedButtons()
+	public void HandleKey_EnterDoesNotBypassFocusedButtons()
 	{
-		var viewport = new SubViewport();
-		var panel = CreatePanel();
-		viewport.AddChild(panel);
-		var module = new LoadRecoveryDialogModule(panel);
-		string? confirmedActorId = null;
-		module.RecoveryConfirmed += actorId => confirmedActorId = actorId;
-
-		module.Open(new PreparedLoadRecovery
+		var recovery = new PreparedLoadRecovery
 		{
 			MissingPlayerId = "missing-player",
 			Candidates =
 			[
 				new PreparedLoadCandidate { ActorId = "player_a", DisplayName = "Rook", X = 1, Y = 2, Z = 0 },
 			],
-		});
+		};
 
-		panel.GetNode<Button>("Margin/VBox/Footer/CancelBtn").GrabFocus();
+		var result = LoadRecoveryDialogLogic.HandleKey(recovery, selectedIndex: 0, Godot.Key.Enter, confirmBlockedByFocus: true);
 
-		Assert.False(module.HandleKeyInput(new InputEventKey { Pressed = true, Keycode = Key.Enter }));
-		Assert.Null(confirmedActorId);
+		Assert.False(result.Handled);
+		Assert.Null(result.ConfirmedActorId);
 	}
 
-	private static PanelContainer CreatePanel()
+	[Fact]
+	public void Open_WithNoCandidates_DisablesConfirm()
 	{
-		var panel = new PanelContainer();
-		var margin = new MarginContainer { Name = "Margin" };
-		var vbox = new VBoxContainer { Name = "VBox" };
-		var title = new Label { Name = "Title" };
-		var message = new Label { Name = "Message" };
-		var candidateList = new ItemList { Name = "CandidateList" };
-		var footer = new HBoxContainer { Name = "Footer" };
-		var confirm = new Button { Name = "ConfirmBtn" };
-		var cancel = new Button { Name = "CancelBtn" };
+		var recovery = new PreparedLoadRecovery
+		{
+			MissingPlayerId = "missing-player",
+			Candidates = [],
+		};
 
-		panel.AddChild(margin);
-		margin.AddChild(vbox);
-		vbox.AddChild(title);
-		vbox.AddChild(message);
-		vbox.AddChild(candidateList);
-		vbox.AddChild(footer);
-		footer.AddChild(confirm);
-		footer.AddChild(cancel);
-		return panel;
+		var selectedIndex = LoadRecoveryDialogLogic.GetInitialSelectedIndex(recovery);
+
+		Assert.Equal(-1, selectedIndex);
+		Assert.False(LoadRecoveryDialogLogic.CanConfirm(recovery, selectedIndex));
+		Assert.False(LoadRecoveryDialogLogic.HandleKey(recovery, selectedIndex, Godot.Key.Enter, confirmBlockedByFocus: false).Handled);
 	}
 }

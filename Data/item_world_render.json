@@ -238,9 +238,17 @@
       "kind": "tile",
       "value": "Misc B15_N"
     },
+    "mat_coal": {
+      "kind": "tile",
+      "value": "Misc B16_N"
+    },
     "mat_stone": {
       "kind": "tile",
       "value": "Misc B16_N"
+    },
+    "mat_copper": {
+      "kind": "tile",
+      "value": "Misc B17_N"
     },
     "mat_iron": {
       "kind": "tile",
@@ -267,6 +275,10 @@
       "value": "Misc B22_N"
     },
     "mat_jade": {
+      "kind": "tile",
+      "value": "Misc B23_N"
+    },
+    "mat_crystal": {
       "kind": "tile",
       "value": "Misc B23_N"
     },
