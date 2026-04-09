@@ -1,5 +1,10 @@
+using System;
+using System.Linq;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Map;
+using MiniRPG.Module;
+using MiniRPG.Module.Render;
 using MiniRPG.Core.World;
 using Xunit;
 
@@ -67,5 +72,54 @@ public sealed class NestModuleTests
 		var actorCountBefore = state.Actors.Count;
 		NestModule.Tick(state);
 		Assert.Equal(actorCountBefore, state.Actors.Count);
+	}
+
+	[Fact]
+	public void StartWorldCharacter_ResetsNestSpawnCounter()
+	{
+		var priorState = CreateStateWithNest();
+		NestModule.Tick(priorState);
+		Assert.Contains(priorState.Actors.Keys, id => string.Equals(id, "nest_0", StringComparison.Ordinal));
+
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("nest-counter-reset");
+		try
+		{
+			var state = new GameState();
+			var session = new GameSessionModule(state, new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha", new WorldSettings
+			{
+				Seed = 424242,
+				GeneratorId = "blank_floor",
+			});
+
+			session.StartWorldCharacter(manifest.WorldId, PlayerCreationOptions.CreateDefault());
+			AddReadyNest(state, state.PlayerX + 3, state.PlayerY, state.PlayerZ);
+
+			NestModule.Tick(state);
+
+			var spawned = Assert.Single(state.Actors.Values, actor =>
+				actor.Faction == Factions.Hostile
+				&& string.Equals(actor.Id, "nest_0", StringComparison.Ordinal));
+			Assert.Equal(state.PlayerZ, spawned.Z);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	private static void AddReadyNest(GameState state, int x, int y, int z)
+	{
+		var chunkCoord = CoordUtil.WorldToChunk(x, y, z);
+		var chunk = state.World!.Chunks.GetOrLoad(chunkCoord);
+		chunk.Nests.Add(new NestData
+		{
+			X = x,
+			Y = y,
+			SpawnInterval = 1,
+			MaxSpawned = 1,
+			TurnsSinceSpawn = 1,
+		});
 	}
 }

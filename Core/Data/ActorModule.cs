@@ -91,8 +91,7 @@ public static class ActorModule
 
 	public static Actor? FindAdjacentHostile(GameState state)
 	{
-		var dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
-		foreach (var (dx, dy) in dirs)
+		foreach (var (dx, dy) in GridDirections.Cardinal)
 		{
 			var hostile = GetHostileAt(state, state.PlayerX + dx, state.PlayerY + dy);
 			if (hostile != null) return hostile;

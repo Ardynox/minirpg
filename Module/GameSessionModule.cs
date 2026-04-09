@@ -581,6 +581,7 @@ public class GameSessionModule
 
 	private void InitializeWorld(PlayerCreationOptions? options = null)
 	{
+		NestModule.ResetSpawnCounter();
 		MapGenModule.InitializeWorld(_state);
 		MapGenModule.FindSpawnPoint(_state);
 		MapGenModule.SpawnPlayer(_state, options);

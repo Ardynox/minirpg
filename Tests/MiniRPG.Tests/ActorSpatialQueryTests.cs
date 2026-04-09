@@ -62,6 +62,27 @@ public sealed class ActorSpatialQueryTests
 		Assert.Same(restored, ActorModule.GetAt(state, 2, 2, 0));
 	}
 
+	[Fact]
+	public void FindAdjacentHostile_IgnoresDiagonalActors()
+	{
+		var state = CreateLoadedState();
+		var player = CreateActor("player", Factions.Player, 10, 10, 0);
+		var diagonal = CreateActor("diagonal", Factions.Hostile, 11, 11, 0);
+		var north = CreateActor("north", Factions.Hostile, 10, 9, 0);
+
+		ActorModule.Add(state, player);
+		state.PlayerId = player.Id;
+		state.PlayerX = player.X;
+		state.PlayerY = player.Y;
+		state.PlayerZ = player.Z;
+
+		ActorModule.Add(state, diagonal);
+		Assert.Null(ActorModule.FindAdjacentHostile(state));
+
+		ActorModule.Add(state, north);
+		Assert.Same(north, ActorModule.FindAdjacentHostile(state));
+	}
+
 	private static GameState CreateLoadedState()
 	{
 		var state = new GameState

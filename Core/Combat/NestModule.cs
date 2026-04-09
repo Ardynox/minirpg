@@ -11,8 +11,12 @@ namespace MiniRPG.Core.Combat;
 /// </summary>
 public static class NestModule
 {
-	private static readonly (int Dx, int Dy)[] Dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)];
 	private static int _nestSpawnCounter;
+
+	internal static void ResetSpawnCounter()
+	{
+		_nestSpawnCounter = 0;
+	}
 
 	/// <summary>
 	/// 每回合调用：遍历玩家附近已加载 chunk 中的巢穴，推进计时器，刷出怪物。
@@ -68,7 +72,7 @@ public static class NestModule
 	private static (int, int)? FindSpawnSlot(GameState state, NestData nest, Random rng)
 	{
 		var candidates = new List<(int, int)>();
-		foreach (var (dx, dy) in Dirs)
+		foreach (var (dx, dy) in GridDirections.Cardinal)
 		{
 			var nx = nest.X + dx;
 			var ny = nest.Y + dy;

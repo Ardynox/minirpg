@@ -11,6 +11,29 @@ namespace MiniRPG.Tests;
 public sealed class ActionModuleTests
 {
 	[Fact]
+	public void GetInteractTargets_UsesCurrentCellAndCardinalNeighborsOnly()
+	{
+		var (state, player, _) = SkillCastingTestHelper.CreateCombatState(enemyX: 10, enemyY: 10);
+		var sameCell = CreateActor("same_cell", Factions.Friendly, player.X, player.Y, player.Z);
+		var north = CreateActor("north", Factions.Friendly, player.X, player.Y - 1, player.Z);
+		var east = CreateActor("east", Factions.Friendly, player.X + 1, player.Y, player.Z);
+		var diagonal = CreateActor("diagonal", Factions.Friendly, player.X + 1, player.Y + 1, player.Z);
+
+		ActorModule.Add(state, sameCell);
+		ActorModule.Add(state, north);
+		ActorModule.Add(state, east);
+		ActorModule.Add(state, diagonal);
+
+		var targets = ActionModule.GetInteractTargets(state, player);
+
+		Assert.Contains(sameCell, targets);
+		Assert.Contains(north, targets);
+		Assert.Contains(east, targets);
+		Assert.DoesNotContain(diagonal, targets);
+		Assert.DoesNotContain(player, targets);
+	}
+
+	[Fact]
 	public void TryCastSkill_RangedAttackSucceeds_WhenTargetInRangeAndVisible()
 	{
 		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState(enemyX: 4, enemyY: 1);
@@ -359,4 +382,34 @@ public sealed class ActionModuleTests
 		Assert.Equal("organ_heart", harvestEvent.ItemTypeId);
 		Assert.Equal(corpse.Name, harvestEvent.TargetActorName);
 	}
+
+	private static Actor CreateActor(string id, string faction, int x, int y, int z) =>
+		new()
+		{
+			Id = id,
+			DisplayName = id,
+			Faction = faction,
+			X = x,
+			Y = y,
+			Z = z,
+			Limbs =
+			[
+				new Limb
+				{
+					Id = $"{id}_core",
+					Name = "Core",
+					MaxDurability = 10,
+					Durability = 10,
+					Material = "flesh",
+					BodyPart = "torso",
+					Capacities = new Dictionary<string, float>
+					{
+						[Caps.BloodCirculation] = 1f,
+						[Caps.Moving] = 1f,
+						[Caps.Consciousness] = 1f,
+						[Caps.Metabolism] = 1f,
+					},
+				},
+			],
+		};
 }

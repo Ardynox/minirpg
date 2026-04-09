@@ -12,9 +12,6 @@ namespace MiniRPG.Core.Combat;
 /// </summary>
 public static class ActionModule
 {
-	private static readonly (int Dx, int Dy)[] SurroundDirs =
-		[(0, 0), (0, -1), (0, 1), (-1, 0), (1, 0)];
-
 	public static List<GameEvent> TryMove(GameState state, Actor actor, int dx, int dy)
 	{
 		if (dx != 0 || dy != 0)
@@ -104,7 +101,7 @@ public static class ActionModule
 	public static List<Actor> GetInteractTargets(GameState state, Actor actor)
 	{
 		var targets = new List<Actor>();
-		foreach (var (dx, dy) in SurroundDirs)
+		foreach (var (dx, dy) in GridDirections.CardinalWithOrigin)
 		{
 			foreach (var other in ActorModule.GetAllAt(state, actor.X + dx, actor.Y + dy))
 			{
