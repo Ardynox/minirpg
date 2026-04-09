@@ -66,6 +66,8 @@ public static class MapGenModule
 		ActorModule.ClearAll(state);
 
 		var player = ActorTemplates.Spawn(Factions.Player, state.PlayerId);
+		player.Faction = Factions.Player;
+		player.PrimaryDomainId = DomainIds.Player;
 		ApplyPlayerCreationOptions(state, player, options);
 		GiveStarterKit(player);
 		player.X = state.PlayerX;

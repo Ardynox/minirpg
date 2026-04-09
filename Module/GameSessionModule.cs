@@ -786,8 +786,7 @@ public class GameSessionModule
 		if (payload.Actors.Any(snapshot => string.Equals(snapshot.Id, payload.PlayerId, StringComparison.Ordinal)))
 			return SaveLoadStatus.Success;
 
-		var candidates = payload.Actors
-			.Where(static snapshot => string.Equals(snapshot.Faction, Factions.Player, StringComparison.Ordinal))
+		var candidates = EnumeratePreparedLoadCandidates(payload)
 			.OrderBy(
 				static snapshot => string.IsNullOrWhiteSpace(snapshot.DisplayName) ? snapshot.Id : snapshot.DisplayName,
 				StringComparer.Ordinal)
@@ -810,6 +809,45 @@ public class GameSessionModule
 			Candidates = candidates,
 		};
 		return SaveLoadStatus.Success;
+	}
+
+	private static IEnumerable<ActorSnapshot> EnumeratePreparedLoadCandidates(SavePayload payload)
+	{
+		var seen = new HashSet<string>(StringComparer.Ordinal);
+		foreach (var snapshot in payload.Actors)
+		{
+			if (!IsPreparedLoadCandidate(payload, snapshot))
+				continue;
+			if (seen.Add(snapshot.Id))
+				yield return snapshot;
+		}
+	}
+
+	private static bool IsPreparedLoadCandidate(SavePayload payload, ActorSnapshot snapshot)
+	{
+		if (string.IsNullOrWhiteSpace(snapshot.Id))
+			return false;
+
+		if (string.Equals(snapshot.Faction, Factions.Player, StringComparison.Ordinal))
+			return true;
+
+		if (string.Equals(snapshot.TemplateId, GameState.DefaultPlayerId, StringComparison.Ordinal)
+			&& string.Equals(snapshot.Faction, Factions.Friendly, StringComparison.Ordinal))
+			return true;
+
+		if (payload.Room == null)
+			return false;
+
+		if ((payload.Room.Players ?? []).Any(player =>
+			string.Equals(player.PrimaryActorId, snapshot.Id, StringComparison.Ordinal)
+			|| (player.CurrentControllerActorIds ?? []).Contains(snapshot.Id, StringComparer.Ordinal)
+			|| (player.DelegatedActorIds ?? []).Contains(snapshot.Id, StringComparer.Ordinal)))
+		{
+			return true;
+		}
+
+		return (payload.Room.ActorControlBindings ?? []).Any(binding =>
+			string.Equals(binding.ActorId, snapshot.Id, StringComparison.Ordinal));
 	}
 
 	private static bool TryResolvePreparedLoadSaveFile(
