@@ -13,6 +13,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string SessionPagePath = "Margin/VBox/ContentScroll/Pages/SessionPage";
 	private const string LanguageRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/LanguageRow";
 	private const string RenderRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/RenderRow";
+	private const string MapZoomMinRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMinRow";
+	private const string MapZoomMaxRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMaxRow";
 	private const string WatchModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/WatchModeRow";
 	private const string KeyboardTargetingRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow";
 	private const string DebugPanelRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/DebugPanelRow";
@@ -45,6 +47,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _languageStatusLabel;
 	private readonly Label _renderTitleLabel;
 	private readonly Label _renderStatusLabel;
+	private readonly Label _mapZoomMinTitleLabel;
+	private readonly Label _mapZoomMinStatusLabel;
+	private readonly Label _mapZoomMaxTitleLabel;
+	private readonly Label _mapZoomMaxStatusLabel;
 	private readonly Label _watchModeTitleLabel;
 	private readonly Label _watchModeStatusLabel;
 	private readonly Label _keyboardTargetingTitleLabel;
@@ -65,6 +71,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _layoutEditStatusLabel;
 	private readonly OptionButton _languageOption;
 	private readonly Button _renderToggleButton;
+	private readonly Button _mapZoomMinDecreaseButton;
+	private readonly Button _mapZoomMinIncreaseButton;
+	private readonly Button _mapZoomMaxDecreaseButton;
+	private readonly Button _mapZoomMaxIncreaseButton;
 	private readonly CheckButton _watchModeButton;
 	private readonly CheckButton _keyboardTargetingButton;
 	private readonly CheckButton _debugPanelToggleButton;
@@ -100,6 +110,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	public event Action? WatchModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
 	public event Action? DebugPanelToggleRequested;
+	public event Action? MapZoomMinDecreaseRequested;
+	public event Action? MapZoomMinIncreaseRequested;
+	public event Action? MapZoomMaxDecreaseRequested;
+	public event Action? MapZoomMaxIncreaseRequested;
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? MapEditorToggleRequested;
@@ -196,6 +210,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_languageStatusLabel = panel.GetNode<Label>(LanguageRowPath + "/Margin/HBox/Content/Status");
 		_renderTitleLabel = panel.GetNode<Label>(RenderRowPath + "/Margin/HBox/Content/Title");
 		_renderStatusLabel = panel.GetNode<Label>(RenderRowPath + "/Margin/HBox/Content/Status");
+		_mapZoomMinTitleLabel = panel.GetNode<Label>(MapZoomMinRowPath + "/Margin/HBox/Content/Title");
+		_mapZoomMinStatusLabel = panel.GetNode<Label>(MapZoomMinRowPath + "/Margin/HBox/Content/Status");
+		_mapZoomMaxTitleLabel = panel.GetNode<Label>(MapZoomMaxRowPath + "/Margin/HBox/Content/Title");
+		_mapZoomMaxStatusLabel = panel.GetNode<Label>(MapZoomMaxRowPath + "/Margin/HBox/Content/Status");
 		_watchModeTitleLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Title");
 		_watchModeStatusLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Status");
 		_keyboardTargetingTitleLabel = panel.GetNode<Label>(KeyboardTargetingRowPath + "/Margin/HBox/Content/Title");
@@ -217,6 +235,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 
 		_languageOption = panel.GetNode<OptionButton>(LanguageRowPath + "/Margin/HBox/LanguageOption");
 		_renderToggleButton = panel.GetNode<Button>(RenderRowPath + "/Margin/HBox/RenderToggle");
+		_mapZoomMinDecreaseButton = panel.GetNode<Button>(MapZoomMinRowPath + "/Margin/HBox/ZoomMinDecreaseBtn");
+		_mapZoomMinIncreaseButton = panel.GetNode<Button>(MapZoomMinRowPath + "/Margin/HBox/ZoomMinIncreaseBtn");
+		_mapZoomMaxDecreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxDecreaseBtn");
+		_mapZoomMaxIncreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxIncreaseBtn");
 		_watchModeButton = panel.GetNode<CheckButton>(WatchModeRowPath + "/Margin/HBox/WatchModeToggle");
 		_keyboardTargetingButton = panel.GetNode<CheckButton>(KeyboardTargetingRowPath + "/Margin/HBox/KeyboardTargetingToggle");
 		_debugPanelToggleButton = panel.GetNode<CheckButton>(DebugPanelRowPath + "/Margin/HBox/DebugPanelToggle");
@@ -234,6 +256,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		{
 			[SettingsPanelRowId.Language] = panel.GetNode<PanelContainer>(LanguageRowPath),
 			[SettingsPanelRowId.Render] = panel.GetNode<PanelContainer>(RenderRowPath),
+			[SettingsPanelRowId.MapZoomMin] = panel.GetNode<PanelContainer>(MapZoomMinRowPath),
+			[SettingsPanelRowId.MapZoomMax] = panel.GetNode<PanelContainer>(MapZoomMaxRowPath),
 			[SettingsPanelRowId.WatchMode] = panel.GetNode<PanelContainer>(WatchModeRowPath),
 			[SettingsPanelRowId.KeyboardTargeting] = panel.GetNode<PanelContainer>(KeyboardTargetingRowPath),
 			[SettingsPanelRowId.DebugPanel] = panel.GetNode<PanelContainer>(DebugPanelRowPath),
@@ -268,6 +292,26 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		{
 			SelectRow(SettingsPanelRowId.Render);
 			RenderToggleRequested?.Invoke();
+		};
+		_mapZoomMinDecreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.MapZoomMin);
+			MapZoomMinDecreaseRequested?.Invoke();
+		};
+		_mapZoomMinIncreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.MapZoomMin);
+			MapZoomMinIncreaseRequested?.Invoke();
+		};
+		_mapZoomMaxDecreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.MapZoomMax);
+			MapZoomMaxDecreaseRequested?.Invoke();
+		};
+		_mapZoomMaxIncreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.MapZoomMax);
+			MapZoomMaxIncreaseRequested?.Invoke();
 		};
 		_watchModeButton.Pressed += () => SelectRow(SettingsPanelRowId.WatchMode);
 		_watchModeButton.Toggled += _ =>
@@ -331,6 +375,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 
 		WireRowSelection(SettingsPanelRowId.Language);
 		WireRowSelection(SettingsPanelRowId.Render);
+		WireRowSelection(SettingsPanelRowId.MapZoomMin);
+		WireRowSelection(SettingsPanelRowId.MapZoomMax);
 		WireRowSelection(SettingsPanelRowId.WatchMode);
 		WireRowSelection(SettingsPanelRowId.KeyboardTargeting);
 		WireRowSelection(SettingsPanelRowId.DebugPanel);
@@ -351,7 +397,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
 			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false);
+			WeatherLabPanelOpen: false,
+			MapZoomMin: 0.6f,
+			MapZoomMax: 2.4f,
+			MapZoomCurrent: 1.0f);
 
 		_selectionModel.ApplyState(_state);
 		_panel.Visible = false;
@@ -398,6 +447,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_toolsSectionTitle.Text = LocalizationService.T("ui.settings.section.tools");
 		_languageTitleLabel.Text = LocalizationService.T("ui.settings.language.title");
 		_renderTitleLabel.Text = LocalizationService.T("ui.settings.render.title");
+		_mapZoomMinTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_min.title");
+		_mapZoomMaxTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_max.title");
 		_watchModeTitleLabel.Text = LocalizationService.T("ui.settings.watch_mode.title");
 		_keyboardTargetingTitleLabel.Text = LocalizationService.T("ui.settings.keyboard_targeting.title");
 		_debugPanelTitleLabel.Text = LocalizationService.T("ui.settings.debug_panel.title");
@@ -565,6 +616,14 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			"ui.settings.language.status",
 			("locale", LocalizationService.GetLocaleLabel(_state.CurrentLocale)));
 		_renderStatusLabel.Text = LocalizationService.T(GetRenderStatusKey(_state));
+		_mapZoomMinStatusLabel.Text = LocalizationService.T(
+			"ui.settings.map_zoom_min.status",
+			("value", _state.MapZoomMin.ToString("0.0")),
+			("current", _state.MapZoomCurrent.ToString("0.0")));
+		_mapZoomMaxStatusLabel.Text = LocalizationService.T(
+			"ui.settings.map_zoom_max.status",
+			("value", _state.MapZoomMax.ToString("0.0")),
+			("current", _state.MapZoomCurrent.ToString("0.0")));
 		_watchModeStatusLabel.Text = LocalizationService.T(GetWatchModeStatusKey(_state));
 		_keyboardTargetingStatusLabel.Text = LocalizationService.T(GetKeyboardTargetingStatusKey(_state));
 		_debugPanelStatusLabel.Text = LocalizationService.T(GetDebugPanelStatusKey(_state));
@@ -576,6 +635,14 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_layoutEditStatusLabel.Text = LocalizationService.T("ui.settings.layout_edit.status");
 
 		_renderToggleButton.Disabled = !_state.RenderReady;
+		_mapZoomMinDecreaseButton.Disabled = !_state.RenderReady;
+		_mapZoomMinIncreaseButton.Disabled = !_state.RenderReady;
+		_mapZoomMaxDecreaseButton.Disabled = !_state.RenderReady;
+		_mapZoomMaxIncreaseButton.Disabled = !_state.RenderReady;
+		_mapZoomMinDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
+		_mapZoomMinIncreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.increase");
+		_mapZoomMaxDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
+		_mapZoomMaxIncreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.increase");
 		_mapEditorButton.Text = LocalizationService.T(
 			_state.MapEditorActive
 				? "ui.settings.map_editor.exit"
@@ -638,6 +705,12 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				break;
 			case SettingsPanelRowId.Render:
 				RenderToggleRequested?.Invoke();
+				break;
+			case SettingsPanelRowId.MapZoomMin:
+				MapZoomMinIncreaseRequested?.Invoke();
+				break;
+			case SettingsPanelRowId.MapZoomMax:
+				MapZoomMaxIncreaseRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.WatchMode:
 				WatchModeToggleRequested?.Invoke();

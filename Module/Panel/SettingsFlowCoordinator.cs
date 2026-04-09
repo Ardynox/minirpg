@@ -34,7 +34,10 @@ public readonly record struct SettingsUiState(
 	bool EnableKeyboardTargeting,
 	bool EnableDebugPanel,
 	bool CanOpenWeatherLab,
-	bool WeatherLabPanelOpen);
+	bool WeatherLabPanelOpen,
+	float MapZoomMin,
+	float MapZoomMax,
+	float MapZoomCurrent);
 
 public interface ISettingsFlowPanel
 {
@@ -90,6 +93,10 @@ public interface ISettingsOverlay : ISettingsFlowPanel
 	event Action? WatchModeToggleRequested;
 	event Action? KeyboardTargetingToggleRequested;
 	event Action? DebugPanelToggleRequested;
+	event Action? MapZoomMinDecreaseRequested;
+	event Action? MapZoomMinIncreaseRequested;
+	event Action? MapZoomMaxDecreaseRequested;
+	event Action? MapZoomMaxIncreaseRequested;
 	event Action? SaveRequested;
 	event Action? LoadRequested;
 	event Action? MapEditorToggleRequested;
@@ -118,6 +125,10 @@ public sealed class SettingsFlowCoordinator
 	public event Action? WatchModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
 	public event Action? DebugPanelToggleRequested;
+	public event Action? MapZoomMinDecreaseRequested;
+	public event Action? MapZoomMinIncreaseRequested;
+	public event Action? MapZoomMaxDecreaseRequested;
+	public event Action? MapZoomMaxIncreaseRequested;
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? MapEditorToggleRequested;
@@ -143,7 +154,10 @@ public sealed class SettingsFlowCoordinator
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
 			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false);
+			WeatherLabPanelOpen: false,
+			MapZoomMin: 0.6f,
+			MapZoomMax: 2.4f,
+			MapZoomCurrent: 1.0f);
 
 		_pauseMenu.ActionRequested += HandlePauseAction;
 		_settings.BackRequested += CloseActiveOverlay;
@@ -151,6 +165,10 @@ public sealed class SettingsFlowCoordinator
 		_settings.WatchModeToggleRequested += () => WatchModeToggleRequested?.Invoke();
 		_settings.KeyboardTargetingToggleRequested += () => KeyboardTargetingToggleRequested?.Invoke();
 		_settings.DebugPanelToggleRequested += () => DebugPanelToggleRequested?.Invoke();
+		_settings.MapZoomMinDecreaseRequested += () => MapZoomMinDecreaseRequested?.Invoke();
+		_settings.MapZoomMinIncreaseRequested += () => MapZoomMinIncreaseRequested?.Invoke();
+		_settings.MapZoomMaxDecreaseRequested += () => MapZoomMaxDecreaseRequested?.Invoke();
+		_settings.MapZoomMaxIncreaseRequested += () => MapZoomMaxIncreaseRequested?.Invoke();
 		_settings.SaveRequested += () => SaveRequested?.Invoke();
 		_settings.LoadRequested += () => LoadRequested?.Invoke();
 		_settings.MapEditorToggleRequested += () => MapEditorToggleRequested?.Invoke();

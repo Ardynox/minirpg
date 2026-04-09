@@ -160,6 +160,10 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? WatchModeToggleRequested { add { } remove { } }
 		public event Action? KeyboardTargetingToggleRequested { add { } remove { } }
 		public event Action? DebugPanelToggleRequested;
+		public event Action? MapZoomMinDecreaseRequested { add { } remove { } }
+		public event Action? MapZoomMinIncreaseRequested { add { } remove { } }
+		public event Action? MapZoomMaxDecreaseRequested { add { } remove { } }
+		public event Action? MapZoomMaxIncreaseRequested { add { } remove { } }
 		public event Action? SaveRequested { add { } remove { } }
 		public event Action? LoadRequested { add { } remove { } }
 		public event Action? MapEditorToggleRequested { add { } remove { } }

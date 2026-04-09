@@ -141,6 +141,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _playerRestModeActive;
 	private bool _enableKeyboardTargeting;
 	private bool _enableDebugPanel = true;
+	private float _mapZoomMin = 0.6f;
+	private float _mapZoomMax = 2.4f;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
@@ -591,6 +593,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
 			_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
 			_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
+			_mapZoomMin = AppSettingsStore.LoadMapZoomMin();
+			_mapZoomMax = AppSettingsStore.LoadMapZoomMax();
+			if (_mapZoomMin > _mapZoomMax)
+				(_mapZoomMin, _mapZoomMax) = (_mapZoomMax, _mapZoomMin);
 			TerrainRegistry.Load("terrains.json");
 			GameLocalizer.CaptureBaseSnapshots();
 			GameLocalizer.ApplyPresetTranslations();
@@ -609,6 +615,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_log = new LogModule(logContent);
 			_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
 			var lineEdit = _inputBar;
+			BindPanelLauncherBar();
 			_mapEditor = new MapEditorSession(_state);
 
 			_combatFxTextRoot = CreateMapOverlayRoot(_mapPanelNode);
@@ -842,6 +849,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
 			_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
 			_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
+			_settingsFlow.MapZoomMinDecreaseRequested += DecreaseMapZoomMin;
+			_settingsFlow.MapZoomMinIncreaseRequested += IncreaseMapZoomMin;
+			_settingsFlow.MapZoomMaxDecreaseRequested += DecreaseMapZoomMax;
+			_settingsFlow.MapZoomMaxIncreaseRequested += IncreaseMapZoomMax;
 			_settingsFlow.MapEditorToggleRequested += _mainAppFlowCoordinator.ToggleMapEditor;
 			_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
 			_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
@@ -1272,6 +1283,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 			_mapRender = new TileMapRenderModule(_state, _fogTracker, ViewW, ViewH);
 			_mapRender.Init(mapRoot, _loadedTileSet, viewportContainer, subViewport, playerCharacter, camera);
+			_mapRender.SetZoomRange(_mapZoomMin, _mapZoomMax);
 			_mapRender.SetWeatherScreenFxTuning(_weatherLabPanelController?.CurrentTuningSet ?? new WeatherScreenFxTuningSet());
 			_combatFxPlayer = new CombatFxPlayer(_mapRender, _mapRender.CombatFxWorldRoot, _combatFxTextRoot);
 
@@ -1370,7 +1382,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_enableKeyboardTargeting,
 			_enableDebugPanel,
 			_weatherLabPanelController?.CanUse == true,
-			_weatherLabPanelController?.Visible == true);
+			_weatherLabPanelController?.Visible == true,
+			_mapZoomMin,
+			_mapZoomMax,
+			_mapRender?.Zoom ?? 1.0f);
 	}
 
 	private void SyncSettingsUiState(SettingsEntryContext? context = null)
@@ -1419,6 +1434,48 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (!_enableDebugPanel)
 			CloseDebugPanel();
 		SyncSettingsUiState();
+	}
+
+	private void DecreaseMapZoomMin() => AdjustMapZoomMin(-0.1f);
+
+	private void IncreaseMapZoomMin() => AdjustMapZoomMin(0.1f);
+
+	private void DecreaseMapZoomMax() => AdjustMapZoomMax(-0.1f);
+
+	private void IncreaseMapZoomMax() => AdjustMapZoomMax(0.1f);
+
+	private void AdjustMapZoomMin(float delta)
+	{
+		var next = Math.Clamp(_mapZoomMin + delta, 0.2f, 4.0f);
+		next = Math.Min(next, _mapZoomMax);
+		if (Mathf.IsEqualApprox(next, _mapZoomMin))
+			return;
+
+		_mapZoomMin = next;
+		PersistAndApplyMapZoomRange();
+	}
+
+	private void AdjustMapZoomMax(float delta)
+	{
+		var next = Math.Clamp(_mapZoomMax + delta, 0.2f, 4.0f);
+		next = Math.Max(next, _mapZoomMin);
+		if (Mathf.IsEqualApprox(next, _mapZoomMax))
+			return;
+
+		_mapZoomMax = next;
+		PersistAndApplyMapZoomRange();
+	}
+
+	private void PersistAndApplyMapZoomRange()
+	{
+		if (_mapZoomMin > _mapZoomMax)
+			(_mapZoomMin, _mapZoomMax) = (_mapZoomMax, _mapZoomMin);
+
+		AppSettingsStore.SaveMapZoomMin(_mapZoomMin);
+		AppSettingsStore.SaveMapZoomMax(_mapZoomMax);
+		_mapRender?.SetZoomRange(_mapZoomMin, _mapZoomMax);
+		SyncSettingsUiState();
+		FlushMap();
 	}
 
 	private static Control CreateMapOverlayRoot(Control mapPanel)
@@ -3962,6 +4019,17 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 	}
 
 	private void RefreshAllBorders() => _panels.RefreshBorders();
+
+	private void BindPanelLauncherBar()
+	{
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/StatusBtn").Pressed += ToggleStatusPanel;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillBarBtn").Pressed += ToggleSkillBarPanel;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillMgrBtn").Pressed += ToggleSkillManager;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/InventoryBtn").Pressed += ToggleInventory;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/QuestBtn").Pressed += ToggleQuestPanel;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/DebugBtn").Pressed += ToggleDebugPanel;
+		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SettingsBtn").Pressed += ToggleSettingsPanel;
+	}
 
 	private void PrimeTimelineStatusLog(TimelineDebugSnapshot snapshot)
 	{

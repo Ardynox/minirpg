@@ -168,6 +168,86 @@ custom_minimum_size = Vector2(132, 0)
 layout_mode = 2
 text = "ui.settings.render.action"
 
+[node name="MapZoomMinRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.map_zoom_min.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="ZoomMinDecreaseBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin/HBox"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "ui.settings.map_zoom.decrease"
+
+[node name="ZoomMinIncreaseBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMinRow/Margin/HBox"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "ui.settings.map_zoom.increase"
+
+[node name="MapZoomMaxRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.map_zoom_max.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="ZoomMaxDecreaseBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin/HBox"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "ui.settings.map_zoom.decrease"
+
+[node name="ZoomMaxIncreaseBtn" type="Button" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox/MapZoomMaxRow/Margin/HBox"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "ui.settings.map_zoom.increase"
+
 [node name="GameplaySection" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage"]
 layout_mode = 2
 size_flags_horizontal = 3

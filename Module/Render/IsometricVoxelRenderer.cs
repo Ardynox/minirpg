@@ -19,6 +19,10 @@ public class IsometricVoxelRenderer
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
+	private const int SideTextureWidth = 64;
+	private const int SideTextureHeight = 128;
+	private const int SideFaceHeight = 64;
+	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
 
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
@@ -36,6 +40,7 @@ public class IsometricVoxelRenderer
 	private int _lastDrawCommandCount;
 
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
+	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
 
 	private static readonly Dictionary<string, Color> TerrainColors = new()
 	{
@@ -89,6 +94,7 @@ public class IsometricVoxelRenderer
 		_camera = camera;
 		_parentModule = parentModule;
 		_textureCache.Clear();
+		_voxelFaceTextureCache.Clear();
 	}
 
 	// ── Main Render Pass ──
@@ -179,8 +185,8 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Left;
-		// 64x64 parallelogram image; bounding box center = ScreenPos + (-32, 32)
-		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH);
+		// Taller side face; shift down to keep top seam aligned with top diamond.
+		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
 		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
@@ -196,8 +202,8 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Right;
-		// 64x64 parallelogram image; bounding box center = ScreenPos + (32, 32)
-		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH);
+		// Taller side face; shift down to keep top seam aligned with top diamond.
+		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
 		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
@@ -223,7 +229,13 @@ public class IsometricVoxelRenderer
 		if (_textureCache.TryGetValue(terrain.StringId, out var cached))
 			return cached;
 
-		// Try to extract real tile from TileSet atlas via parent module
+		if (TryCreateVoxelFaceTextures(terrain.StringId, out var voxelTextures))
+		{
+			_textureCache[terrain.StringId] = voxelTextures;
+			return voxelTextures;
+		}
+
+		// Fallback: use existing tileset extraction + procedural side generation
 		Image? topImage = null;
 		Texture2D? topTexture = null;
 
@@ -241,7 +253,6 @@ public class IsometricVoxelRenderer
 			}
 		}
 
-		// Fallback: generate solid-color diamond
 		if (topImage == null)
 		{
 			var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
@@ -249,7 +260,6 @@ public class IsometricVoxelRenderer
 			topTexture = ImageTexture.CreateFromImage(topImage);
 		}
 
-		// Generate side faces by sampling bottom edges of the top diamond
 		var leftImage = GenerateLeftSideImage(topImage);
 		var rightImage = GenerateRightSideImage(topImage);
 
@@ -260,6 +270,177 @@ public class IsometricVoxelRenderer
 
 		_textureCache[terrain.StringId] = result;
 		return result;
+	}
+
+	private bool TryCreateVoxelFaceTextures(string terrainId, out CachedBlockTextures textures)
+	{
+		textures = default;
+		var topPath = ResolveVoxelTopTexturePath(terrainId);
+		if (string.IsNullOrWhiteSpace(topPath))
+			return false;
+
+		var topSourceTexture = GetOrLoadVoxelFaceTexture(topPath);
+		if (topSourceTexture == null)
+			return false;
+
+		var topSourceImage = ExtractImage(topSourceTexture);
+		if (topSourceImage == null)
+			return false;
+
+		var topDiamondImage = BuildTopDiamondFromTile(topSourceImage);
+		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
+
+		Image sideSourceImage;
+		var sidePath = ResolveVoxelSideTexturePath(terrainId);
+		var sideTexture = string.IsNullOrWhiteSpace(sidePath) ? null : GetOrLoadVoxelFaceTexture(sidePath);
+		if (sideTexture != null)
+			sideSourceImage = ExtractImage(sideTexture) ?? topSourceImage;
+		else
+			sideSourceImage = topSourceImage;
+
+		var leftImage = GenerateSideFaceFromTile(sideSourceImage, isRight: false, LeftDarken);
+		var rightImage = GenerateSideFaceFromTile(sideSourceImage, isRight: true, RightDarken);
+
+		textures = new CachedBlockTextures(
+			topTexture,
+			ImageTexture.CreateFromImage(leftImage),
+			ImageTexture.CreateFromImage(rightImage));
+		return true;
+	}
+
+	private Texture2D? GetOrLoadVoxelFaceTexture(string path)
+	{
+		if (_voxelFaceTextureCache.TryGetValue(path, out var cached))
+			return cached;
+
+		var loaded = GD.Load<Texture2D>(path);
+		_voxelFaceTextureCache[path] = loaded;
+		return loaded;
+	}
+
+	private static string ResolveVoxelTopTexturePath(string terrainId)
+	{
+		var fileName = terrainId switch
+		{
+			"grass_block" => "tile_grass_top.png",
+			"grass" => "tile_grass_top.png",
+			"dirt" => "tile_dirt.png",
+			"swamp" => "tile_dirt.png",
+			"marsh" => "tile_dirt.png",
+			"sand" => "tile_dirt.png",
+			"wall_soil" => "tile_dirt.png",
+			"stone" => "tile_stone.png",
+			"gravel" => "tile_stone.png",
+			"mountain" => "tile_stone.png",
+			"rubble" => "tile_stone.png",
+			"floor" => "tile_stone.png",
+			"wall_stone" => "tile_stone.png",
+			"wall_granite" => "tile_stone.png",
+			"wall_obsidian" => "tile_stone.png",
+			"wall_iron" => "tile_stone.png",
+			"crystal_vein" => "tile_stone.png",
+			_ => string.Empty,
+		};
+
+		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
+	}
+
+	private static string ResolveVoxelSideTexturePath(string terrainId)
+	{
+		var fileName = terrainId switch
+		{
+			"grass_block" => "tile_grass_side.png",
+			"grass" => "tile_grass_side.png",
+			"tree" => "tile_grass_side.png",
+			"fungus" => "tile_grass_side.png",
+			"dirt" => "tile_dirt.png",
+			"swamp" => "tile_dirt.png",
+			"marsh" => "tile_dirt.png",
+			"sand" => "tile_dirt.png",
+			"wall_soil" => "tile_dirt.png",
+			"stone" => "tile_stone.png",
+			"gravel" => "tile_stone.png",
+			"mountain" => "tile_stone.png",
+			"rubble" => "tile_stone.png",
+			"floor" => "tile_stone.png",
+			"wall_stone" => "tile_stone.png",
+			"wall_granite" => "tile_stone.png",
+			"wall_obsidian" => "tile_stone.png",
+			"wall_iron" => "tile_stone.png",
+			"crystal_vein" => "tile_stone.png",
+			_ => string.Empty,
+		};
+
+		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
+	}
+
+	private static Image BuildTopDiamondFromTile(Image tileImage)
+	{
+		const int targetW = 128;
+		const int targetH = 64;
+		var result = Image.CreateEmpty(targetW, targetH, false, Image.Format.Rgba8);
+		var srcW = tileImage.GetWidth();
+		var srcH = tileImage.GetHeight();
+		var halfW = targetW / 2f;
+		var halfH = targetH / 2f;
+
+		for (var y = 0; y < targetH; y++)
+		{
+			for (var x = 0; x < targetW; x++)
+			{
+				var nx = (x - halfW) / halfW;
+				var ny = (y - halfH) / halfH;
+				if (Math.Abs(nx) + Math.Abs(ny) > 1f)
+				{
+					result.SetPixel(x, y, Colors.Transparent);
+					continue;
+				}
+
+				var u = (nx - ny + 1f) * 0.5f;
+				var v = (nx + ny + 1f) * 0.5f;
+				var sx = Math.Clamp((int)Math.Round(u * (srcW - 1)), 0, srcW - 1);
+				var sy = Math.Clamp((int)Math.Round(v * (srcH - 1)), 0, srcH - 1);
+				result.SetPixel(x, y, tileImage.GetPixel(sx, sy));
+			}
+		}
+
+		return result;
+	}
+
+	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken)
+	{
+		var iw = SideTextureWidth;
+		var ih = SideTextureHeight;
+		var faceH = SideFaceHeight;
+		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
+		var tw = tileImage.GetWidth();
+		var th = tileImage.GetHeight();
+
+		for (var px = 0; px < iw; px++)
+		{
+			var t = px / (float)(iw - 1);
+			var sampleX = isRight
+				? (tw - 1) - (int)Math.Round(t * (tw - 1))
+				: (int)Math.Round(t * (tw - 1));
+			var pyStart = isRight
+				? (int)((iw - 1 - px) * 0.5f)
+				: (int)(px * 0.5f);
+
+			for (var dy = 0; dy < faceH; dy++)
+			{
+				var py = pyStart + dy;
+				if (py >= ih) break;
+
+				var sampleY = Math.Clamp((int)Math.Round((dy / (float)(faceH - 1)) * (th - 1)), 0, th - 1);
+				var color = SampleArea(tileImage, sampleX, sampleY, tw, th);
+				var gradient = 1.0f - (dy / (float)faceH) * 0.2f;
+				var c = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
+				c.A = color.A;
+				img.SetPixel(px, py, c);
+			}
+		}
+
+		return img;
 	}
 
 	/// <summary>

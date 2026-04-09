@@ -28,14 +28,32 @@ public class PanelManager
 
 	public void Register(IPanel panel)
 	{
+		if (_panels.Contains(panel))
+			return;
+
 		_panels.Add(panel);
-		_allNodes.Add(panel.PanelNode);
-		_nodePanelIds[panel.PanelNode] = panel.PanelId;
+		RegisterNode(panel.PanelNode, panel.PanelId);
+	}
+
+	public void Unregister(IPanel panel)
+	{
+		if (!_panels.Remove(panel))
+			return;
+
+		RemoveFromStack(panel);
+		UnregisterNode(panel.PanelNode);
+		if (_focused == panel)
+			SwitchFocus(PopPreviousFocusable(), clearStack: false);
 	}
 
 	public void RegisterPassive(PanelContainer node)
 	{
-		_allNodes.Add(node);
+		RegisterNode(node, panelId: null);
+	}
+
+	public void UnregisterPassive(PanelContainer node)
+	{
+		UnregisterNode(node);
 	}
 
 	public void RegisterPassive(
@@ -47,12 +65,28 @@ public class PanelManager
 	{
 		if (!canFocus)
 		{
-			_allNodes.Add(node);
-			_nodePanelIds[node] = panelId;
+			RegisterNode(node, panelId);
 			return;
 		}
 
 		Register(new PassivePanel(panelId, node, consumeUnhandledKeys, allowGlobalClose));
+	}
+
+	public void PruneInvalidPanels()
+	{
+		for (var i = _panels.Count - 1; i >= 0; i--)
+		{
+			var panel = _panels[i];
+			if (IsPanelInvalid(panel))
+				Unregister(panel);
+		}
+
+		for (var i = _allNodes.Count - 1; i >= 0; i--)
+		{
+			var node = _allNodes[i];
+			if (IsNodeInvalid(node))
+				UnregisterNode(node);
+		}
 	}
 
 	/// <summary>
@@ -264,7 +298,13 @@ public class PanelManager
 		FocusChanged?.Invoke();
 	}
 
-	private bool IsFocusable(IPanel panel) => panel.CanFocus && panel.Visible;
+	private bool IsFocusable(IPanel panel)
+	{
+		if (IsPanelInvalid(panel))
+			return false;
+
+		return panel.CanFocus && panel.Visible;
+	}
 
 	private string? FindPanelIdForNode(PanelContainer node)
 	{
@@ -344,6 +384,27 @@ public class PanelManager
 			return false;
 
 		return cmd is "up" or "down" or "left" or "right";
+	}
+
+	private static bool IsPanelInvalid(IPanel panel) => IsNodeInvalid(panel.PanelNode);
+
+	private static bool IsNodeInvalid(PanelContainer node) => !GodotObject.IsInstanceValid(node) || node.IsQueuedForDeletion();
+
+	private void RegisterNode(PanelContainer node, string? panelId)
+	{
+		if (!_allNodes.Contains(node))
+			_allNodes.Add(node);
+
+		if (panelId == null)
+			_nodePanelIds.Remove(node);
+		else
+			_nodePanelIds[node] = panelId;
+	}
+
+	private void UnregisterNode(PanelContainer node)
+	{
+		_allNodes.Remove(node);
+		_nodePanelIds.Remove(node);
 	}
 
 	private sealed class PassivePanel(string panelId, PanelContainer panelNode, bool consumeUnhandledKeys, bool allowGlobalClose) : IPanel

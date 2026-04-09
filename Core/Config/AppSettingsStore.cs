@@ -10,7 +10,7 @@ namespace MiniRPG.Core.Config;
 public static class AppSettingsStore
 {
 	private const string SettingsPath = "user://app_settings.json";
-	private const int SchemaVersion = 4;
+	private const int SchemaVersion = 5;
 
 	public static string LoadLocale()
 	{
@@ -54,6 +54,38 @@ public static class AppSettingsStore
 	public static void SaveEnableDebugPanel(bool enabled)
 	{
 		SaveSettings(settings => settings.EnableDebugPanel = enabled, "debug panel setting");
+	}
+
+	public static float LoadMapZoomMin()
+	{
+		var settings = LoadSettings();
+		return ClampZoomValue(settings.MapZoomMin ?? 0.6f);
+	}
+
+	public static void SaveMapZoomMin(float value)
+	{
+		SaveSettings(settings =>
+		{
+			settings.MapZoomMin = ClampZoomValue(value);
+			if (settings.MapZoomMax is { } max && settings.MapZoomMin > max)
+				settings.MapZoomMax = settings.MapZoomMin;
+		}, "map zoom min setting");
+	}
+
+	public static float LoadMapZoomMax()
+	{
+		var settings = LoadSettings();
+		return ClampZoomValue(settings.MapZoomMax ?? 2.4f);
+	}
+
+	public static void SaveMapZoomMax(float value)
+	{
+		SaveSettings(settings =>
+		{
+			settings.MapZoomMax = ClampZoomValue(value);
+			if (settings.MapZoomMin is { } min && settings.MapZoomMax < min)
+				settings.MapZoomMin = settings.MapZoomMax;
+		}, "map zoom max setting");
 	}
 
 	public static ContinueState LoadContinueState()
@@ -118,6 +150,8 @@ public static class AppSettingsStore
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 	};
 
+	private static float ClampZoomValue(float value) => Math.Clamp(value, 0.2f, 4.0f);
+
 	private sealed class AppSettingsDto
 	{
 		[JsonPropertyName("version")]
@@ -131,6 +165,12 @@ public static class AppSettingsStore
 
 		[JsonPropertyName("enableDebugPanel")]
 		public bool? EnableDebugPanel { get; set; }
+
+		[JsonPropertyName("mapZoomMin")]
+		public float? MapZoomMin { get; set; }
+
+		[JsonPropertyName("mapZoomMax")]
+		public float? MapZoomMax { get; set; }
 
 		[JsonPropertyName("lastContinueKind")]
 		public string? LastContinueKind { get; set; }
@@ -151,6 +191,8 @@ public static class AppSettingsStore
 		Locale = LocalizationService.DefaultLocale,
 		EnableKeyboardTargeting = false,
 		EnableDebugPanel = true,
+		MapZoomMin = 0.6f,
+		MapZoomMax = 2.4f,
 		LastContinueKind = null,
 		LastWorldId = null,
 		LastCharacterId = null,

@@ -928,6 +928,254 @@ public static class MonsterMapAssetGenerator
 
     private static Color Rgba(int r, int g, int b, int a = 255) => Color.FromArgb(a, r, g, b);
 
+    public static string GenerateProceduralVoxelTiles(string rootPath)
+    {
+        var outputDirectory = Path.Combine(rootPath, "Assets", "Art", "Generated", "voxel_tiles");
+        Directory.CreateDirectory(outputDirectory);
+
+        const int tileSize = 32;
+        var configs = new[]
+        {
+            new TileConfig(
+                Name: "stone",
+                Base: Rgba(124, 127, 132),
+                Dark: Rgba(82, 86, 92),
+                Light: Rgba(171, 176, 184),
+                SpeckleCount: 86,
+                CrackCount: 5,
+                GrainStrength: 18,
+                SeedOffset: 101),
+            new TileConfig(
+                Name: "dirt",
+                Base: Rgba(123, 87, 58),
+                Dark: Rgba(78, 51, 31),
+                Light: Rgba(159, 117, 82),
+                SpeckleCount: 74,
+                CrackCount: 3,
+                GrainStrength: 16,
+                SeedOffset: 211),
+            new TileConfig(
+                Name: "grass_top",
+                Base: Rgba(83, 149, 71),
+                Dark: Rgba(45, 96, 36),
+                Light: Rgba(126, 193, 96),
+                SpeckleCount: 68,
+                CrackCount: 2,
+                GrainStrength: 14,
+                SeedOffset: 307),
+        };
+
+        var generated = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+        foreach (var config in configs)
+        {
+            generated[config.Name] = BuildProceduralTile(tileSize, config);
+        }
+
+        try
+        {
+            foreach (var entry in generated)
+            {
+                var path = Path.Combine(outputDirectory, $"tile_{entry.Key}.png");
+                entry.Value.Save(path, ImageFormat.Png);
+            }
+
+            using var grassSide = BuildGrassSideTile(tileSize, generated["dirt"], generated["grass_top"]);
+            grassSide.Save(Path.Combine(outputDirectory, "tile_grass_side.png"), ImageFormat.Png);
+
+            using (var atlas = BuildTileAtlas(tileSize,
+                       generated["stone"],
+                       generated["dirt"],
+                       generated["grass_top"],
+                       grassSide))
+            {
+                atlas.Save(Path.Combine(outputDirectory, "tile_atlas_voxel_basic.png"), ImageFormat.Png);
+            }
+        }
+        finally
+        {
+            foreach (var texture in generated.Values)
+            {
+                texture.Dispose();
+            }
+        }
+
+        var readmePath = Path.Combine(outputDirectory, "README.txt");
+        File.WriteAllText(readmePath,
+            "Procedural voxel tile output\n" +
+            "- tile_stone.png\n" +
+            "- tile_dirt.png\n" +
+            "- tile_grass_top.png\n" +
+            "- tile_grass_side.png\n" +
+            "- tile_atlas_voxel_basic.png (2x2 atlas order: stone, dirt, grass_top, grass_side)\n" +
+            "\n" +
+            "Regenerate via:\n" +
+            "dotnet run --project Tools/MonsterMapAssetGenerator/MonsterMapAssetGenerator.csproj -- generate-voxel-tiles\n");
+
+        return outputDirectory;
+    }
+
+    private static Bitmap BuildProceduralTile(int size, TileConfig config)
+    {
+        var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        var rng = new Random(config.SeedOffset + size * 19);
+
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var grain = SampleValueNoise(x, y, config.SeedOffset, 6, size);
+                var modulation = (grain - 0.5f) * config.GrainStrength;
+                var color = ShiftColor(config.Base, modulation);
+                bitmap.SetPixel(x, y, color);
+            }
+        }
+
+        for (var i = 0; i < config.SpeckleCount; i++)
+        {
+            var x = rng.Next(0, size);
+            var y = rng.Next(0, size);
+            var useLight = (i & 1) == 0;
+            var speckle = useLight ? config.Light : config.Dark;
+            bitmap.SetPixel(x, y, Blend(bitmap.GetPixel(x, y), speckle, 0.6f));
+
+            if (rng.NextDouble() < 0.28)
+            {
+                var nx = Math.Clamp(x + rng.Next(-1, 2), 0, size - 1);
+                var ny = Math.Clamp(y + rng.Next(-1, 2), 0, size - 1);
+                bitmap.SetPixel(nx, ny, Blend(bitmap.GetPixel(nx, ny), speckle, 0.35f));
+            }
+        }
+
+        for (var crack = 0; crack < config.CrackCount; crack++)
+        {
+            var y = rng.Next(3, size - 3);
+            var thickness = rng.Next(1, 3);
+            for (var x = 1; x < size - 1; x++)
+            {
+                var wobble = (int)Math.Round(Math.Sin((x + crack * 3) * 0.55f) * 1.2f);
+                var yy = Math.Clamp(y + wobble, 1, size - 2);
+                for (var t = 0; t < thickness; t++)
+                {
+                    var py = Math.Clamp(yy + t, 0, size - 1);
+                    bitmap.SetPixel(x, py, Blend(bitmap.GetPixel(x, py), config.Dark, 0.38f));
+                }
+            }
+        }
+
+        using var graphics = CreateGraphics(bitmap);
+        using var borderPen = new Pen(Color.FromArgb(90, config.Dark), 1f);
+        graphics.DrawRectangle(borderPen, 0, 0, size - 1, size - 1);
+        return bitmap;
+    }
+
+    private static Bitmap BuildGrassSideTile(int size, Bitmap dirt, Bitmap grassTop)
+    {
+        var side = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                side.SetPixel(x, y, dirt.GetPixel(x, y));
+            }
+        }
+
+        var capHeight = Math.Max(6, size / 4);
+        for (var y = 0; y < capHeight; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var source = grassTop.GetPixel(x, y);
+                var alpha = 0.72f - (y / (float)capHeight) * 0.18f;
+                side.SetPixel(x, y, Blend(side.GetPixel(x, y), source, alpha));
+            }
+        }
+
+        var rng = new Random(9291 + size);
+        for (var x = 0; x < size; x++)
+        {
+            var blade = rng.Next(0, 3);
+            for (var b = 0; b < blade; b++)
+            {
+                var y = Math.Clamp(capHeight + b, 0, size - 1);
+                side.SetPixel(x, y, Blend(side.GetPixel(x, y), Rgba(72, 133, 56), 0.55f));
+            }
+        }
+
+        return side;
+    }
+
+    private static Bitmap BuildTileAtlas(int tileSize, Bitmap stone, Bitmap dirt, Bitmap grassTop, Bitmap grassSide)
+    {
+        var atlas = new Bitmap(tileSize * 2, tileSize * 2, PixelFormat.Format32bppArgb);
+        using var graphics = CreateGraphics(atlas);
+        graphics.DrawImage(stone, 0, 0, tileSize, tileSize);
+        graphics.DrawImage(dirt, tileSize, 0, tileSize, tileSize);
+        graphics.DrawImage(grassTop, 0, tileSize, tileSize, tileSize);
+        graphics.DrawImage(grassSide, tileSize, tileSize, tileSize, tileSize);
+        return atlas;
+    }
+
+    private static float SampleValueNoise(int x, int y, int seed, int cellSize, int size)
+    {
+        var gx = x / cellSize;
+        var gy = y / cellSize;
+        var tx = (x % cellSize) / (float)cellSize;
+        var ty = (y % cellSize) / (float)cellSize;
+
+        var v00 = Hash01(gx, gy, seed);
+        var v10 = Hash01(gx + 1, gy, seed);
+        var v01 = Hash01(gx, gy + 1, seed);
+        var v11 = Hash01(gx + 1, gy + 1, seed);
+
+        var sx = SmoothStep(tx);
+        var sy = SmoothStep(ty);
+        var ix0 = Lerp(v00, v10, sx);
+        var ix1 = Lerp(v01, v11, sx);
+        var value = Lerp(ix0, ix1, sy);
+
+        var edgeShade = 1f - Math.Clamp(DistanceToEdge(x, y, size) / (size * 0.5f), 0f, 1f) * 0.06f;
+        return value * edgeShade;
+    }
+
+    private static float DistanceToEdge(int x, int y, int size)
+    {
+        var left = x;
+        var right = size - 1 - x;
+        var top = y;
+        var bottom = size - 1 - y;
+        return Math.Min(Math.Min(left, right), Math.Min(top, bottom));
+    }
+
+    private static Color ShiftColor(Color color, float delta)
+    {
+        var r = ClampToByte(color.R + delta);
+        var g = ClampToByte(color.G + delta);
+        var b = ClampToByte(color.B + delta);
+        return Color.FromArgb(color.A, r, g, b);
+    }
+
+    private static Color Blend(Color baseColor, Color overlay, float alpha)
+    {
+        var t = Math.Clamp(alpha, 0f, 1f);
+        var r = ClampToByte(baseColor.R + (overlay.R - baseColor.R) * t);
+        var g = ClampToByte(baseColor.G + (overlay.G - baseColor.G) * t);
+        var b = ClampToByte(baseColor.B + (overlay.B - baseColor.B) * t);
+        return Color.FromArgb(baseColor.A, r, g, b);
+    }
+
+    private static float Hash01(int x, int y, int seed)
+    {
+        var n = x * 374761393 ^ y * 668265263 ^ seed * 1442695041;
+        n = (n ^ (n >> 13)) * 1274126177;
+        n ^= n >> 16;
+        var masked = n & 0x7fffffff;
+        return masked / (float)int.MaxValue;
+    }
+
+    private static float SmoothStep(float t) => t * t * (3f - 2f * t);
+
+    private static float Lerp(float a, float b, float t) => a + (b - a) * t;
+
     public static string ValidateIso8Assets(string rootPath)
     {
         var reportDirectory = Path.Combine(rootPath, "Artifacts");
@@ -1091,4 +1339,14 @@ public static class MonsterMapAssetGenerator
     private readonly record struct HumanoidDirectionalSource(string Key, string SheetName, int MaxWidth, int MaxHeight);
 
     private readonly record struct DirectionalTransform(float ScaleX, float ScaleY, float ShearX, float Brightness, bool Mirror);
+
+    private readonly record struct TileConfig(
+        string Name,
+        Color Base,
+        Color Dark,
+        Color Light,
+        int SpeckleCount,
+        int CrackCount,
+        int GrainStrength,
+        int SeedOffset);
 }

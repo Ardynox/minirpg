@@ -36,8 +36,8 @@ public class TileMapRenderModule
 	];
 	private const float DefaultAnimatedTileFps = 10f;
 	private const float DefaultCameraZoom = 1.0f;
-	private const float MinCameraZoom = 0.9f;
-	private const float MaxCameraZoom = 1.25f;
+	private const float DefaultMinCameraZoom = 0.6f;
+	private const float DefaultMaxCameraZoom = 2.4f;
 	private const float CameraZoomStep = 0.1f;
 	private const float WeatherOverlayFootprintTiles = 1.0f;
 	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
@@ -93,6 +93,8 @@ public class TileMapRenderModule
 	private TileVisual _blackTile;
 	private double _tileAnimationClockSeconds;
 	private float _zoom = DefaultCameraZoom;
+	private float _minCameraZoom = DefaultMinCameraZoom;
+	private float _maxCameraZoom = DefaultMaxCameraZoom;
 
 	private Dictionary<string, TerrainTileMapping> _terrainMap = new();
 	private Dictionary<string, string> _entityMap = new();
@@ -375,11 +377,38 @@ public class TileMapRenderModule
 		if (_camera == null || direction == 0)
 			return false;
 
-		var requestedZoom = Mathf.Clamp(_zoom + direction * CameraZoomStep, MinCameraZoom, MaxCameraZoom);
+		var requestedZoom = Mathf.Clamp(_zoom + direction * CameraZoomStep, _minCameraZoom, _maxCameraZoom);
 		if (Mathf.IsEqualApprox(requestedZoom, _zoom))
 			return false;
 
 		_zoom = requestedZoom;
+		UpdateCamera();
+		return true;
+	}
+
+	public void SetZoomRange(float minZoom, float maxZoom)
+	{
+		var normalizedMin = Mathf.Clamp(minZoom, 0.2f, 4.0f);
+		var normalizedMax = Mathf.Clamp(maxZoom, 0.2f, 4.0f);
+		if (normalizedMin > normalizedMax)
+			(normalizedMin, normalizedMax) = (normalizedMax, normalizedMin);
+
+		_minCameraZoom = normalizedMin;
+		_maxCameraZoom = normalizedMax;
+		_zoom = Mathf.Clamp(_zoom, _minCameraZoom, _maxCameraZoom);
+		UpdateCamera();
+	}
+
+	public bool SetZoomTo(float zoom)
+	{
+		if (_camera == null)
+			return false;
+
+		var clamped = Mathf.Clamp(zoom, _minCameraZoom, _maxCameraZoom);
+		if (Mathf.IsEqualApprox(clamped, _zoom))
+			return false;
+
+		_zoom = clamped;
 		UpdateCamera();
 		return true;
 	}

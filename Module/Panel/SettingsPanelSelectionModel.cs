@@ -6,6 +6,8 @@ internal enum SettingsPanelRowId
 {
 	Language,
 	Render,
+	MapZoomMin,
+	MapZoomMax,
 	WatchMode,
 	KeyboardTargeting,
 	DebugPanel,
@@ -43,7 +45,10 @@ internal sealed class SettingsPanelSelectionModel
 		EnableKeyboardTargeting: false,
 		EnableDebugPanel: true,
 		CanOpenWeatherLab: false,
-		WeatherLabPanelOpen: false);
+		WeatherLabPanelOpen: false,
+		MapZoomMin: 0.6f,
+		MapZoomMax: 2.4f,
+		MapZoomCurrent: 1.0f);
 
 	public SettingsTab CurrentTab { get; private set; } = SettingsTab.General;
 	public bool KeyBindingsMode { get; private set; }
@@ -190,6 +195,8 @@ internal sealed class SettingsPanelSelectionModel
 		{
 			SettingsPanelRowId.Language,
 			SettingsPanelRowId.Render,
+			SettingsPanelRowId.MapZoomMin,
+			SettingsPanelRowId.MapZoomMax,
 		};
 
 		if (SettingsPanelModule.ShouldShowWatchMode(_state))

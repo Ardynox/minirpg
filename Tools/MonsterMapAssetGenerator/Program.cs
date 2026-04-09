@@ -12,13 +12,18 @@ switch (command)
         Console.WriteLine("Generated base and anomaly monster map assets.");
         break;
 
+    case "generate-voxel-tiles":
+        var exportDirectory = MonsterMapAssetGenerator.GenerateProceduralVoxelTiles(root);
+        Console.WriteLine($"Generated procedural voxel tile textures in: {exportDirectory}");
+        break;
+
     case "validate-iso8":
         var reportPath = MonsterMapAssetGenerator.ValidateIso8Assets(root);
         Console.WriteLine($"ISO8 validation report generated: {reportPath}");
         break;
 
     default:
-        Console.Error.WriteLine("Unknown command. Use one of: generate, validate-iso8");
+        Console.Error.WriteLine("Unknown command. Use one of: generate, generate-voxel-tiles, validate-iso8");
         Environment.ExitCode = 1;
         break;
 }
