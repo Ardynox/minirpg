@@ -178,6 +178,14 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				? "ui.settings.weather_lab.status.active"
 				: "ui.settings.weather_lab.status.inactive";
 
+	internal static bool CanActivateRow(SettingsPanelRowId rowId, SettingsUiState state) =>
+		rowId switch
+		{
+			SettingsPanelRowId.Render or SettingsPanelRowId.MapZoomMin or SettingsPanelRowId.MapZoomMax => state.RenderReady,
+			SettingsPanelRowId.WeatherLab => state.CanOpenWeatherLab,
+			_ => true,
+		};
+
 	private static string GetToggleStateKey(bool enabled) =>
 		enabled
 			? "ui.settings.state.on"
@@ -291,26 +299,41 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_renderToggleButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.Render);
+			if (!CanActivateRow(SettingsPanelRowId.Render, _state))
+				return;
+
 			RenderToggleRequested?.Invoke();
 		};
 		_mapZoomMinDecreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMin);
+			if (!CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
+				return;
+
 			MapZoomMinDecreaseRequested?.Invoke();
 		};
 		_mapZoomMinIncreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMin);
+			if (!CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
+				return;
+
 			MapZoomMinIncreaseRequested?.Invoke();
 		};
 		_mapZoomMaxDecreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMax);
+			if (!CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
+				return;
+
 			MapZoomMaxDecreaseRequested?.Invoke();
 		};
 		_mapZoomMaxIncreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMax);
+			if (!CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
+				return;
+
 			MapZoomMaxIncreaseRequested?.Invoke();
 		};
 		_watchModeButton.Pressed += () => SelectRow(SettingsPanelRowId.WatchMode);
@@ -359,7 +382,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_weatherLabButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.WeatherLab);
-			if (_weatherLabButton.Disabled)
+			if (!CanActivateRow(SettingsPanelRowId.WeatherLab, _state))
 				return;
 
 			WeatherLabToggleRequested?.Invoke();
@@ -634,11 +657,11 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_weatherLabStatusLabel.Text = LocalizationService.T(GetWeatherLabStatusKey(_state));
 		_layoutEditStatusLabel.Text = LocalizationService.T("ui.settings.layout_edit.status");
 
-		_renderToggleButton.Disabled = !_state.RenderReady;
-		_mapZoomMinDecreaseButton.Disabled = !_state.RenderReady;
-		_mapZoomMinIncreaseButton.Disabled = !_state.RenderReady;
-		_mapZoomMaxDecreaseButton.Disabled = !_state.RenderReady;
-		_mapZoomMaxIncreaseButton.Disabled = !_state.RenderReady;
+		_renderToggleButton.Disabled = !CanActivateRow(SettingsPanelRowId.Render, _state);
+		_mapZoomMinDecreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
+		_mapZoomMinIncreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
+		_mapZoomMaxDecreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
+		_mapZoomMaxIncreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
 		_mapZoomMinDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
 		_mapZoomMinIncreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.increase");
 		_mapZoomMaxDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
@@ -651,7 +674,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			_state.WeatherLabPanelOpen
 				? "ui.settings.weather_lab.close"
 				: "ui.settings.weather_lab.open");
-		_weatherLabButton.Disabled = !_state.CanOpenWeatherLab;
+		_weatherLabButton.Disabled = !CanActivateRow(SettingsPanelRowId.WeatherLab, _state);
 		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
 		_keyBindingsRoot.Visible = _selectionModel.KeyBindingsMode;
 
@@ -698,7 +721,11 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 
 	private void ActivateSelectedRow()
 	{
-		switch (_selectionModel.SelectedRow)
+		var selectedRow = _selectionModel.SelectedRow;
+		if (!CanActivateRow(selectedRow, _state))
+			return;
+
+		switch (selectedRow)
 		{
 			case SettingsPanelRowId.Language:
 				CycleLanguage();
@@ -734,8 +761,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				MapEditorToggleRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.WeatherLab:
-				if (!_weatherLabButton.Disabled)
-					WeatherLabToggleRequested?.Invoke();
+				WeatherLabToggleRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.LayoutEdit:
 				LayoutEditRequested?.Invoke();

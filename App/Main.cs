@@ -69,6 +69,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private SaveNameDialogModule _saveNameDialog = null!;
 	private CharacterCreationModule _characterCreation = null!;
 	private ConfirmDialogModule _confirmDialog = null!;
+	private LoadRecoveryDialogModule _loadRecoveryDialog = null!;
 	private FantasyCharacterAnimatable _playerCharacterVisual = null!;
 	private Control _combatFxTextRoot = null!;
 	private CombatFxRegistry _combatFxRegistry = CombatFxRegistry.Empty;
@@ -160,6 +161,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool IsSaveNameDialogOpen => _saveNameDialog != null && _saveNameDialog.Visible;
 	private bool IsCharacterCreationOpen => _characterCreation != null && _characterCreation.Visible;
 	private bool IsConfirmDialogOpen => _confirmDialog != null && _confirmDialog.Visible;
+	private bool IsLoadRecoveryDialogOpen => _loadRecoveryDialog != null && _loadRecoveryDialog.Visible;
 	private bool ResourcesReady => _startupState == StartupState.Ready;
 	private bool RenderReady => _mapRender != null;
 
@@ -684,6 +686,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var confirmDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/ConfirmDialog");
 			confirmDialogNode.Theme = uiTheme;
 			_confirmDialog = new ConfirmDialogModule(confirmDialogNode);
+			var loadRecoveryDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/LoadRecoveryDialog");
+			loadRecoveryDialogNode.Theme = uiTheme;
+			_loadRecoveryDialog = new LoadRecoveryDialogModule(loadRecoveryDialogNode);
 
 			var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
 			skillBarNode.Theme = uiTheme;
@@ -730,6 +735,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_modalInputLayers =
 			[
 				_confirmDialog,
+				_loadRecoveryDialog,
 				_worldManager,
 				_worldSettingsDialog,
 				_saveNameDialog,
@@ -743,6 +749,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				() => ExitMapEditor(silent: true),
 				CancelLayoutEditMode,
 				() => _mainAppFlowCoordinator.CloseConfirmDialog(),
+				() => _mainAppFlowCoordinator.CloseLoadRecoveryDialog(),
 				() => _mainAppFlowCoordinator.CloseWorldManager(),
 				() => _mainAppFlowCoordinator.CloseWorldSettingsDialog(),
 				CloseSaveNameDialog,
@@ -758,6 +765,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_characterCreation,
 				_saveNameDialog,
 				_confirmDialog,
+				_loadRecoveryDialog,
 				_inputModule,
 				_panels,
 				_modalStateController,
@@ -795,6 +803,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				},
 				() => _skillBar.Close(),
 				CloseDebugPanel,
+				CloseAllInGamePanels,
 				RefreshPlayerCharacterVisual,
 				RefreshLocalizedUi,
 				SyncSettingsUiState,
@@ -802,7 +811,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_weatherLabPanelController.RefreshSessionState,
 				_weatherLabPanelController.Close,
 				DoSave,
-				DoLoad,
 				BeginLayoutEditMode,
 				EnterMapEditorCore,
 				silent => ExitMapEditor(silent),
@@ -905,6 +913,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
 			_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;
 			_confirmDialog.CancelRequested += _mainAppFlowCoordinator.CloseConfirmDialog;
+			_loadRecoveryDialog.RecoveryConfirmed += _mainAppFlowCoordinator.HandleLoadRecoveryConfirmed;
+			_loadRecoveryDialog.CancelRequested += _mainAppFlowCoordinator.CloseLoadRecoveryDialog;
 
 			_menu.OnContinue += _mainAppFlowCoordinator.HandleMenuContinue;
 			_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
@@ -964,7 +974,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			|| _worldSettingsDialog == null
 			|| _saveNameDialog == null
 			|| _characterCreation == null
-			|| _confirmDialog == null)
+			|| _confirmDialog == null
+			|| _loadRecoveryDialog == null)
 		{
 			return new RuntimeUiModeSnapshot(
 				BusyOperationActive: true,
@@ -987,12 +998,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var layoutEditActive = LayoutEditActive;
 		var mapEditorActive = MapEditorActive;
 		var confirmDialogOpen = IsConfirmDialogOpen;
+		var loadRecoveryDialogOpen = IsLoadRecoveryDialogOpen;
 		var worldManagerOpen = IsWorldManagerOpen;
 		var worldSettingsDialogOpen = IsWorldSettingsDialogOpen;
 		var saveNameDialogOpen = IsSaveNameDialogOpen;
 		var characterCreationOpen = IsCharacterCreationOpen;
 		var settingsOverlayVisible = _settingsFlow.HasVisibleOverlay;
 		var hasVisibleModalLayer = confirmDialogOpen
+			|| loadRecoveryDialogOpen
 			|| worldManagerOpen
 			|| worldSettingsDialogOpen
 			|| saveNameDialogOpen
@@ -1010,7 +1023,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			AllowPanelDrag: !busyOperationActive && !mapEditorActive && !hasVisibleModalLayer,
 			BlocksGameplayInput: busyOperationActive || inMenu || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
 			SuppressHudAndAlerts: !sessionStarted || inMenu || PlayerDead || busyOperationActive || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
-			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive);
+			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || loadRecoveryDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive);
 	}
 
 	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
@@ -1893,6 +1906,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_worldManager.RefreshTexts();
 		_worldSettingsDialog.RefreshTexts();
 		_characterCreation.RefreshTexts();
+		_loadRecoveryDialog.RefreshTexts();
 		_mapEditorBar.RefreshTexts();
 		_threatHud.RefreshTexts();
 		_targetSummaryHud.RefreshTexts();
@@ -3010,8 +3024,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			}
 			case ":quickload":
 			{
-				var path = _session.GetQuickSavePath();
-				DoLoad(path, _session.DescribeSavePath(path));
+				_mainAppFlowCoordinator.HandleQuickLoadRequested();
 				return;
 			}
 			case ":interact" or "interact": DoInteract(); return;
@@ -3985,6 +3998,32 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		_panels.OnPanelClosed(_dialogPanel);
 	}
 
+	private void CloseAllInGamePanels()
+	{
+		CloseChestPanel();
+		CloseInventoryPanel();
+		CloseStatusPanel();
+		CloseSkillBarPanel();
+		CloseSkillManagerPanel();
+		CloseQuestPanel();
+		CloseDialogPanel();
+		CloseTradePanel();
+		CloseDebugPanel();
+		CloseActorInspectPanel();
+		CloseLimbTargetPanel();
+		_weatherLabPanelController?.Close();
+		_hideGroundAndLogPanelsIfVisible();
+	}
+
+	private void _hideGroundAndLogPanelsIfVisible()
+	{
+		if (_groundPanel?.PanelNode.Visible == true)
+			_groundPanel.PanelNode.Visible = false;
+
+		var logPanel = GetNodeOrNull<PanelContainer>($"{HudRootPath}/LogPanel");
+		if (logPanel != null && logPanel.Visible)
+			logPanel.Visible = false;
+	}
 
 	// ══════════════════════════════════════════════════════
 	//  小地图 / 大地图

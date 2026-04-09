@@ -9,6 +9,7 @@ internal sealed class ModalStateController(
 	Action exitMapEditor,
 	Action cancelLayoutEdit,
 	Action closeConfirmDialog,
+	Action closeLoadRecoveryDialog,
 	Action closeWorldManager,
 	Action closeWorldSettingsDialog,
 	Action closeSaveNameDialog,
@@ -20,6 +21,7 @@ internal sealed class ModalStateController(
 	private readonly Action _exitMapEditor = exitMapEditor;
 	private readonly Action _cancelLayoutEdit = cancelLayoutEdit;
 	private readonly Action _closeConfirmDialog = closeConfirmDialog;
+	private readonly Action _closeLoadRecoveryDialog = closeLoadRecoveryDialog;
 	private readonly Action _closeWorldManager = closeWorldManager;
 	private readonly Action _closeWorldSettingsDialog = closeWorldSettingsDialog;
 	private readonly Action _closeSaveNameDialog = closeSaveNameDialog;
@@ -34,6 +36,7 @@ internal sealed class ModalStateController(
 				_exitMapEditor();
 				_cancelLayoutEdit();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeCharacterCreationDialog();
 				_closeWorldManager();
 				_closeWorldSettingsDialog();
@@ -46,6 +49,7 @@ internal sealed class ModalStateController(
 				_exitMapEditor();
 				_cancelLayoutEdit();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeCharacterCreationDialog();
 				_closeWorldSettingsDialog();
 				_closeSaveNameDialog();
@@ -54,6 +58,7 @@ internal sealed class ModalStateController(
 				_closePanelChromeSettings();
 				_hideSettingsPanels();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeCharacterCreationDialog();
 				_closeWorldManager();
 				_closeWorldSettingsDialog();
@@ -63,6 +68,7 @@ internal sealed class ModalStateController(
 				_closePanelChromeSettings();
 				_hideSettingsPanels();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeWorldManager();
 				_closeCharacterCreationDialog();
 				_closeSaveNameDialog();
@@ -71,6 +77,7 @@ internal sealed class ModalStateController(
 				_closePanelChromeSettings();
 				_hideSettingsPanels();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeWorldManager();
 				_closeWorldSettingsDialog();
 				_closeSaveNameDialog();
@@ -80,6 +87,7 @@ internal sealed class ModalStateController(
 				_cancelLayoutEdit();
 				_hideSettingsPanels();
 				_closeConfirmDialog();
+				_closeLoadRecoveryDialog();
 				_closeCharacterCreationDialog();
 				_closeWorldManager();
 				_closeWorldSettingsDialog();

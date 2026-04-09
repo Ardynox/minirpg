@@ -90,6 +90,10 @@ public sealed class VoxelBlockIsometricGenerator : IMapGenerator
 		var depth = currentZ - surfaceZ;
 		if (depth <= DirtLayerDepth)
 			return TerrainRegistry.GetId(Terrains.Dirt);
-		return TerrainRegistry.GetId(Terrains.Stone);
+		if (depth <= 7)
+			return TerrainRegistry.GetId(Terrains.WallStone);
+		if (depth <= 14)
+			return TerrainRegistry.GetId(Terrains.WallGranite);
+		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 }

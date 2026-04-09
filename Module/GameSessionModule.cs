@@ -324,39 +324,101 @@ public class GameSessionModule
 
 	public SaveLoadStatus LoadGame(string path)
 	{
-		_ = SaveModule.TryReadSaveHeader(path, out var header);
-		var status = SaveModule.LoadGame(_state, path);
-		if (status != SaveLoadStatus.Success)
-			return status;
+		var prepared = PrepareLoadGame(path);
+		if (prepared.Status != SaveLoadStatus.Success)
+			return prepared.Status;
+		if (prepared.Recovery != null)
+			return SaveLoadStatus.Incompatible;
 
-		return FinalizeLoadedGame(path, presetScenarioId: null, header);
+		return CommitPreparedLoad(prepared);
+	}
+
+	public PreparedSessionLoad PrepareLoadGame(string path)
+	{
+		var status = SaveModule.ReadSaveFile(path, out var saveFile);
+		if (status != SaveLoadStatus.Success || saveFile == null)
+			return PreparedSessionLoad.FromFailure(status);
+
+		return PrepareSaveFileLoad(
+			saveFile,
+			currentSavePath: path,
+			presetScenarioId: null,
+			knownWorld: null,
+			fallbackCharacterId: null);
 	}
 
 	public SaveLoadStatus LoadWorldCharacter(string worldId, string characterId)
 	{
-		if (!_worldStore.TryGetCharacterSavePath(worldId, characterId, out var path))
-			return SaveLoadStatus.NotFound;
+		var prepared = PrepareLoadWorldCharacter(worldId, characterId);
+		if (prepared.Status != SaveLoadStatus.Success)
+			return prepared.Status;
+		if (prepared.Recovery != null)
+			return SaveLoadStatus.Incompatible;
 
-		_ = SaveModule.TryReadSaveHeader(path, out var header);
-		var status = SaveModule.LoadGame(_state, path);
-		if (status != SaveLoadStatus.Success)
-			return status;
+		return CommitPreparedLoad(prepared);
+	}
+
+	public PreparedSessionLoad PrepareLoadWorldCharacter(string worldId, string characterId)
+	{
+		if (!_worldStore.TryGetCharacterSavePath(worldId, characterId, out var path))
+			return PreparedSessionLoad.FromFailure(SaveLoadStatus.NotFound);
+
+		var status = SaveModule.ReadSaveFile(path, out var saveFile);
+		if (status != SaveLoadStatus.Success || saveFile == null)
+			return PreparedSessionLoad.FromFailure(status);
 
 		_worldStore.TryLoadWorld(worldId, out var manifest);
-		return FinalizeLoadedGame(path, presetScenarioId: null, header, manifest, characterId);
+		return PrepareSaveFileLoad(
+			saveFile,
+			currentSavePath: path,
+			presetScenarioId: null,
+			knownWorld: manifest,
+			fallbackCharacterId: characterId);
 	}
 
 	public SaveLoadStatus LoadPresetScenario(string id)
 	{
+		var prepared = PrepareLoadPresetScenario(id);
+		if (prepared.Status != SaveLoadStatus.Success)
+			return prepared.Status;
+		if (prepared.Recovery != null)
+			return SaveLoadStatus.Incompatible;
+
+		return CommitPreparedLoad(prepared);
+	}
+
+	public PreparedSessionLoad PrepareLoadPresetScenario(string id)
+	{
 		if (!PresetScenarioCatalog.TryGet(id, out var scenario))
-			return SaveLoadStatus.NotFound;
+			return PreparedSessionLoad.FromFailure(SaveLoadStatus.NotFound);
 
 		var saveFile = SaveModule.DeserializeSaveFile(PresetScenarioCatalog.ReadText(scenario.TemplatePath));
 		if (saveFile == null)
+			return PreparedSessionLoad.FromFailure(SaveLoadStatus.Incompatible);
+
+		return PrepareSaveFileLoad(
+			saveFile,
+			currentSavePath: null,
+			presetScenarioId: scenario.Id,
+			knownWorld: null,
+			fallbackCharacterId: null);
+	}
+
+	public SaveLoadStatus CommitPreparedLoad(PreparedSessionLoad preparedLoad, string? selectedCandidateActorId = null)
+	{
+		ArgumentNullException.ThrowIfNull(preparedLoad);
+		if (preparedLoad.Status != SaveLoadStatus.Success || preparedLoad.SaveFile == null)
+			return preparedLoad.Status;
+		if (!TryResolvePreparedLoadSaveFile(preparedLoad, selectedCandidateActorId, out var saveFile))
 			return SaveLoadStatus.Incompatible;
 
 		SaveModule.ApplySnapshot(_state, saveFile);
-		return FinalizeLoadedGame(currentSavePath: null, presetScenarioId: scenario.Id, saveFile.Header);
+		return FinalizeLoadedGame(
+			preparedLoad.CurrentSavePath,
+			preparedLoad.PresetScenarioId,
+			preparedLoad.Header,
+			preparedLoad.KnownWorld,
+			preparedLoad.FallbackCharacterId);
 	}
 
 	public bool TryContinue()
@@ -694,6 +756,98 @@ public class GameSessionModule
 			("timestamp", timestamp));
 	}
 
+	private PreparedSessionLoad PrepareSaveFileLoad(
+		SaveFile saveFile,
+		string? currentSavePath,
+		string? presetScenarioId,
+		WorldManifest? knownWorld,
+		string? fallbackCharacterId)
+	{
+		var status = TryBuildPreparedLoadRecovery(saveFile.Payload, out var recovery);
+		if (status != SaveLoadStatus.Success)
+			return PreparedSessionLoad.FromFailure(status);
+
+		return new PreparedSessionLoad
+		{
+			Status = SaveLoadStatus.Success,
+			SaveFile = saveFile,
+			Header = saveFile.Header,
+			CurrentSavePath = currentSavePath,
+			PresetScenarioId = presetScenarioId,
+			KnownWorld = knownWorld,
+			FallbackCharacterId = fallbackCharacterId,
+			Recovery = recovery,
+		};
+	}
+
+	private static SaveLoadStatus TryBuildPreparedLoadRecovery(SavePayload payload, out PreparedLoadRecovery? recovery)
+	{
+		recovery = null;
+		if (payload.Actors.Any(snapshot => string.Equals(snapshot.Id, payload.PlayerId, StringComparison.Ordinal)))
+			return SaveLoadStatus.Success;
+
+		var candidates = payload.Actors
+			.Where(static snapshot => string.Equals(snapshot.Faction, Factions.Player, StringComparison.Ordinal))
+			.OrderBy(
+				static snapshot => string.IsNullOrWhiteSpace(snapshot.DisplayName) ? snapshot.Id : snapshot.DisplayName,
+				StringComparer.Ordinal)
+			.ThenBy(static snapshot => snapshot.Id, StringComparer.Ordinal)
+			.Select(static snapshot => new PreparedLoadCandidate
+			{
+				ActorId = snapshot.Id,
+				DisplayName = string.IsNullOrWhiteSpace(snapshot.DisplayName) ? snapshot.Id : snapshot.DisplayName,
+				X = snapshot.X,
+				Y = snapshot.Y,
+				Z = snapshot.Z,
+			})
+			.ToArray();
+		if (candidates.Length == 0)
+			return SaveLoadStatus.Incompatible;
+
+		recovery = new PreparedLoadRecovery
+		{
+			MissingPlayerId = payload.PlayerId,
+			Candidates = candidates,
+		};
+		return SaveLoadStatus.Success;
+	}
+
+	private static bool TryResolvePreparedLoadSaveFile(
+		PreparedSessionLoad preparedLoad,
+		string? selectedCandidateActorId,
+		out SaveFile saveFile)
+	{
+		saveFile = preparedLoad.SaveFile!;
+		if (preparedLoad.Recovery == null)
+			return true;
+		if (!TryResolvePreparedLoadCandidate(preparedLoad.Recovery, selectedCandidateActorId, out var candidate))
+			return false;
+
+		saveFile.Payload.PlayerId = candidate.ActorId;
+		saveFile.Payload.PlayerX = candidate.X;
+		saveFile.Payload.PlayerY = candidate.Y;
+		saveFile.Payload.PlayerZ = candidate.Z;
+		return true;
+	}
+
+	private static bool TryResolvePreparedLoadCandidate(
+		PreparedLoadRecovery recovery,
+		string? selectedCandidateActorId,
+		out PreparedLoadCandidate candidate)
+	{
+		foreach (var entry in recovery.Candidates)
+		{
+			if (!string.Equals(entry.ActorId, selectedCandidateActorId, StringComparison.Ordinal))
+				continue;
+
+			candidate = entry;
+			return true;
+		}
+
+		candidate = null!;
+		return false;
+	}
+
 	private SaveLoadStatus FinalizeLoadedGame(
 		string? currentSavePath,
 		string? presetScenarioId,
@@ -703,7 +857,9 @@ public class GameSessionModule
 	{
 		_state.Weather ??= WeatherState.CreateDefault(_state.WorldSeed);
 		MapGenModule.InitializeWorld(_state);
-		EnsurePlayerActor();
+		var playerStatus = ValidateLoadedPlayerActor();
+		if (playerStatus != SaveLoadStatus.Success)
+			return playerStatus;
 		PartyModule.EnsureValid(_state);
 		EnsureStorytellerWorkers();
 		ActorModule.InitializeMissingHomePositions(_state);
@@ -961,30 +1117,18 @@ public class GameSessionModule
 		return Path.Combine(rootDir, "godot", "app_userdata", appName);
 	}
 
-	private void EnsurePlayerActor()
+	private SaveLoadStatus ValidateLoadedPlayerActor()
 	{
-		if (_state.Actors.ContainsKey(_state.PlayerId))
-			return;
-
-		foreach (var actor in _state.Actors.Values)
+		if (_state.Actors.TryGetValue(_state.PlayerId, out var actor))
 		{
-			if (actor.Faction != Factions.Player)
-				continue;
-
-			LogWarning($"EnsurePlayerActor: PlayerId '{_state.PlayerId}' missing, recovered existing player Actor '{actor.Id}'");
-			_state.PlayerId = actor.Id;
 			_state.PlayerX = actor.X;
 			_state.PlayerY = actor.Y;
 			_state.PlayerZ = actor.Z;
-			return;
+			return SaveLoadStatus.Success;
 		}
 
-		LogWarning("EnsurePlayerActor: no player Actor found at all, creating minimal fallback");
-		var player = ActorTemplates.Spawn("player", _state.PlayerId);
-		player.X = _state.PlayerX;
-		player.Y = _state.PlayerY;
-		player.Z = _state.PlayerZ;
-		ActorModule.Add(_state, player);
+		LogWarning($"FinalizeLoadedGame: PlayerId '{_state.PlayerId}' missing after snapshot apply");
+		return SaveLoadStatus.Incompatible;
 	}
 
 	private static void LogWarning(string message)
@@ -1016,6 +1160,38 @@ public sealed class SaveSlotInfo
 	public string Summary { get; init; } = string.Empty;
 	public DateTime ModifiedAt { get; init; }
 	public bool Writable { get; init; }
+}
+
+public sealed class PreparedSessionLoad
+{
+	public SaveLoadStatus Status { get; init; }
+	public SaveFile? SaveFile { get; init; }
+	public SaveHeader? Header { get; init; }
+	public string? CurrentSavePath { get; init; }
+	public string? PresetScenarioId { get; init; }
+	public WorldManifest? KnownWorld { get; init; }
+	public string? FallbackCharacterId { get; init; }
+	public PreparedLoadRecovery? Recovery { get; init; }
+
+	public static PreparedSessionLoad FromFailure(SaveLoadStatus status) => new()
+	{
+		Status = status,
+	};
+}
+
+public sealed class PreparedLoadRecovery
+{
+	public string MissingPlayerId { get; init; } = string.Empty;
+	public IReadOnlyList<PreparedLoadCandidate> Candidates { get; init; } = Array.Empty<PreparedLoadCandidate>();
+}
+
+public sealed class PreparedLoadCandidate
+{
+	public string ActorId { get; init; } = string.Empty;
+	public string DisplayName { get; init; } = string.Empty;
+	public int X { get; init; }
+	public int Y { get; init; }
+	public int Z { get; init; }
 }
 
 public enum SaveSlotKind

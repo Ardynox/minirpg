@@ -23,6 +23,7 @@ internal sealed class MainAppFlowCoordinator
 	private readonly CharacterCreationModule _characterCreation;
 	private readonly SaveNameDialogModule _saveNameDialog;
 	private readonly ConfirmDialogModule _confirmDialog;
+	private readonly LoadRecoveryDialogModule _loadRecoveryDialog;
 	private readonly InputModule _inputModule;
 	private readonly PanelManager _panels;
 	private readonly ModalStateController _modalStateController;
@@ -52,6 +53,7 @@ internal sealed class MainAppFlowCoordinator
 	private readonly Action _closeTradeUi;
 	private readonly Action _closeSkillBar;
 	private readonly Action _closeDebugPanel;
+	private readonly Action _closeInGamePanels;
 	private readonly Action _refreshPlayerCharacterVisual;
 	private readonly Action<bool> _refreshLocalizedUi;
 	private readonly Action<SettingsEntryContext?> _syncSettingsUiState;
@@ -59,7 +61,6 @@ internal sealed class MainAppFlowCoordinator
 	private readonly Action<bool> _refreshWeatherLabSessionState;
 	private readonly Action<bool> _closeWeatherLabPanel;
 	private readonly Action<string, string> _doSave;
-	private readonly Action<string, string> _doLoad;
 	private readonly Action _beginLayoutEditMode;
 	private readonly Action<MapEditorEntryMode> _enterMapEditorCore;
 	private readonly Action<bool> _exitMapEditor;
@@ -75,6 +76,23 @@ internal sealed class MainAppFlowCoordinator
 	private string? _worldManagerStatusMessage;
 	private bool _worldManagerStatusIsError;
 	private readonly Dictionary<string, Action> _confirmDialogActions = new(StringComparer.Ordinal);
+	private PendingPreparedLoad? _pendingPreparedLoad;
+
+	private static readonly BusyLoadStages ContinueLoadStages = new(
+		"ui.loading.continue.prepare",
+		0.15f,
+		"ui.loading.continue.load",
+		0.70f,
+		"ui.loading.continue.finalize",
+		0.95f);
+
+	private static readonly BusyLoadStages SaveLoadStages = new(
+		"ui.loading.save.prepare",
+		0.16f,
+		"ui.loading.save.load",
+		0.76f,
+		"ui.loading.save.finalize",
+		0.95f);
 
 	public MainAppFlowCoordinator(
 		GameState state,
@@ -87,6 +105,7 @@ internal sealed class MainAppFlowCoordinator
 		CharacterCreationModule characterCreation,
 		SaveNameDialogModule saveNameDialog,
 		ConfirmDialogModule confirmDialog,
+		LoadRecoveryDialogModule loadRecoveryDialog,
 		InputModule inputModule,
 		PanelManager panels,
 		ModalStateController modalStateController,
@@ -116,6 +135,7 @@ internal sealed class MainAppFlowCoordinator
 		Action closeTradeUi,
 		Action closeSkillBar,
 		Action closeDebugPanel,
+		Action closeInGamePanels,
 		Action refreshPlayerCharacterVisual,
 		Action<bool> refreshLocalizedUi,
 		Action<SettingsEntryContext?> syncSettingsUiState,
@@ -123,7 +143,6 @@ internal sealed class MainAppFlowCoordinator
 		Action<bool> refreshWeatherLabSessionState,
 		Action<bool> closeWeatherLabPanel,
 		Action<string, string> doSave,
-		Action<string, string> doLoad,
 		Action beginLayoutEditMode,
 		Action<MapEditorEntryMode> enterMapEditorCore,
 		Action<bool> exitMapEditor,
@@ -142,6 +161,7 @@ internal sealed class MainAppFlowCoordinator
 		_characterCreation = characterCreation;
 		_saveNameDialog = saveNameDialog;
 		_confirmDialog = confirmDialog;
+		_loadRecoveryDialog = loadRecoveryDialog;
 		_inputModule = inputModule;
 		_panels = panels;
 		_modalStateController = modalStateController;
@@ -171,6 +191,7 @@ internal sealed class MainAppFlowCoordinator
 		_closeTradeUi = closeTradeUi;
 		_closeSkillBar = closeSkillBar;
 		_closeDebugPanel = closeDebugPanel;
+		_closeInGamePanels = closeInGamePanels;
 		_refreshPlayerCharacterVisual = refreshPlayerCharacterVisual;
 		_refreshLocalizedUi = refreshLocalizedUi;
 		_syncSettingsUiState = syncSettingsUiState;
@@ -178,7 +199,6 @@ internal sealed class MainAppFlowCoordinator
 		_refreshWeatherLabSessionState = refreshWeatherLabSessionState;
 		_closeWeatherLabPanel = closeWeatherLabPanel;
 		_doSave = doSave;
-		_doLoad = doLoad;
 		_beginLayoutEditMode = beginLayoutEditMode;
 		_enterMapEditorCore = enterMapEditorCore;
 		_exitMapEditor = exitMapEditor;
@@ -209,6 +229,7 @@ internal sealed class MainAppFlowCoordinator
 		_closeTradeUi();
 		_closeSkillBar();
 		_closeDebugPanel();
+		_closeInGamePanels();
 		_showMainMenuWithCurrentContinue();
 	}
 

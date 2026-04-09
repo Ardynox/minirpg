@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" path="res://Scene/WorldSettingsDialog.tscn" id="19_worldsettings"]
 [ext_resource type="PackedScene" path="res://Scene/ConfirmDialog.tscn" id="20_confirmdialog"]
 [ext_resource type="PackedScene" path="res://Scene/WeatherLabPanel.tscn" id="21_weatherlab"]
+[ext_resource type="PackedScene" path="res://Scene/LoadRecoveryDialog.tscn" id="22_loadrecovery"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -174,3 +175,5 @@ show_percentage = true
 [node name="WorldSettingsDialog" parent="OverlayLayer" instance=ExtResource("19_worldsettings")]
 
 [node name="ConfirmDialog" parent="OverlayLayer" instance=ExtResource("20_confirmdialog")]
+
+[node name="LoadRecoveryDialog" parent="OverlayLayer" instance=ExtResource("22_loadrecovery")]

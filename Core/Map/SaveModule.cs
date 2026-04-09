@@ -38,13 +38,16 @@ public static class SaveModule
 
 	public static SaveLoadStatus LoadGame(GameState state, string filePath)
 	{
-		var status = TryReadSaveFile(filePath, out var saveFile);
+		var status = ReadSaveFile(filePath, out var saveFile);
 		if (status != SaveLoadStatus.Success || saveFile == null)
 			return status;
 
 		ApplySnapshot(state, saveFile);
 		return SaveLoadStatus.Success;
 	}
+
+	public static SaveLoadStatus ReadSaveFile(string filePath, out SaveFile? saveFile) =>
+		TryReadSaveFile(filePath, out saveFile);
 
 	public static SaveLoadStatus TryReadSaveHeader(string filePath, out SaveHeader? header)
 	{

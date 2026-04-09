@@ -185,7 +185,6 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Left;
-		// Taller side face; shift down to keep top seam aligned with top diamond.
 		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
@@ -202,7 +201,6 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Right;
-		// Taller side face; shift down to keep top seam aligned with top diamond.
 		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
@@ -440,9 +438,9 @@ public class IsometricVoxelRenderer
 				var py = pyStart + dy;
 				if (py >= ih) break;
 
-				var sampleY = Math.Clamp((int)Math.Round((dy / (float)(faceH - 1)) * (th - 1)), 0, th - 1);
+				var sampleY = Math.Clamp((int)Math.Round(((dy + (th - faceH)) / (float)(th - 1)) * (th - 1)), 0, th - 1);
 				var color = SampleArea(tileImage, sampleX, sampleY, tw, th);
-				var gradient = 1.0f - (dy / (float)faceH) * 0.2f;
+				var gradient = 1.0f - (dy / (float)faceH) * 0.17f;
 				var c = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
 				c.A = color.A;
 				img.SetPixel(px, py, c);

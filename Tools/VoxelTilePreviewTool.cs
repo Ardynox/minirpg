@@ -277,9 +277,9 @@ public partial class VoxelTilePreviewTool : Control
 				if (py >= ih)
 					break;
 
-				var sampleY = Math.Clamp((int)Math.Round((dy / (float)(faceH - 1)) * (th - 1)), 0, th - 1);
+				var sampleY = Math.Clamp((int)Math.Round(((dy + (th - faceH)) / (float)(th - 1)) * (th - 1)), 0, th - 1);
 				var color = tileImage.GetPixel(sampleX, sampleY);
-				var gradient = 1.0f - (dy / (float)faceH) * 0.2f;
+				var gradient = 1.0f - (dy / (float)faceH) * 0.17f;
 				var final = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
 				final.A = color.A;
 				img.SetPixel(px, py, final);
