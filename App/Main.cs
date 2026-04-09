@@ -553,6 +553,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void FinalizeTimelineStepUi()
 	{
+		ApplyPlayerGravityIfUnsupported();
 		var anchors = RoomRuntimeModule.GetWorldAnchors(_state).Select(static anchor => anchor.Position).ToArray();
 		_state.World?.Chunks.UpdateLoadedChunks(anchors, _state.Turn);
 		FlushMap();
@@ -3760,6 +3761,48 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 		return _state.World.IsWalkable(px, py, targetZ);
 	}
+
+	private void ApplyPlayerGravityIfUnsupported()
+	{
+		var world = _state.World;
+		if (world == null)
+			return;
+
+		var player = ActorModule.GetPlayer(_state);
+		if (player == null)
+			return;
+
+		var x = _state.PlayerX;
+		var y = _state.PlayerY;
+		var z = _state.PlayerZ;
+		var fellLayers = 0;
+		const int maxFallPerStep = 6;
+
+		while (fellLayers < maxFallPerStep)
+		{
+			var belowZ = z + 1;
+			var hasDownStair = world.HasFixture(x, y, z, Entities.StairDown)
+				|| world.HasFixture(x, y, belowZ, Entities.StairUp);
+			if (hasDownStair)
+				break;
+
+			if (!world.IsWalkable(x, y, belowZ))
+				break;
+
+			z = belowZ;
+			fellLayers++;
+		}
+
+		if (fellLayers <= 0)
+			return;
+
+		_state.PlayerZ = z;
+		player.Z = z;
+		if (_state.World != null)
+			_state.World.UpdateActorChunk(player, x, y, _state.PlayerZ - fellLayers);
+		_log.Add(LocalizationService.T("log.floor.enter_down", ("floor", _state.PlayerZ)));
+	}
+
 
 	private void DoLook() => _log.Add(LookModule.BuildLookText(_state, _fogTracker));
 
