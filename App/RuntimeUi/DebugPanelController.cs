@@ -22,6 +22,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	private readonly Func<bool> _sessionStarted;
 	private readonly Func<bool> _menuInMenu;
 	private readonly Func<bool> _enabled;
+	private readonly Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> _renderPerfSnapshot;
 
 	private DebugPanelModule? _panel;
 
@@ -36,7 +37,8 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		Func<TimelinePlayerAction, TimelineStepResult> submitPlayerActionWithResult,
 		Func<bool> sessionStarted,
 		Func<bool> menuInMenu,
-		Func<bool> enabled)
+		Func<bool> enabled,
+		Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> renderPerfSnapshot)
 	{
 		_state = state;
 		_session = session;
@@ -49,6 +51,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		_sessionStarted = sessionStarted;
 		_menuInMenu = menuInMenu;
 		_enabled = enabled;
+		_renderPerfSnapshot = renderPerfSnapshot;
 	}
 
 	public void Toggle()
@@ -115,6 +118,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	DebugModule.Result DebugPanelModule.IHost.ExecuteFacilityDeliver() => ApplyResult(ExecuteFacilityDeliverDebugAction());
 	DebugModule.Result DebugPanelModule.IHost.ExecuteFacilityBuild() => ApplyResult(ExecuteFacilityBuildDebugAction());
 	DebugModule.Result DebugPanelModule.IHost.ExecuteExportPreset(string scenarioId) => ApplyResult(DebugModule.ExportPreset(_session, scenarioId));
+	DebugModule.Result DebugPanelModule.IHost.ExecuteQueryRenderPerfStatus() => BuildRenderPerfStatus();
 
 	private DebugPanelModule EnsurePanel() => _panel ??= _createPanel(this, Close);
 
@@ -148,6 +152,20 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 			_flushMap();
 
 		return result;
+	}
+
+	private DebugModule.Result BuildRenderPerfStatus()
+	{
+		var (activeSpriteCount, drawCommandCount, frameTimeAvgMs) = _renderPerfSnapshot();
+		return new DebugModule.Result
+		{
+			Logs =
+			[
+				$"[perf] active_sprite_count={activeSpriteCount}",
+				$"[perf] draw_command_count={drawCommandCount}",
+				$"[perf] frame_time_avg_ms={frameTimeAvgMs:F2}",
+			],
+		};
 	}
 
 	private DebugModule.Result ExecuteFacilityDeliverDebugAction()
@@ -222,4 +240,5 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 			NeedsUiRefresh = true,
 		};
 	}
+
 }

@@ -31,6 +31,7 @@ public class IsometricVoxelRenderer
 	private readonly List<Sprite2D> _spritePool = [];
 	private int _spriteCount;
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
+	private int _lastDrawCommandCount;
 
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
 
@@ -62,6 +63,9 @@ public class IsometricVoxelRenderer
 		_viewW = viewW;
 		_viewH = viewH;
 	}
+
+	public int LastSpriteCount => _spriteCount;
+	public int LastDrawCommandCount => _lastDrawCommandCount;
 
 	public void Init(Node2D root, TileSet tileSet, Camera2D? camera, TileMapRenderModule parentModule)
 	{
@@ -117,6 +121,7 @@ public class IsometricVoxelRenderer
 		}
 
 		_drawCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+		_lastDrawCommandCount = _drawCommands.Count;
 
 		foreach (var cmd in _drawCommands)
 		{
@@ -371,9 +376,13 @@ public class IsometricVoxelRenderer
 
 	// ── Entity Rendering ──
 
+	private static readonly Vector2 DefaultEntitySpriteScale = new(0.25f, 0.25f);
+	private static readonly Vector2 EntitySpriteBaseOffset = new(0f, -8f);
+	private readonly Dictionary<string, ImageTexture> _entityMarkerCache = new();
+
 	private void RenderEntities(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
-		var cmds = new List<(long Key, Vector2 Pos, string Label, Color Tint)>();
+		var cmds = new List<(long Key, Vector2 Pos, Actor? Actor, string Label, Color Tint)>();
 
 		foreach (var actor in _state.Actors.Values)
 		{
@@ -383,7 +392,7 @@ public class IsometricVoxelRenderer
 			if (tint.A <= 0f) continue;
 			var label = actor.Id == _state.PlayerId ? "P" : (actor.Faction == Factions.Hostile ? "!" : "?");
 			cmds.Add((IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
-				IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z), label, tint));
+				IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z), actor, label, tint));
 		}
 
 		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
@@ -397,19 +406,115 @@ public class IsometricVoxelRenderer
 			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			var key = IsoCoordUtil.SortKey(wx, wy, wz);
 			foreach (var e in entities)
-				cmds.Add((key, pos, e.Glyph, tint));
+				cmds.Add((key, pos, null, e.Glyph, tint));
 		}
 
 		cmds.Sort(static (a, b) => a.Key.CompareTo(b.Key));
-		foreach (var (_, pos, label, tint) in cmds)
+		foreach (var (_, pos, actor, label, tint) in cmds)
+		{
+			if (actor != null && TryDrawActorSprite(pos, actor, tint))
+				continue;
 			DrawEntityMarker(pos, label, tint);
+		}
 	}
 
-	private readonly Dictionary<string, ImageTexture> _entityMarkerCache = new();
+	private bool TryDrawActorSprite(Vector2 pos, Actor actor, Color tint)
+	{
+		var entry = ResolveActorTextureEntry(actor);
+		if (entry?.TexturePath is not { Length: > 0 } texturePath)
+			return false;
+
+		var texture = ResAccess.Get<Texture2D>(texturePath);
+		if (texture == null)
+			return false;
+
+		var region = ResolveEntitySpriteRegion(entry, actor, texture);
+		var scale = ResolveEntitySpriteScale(entry.Scale);
+		var offset = ResolveEntitySpriteOffset(entry.Offset);
+		var size = region?.Size ?? texture.GetSize();
+
+		var sprite = AcquireSprite();
+		sprite.Centered = false;
+		sprite.Texture = texture;
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
+		sprite.RegionEnabled = region != null;
+		if (region is { } r)
+			sprite.RegionRect = r;
+		sprite.Scale = scale;
+		sprite.Skew = 0f;
+		sprite.ZIndex = 1;
+		sprite.Modulate = tint;
+		sprite.Position = pos + EntitySpriteBaseOffset + offset + new Vector2(
+			-(size.X * scale.X) / 2f,
+			-(size.Y * scale.Y));
+		sprite.Visible = true;
+		return true;
+	}
+
+	private static Vector2 ResolveEntitySpriteScale(float[]? scale)
+	{
+		if (scale is [var x, var y] && x > 0f && y > 0f)
+			return new Vector2(x, y);
+		return DefaultEntitySpriteScale;
+	}
+
+	private static Vector2 ResolveEntitySpriteOffset(float[]? offset)
+	{
+		if (offset is [var x, var y])
+			return new Vector2(x, y);
+		return Vector2.Zero;
+	}
+
+	private static Rect2? ResolveEntitySpriteRegion(ResAccess.RenderEntry entry, Actor actor, Texture2D texture)
+	{
+		if (!entry.UseFacing)
+			return null;
+
+		var textureWidth = (int)texture.GetWidth();
+		var textureHeight = (int)texture.GetHeight();
+		if (textureWidth <= 0 || textureHeight <= 0)
+			return null;
+
+		var frameWidth = entry.FrameWidth > 0 ? Math.Min(entry.FrameWidth, textureWidth) : textureWidth;
+		var inferredFrameHeight = textureHeight % 8 == 0 ? textureHeight / 8 : textureHeight;
+		var frameHeight = entry.FrameHeight > 0 ? Math.Min(entry.FrameHeight, textureHeight) : inferredFrameHeight;
+		if (frameWidth <= 0 || frameHeight <= 0)
+			return null;
+
+		var rowCount = Math.Max(1, textureHeight / frameHeight);
+		var row = Math.Clamp(
+			DirectionalSpriteHelper.ResolveDirectionRow(actor.FacingX, actor.FacingY),
+			0,
+			rowCount - 1);
+		return new Rect2(0, row * frameHeight, frameWidth, frameHeight);
+	}
+
+	private ResAccess.RenderEntry? ResolveActorTextureEntry(Actor actor)
+	{
+		var direct = ResAccess.GetEntry(actor.Id);
+		if (IsTextureEntry(direct))
+			return direct;
+
+		if (actor.Faction == Factions.Hostile && actor.Race?.Id is { Length: > 0 } raceId)
+		{
+			var byRace = ResAccess.GetEntry(raceId);
+			if (IsTextureEntry(byRace))
+				return byRace;
+		}
+
+		return null;
+	}
+
+	private static bool IsTextureEntry(ResAccess.RenderEntry? entry) =>
+		entry != null
+		&& string.Equals(entry.Type, "texture", StringComparison.OrdinalIgnoreCase)
+		&& !string.IsNullOrWhiteSpace(entry.TexturePath);
 
 	private void DrawEntityMarker(Vector2 pos, string label, Color tint)
 	{
 		var s = AcquireSprite();
+		s.Centered = true;
+		s.RegionEnabled = false;
 		s.Texture = GetEntityMarkerTexture(label);
 		s.Position = pos - new Vector2(0, IsoCoordUtil.TileHalfH * 0.5f);
 		s.Skew = 0f;

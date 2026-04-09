@@ -17,6 +17,7 @@ public sealed class TurnPanelModule
 	private readonly RichTextLabel _phaseLabel;
 	private readonly RichTextLabel _actorLabel;
 	private readonly RichTextLabel _turnLabel;
+	private readonly RichTextLabel _renderModeLabel;
 	private readonly HBoxContainer _queueFlow;
 
 	/// <summary>队列中最多显示的角色数（避免溢出）。</summary>
@@ -29,24 +30,26 @@ public sealed class TurnPanelModule
 		_phaseLabel = hbox.GetNode<RichTextLabel>("PhaseLabel");
 		_actorLabel = hbox.GetNode<RichTextLabel>("ActorLabel");
 		_turnLabel = hbox.GetNode<RichTextLabel>("TurnLabel");
+		_renderModeLabel = hbox.GetNode<RichTextLabel>("RenderModeLabel");
 		_queueFlow = hbox.GetNode<HBoxContainer>("QueueFlow");
 	}
 
 	public PanelContainer PanelNode => _panel;
 	public bool Dirty { get; set; } = true;
 
-	public void FlushIfDirty(GameState state, bool playerDead, bool watchModeEnabled)
+	public void FlushIfDirty(GameState state, bool playerDead, bool watchModeEnabled, bool isIsometricMode)
 	{
 		if (!Dirty) return;
-		Refresh(TimelineTurnManager.CreateDebugSnapshot(state, playerDead, watchModeEnabled));
+		Refresh(TimelineTurnManager.CreateDebugSnapshot(state, playerDead, watchModeEnabled), isIsometricMode);
 	}
 
-	public void Refresh(TimelineDebugSnapshot snapshot)
+	public void Refresh(TimelineDebugSnapshot snapshot, bool isIsometricMode)
 	{
 		Dirty = false;
 		RenderPhase(snapshot);
 		RenderActor(snapshot);
 		RenderTurn(snapshot);
+		RenderRenderMode(isIsometricMode);
 		RenderQueue(snapshot);
 	}
 
@@ -84,6 +87,16 @@ public sealed class TurnPanelModule
 		_turnLabel.Clear();
 		_turnLabel.AppendText(
 			$"[color={UIColors.HexDim}]T:[/color]{snapshot.WorldTurn}");
+	}
+
+	private void RenderRenderMode(bool isIsometricMode)
+	{
+		var modeText = isIsometricMode
+			? LocalizationService.T("render.view_mode.iso_only")
+			: LocalizationService.T("render.view_mode.tilemap");
+		_renderModeLabel.Clear();
+		_renderModeLabel.AppendText(
+			$"[color={UIColors.HexDim}]{LocalizationService.T("ui.turn_panel.render_mode")}:[/color] {modeText}");
 	}
 
 	// ── 队列预览（横向角色名片）─────────────────────────────

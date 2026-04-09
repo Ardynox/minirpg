@@ -86,9 +86,11 @@ public static class IsoCoordUtil
 	/// </summary>
 	public static long SortKey(int wx, int wy, int wz)
 	{
-		// 主排序：x+y（远到近），次排序：z 降序（深到浅）
+		// 主排序：x+y（远到近），次排序：z 降序（深到浅）。
+		// 注意：不能对 depth 做位掩码，否则负值会回绕，破坏同对角线稳定排序。
+		// 这里将 depth 映射为无符号单调值：z 越大（越深）→ depthOrder 越小（越先绘制）。
 		long diagonal = wx + wy;
-		long depth = -wz; // Z 越小（越高）越后绘制
-		return (diagonal << 20) | (depth & 0xFFFFF);
+		var depthOrder = int.MaxValue - wz;
+		return (diagonal << 32) | (uint)depthOrder;
 	}
 }

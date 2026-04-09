@@ -122,6 +122,10 @@ public class TileMapRenderModule
 	private int _peripheralWeatherFxSpriteCount;
 	private int _entitySpriteCount;
 	private int _peripheralEntitySpriteCount;
+	private int _tileDrawCommandCount;
+	private RenderPerfSnapshot _lastPerfSnapshot = RenderPerfSnapshot.Empty;
+	private double _frameTimeEwmaMs;
+	private bool _hasFrameTimeEwma;
 
 	private bool _editorViewActive;
 	private int _viewCenterX;
@@ -133,7 +137,7 @@ public class TileMapRenderModule
 	// ── 等距体素渲染器 ──
 	private IsometricVoxelRenderer? _voxelRenderer;
 	private Node2D? _voxelRoot;
-	private bool _isometricMode;
+	private bool _isometricMode = true;
 
 	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
@@ -143,6 +147,7 @@ public class TileMapRenderModule
 	public bool IsIsometricMode => _isometricMode;
 	public Vector2I MapViewportSize => _subViewport?.Size ?? Vector2I.Zero;
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
+	public RenderPerfSnapshot LastPerfSnapshot => _lastPerfSnapshot;
 
 	public TileMapRenderModule(GameState state, FogOfWarTracker fogTracker, int viewW, int viewH)
 	{
@@ -244,6 +249,11 @@ public class TileMapRenderModule
 		mapRoot.AddChild(_voxelRoot);
 		_voxelRenderer = new IsometricVoxelRenderer(_state, _fogTracker, _viewW, _viewH);
 		_voxelRenderer.Init(_voxelRoot, tileSet, camera, this);
+
+		// 纯等距 2.5D 启动状态：显示体素层，隐藏旧 TileMap 层。
+		_isometricMode = true;
+		_voxelRoot.Visible = true;
+		SetTileMapLayersVisible(false);
 	}
 
 	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
@@ -376,12 +386,17 @@ public class TileMapRenderModule
 
 	public void Flush()
 	{
+		var frameStartUsec = Time.GetTicksUsec();
+		_tileDrawCommandCount = 0;
+
 		// 等距模式：委托给体素渲染器
 		if (_isometricMode && _voxelRenderer != null)
 		{
 			ClearLayers();
 			HidePlayerVisual();
 			_voxelRenderer.Render();
+			_tileDrawCommandCount = _voxelRenderer.LastDrawCommandCount;
+			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
 		}
 
@@ -400,6 +415,7 @@ public class TileMapRenderModule
 			EndEntitySpriteFrame();
 			EndWeatherFrame();
 			EndGroundItemFrame();
+			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
 		}
 
@@ -411,6 +427,7 @@ public class TileMapRenderModule
 			EndEntitySpriteFrame();
 			EndWeatherFrame();
 			EndGroundItemFrame();
+			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
 		}
 
@@ -468,6 +485,7 @@ public class TileMapRenderModule
 		EndEntitySpriteFrame();
 		EndWeatherFrame();
 		EndGroundItemFrame();
+		CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 	}
 
 	public void AdvanceAnimations(double delta)
@@ -494,16 +512,12 @@ public class TileMapRenderModule
 
 	public string? ToggleRenderMode()
 	{
-		_isometricMode = !_isometricMode;
-
-		// 切换可见性
+		// 项目已切换为纯等距 2.5D：不再允许在运行时切换回 2D。
 		if (_voxelRoot != null)
-			_voxelRoot.Visible = _isometricMode;
-
-		// 切换 TileMap 层可见性
-		SetTileMapLayersVisible(!_isometricMode);
-
-		return _isometricMode ? "渲染模式: 等距 2.5D" : "渲染模式: 俯视 2D";
+			_voxelRoot.Visible = true;
+		SetTileMapLayersVisible(false);
+		_isometricMode = true;
+		return LocalizationService.T("render.view_mode.iso_only");
 	}
 
 	public string ToggleMinimap()
@@ -1548,6 +1562,8 @@ public class TileMapRenderModule
 		if (visual.SourceId < 0)
 			return;
 
+		_tileDrawCommandCount++;
+
 		var frameIndex = visual.GetFrameIndexAtTime(_tileAnimationClockSeconds);
 		var frame = visual.GetFrame(frameIndex);
 		layer.SetCell(cell, frame.SourceId, frame.Coord);
@@ -1750,6 +1766,44 @@ public class TileMapRenderModule
 
 	private readonly record struct TerrainTileVisual(TileVisual Base, TileVisual Overlay);
 	private readonly record struct GroundItemSpriteVisual(Texture2D? Texture, Vector2 Scale);
+
+	private void CommitPerfFrame(double frameTimeMs)
+	{
+		if (!_hasFrameTimeEwma)
+		{
+			_frameTimeEwmaMs = frameTimeMs;
+			_hasFrameTimeEwma = true;
+		}
+		else
+		{
+			const double alpha = 0.10;
+			_frameTimeEwmaMs = (_frameTimeEwmaMs * (1.0 - alpha)) + (frameTimeMs * alpha);
+		}
+
+		var activeSpriteCount = _weatherOverlaySpriteCount
+			+ _peripheralWeatherOverlaySpriteCount
+			+ _memoryWeatherOverlaySpriteCount
+			+ _groundItemSpriteCount
+			+ _peripheralGroundItemSpriteCount
+			+ _weatherFxSpriteCount
+			+ _peripheralWeatherFxSpriteCount
+			+ _entitySpriteCount
+			+ _peripheralEntitySpriteCount
+			+ (_isometricMode && _voxelRenderer != null ? _voxelRenderer.LastSpriteCount : 0);
+
+		_lastPerfSnapshot = new RenderPerfSnapshot(
+			activeSpriteCount,
+			_tileDrawCommandCount,
+			_frameTimeEwmaMs);
+	}
+
+	public readonly record struct RenderPerfSnapshot(
+		int ActiveSpriteCount,
+		int DrawCommandCount,
+		double FrameTimeAvgMs)
+	{
+		public static RenderPerfSnapshot Empty => new(0, 0, 0d);
+	}
 
 	private sealed class TileVisual
 	{

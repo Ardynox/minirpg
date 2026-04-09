@@ -131,6 +131,30 @@
     "scale": [0.25, 0.25],
     "offset": [0.0, 6.0]
   },
+  "elf": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_elf_ranger_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [0.0, 6.0]
+  },
+  "undead": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/monster_map_iso8/monster_skeleton_8dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": true,
+    "scale": [0.25, 0.25],
+    "offset": [1.0, 6.0]
+  },
+  "human": {
+    "type": "sprite_sheet",
+    "sheetDir": "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Characters/player1",
+    "defaultAnim": "Idle",
+    "scale": [1.0, 1.0]
+  },
 
   "merchant": {
     "type": "texture",

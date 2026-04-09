@@ -928,6 +928,166 @@ public static class MonsterMapAssetGenerator
 
     private static Color Rgba(int r, int g, int b, int a = 255) => Color.FromArgb(a, r, g, b);
 
+    public static string ValidateIso8Assets(string rootPath)
+    {
+        var reportDirectory = Path.Combine(rootPath, "Artifacts");
+        Directory.CreateDirectory(reportDirectory);
+
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var reportPath = Path.Combine(reportDirectory, $"iso8_asset_validation_{timestamp}.md");
+
+        var dataPath = Path.Combine(rootPath, "Data", "entity_render.json");
+        var importParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["compress/mode"] = "0",
+            ["mipmaps/generate"] = "false",
+            ["process/fix_alpha_border"] = "true",
+        };
+
+        var errors = new List<string>();
+        var warnings = new List<string>();
+        var checkedCount = 0;
+
+        if (!File.Exists(dataPath))
+        {
+            errors.Add($"Missing data file: {dataPath}");
+        }
+        else
+        {
+            var json = File.ReadAllText(dataPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            foreach (var entry in root.EnumerateObject())
+            {
+                var entityId = entry.Name;
+                var config = entry.Value;
+
+                if (!config.TryGetProperty("texturePath", out var texturePathElement))
+                {
+                    continue;
+                }
+
+                var texturePath = texturePathElement.GetString() ?? string.Empty;
+                if (!texturePath.Contains("monster_map_iso8", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                checkedCount++;
+                var expectedFileName = $"monster_{entityId}_8dir.png";
+                var actualFileName = Path.GetFileName(texturePath);
+
+                if (!actualFileName.EndsWith("_8dir.png", StringComparison.OrdinalIgnoreCase))
+                {
+                    errors.Add($"[{entityId}] invalid iso8 naming: {actualFileName}");
+                }
+
+                if (!actualFileName.Equals(expectedFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    warnings.Add($"[{entityId}] naming differs from convention expected '{expectedFileName}', actual '{actualFileName}'");
+                }
+
+                var relativePath = texturePath.Replace("res://", string.Empty).Replace('/', Path.DirectorySeparatorChar);
+                var absolutePath = Path.Combine(rootPath, relativePath);
+                if (!File.Exists(absolutePath))
+                {
+                    errors.Add($"[{entityId}] missing texture file: {texturePath}");
+                    continue;
+                }
+
+                var importPath = absolutePath + ".import";
+                if (!File.Exists(importPath))
+                {
+                    errors.Add($"[{entityId}] missing import settings: {Path.GetFileName(importPath)}");
+                    continue;
+                }
+
+                ValidateImportSettings(importPath, importParameters, entityId, errors, warnings);
+            }
+        }
+
+        using (var writer = new StreamWriter(reportPath, false))
+        {
+            writer.WriteLine("# ISO8 Asset Validation Report");
+            writer.WriteLine();
+            writer.WriteLine($"- GeneratedAt: {DateTime.Now:O}");
+            writer.WriteLine($"- CheckedEntries: {checkedCount}");
+            writer.WriteLine($"- Errors: {errors.Count}");
+            writer.WriteLine($"- Warnings: {warnings.Count}");
+            writer.WriteLine();
+
+            writer.WriteLine("## Errors");
+            writer.WriteLine();
+            if (errors.Count == 0)
+            {
+                writer.WriteLine("- None");
+            }
+            else
+            {
+                foreach (var error in errors)
+                {
+                    writer.WriteLine($"- {error}");
+                }
+            }
+
+            writer.WriteLine();
+            writer.WriteLine("## Warnings");
+            writer.WriteLine();
+            if (warnings.Count == 0)
+            {
+                writer.WriteLine("- None");
+            }
+            else
+            {
+                foreach (var warning in warnings)
+                {
+                    writer.WriteLine($"- {warning}");
+                }
+            }
+        }
+
+        return reportPath;
+    }
+
+    private static void ValidateImportSettings(
+        string importPath,
+        Dictionary<string, string> expectedParameters,
+        string entityId,
+        List<string> errors,
+        List<string> warnings)
+    {
+        var lines = File.ReadAllLines(importPath);
+        var importSettings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith("[") || line.StartsWith("#") || !line.Contains('='))
+            {
+                continue;
+            }
+
+            var separatorIndex = line.IndexOf('=');
+            var key = line[..separatorIndex].Trim();
+            var value = line[(separatorIndex + 1)..].Trim();
+            importSettings[key] = value;
+        }
+
+        foreach (var expected in expectedParameters)
+        {
+            if (!importSettings.TryGetValue(expected.Key, out var actualValue))
+            {
+                errors.Add($"[{entityId}] import missing key '{expected.Key}' ({Path.GetFileName(importPath)})");
+                continue;
+            }
+
+            if (!actualValue.Equals(expected.Value, StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add($"[{entityId}] import key '{expected.Key}' expected '{expected.Value}', actual '{actualValue}'");
+            }
+        }
+    }
+
     private readonly record struct HumanoidDirectionalSource(string Key, string SheetName, int MaxWidth, int MaxHeight);
 
     private readonly record struct DirectionalTransform(float ScaleX, float ScaleY, float ShearX, float Brightness, bool Mirror);

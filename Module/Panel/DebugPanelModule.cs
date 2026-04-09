@@ -29,6 +29,7 @@ public sealed class DebugPanelModule : IPanel
 		DebugModule.Result ExecuteFacilityDeliver();
 		DebugModule.Result ExecuteFacilityBuild();
 		DebugModule.Result ExecuteExportPreset(string scenarioId);
+		DebugModule.Result ExecuteQueryRenderPerfStatus();
 	}
 
 	private const string AllFilterId = "all";
@@ -412,8 +413,24 @@ public sealed class DebugPanelModule : IPanel
 	private void RefreshFacilityStatus() =>
 		RenderLines(_facilityStatus, DebugModule.BuildFacilityStatusLines(_host.State), "ui.debug_panel.facility.empty");
 
-	private void RenderRecentLogs() =>
-		RenderLines(_resultsText, _recentLogs, "ui.debug_panel.results.empty");
+	private void RenderRecentLogs()
+	{
+		var merged = new List<string>();
+		var perf = _host.ExecuteQueryRenderPerfStatus();
+		if (perf.Logs != null)
+		{
+			foreach (var line in perf.Logs)
+			{
+				if (!string.IsNullOrWhiteSpace(line))
+					merged.Add(line);
+			}
+		}
+
+		if (merged.Count > 0 && _recentLogs.Count > 0)
+			merged.Add("----------------");
+		merged.AddRange(_recentLogs);
+		RenderLines(_resultsText, merged, "ui.debug_panel.results.empty");
+	}
 
 	private static void RenderLines(RichTextLabel label, IEnumerable<string> lines, string emptyKey)
 	{

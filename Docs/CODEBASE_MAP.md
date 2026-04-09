@@ -5,7 +5,10 @@
 ---
 ## Render Notes
 
-- `TileMapRenderModule` now renders focused/peripheral/memory player vision using multiple TileMap layers.
+- 项目处于 `2D TileMap` 与 `2.5D Isometric` 双通路并存阶段：
+  - `TileMapRenderModule`：2D 多层 TileMap 主渲染（含 focused/peripheral/memory 视野分层）。
+  - `IsometricVoxelRenderer`：2.5D 等轴体素/精灵投影渲染实验路径。
+- 当前推荐保持两条渲染路径能力对齐：坐标转换、视野 tint、实体映射、模式切换行为都需要可回归验证。
 - Terrain tile mappings may provide a single base tile or `base + optional overlay`.
 
 ## Config Notes
@@ -71,7 +74,7 @@ mini-rpg/
 | 输入、快捷键、输入焦点 | [`../Module/InputModule.cs`](../Module/InputModule.cs), [`../Module/InputBindingService.cs`](../Module/InputBindingService.cs), [`../Module/KeyBindingsUIModule.cs`](../Module/KeyBindingsUIModule.cs) |
 | 面板焦点、拖拽、布局 | [`../Module/Panel/IPanel.cs`](../Module/Panel/IPanel.cs), [`../Module/Panel/PanelManager.cs`](../Module/Panel/PanelManager.cs), [`../Module/Panel/PanelDragService.cs`](../Module/Panel/PanelDragService.cs), [`../Module/Panel/PanelLayoutStore.cs`](../Module/Panel/PanelLayoutStore.cs) |
 | 状态、背包、地面、宝箱、技能等面板 | [`../Module/Panel`](../Module/Panel) |
-| 地图渲染、迷雾、视图模式 | [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs), [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs), [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs), [`../Module/LookModule.cs`](../Module/LookModule.cs) |
+| 地图渲染、迷雾、视图模式 | [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs), [`../Module/Render/IsometricVoxelRenderer.cs`](../Module/Render/IsometricVoxelRenderer.cs), [`../Module/Render/IsoCoordUtil.cs`](../Module/Render/IsoCoordUtil.cs), [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs), [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs), [`../Module/LookModule.cs`](../Module/LookModule.cs) |
 | 战斗、交互、回合、AI | [`../Core/Combat`](../Core/Combat), [`../Core/AI`](../Core/AI), [`../Module/CombatUIModule.cs`](../Module/CombatUIModule.cs) |
 | 世界数据、地图代理、chunk、生成器 | [`../Core/Map`](../Core/Map), [`../Core/World`](../Core/World) |
 | 运行时状态、Actor、Item、任务、预设数据 | [`../Core/Data`](../Core/Data) |
@@ -153,9 +156,10 @@ mini-rpg/
 
 ### 改地图渲染
 
-1. 改 [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)。
-2. 改 [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs) 或 [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)。
-3. 如果改动影响玩家信息暴露，同时检查 [`../Module/LookModule.cs`](../Module/LookModule.cs)。
+1. 2D 路径优先改 [`../Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)。
+2. 2.5D 路径优先改 [`../Module/Render/IsometricVoxelRenderer.cs`](../Module/Render/IsometricVoxelRenderer.cs) 与 [`../Module/Render/IsoCoordUtil.cs`](../Module/Render/IsoCoordUtil.cs)。
+3. 共用视野/模式行为改 [`../Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs) 或 [`../Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)。
+4. 如果改动影响玩家信息暴露，同时检查 [`../Module/LookModule.cs`](../Module/LookModule.cs)。
 
 ### 改玩法逻辑
 

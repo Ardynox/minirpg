@@ -65,11 +65,15 @@ App/Main.tscn / App/Main.cs
 ## 3. 渲染框架
 
 - [`Module/Render/TileMapRenderModule.cs`](../Module/Render/TileMapRenderModule.cs)
-  当前地图渲染主路径。负责 `Focused / Peripheral / Memory` 三态玩家视觉的多层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
+  2D TileMap 主路径。负责 `Focused / Peripheral / Memory` 三态玩家视觉的多层 TileMap 渲染、TileSet 映射加载和主角动画挂接。
+- [`Module/Render/IsometricVoxelRenderer.cs`](../Module/Render/IsometricVoxelRenderer.cs)
+  2.5D Isometric 渲染路径。负责等轴投影下的体素/精灵绘制排序与可视表现拼接。
+- [`Module/Render/IsoCoordUtil.cs`](../Module/Render/IsoCoordUtil.cs)
+  2.5D 坐标转换工具，承担格点与屏幕投影间的正逆映射基准。
 - [`Module/Render/FogOfWarTracker.cs`](../Module/Render/FogOfWarTracker.cs)
   负责玩家 `Focused / Peripheral / Memory / Unknown` 四态视野、朝向裁剪、已探索缓存，并通过 `WorldMap.BlocksSight` 共享遮挡真相。
 - [`Module/Render/ViewModes.cs`](../Module/Render/ViewModes.cs)
-  `SingleLayerViewMode` 和 `MultiLayerViewMode` 的当前实现。
+  渲染模式抽象与切换行为（当前包含 `SingleLayerViewMode` / `MultiLayerViewMode`，并承接 2D/2.5D 入口路由约束）。
 - [`Module/Render`](../Module/Render)
   同时包含 `IAnimatable`、`SpineAnimatable`、`TileAnimatable`、`ResAccess` 等渲染支持类。
 - 渲染相关外部资源当前集中在 [`Assets/Art/Tilesets/FantasyKingdom`](../Assets/Art/Tilesets/FantasyKingdom) 和 [`Assets/Characters/Spine/Balin`](../Assets/Characters/Spine/Balin)。
@@ -142,10 +146,46 @@ App/Main.tscn / App/Main.cs
 
 ### 地图刷新
 
-- `Main.FlushMap` 负责触发 TileMap 渲染和各面板刷新。
-- 渲染主路径是 `FogOfWarTracker.Update` + `TileMapRenderModule.Flush`；`LookModule` 则复用同一套玩家视野分级控制信息暴露。
+- `Main.FlushMap` 负责触发渲染模块与各面板刷新。
+- 2D 路径主链：`FogOfWarTracker.Update` + `TileMapRenderModule.Flush`。
+- 2.5D 路径主链：`FogOfWarTracker.Update` + `IsometricVoxelRenderer` 对应刷新入口。
+- `LookModule` 复用同一套玩家视野分级控制信息暴露，要求两条渲染路径在可见性语义上保持一致。
 
-## 7. 当前扩展入口
+## 7. 渲染入口、切换点与职责边界（2D/2.5D 并存）
+
+### 7.1 渲染入口/切换点
+
+- 渲染切换入口由 `Main` 层命令路由与 `ViewModes` 协同控制。
+- 切换时需要保证：
+  - 当前可见层状态与模式一致（避免“显示层残留”）。
+  - 视野分级（Focused/Peripheral/Memory）语义不因模式变化而改变。
+  - 交互拾取坐标在新模式下仍可逆映射到世界格点。
+
+### 7.2 `TileMapRenderModule` vs `IsometricVoxelRenderer` 边界
+
+- `TileMapRenderModule`
+  - 负责 2D TileMap 图层绘制与图层可见性控制。
+  - 负责 TileSet 映射驱动下的地表/覆盖层铺设。
+  - 不承担 2.5D 透视/排序策略实现。
+- `IsometricVoxelRenderer`
+  - 负责 2.5D 等轴投影绘制、排序 key 与遮挡呈现。
+  - 依赖 `IsoCoordUtil` 做坐标正逆变换，不重复维护独立坐标数学。
+  - 不承担 2D TileMap 图层组织逻辑。
+- 共享能力（跨模块一致）
+  - 视野状态来源与 tint 语义。
+  - 实体/地形映射数据来源（`Data/*.json`）。
+  - 模式切换时的可见性与交互正确性约束。
+
+### 7.3 渲染改动 checklist
+
+每次渲染改动（尤其涉及 2D/2.5D 切换）至少检查：
+
+1. 切模式：切换前后可见层状态正确、无残留。
+2. 拾取：屏幕点 -> 世界格点映射稳定，边界格无明显偏移。
+3. 视野：Focused/Peripheral/Memory tint 与信息暴露保持一致。
+4. 性能：关注帧耗时均值、活跃 sprite 数、draw command 数是否异常回退。
+
+## 8. 当前扩展入口
 
 - 新增可聚焦面板：优先实现 `IPanel`，并接入 `PanelManager` / `PanelDragService`。
 - 新增快捷键或输入语义：优先改 `InputBindingService`、`InputModule`、`Main.OnCommand`。
@@ -153,7 +193,7 @@ App/Main.tscn / App/Main.cs
 - 新增世界或地图行为：优先改 `MapModule`、`WorldMap`、`ChunkData`、生成器体系。
 - 新增渲染表现：优先沿用 `TileMapRenderModule` 和现有 Tile 映射数据，不新开一套平行渲染管线。
 
-## 8. 当前不应再依赖的旧认知
+## 9. 当前不应再依赖的旧认知
 
 - 当前渲染主路径不是旧版 `RenderModule.cs` 文本渲染。
 - 当前 UI 也不是“一个 `RichTextLabel` + 一个 `LineEdit`”的极简原型。

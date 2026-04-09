@@ -76,6 +76,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private double _watchTimer;
 	private bool _watchModeEnabled;
 	private bool _timelineAutoAdvancePending;
+	private bool _zoomHintShown;
+	private ulong _lastZoomLimitLogAtMsec;
 
 	private bool _skillBarDirty;
 	private bool _layoutResetPending;
@@ -812,7 +814,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				SubmitPlayerActionWithResult,
 				() => _session.GameStarted,
 				() => _menu.InMenu,
-				() => _enableDebugPanel);
+				() => _enableDebugPanel,
+				() =>
+				{
+					if (_mapRender == null)
+						return (0, 0, 0d);
+					var snapshot = _mapRender.LastPerfSnapshot;
+					return (snapshot.ActiveSpriteCount, snapshot.DrawCommandCount, snapshot.FrameTimeAvgMs);
+				});
 			_mainInputCoordinator = new MainInputCoordinator(
 				_modalInputLayers,
 				() => GetViewport().SetInputAsHandled(),
@@ -1686,8 +1695,26 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 			if (_mapRender != null)
 			{
-				if (_mapRender.StepZoom(mb.ButtonIndex == MouseButton.WheelUp ? 1 : -1))
+				if (!_zoomHintShown)
+				{
+					_log.Add(LocalizationService.T("ui.zoom.hint"));
+					_zoomHintShown = true;
+				}
+
+				var zoomed = _mapRender.StepZoom(mb.ButtonIndex == MouseButton.WheelUp ? 1 : -1);
+				if (zoomed)
+				{
 					FlushMap();
+				}
+				else
+				{
+					var now = Time.GetTicksMsec();
+					if (now - _lastZoomLimitLogAtMsec > 1000)
+					{
+						_log.Add(LocalizationService.T("ui.zoom.limit_reached"));
+						_lastZoomLimitLogAtMsec = now;
+					}
+				}
 				return true;
 			}
 		}
@@ -3712,7 +3739,7 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 			_statusPanelModule.Refresh(_state, player, _state.PlayerZ, _state.Turn);
 		}
 		if (_turnPanelModule.Dirty && _turnPanelModule.PanelNode.Visible)
-			_turnPanelModule.FlushIfDirty(_state, PlayerDead, _watchModeEnabled);
+			_turnPanelModule.FlushIfDirty(_state, PlayerDead, _watchModeEnabled, _mapRender?.IsIsometricMode ?? true);
 		if (_skillBarDirty && _skillBar.Visible)
 		{
 			_skillBar.Refresh(ActorModule.GetPlayer(_state));

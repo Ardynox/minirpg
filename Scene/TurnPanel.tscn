@@ -41,6 +41,14 @@ bbcode_enabled = true
 fit_content = true
 scroll_active = false
 
+[node name="RenderModeLabel" type="RichTextLabel" parent="Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(120, 0)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
 [node name="Sep" type="VSeparator" parent="Margin/HBox"]
 layout_mode = 2
 
