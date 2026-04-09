@@ -92,8 +92,8 @@ public class GameState
 	public HashSet<string> IdentifiedActorTypes { get; set; } = new(StringComparer.Ordinal);
 	public HashSet<string> IdentifiedItemTypes { get; set; } = new(StringComparer.Ordinal);
 
-	/// <summary>当前地图生成器 ID（"room_corridor" / "perlin" / "cellular_automata" / "drunkard_walk" / "bsp"）。</summary>
-	public string GeneratorId { get; set; } = "room_corridor";
+	/// <summary>当前地图生成器 ID（"room_corridor" / "perlin" / "cellular_automata" / "drunkard_walk" / "bsp" / "voxel_block_iso"）。</summary>
+	public string GeneratorId { get; set; } = "voxel_block_iso";
 
 	/// <summary>当前视图模式 ID（"single_layer" / "multi_layer"）。</summary>
 	public string ViewModeId { get; set; } = "single_layer";
@@ -129,7 +129,7 @@ public class GameState
 		WatchMode = false;
 		IdentifiedActorTypes.Clear();
 		IdentifiedItemTypes.Clear();
-		GeneratorId = "room_corridor";
+		GeneratorId = "voxel_block_iso";
 		ViewModeId = "single_layer";
 		World = null;
 		EnsureDefaultEconomicDomains();

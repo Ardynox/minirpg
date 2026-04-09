@@ -36,7 +36,7 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Equal([SettingsTab.General, SettingsTab.Controls], model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax],
 			model.GetVisibleRows(SettingsTab.General));
 		Assert.Empty(model.GetVisibleRows(SettingsTab.Session));
 	}
@@ -55,7 +55,7 @@ public sealed class SettingsPanelModuleTests
 			[SettingsTab.General, SettingsTab.Controls, SettingsTab.Session],
 			model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.WatchMode],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.WatchMode],
 			model.GetVisibleRows(SettingsTab.General));
 
 		model.SetTab(SettingsTab.Session);
@@ -142,7 +142,10 @@ public sealed class SettingsPanelModuleTests
 			enableKeyboardTargeting,
 			enableDebugPanel,
 			canOpenWeatherLab,
-			weatherLabPanelOpen);
+			weatherLabPanelOpen,
+			0.6f,
+			2.4f,
+			1.0f);
 
 	private static string ResolveRepoRoot()
 	{

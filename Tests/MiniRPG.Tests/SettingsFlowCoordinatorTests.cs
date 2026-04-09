@@ -26,7 +26,10 @@ public sealed class SettingsFlowCoordinatorTests
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
 			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false));
+			WeatherLabPanelOpen: false,
+			MapZoomMin: 0.6f,
+			MapZoomMax: 2.4f,
+			MapZoomCurrent: 1.0f));
 
 		coordinator.OpenSettings(SettingsEntryContext.MainMenu, SettingsTab.Controls);
 
@@ -61,7 +64,10 @@ public sealed class SettingsFlowCoordinatorTests
 			EnableKeyboardTargeting: true,
 			EnableDebugPanel: true,
 			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false));
+			WeatherLabPanelOpen: false,
+			MapZoomMin: 0.6f,
+			MapZoomMax: 2.4f,
+			MapZoomCurrent: 1.0f));
 
 		coordinator.OpenPauseMenu();
 
@@ -109,7 +115,10 @@ public sealed class SettingsFlowCoordinatorTests
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
 			CanOpenWeatherLab: true,
-			WeatherLabPanelOpen: false));
+			WeatherLabPanelOpen: false,
+			MapZoomMin: 0.6f,
+			MapZoomMax: 2.4f,
+			MapZoomCurrent: 1.0f));
 
 		settings.TriggerWeatherLabToggle();
 

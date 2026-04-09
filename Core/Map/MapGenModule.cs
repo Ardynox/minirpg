@@ -23,6 +23,7 @@ public static class MapGenModule
 		RegisterGenerator(new DrunkardWalkGenerator());
 		RegisterGenerator(new BSPGenerator());
 		RegisterGenerator(new BlankFloorGenerator());
+		RegisterGenerator(new VoxelBlockIsometricGenerator());
 	}
 
 	public static void RegisterGenerator(IMapGenerator gen) => Generators[gen.Id] = gen;

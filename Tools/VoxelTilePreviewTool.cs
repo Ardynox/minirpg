@@ -10,8 +10,8 @@ public partial class VoxelTilePreviewTool : Control
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
 	private const int SideTextureWidth = 64;
-	private const int SideTextureHeight = 128;
-	private const int SideFaceHeight = 64;
+	private const int SideTextureHeight = 160;
+	private const int SideFaceHeight = 80;
 
 	private readonly string[] _blockOrder = ["grass_block", "dirt", "stone"];
 	private readonly Dictionary<string, BlockPreviewTextures> _cache = new(StringComparer.OrdinalIgnoreCase);
@@ -135,8 +135,8 @@ public partial class VoxelTilePreviewTool : Control
 		previewNode.AddChild(previewBg);
 
 		_topSprite = new Sprite2D { Centered = true, Position = new Vector2(240, 150), Scale = new Vector2(2f, 2f) };
-		_leftSprite = new Sprite2D { Centered = true, Position = new Vector2(176, 278), Scale = new Vector2(2f, 2f) };
-		_rightSprite = new Sprite2D { Centered = true, Position = new Vector2(304, 278), Scale = new Vector2(2f, 2f) };
+		_leftSprite = new Sprite2D { Centered = true, Position = new Vector2(176, 310), Scale = new Vector2(2f, 2f) };
+		_rightSprite = new Sprite2D { Centered = true, Position = new Vector2(304, 310), Scale = new Vector2(2f, 2f) };
 		previewNode.AddChild(_leftSprite);
 		previewNode.AddChild(_rightSprite);
 		previewNode.AddChild(_topSprite);

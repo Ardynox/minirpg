@@ -20,8 +20,8 @@ public class IsometricVoxelRenderer
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
 	private const int SideTextureWidth = 64;
-	private const int SideTextureHeight = 128;
-	private const int SideFaceHeight = 64;
+	private const int SideTextureHeight = 160;
+	private const int SideFaceHeight = 80;
 	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
 
 	private readonly GameState _state;
@@ -229,7 +229,7 @@ public class IsometricVoxelRenderer
 		if (_textureCache.TryGetValue(terrain.StringId, out var cached))
 			return cached;
 
-		if (TryCreateVoxelFaceTextures(terrain.StringId, out var voxelTextures))
+		if (TryCreateVoxelFaceTextures(terrain, out var voxelTextures))
 		{
 			_textureCache[terrain.StringId] = voxelTextures;
 			return voxelTextures;
@@ -272,10 +272,10 @@ public class IsometricVoxelRenderer
 		return result;
 	}
 
-	private bool TryCreateVoxelFaceTextures(string terrainId, out CachedBlockTextures textures)
+	private bool TryCreateVoxelFaceTextures(TerrainDef terrain, out CachedBlockTextures textures)
 	{
 		textures = default;
-		var topPath = ResolveVoxelTopTexturePath(terrainId);
+		var topPath = ResolveVoxelTopTexturePath(terrain);
 		if (string.IsNullOrWhiteSpace(topPath))
 			return false;
 
@@ -291,7 +291,7 @@ public class IsometricVoxelRenderer
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
-		var sidePath = ResolveVoxelSideTexturePath(terrainId);
+		var sidePath = ResolveVoxelSideTexturePath(terrain);
 		var sideTexture = string.IsNullOrWhiteSpace(sidePath) ? null : GetOrLoadVoxelFaceTexture(sidePath);
 		if (sideTexture != null)
 			sideSourceImage = ExtractImage(sideTexture) ?? topSourceImage;
@@ -318,39 +318,48 @@ public class IsometricVoxelRenderer
 		return loaded;
 	}
 
-	private static string ResolveVoxelTopTexturePath(string terrainId)
+	private static readonly Dictionary<string, string> VoxelTileAliases = new(StringComparer.OrdinalIgnoreCase)
 	{
-		var fileName = terrainId switch
-		{
-			"grass_block" => "tile_grass_top.png",
-			"grass" => "tile_grass_top.png",
-			"dirt" => "tile_dirt.png",
-			"swamp" => "tile_dirt.png",
-			"marsh" => "tile_dirt.png",
-			"sand" => "tile_dirt.png",
-			"wall_soil" => "tile_dirt.png",
-			"stone" => "tile_stone.png",
-			"gravel" => "tile_stone.png",
-			"mountain" => "tile_stone.png",
-			"rubble" => "tile_stone.png",
-			"floor" => "tile_stone.png",
-			"wall_stone" => "tile_stone.png",
-			"wall_granite" => "tile_stone.png",
-			"wall_obsidian" => "tile_stone.png",
-			"wall_iron" => "tile_stone.png",
-			"crystal_vein" => "tile_stone.png",
-			_ => string.Empty,
-		};
+		["grass_top"] = "tile_grass_top.png",
+		["grass_side"] = "tile_grass_side.png",
+		["dirt"] = "tile_dirt.png",
+		["dirt_side"] = "tile_dirt.png",
+		["soil"] = "tile_dirt.png",
+		["soil_side"] = "tile_dirt.png",
+		["stone"] = "tile_stone.png",
+		["stone_side"] = "tile_stone.png",
+		["wall_stone_side"] = "tile_stone.png",
+		["wall_granite_side"] = "tile_stone.png",
+		["wall_obsidian_side"] = "tile_stone.png",
+		["wall_iron_side"] = "tile_stone.png",
+		["mountain_side"] = "tile_stone.png",
+		["rubble"] = "tile_stone.png",
+		["rubble_side"] = "tile_stone.png",
+	};
 
+	private static string ResolveVoxelTopTexturePath(TerrainDef terrain)
+	{
+		var token = string.IsNullOrWhiteSpace(terrain.TopTile) ? terrain.StringId : terrain.TopTile;
+		var fileName = ResolveVoxelFileName(token, isTop: true);
 		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
 	}
 
-	private static string ResolveVoxelSideTexturePath(string terrainId)
+	private static string ResolveVoxelSideTexturePath(TerrainDef terrain)
 	{
-		var fileName = terrainId switch
+		var token = string.IsNullOrWhiteSpace(terrain.SideTile) ? terrain.StringId : terrain.SideTile;
+		var fileName = ResolveVoxelFileName(token, isTop: false);
+		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
+	}
+
+	private static string ResolveVoxelFileName(string token, bool isTop)
+	{
+		if (VoxelTileAliases.TryGetValue(token, out var alias))
+			return alias;
+
+		var inferred = token switch
 		{
-			"grass_block" => "tile_grass_side.png",
-			"grass" => "tile_grass_side.png",
+			"grass_block" => isTop ? "tile_grass_top.png" : "tile_grass_side.png",
+			"grass" => isTop ? "tile_grass_top.png" : "tile_grass_side.png",
 			"tree" => "tile_grass_side.png",
 			"fungus" => "tile_grass_side.png",
 			"dirt" => "tile_dirt.png",
@@ -371,7 +380,7 @@ public class IsometricVoxelRenderer
 			_ => string.Empty,
 		};
 
-		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
+		return inferred;
 	}
 
 	private static Image BuildTopDiamondFromTile(Image tileImage)

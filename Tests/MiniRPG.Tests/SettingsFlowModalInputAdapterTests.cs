@@ -130,7 +130,10 @@ public sealed class SettingsFlowModalInputAdapterTests
 				EnableKeyboardTargeting: false,
 				EnableDebugPanel: true,
 				CanOpenWeatherLab: false,
-				WeatherLabPanelOpen: false));
+				WeatherLabPanelOpen: false,
+				MapZoomMin: 0.6f,
+				MapZoomMax: 2.4f,
+				MapZoomCurrent: 1.0f));
 
 			Panel = new FakePanel("inventory");
 			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, _panels, () => FlushMapCalls++);
@@ -203,6 +206,26 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? DebugPanelToggleRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? MapZoomMinDecreaseRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? MapZoomMinIncreaseRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? MapZoomMaxDecreaseRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? MapZoomMaxIncreaseRequested
 		{
 			add { }
 			remove { }
