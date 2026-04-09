@@ -232,8 +232,12 @@ public class IsometricVoxelRenderer
 			var atlasTexture = _parentModule.BuildTerrainTexture(terrain.StringId);
 			if (atlasTexture != null)
 			{
-				topTexture = atlasTexture;
 				topImage = ExtractImage(atlasTexture);
+				if (topImage != null)
+				{
+					topImage = NormalizeTopImage(topImage);
+					topTexture = ImageTexture.CreateFromImage(topImage);
+				}
 			}
 		}
 
@@ -273,6 +277,114 @@ public class IsometricVoxelRenderer
 				(int)region.Size.X, (int)region.Size.Y));
 		}
 		return texture.GetImage();
+	}
+
+	/// <summary>
+	/// Terrain atlas entries are packed isometric blocks, not pure top-face diamonds.
+	/// Extract the visible top cap and mirror it into a standalone 128x64 diamond so
+	/// procedural side generation does not sample the baked wall pixels.
+	/// </summary>
+	private static Image NormalizeTopImage(Image sourceImage)
+	{
+		if (!TryExtractTopDiamondFromPackedTile(sourceImage, out var normalized) || normalized == null)
+			return sourceImage;
+		return normalized;
+	}
+
+	private static bool TryExtractTopDiamondFromPackedTile(Image sourceImage, out Image? normalized)
+	{
+		normalized = null;
+		var width = sourceImage.GetWidth();
+		var height = sourceImage.GetHeight();
+		var minX = width;
+		var minY = height;
+		var maxX = -1;
+		var maxY = -1;
+		var rowWidths = new int[height];
+
+		for (var y = 0; y < height; y++)
+		{
+			var rowMinX = width;
+			var rowMaxX = -1;
+			for (var x = 0; x < width; x++)
+			{
+				if (sourceImage.GetPixel(x, y).A <= 0.01f)
+					continue;
+
+				rowMinX = Math.Min(rowMinX, x);
+				rowMaxX = Math.Max(rowMaxX, x);
+			}
+
+			if (rowMaxX < 0)
+				continue;
+
+			rowWidths[y] = rowMaxX - rowMinX + 1;
+			minX = Math.Min(minX, rowMinX);
+			minY = Math.Min(minY, y);
+			maxX = Math.Max(maxX, rowMaxX);
+			maxY = Math.Max(maxY, y);
+		}
+
+		if (maxX < minX || maxY < minY)
+			return false;
+
+		if (!TryResolvePackedTileTopCap(rowWidths, minY, maxY, out var maxRowWidth, out var seamY, out _))
+			return false;
+
+		var targetWidth = (int)(IsoCoordUtil.TileHalfW * 2f);
+		var targetHalfHeight = (int)IsoCoordUtil.TileHalfH;
+		if (targetWidth <= 0 || targetHalfHeight <= 0)
+			return false;
+
+		var capHeight = seamY - minY + 1;
+		var cap = sourceImage.GetRegion(new Rect2I(minX, minY, maxRowWidth, capHeight));
+		cap.Resize(targetWidth, targetHalfHeight);
+
+		var diamond = Image.CreateEmpty(targetWidth, targetHalfHeight * 2, false, Image.Format.Rgba8);
+		for (var y = 0; y < targetHalfHeight; y++)
+		{
+			for (var x = 0; x < targetWidth; x++)
+			{
+				var pixel = cap.GetPixel(x, y);
+				diamond.SetPixel(x, y, pixel);
+				diamond.SetPixel(x, (targetHalfHeight * 2) - 1 - y, pixel);
+			}
+		}
+
+		normalized = diamond;
+		return true;
+	}
+
+	private static bool TryResolvePackedTileTopCap(int[] rowWidths, int minY, int maxY, out int maxRowWidth, out int seamY, out int plateauRows)
+	{
+		maxRowWidth = 0;
+		seamY = -1;
+		plateauRows = 0;
+		if (rowWidths.Length == 0 || minY < 0 || maxY >= rowWidths.Length || minY >= maxY)
+			return false;
+
+		for (var y = minY; y <= maxY; y++)
+			maxRowWidth = Math.Max(maxRowWidth, rowWidths[y]);
+
+		if (maxRowWidth < 16)
+			return false;
+
+		for (var y = minY; y <= maxY; y++)
+		{
+			if (rowWidths[y] < maxRowWidth - 1)
+			{
+				if (seamY >= 0)
+					break;
+				continue;
+			}
+
+			if (seamY < 0)
+				seamY = y;
+			plateauRows++;
+		}
+
+		var capHeight = seamY - minY + 1;
+		return seamY > minY && plateauRows >= 4 && capHeight >= 8;
 	}
 
 	/// <summary>
