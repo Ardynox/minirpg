@@ -19,7 +19,6 @@ public class IsometricVoxelRenderer
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
-	private static readonly float IsoSkewAngle = Mathf.Atan(0.5f);
 
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
@@ -180,9 +179,9 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Left;
-		// Left side hangs from the left-bottom edge of the diamond
-		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + IsoCoordUtil.ZStep / 2f);
-		s.Skew = IsoSkewAngle;
+		// 64x64 parallelogram image; bounding box center = ScreenPos + (-32, 32)
+		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH);
+		s.Skew = 0f;
 		s.ZIndex = 0;
 		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
 		s.Visible = true;
@@ -197,9 +196,9 @@ public class IsometricVoxelRenderer
 		s.RegionEnabled = false;
 		s.Scale = Vector2.One;
 		s.Texture = textures.Right;
-		// Right side hangs from the right-bottom edge of the diamond
-		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + IsoCoordUtil.ZStep / 2f);
-		s.Skew = -IsoSkewAngle;
+		// 64x64 parallelogram image; bounding box center = ScreenPos + (32, 32)
+		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH);
+		s.Skew = 0f;
 		s.ZIndex = 0;
 		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
 		s.Visible = true;
@@ -277,40 +276,37 @@ public class IsometricVoxelRenderer
 	}
 
 	/// <summary>
-	/// Generate left side face (64x32) by sampling the left-bottom edge of the top diamond.
-	/// The left-bottom edge runs from Left(-64,0) to Bottom(0,32) in top-image coords
-	/// (i.e. pixel coords (0,32) to (64,64) in a 128x64 image).
-	/// Each column of the side image samples one point along that edge, then fills
-	/// the column with that color darkened by LeftDarken, with a subtle vertical gradient.
+	/// Generate left side face as a 64x64 parallelogram image.
+	/// The parallelogram covers the area below the diamond's bottom-left edge:
+	///   TL=(0,0) TR=(63,31) BR=(63,63) BL=(0,32)  (in image coords)
+	/// Colors are sampled from the left-bottom edge of the top diamond, darkened by LeftDarken.
 	/// </summary>
 	private static Image GenerateLeftSideImage(Image topImage)
 	{
-		const int sw = 64;
-		const int sh = 32;
-		var img = Image.CreateEmpty(sw, sh, false, Image.Format.Rgba8);
+		const int iw = 64;
+		const int ih = 64;
+		const int faceH = 32;
+		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
 		var tw = topImage.GetWidth();
 		var th = topImage.GetHeight();
-		var halfW = tw / 2; // 64
-		var halfH = th / 2; // 32
+		var halfW = tw / 2;
+		var halfH = th / 2;
 
-		for (var px = 0; px < sw; px++)
+		for (var px = 0; px < iw; px++)
 		{
-			// Map px (0..63) along the left-bottom edge of the diamond:
-			// Edge goes from top-image pixel (0, halfH) to (halfW, th-1)
-			// i.e. from (0,32) to (64,63)
-			var t = px / (float)(sw - 1);
+			var t = px / (float)(iw - 1);
 			var sampleX = (int)(t * halfW);
 			var sampleY = halfH + (int)(t * (halfH - 1));
 			sampleX = Math.Clamp(sampleX, 0, tw - 1);
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
-
-			// Sample a small area for smoother color
 			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
 
-			for (var py = 0; py < sh; py++)
+			var pyStart = (int)(px * 0.5f);
+			for (var dy = 0; dy < faceH; dy++)
 			{
-				// Subtle vertical gradient: top of side slightly brighter
-				var gradientFactor = 1.0f - (py / (float)sh) * 0.2f;
+				var py = pyStart + dy;
+				if (py >= ih) break;
+				var gradientFactor = 1.0f - (dy / (float)faceH) * 0.2f;
 				var c = color * new Color(LeftDarken * gradientFactor, LeftDarken * gradientFactor, LeftDarken * gradientFactor, 1f);
 				c.A = color.A;
 				img.SetPixel(px, py, c);
@@ -320,36 +316,37 @@ public class IsometricVoxelRenderer
 	}
 
 	/// <summary>
-	/// Generate right side face (64x32) by sampling the right-bottom edge of the top diamond.
-	/// The right-bottom edge runs from Bottom(0,32) to Right(64,0) in top-image coords
-	/// (i.e. pixel coords (64,64) to (128,32) in a 128x64 image).
+	/// Generate right side face as a 64x64 parallelogram image.
+	/// The parallelogram covers the area below the diamond's bottom-right edge:
+	///   TL=(0,32) TR=(63,0) BR=(63,32) BL=(0,64)  (in image coords)
+	/// Colors are sampled from the right-bottom edge of the top diamond, darkened by RightDarken.
 	/// </summary>
 	private static Image GenerateRightSideImage(Image topImage)
 	{
-		const int sw = 64;
-		const int sh = 32;
-		var img = Image.CreateEmpty(sw, sh, false, Image.Format.Rgba8);
+		const int iw = 64;
+		const int ih = 64;
+		const int faceH = 32;
+		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
 		var tw = topImage.GetWidth();
 		var th = topImage.GetHeight();
-		var halfW = tw / 2; // 64
-		var halfH = th / 2; // 32
+		var halfW = tw / 2;
+		var halfH = th / 2;
 
-		for (var px = 0; px < sw; px++)
+		for (var px = 0; px < iw; px++)
 		{
-			// Map px (0..63) along the right-bottom edge of the diamond:
-			// Edge goes from top-image pixel (halfW, th-1) to (tw-1, halfH)
-			// i.e. from (64,63) to (127,32)
-			var t = px / (float)(sw - 1);
+			var t = px / (float)(iw - 1);
 			var sampleX = halfW + (int)(t * (halfW - 1));
 			var sampleY = (th - 1) - (int)(t * (halfH - 1));
 			sampleX = Math.Clamp(sampleX, 0, tw - 1);
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
-
 			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
 
-			for (var py = 0; py < sh; py++)
+			var pyStart = (int)((iw - 1 - px) * 0.5f);
+			for (var dy = 0; dy < faceH; dy++)
 			{
-				var gradientFactor = 1.0f - (py / (float)sh) * 0.2f;
+				var py = pyStart + dy;
+				if (py >= ih) break;
+				var gradientFactor = 1.0f - (dy / (float)faceH) * 0.2f;
 				var c = color * new Color(RightDarken * gradientFactor, RightDarken * gradientFactor, RightDarken * gradientFactor, 1f);
 				c.A = color.A;
 				img.SetPixel(px, py, c);

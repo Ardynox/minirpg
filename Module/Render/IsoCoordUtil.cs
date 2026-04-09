@@ -7,7 +7,7 @@ namespace MiniRPG.Module.Render;
 ///
 /// 等距投影公式（标准 2:1 菱形）：
 ///   screenX = (worldX - worldY) * TileHalfW
-///   screenY = (worldX + worldY) * TileHalfH - worldZ * ZStep
+///   screenY = (worldX + worldY) * TileHalfH + worldZ * ZStep
 ///
 /// 其中：
 ///   TileHalfW = 64  (128/2，等距菱形宽度的一半)
@@ -34,7 +34,7 @@ public static class IsoCoordUtil
 	public static Vector2 WorldToScreen(int wx, int wy, int wz)
 	{
 		var sx = (wx - wy) * TileHalfW;
-		var sy = (wx + wy) * TileHalfH - wz * ZStep;
+		var sy = (wx + wy) * TileHalfH + wz * ZStep;
 		return new Vector2(sx, sy);
 	}
 
@@ -44,7 +44,7 @@ public static class IsoCoordUtil
 	public static Vector2 WorldToScreen(float wx, float wy, float wz)
 	{
 		var sx = (wx - wy) * TileHalfW;
-		var sy = (wx + wy) * TileHalfH - wz * ZStep;
+		var sy = (wx + wy) * TileHalfH + wz * ZStep;
 		return new Vector2(sx, sy);
 	}
 
@@ -56,15 +56,15 @@ public static class IsoCoordUtil
 	{
 		// 逆变换：
 		//   sx = (wx - wy) * TileHalfW
-		//   sy = (wx + wy) * TileHalfH - targetZ * ZStep
-		// 令 sy' = sy + targetZ * ZStep
+		//   sy = (wx + wy) * TileHalfH + targetZ * ZStep
+		// 令 sy' = sy - targetZ * ZStep
 		//   wx - wy = sx / TileHalfW
 		//   wx + wy = sy' / TileHalfH
 		// 解：
 		//   wx = (sx / TileHalfW + sy' / TileHalfH) / 2
 		//   wy = (sy' / TileHalfH - sx / TileHalfW) / 2
 
-		var syAdjusted = screen.Y + targetZ * ZStep;
+		var syAdjusted = screen.Y - targetZ * ZStep;
 		var a = screen.X / TileHalfW;
 		var b = syAdjusted / TileHalfH;
 		return ((a + b) * 0.5f, (b - a) * 0.5f);
