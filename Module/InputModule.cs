@@ -15,8 +15,10 @@ public partial class InputModule
 {
 	public event Action<string>? CommandReceived;
 
-	private readonly LineEdit _lineEdit;
+	private readonly LineEdit? _lineEdit;
 	private readonly InputBindingService _bindings;
+	private readonly Action _grabTypingFocus;
+	private readonly Action _releaseTypingFocus;
 	private InputFocus _focus = InputFocus.Action;
 	private string _directionPrefix = "";
 	private Action<int>? _selectionCallback;
@@ -44,11 +46,21 @@ public partial class InputModule
 	{
 		_lineEdit = lineEdit;
 		_bindings = bindings;
+		_grabTypingFocus = lineEdit.GrabFocus;
+		_releaseTypingFocus = lineEdit.ReleaseFocus;
 		_lineEdit.TextSubmitted += OnTextSubmitted;
 		_lineEdit.FocusExited += () =>
 		{
 			if (_focus == InputFocus.Typing) _focus = InputFocus.Action;
 		};
+		SetFocus(InputFocus.Action);
+	}
+
+	internal InputModule(InputBindingService bindings, Action? grabTypingFocus = null, Action? releaseTypingFocus = null)
+	{
+		_bindings = bindings;
+		_grabTypingFocus = grabTypingFocus ?? (() => { });
+		_releaseTypingFocus = releaseTypingFocus ?? (() => { });
 		SetFocus(InputFocus.Action);
 	}
 
@@ -58,9 +70,9 @@ public partial class InputModule
 		_directionPrefix = focus == InputFocus.Direction ? directionPrefix : "";
 
 		if (focus == InputFocus.Typing)
-			_lineEdit.GrabFocus();
+			_grabTypingFocus();
 		else
-			_lineEdit.ReleaseFocus();
+			_releaseTypingFocus();
 	}
 
 	public void EnterActionMode() => SetFocus(InputFocus.Action);
@@ -144,8 +156,16 @@ public partial class InputModule
 	private bool HandleDirectionKey(InputEventKey key)
 	{
 		if (!_bindings.Resolve(InputBindingContext.Direction, key, out var actionId, out _))
+			actionId = null;
+
+		return HandleDirectionKeyCore(actionId, key.Keycode);
+	}
+
+	internal bool HandleDirectionKeyCore(string? actionId, Key keycode)
+	{
+		if (actionId == null)
 		{
-			var fallbackDir = key.Keycode switch
+			var fallbackDir = keycode switch
 			{
 				Key.U => "up",
 				Key.J => "down",
@@ -181,7 +201,7 @@ public partial class InputModule
 
 		if (dir == null)
 		{
-			dir = key.Keycode switch
+			dir = keycode switch
 			{
 				Key.U => "up",
 				Key.J => "down",
@@ -226,7 +246,7 @@ public partial class InputModule
 	private void OnTextSubmitted(string text)
 	{
 		var cmd = text.Trim().ToLowerInvariant();
-		_lineEdit.Clear();
+		_lineEdit?.Clear();
 		SetFocus(InputFocus.Action);
 		if (cmd.Length > 0)
 			CommandReceived?.Invoke(cmd);
