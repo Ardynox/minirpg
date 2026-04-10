@@ -22,6 +22,7 @@ public static class Entities
 	public const string House = "house";
 	public const string Campfire = "campfire";
 	public const string Fire = "fire";
+	public const string Ladder = "ladder";
 	public const string Item = "item";
 	public const string BloodFilth = "blood_filth";
 }

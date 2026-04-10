@@ -91,8 +91,10 @@ public sealed class IncidentAlertModule
 	}
 
 	/// <summary>每帧更新：处理淡出和移除。</summary>
-	public void Update(float delta)
+	public void Update(float delta, bool visible)
 	{
+		_root.Visible = visible;
+
 		for (var i = _active.Count - 1; i >= 0; i--)
 		{
 			var entry = _active[i];

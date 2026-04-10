@@ -39,6 +39,14 @@ uniform float tint_strength_scale : hint_range(0.0, 2.0) = 1.0;
 
 // --- Noise primitives ---
 
+vec2 safe_normalize(vec2 v, vec2 fallback) {
+	float len2 = dot(v, v);
+	if (len2 <= 0.000001) {
+		return fallback;
+	}
+	return v * inversesqrt(len2);
+}
+
 float hash12(vec2 p, float seed) {
 	return fract(sin(dot(p + seed, vec2(127.1, 311.7))) * 43758.5453123);
 }
@@ -85,7 +93,7 @@ float soft_edge(vec2 uv) {
 // --- Rain atmosphere (fine streaks) ---
 
 float rain_streak(vec2 uv, vec2 dir, float density, float speed, float seed, float size_scale, float freq_scale) {
-	vec2 primary = normalize(dir);
+	vec2 primary = safe_normalize(dir, vec2(0.0, 1.0));
 	vec2 secondary = vec2(-primary.y, primary.x);
 	float frequency = max(0.2, freq_scale);
 	float line_size = clamp(size_scale, 0.3, 2.0);
@@ -110,7 +118,7 @@ float rain_atmosphere(vec2 uv, vec2 dir, float density, float speed, float seed,
 // --- Prominent rain drops (scattered, varied size, visible) ---
 
 float rain_drop(vec2 uv, vec2 wind_dir, float density, float speed, float seed, float size_scale, float freq_scale, float layer_seed) {
-	vec2 drift = normalize(wind_dir);
+	vec2 drift = safe_normalize(wind_dir, vec2(0.0, 1.0));
 	float frequency = max(0.2, freq_scale);
 	// Grid of potential drop positions
 	vec2 grid_size = vec2(6.0, 4.0) * frequency;
@@ -240,8 +248,9 @@ float thunder_flash(float base_flash, float seed) {
 	float pulse_a = exp(-80.0 * abs(phase - 0.04));
 	float pulse_b = exp(-140.0 * abs(phase - 0.09));
 	float pulse_c = exp(-200.0 * abs(phase - 0.14));
+	float tail = exp(-10.0 * max(phase - 0.14, 0.0));
 	float ambient = 0.5 + 0.5 * sin(time * 0.7 + seed * 11.0);
-	return clamp((pulse_a + pulse_b * 0.7 + pulse_c * 0.35 + ambient * 0.06) * base_flash, 0.0, 1.0);
+	return clamp((pulse_a + pulse_b * 0.7 + pulse_c * 0.35 + tail * 0.18 + ambient * 0.06) * base_flash, 0.0, 1.0);
 }
 
 // --- Effect builder ---
@@ -273,34 +282,83 @@ vec4 build_effect(
 	float haze = 0.0;
 	float tint = edge_tint_alpha;
 	float shadow = edge_shadow;
+	float intensity = clamp(density * 0.58 + speed * 0.34, 0.0, 1.35);
+	float calm_to_harsh = smoothstep(0.25, 1.05, intensity);
 
 	if (mode == 1) {
-		// Rain: atmosphere streaks + scattered prominent drops + mist
-		particle = rain_atmosphere(uv, wind_dir + vec2(0.06, 0.0), density, speed, seed, particle_size, particle_frequency) * overlay_alpha;
-		drops = rain_drops_scattered(uv, wind_dir, density, speed, seed, particle_size, particle_frequency) * overlay_alpha;
-		haze = fog_volume(uv, density * 0.35, speed * 0.25, seed + 2.0, particle_frequency * 0.7) * fog_alpha;
-		tint *= 0.6;
-		shadow *= 0.4;
+		// Rain: from light drizzle to heavy slanted rainfall.
+		particle = rain_atmosphere(
+			uv,
+			wind_dir + vec2(mix(0.01, 0.10, calm_to_harsh), 0.0),
+			density * mix(0.75, 1.20, calm_to_harsh),
+			speed * mix(0.70, 1.35, calm_to_harsh),
+			seed,
+			particle_size * mix(0.75, 1.10, calm_to_harsh),
+			particle_frequency * mix(0.70, 1.25, calm_to_harsh)) * overlay_alpha;
+		drops = rain_drops_scattered(
+			uv,
+			wind_dir,
+			density * mix(0.50, 1.10, calm_to_harsh),
+			speed * mix(0.65, 1.45, calm_to_harsh),
+			seed,
+			particle_size * mix(0.95, 1.30, calm_to_harsh),
+			particle_frequency * mix(0.80, 1.35, calm_to_harsh)) * overlay_alpha;
+		haze = fog_volume(uv, density * mix(0.20, 0.52, calm_to_harsh), speed * mix(0.16, 0.34, calm_to_harsh), seed + 2.0, particle_frequency * 0.7) * fog_alpha;
+		tint *= mix(0.36, 0.68, calm_to_harsh);
+		shadow *= mix(0.14, 0.52, calm_to_harsh);
 	} else if (mode == 2) {
-		// Snow: scattered prominent flakes + whiteout haze
-		drops = snow_flakes_scattered(uv, density, speed, seed, particle_size, particle_frequency) * overlay_alpha;
-		haze = fog_volume(uv, density * 0.4, speed * 0.12, seed + 3.0, particle_frequency * 0.6) * fog_alpha;
-		tint *= 0.3;
-		shadow *= 0.2;
+		// Snow: sparse calm flakes to near-whiteout blizzard.
+		drops = snow_flakes_scattered(
+			uv,
+			density * mix(0.62, 1.35, calm_to_harsh),
+			speed * mix(0.75, 1.45, calm_to_harsh),
+			seed,
+			particle_size * mix(1.15, 0.70, calm_to_harsh),
+			particle_frequency * mix(0.75, 1.40, calm_to_harsh)) * overlay_alpha;
+		haze = fog_volume(uv, density * mix(0.28, 0.92, calm_to_harsh), speed * mix(0.10, 0.28, calm_to_harsh), seed + 3.0, particle_frequency * 0.6) * fog_alpha;
+		tint *= mix(0.22, 0.40, calm_to_harsh);
+		shadow *= mix(0.07, 0.30, calm_to_harsh);
 	} else if (mode == 3) {
-		// Fog: double-layer volumetric
-		haze = fog_volume(uv, density, speed, seed, particle_frequency) * fog_alpha;
-		particle = haze * 0.06;
+		// Fog: layered depth and rolling banks.
+		haze = fog_volume(uv, density * mix(0.75, 1.20, calm_to_harsh), speed * mix(0.60, 1.05, calm_to_harsh), seed, particle_frequency) * fog_alpha;
+		particle = haze * mix(0.03, 0.10, calm_to_harsh);
+		tint *= mix(0.55, 0.78, calm_to_harsh);
+		shadow *= mix(0.28, 0.55, calm_to_harsh);
 	} else if (mode == 4) {
-		// Dust: bands + scattered grains + streaks
-		float dust = dust_layer(uv, density, speed, seed, particle_size, particle_frequency);
-		particle = dust * overlay_alpha * 0.6;
-		haze = dust * fog_alpha * 0.8;
+		// Dust: dry haze and anisotropic streaking.
+		float dust = dust_layer(
+			uv,
+			density * mix(0.70, 1.20, calm_to_harsh),
+			speed * mix(0.72, 1.30, calm_to_harsh),
+			seed,
+			particle_size * mix(0.82, 1.12, calm_to_harsh),
+			particle_frequency * mix(0.80, 1.25, calm_to_harsh));
+		particle = dust * overlay_alpha * mix(0.35, 0.82, calm_to_harsh);
+		haze = dust * fog_alpha * mix(0.55, 1.10, calm_to_harsh);
+		tint *= mix(0.62, 1.12, calm_to_harsh);
+		shadow *= mix(0.20, 0.52, calm_to_harsh);
 	} else if (mode == 5) {
-		// Thunderstorm: heavy rain + prominent drops + haze + darkening
-		particle = rain_atmosphere(uv, wind_dir + vec2(0.08, 0.0), density * 1.1, speed * 1.15, seed, particle_size, particle_frequency) * overlay_alpha;
-		drops = rain_drops_scattered(uv, wind_dir, density * 1.2, speed * 1.3, seed, particle_size, particle_frequency) * overlay_alpha;
-		haze = fog_volume(uv, density * 0.5, speed * 0.3, seed + 1.5, particle_frequency * 0.7) * fog_alpha;
+		// Thunderstorm: violent rain fields, dense moisture, deep darkening.
+		float storm_push = smoothstep(0.30, 1.10, intensity + lightning_flash * 0.35);
+		particle = rain_atmosphere(
+			uv,
+			wind_dir + vec2(mix(0.05, 0.16, storm_push), 0.0),
+			density * mix(0.95, 1.45, storm_push),
+			speed * mix(1.00, 1.70, storm_push),
+			seed,
+			particle_size * mix(0.95, 1.18, storm_push),
+			particle_frequency * mix(0.95, 1.45, storm_push)) * overlay_alpha;
+		drops = rain_drops_scattered(
+			uv,
+			wind_dir,
+			density * mix(1.00, 1.50, storm_push),
+			speed * mix(1.10, 1.90, storm_push),
+			seed,
+			particle_size * mix(1.05, 1.45, storm_push),
+			particle_frequency * mix(1.00, 1.55, storm_push)) * overlay_alpha;
+		haze = fog_volume(uv, density * mix(0.48, 1.00, storm_push), speed * mix(0.22, 0.42, storm_push), seed + 1.5, particle_frequency * 0.7) * fog_alpha;
+		tint *= mix(0.70, 1.05, storm_push);
+		shadow *= mix(0.46, 0.95, storm_push);
 	}
 
 	return vec4(particle, haze, tint, shadow);
@@ -308,6 +366,10 @@ vec4 build_effect(
 
 float build_flash(int mode, float lightning_flash, float seed) {
 	return mode == 5 ? thunder_flash(lightning_flash, seed) : 0.0;
+}
+
+float mode_weight(int mode_value, int target_mode) {
+	return mode_value == target_mode ? 1.0 : 0.0;
 }
 
 void fragment() {
@@ -339,47 +401,66 @@ void fragment() {
 
 	// Unpack effect channels
 	float particle_alpha = clamp(effect.x * particle_blend, 0.0, 0.85);
-	float haze_alpha = clamp(effect.y, 0.0, 0.75);
-	float tint_alpha = clamp(effect.z * tint_strength, 0.0, 0.70);
-	float shadow_alpha = clamp(effect.w, 0.0, 0.70);
+	float haze_alpha = clamp(effect.y, 0.0, 0.80);
+	float tint_alpha = clamp(effect.z * tint_strength, 0.0, 0.75);
+	float shadow_alpha = clamp(effect.w, 0.0, 0.75);
 	float drop_alpha = clamp(drops * particle_blend, 0.0, 0.95);
 
+	float rain_weight = max(mode_weight(mode_a, 1), mode_weight(mode_b, 1));
+	float snow_weight = max(mode_weight(mode_a, 2), mode_weight(mode_b, 2));
+	float fog_weight = max(mode_weight(mode_a, 3), mode_weight(mode_b, 3));
+	float dust_weight = max(mode_weight(mode_a, 4), mode_weight(mode_b, 4));
+	float storm_weight = max(mode_weight(mode_a, 5), mode_weight(mode_b, 5));
+	float total_weight = max(rain_weight + snow_weight + fog_weight + dust_weight + storm_weight, 1.0);
+	float dryness = clamp((dust_weight * 0.75 - (rain_weight + snow_weight + fog_weight) * 0.25) / total_weight + 0.35, 0.0, 1.0);
+	float chill = clamp((snow_weight * 0.65 + fog_weight * 0.20 - dust_weight * 0.35) / total_weight + 0.35, 0.0, 1.0);
+	float depth_screen = smoothstep(0.05, 0.95, uv.y);
+	float near_field = depth_screen;
+
 	// Total weather intensity for vignette and desaturation
-	float weather_intensity = clamp(particle_alpha + haze_alpha * 0.8 + shadow_alpha + drop_alpha * 0.3, 0.0, 1.0);
+	float weather_intensity = clamp(particle_alpha + haze_alpha * 0.85 + shadow_alpha + drop_alpha * 0.35, 0.0, 1.0);
 
 	vec3 color = base.rgb;
 
-	// Desaturation - weather washes out colors
+	// Desaturation - heavier for fog and storm
 	float luma = dot(color, vec3(0.299, 0.587, 0.114));
-	float desat = clamp(haze_alpha * 0.45 + shadow_alpha * 0.35, 0.0, 0.5);
+	float desat = clamp(haze_alpha * (0.30 + 0.35 * fog_weight) + shadow_alpha * (0.25 + 0.25 * storm_weight), 0.0, 0.65);
 	color = mix(color, vec3(luma), desat);
 
 	// Shadow/darkening
-	color *= 1.0 - shadow_alpha * 0.65;
+	color *= 1.0 - shadow_alpha * (0.55 + 0.20 * storm_weight);
 
-	// Edge tint (atmospheric color at edges)
+	// Edge tint (softer, less synthetic)
 	float edge = 1.0 - soft_edge(uv);
-	color = mix(color, color * weather_tint, tint_alpha * edge * 0.55);
+	float edge_mix = tint_alpha * edge * mix(0.34, 0.48, weather_intensity);
+	color = mix(color, color * weather_tint, edge_mix);
 
-	// Haze/fog overlay
-	vec3 haze_color = mix(color, weather_tint, 0.45 * tint_strength);
-	color = mix(color, haze_color, haze_alpha);
+	// Haze/fog overlay (warmer in dust, cooler in snow/fog)
+	vec3 haze_tint = mix(weather_tint, mix(vec3(0.88, 0.80, 0.68), vec3(0.78, 0.86, 0.98), chill), 0.45 + dryness * 0.25);
+	vec3 haze_color = mix(color, haze_tint, 0.50 * tint_strength);
+	float haze_depth_mix = haze_alpha * mix(0.75, 1.08, near_field);
+	color = mix(color, haze_color, clamp(haze_depth_mix, 0.0, 1.0));
 
-	// Lightning flash
-	float flash_strength = clamp(flash, 0.0, 0.65);
+	// Lightning flash + exposure recovery tail
+	float flash_strength = clamp(flash, 0.0, 0.70);
+	float flash_tail = flash_strength * (0.22 + 0.18 * storm_weight);
 	color = mix(color, vec3(1.0), flash_strength);
+	color = mix(color, color * vec3(0.92, 0.94, 0.98), flash_tail);
 
 	// Fine particle overlay (atmospheric rain streaks, dust)
-	vec3 particle_color = mix(vec3(1.0), weather_tint, 0.3 * tint_strength);
-	color = mix(color, particle_color, particle_alpha * soft_edge(uv));
+	vec3 particle_color = mix(vec3(1.0), weather_tint, 0.25 * tint_strength + 0.15 * dryness);
+	float particle_depth = mix(0.86, 1.12, near_field);
+	color = mix(color, particle_color, clamp(particle_alpha * soft_edge(uv) * particle_depth, 0.0, 1.0));
 
-	// Prominent drops/flakes overlay (bright, visible, scattered)
-	vec3 drop_color = mix(vec3(1.0), weather_tint, 0.15 * tint_strength);
-	color = mix(color, drop_color, drop_alpha * soft_edge(uv));
+	// Prominent drops/flakes overlay (snow gets stronger foreground depth contrast)
+	vec3 drop_color = mix(vec3(1.0), weather_tint, 0.12 * tint_strength + 0.08 * chill);
+	float snow_depth_boost = mix(0.82, 1.22, near_field);
+	float drop_depth = mix(1.0, snow_depth_boost, snow_weight);
+	color = mix(color, drop_color, clamp(drop_alpha * soft_edge(uv) * drop_depth, 0.0, 1.0));
 
 	// Weather-aware vignette
 	float vig = vignette(uv, weather_intensity * 1.5);
-	color *= mix(1.0, vig, 0.3 + weather_intensity * 0.4);
+	color *= mix(1.0, vig, 0.28 + weather_intensity * 0.45);
 
 	COLOR = vec4(color, 1.0);
 }

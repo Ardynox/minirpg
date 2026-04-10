@@ -10,7 +10,7 @@ public sealed class MainStartupTests
 	[Fact]
 	public void TransitionToStartupFailed_SetsFailedState_AndEnablesRuntimeShortCircuit()
 	{
-		var mainType = typeof(GameState).Assembly.GetType("MiniRPG.Main", throwOnError: true)!;
+		var mainType = typeof(MiniRPG.Main);
 		var main = RuntimeHelpers.GetUninitializedObject(mainType);
 		var transitionMethod = mainType.GetMethod("TransitionToStartupFailed", BindingFlags.Instance | BindingFlags.NonPublic);
 		var exception = Record.Exception(() =>

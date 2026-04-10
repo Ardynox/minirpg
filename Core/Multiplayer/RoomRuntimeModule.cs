@@ -279,6 +279,18 @@ public static class RoomRuntimeModule
 		return actors;
 	}
 
+	public static bool IsAuthorizedToControl(GameState state, string? playerSessionId, string? actorId)
+	{
+		if (string.IsNullOrWhiteSpace(playerSessionId) || string.IsNullOrWhiteSpace(actorId))
+			return false;
+		if (!state.Room.IsActive)
+			return true;
+		if (!state.Room.Players.TryGetValue(playerSessionId, out var player))
+			return false;
+
+		return player.CurrentControllerActorIds.Contains(actorId, StringComparer.Ordinal);
+	}
+
 	public static string? GetCurrentControllerPlayerId(GameState state, string actorId)
 	{
 		if (state.Room.ActorControlBindings.TryGetValue(actorId, out var binding))

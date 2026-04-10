@@ -138,6 +138,15 @@ public sealed class WorldRuntimeConfig
 
 	[JsonPropertyName("nest_nearby_count_radius")]
 	public int NestNearbyCountRadius { get; set; } = 3;
+
+	[JsonPropertyName("fall_damage_free_layers")]
+	public int FallDamageFreeLayers { get; set; } = 1;
+
+	[JsonPropertyName("fall_damage_per_layer")]
+	public int FallDamagePerLayer { get; set; } = 4;
+
+	[JsonPropertyName("max_fall_layers_per_step")]
+	public int MaxFallLayersPerStep { get; set; } = 6;
 }
 
 public sealed class WeatherConfig

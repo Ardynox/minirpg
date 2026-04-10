@@ -79,6 +79,8 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		_panels.OnPanelClosed(_panel);
 	}
 
+	public bool IsVisible => _panel?.Visible == true;
+
 	public void MarkDirty()
 	{
 		if (_panel?.Visible == true)

@@ -129,6 +129,7 @@ public sealed class MultiplayerRuntimeTests
 		var host = new DedicatedGameServerHost(new DedicatedGameServerHostOptions
 		{
 			ServerEndpoint = ownerTicket.ServerEndpoint,
+			LobbyService = lobby,
 		});
 		var roomHost = host.RegisterRoom(state, lobby.GetRoomState(ownerTicket.RoomId));
 
@@ -155,11 +156,11 @@ public sealed class MultiplayerRuntimeTests
 			ActorId = "hero",
 			InventoryIndex = 0,
 		});
-		var delta = Assert.IsType<StateDeltaMessage>(messages[0]);
-		Assert.Equal(1, delta.Sequence);
+		var snapshot = Assert.IsType<RoomSnapshotMessage>(messages[0]);
+		Assert.Equal(1, snapshot.Room.LastSnapshotSequence);
 		Assert.True(roomHost.State.Actors["hero"].Inventory[0].Equipped);
 
-		roomHost.Disconnect(ownerTicket.PlayerSessionId, new DateTimeOffset(2026, 4, 9, 14, 0, 0, TimeSpan.Zero));
+		roomHost.Disconnect(ownerTicket.PlayerSessionId, DateTimeOffset.UtcNow);
 		Assert.False(roomHost.State.Room.Players[ownerTicket.PlayerSessionId].Connected);
 
 		var reconnectTicket = lobby.ReconnectClaim(new LobbyReconnectClaimRequest
@@ -174,6 +175,64 @@ public sealed class MultiplayerRuntimeTests
 			Token = reconnectTicket.JoinToken,
 		});
 		Assert.True(reconnect.Ok);
+	}
+
+	[Fact]
+	public void DedicatedHost_BusyReservation_ReturnsActualOwnerPlayerSessionId()
+	{
+		var lobby = new InMemoryLobbyService();
+		var ownerTicket = lobby.CreateRoom(new LobbyCreateRoomRequest
+		{
+			RoomDisplayName = "Alpha",
+			OwnerDisplayName = "Owner",
+			ServerEndpoint = "enet://127.0.0.1:2455",
+			PrimaryActorId = "hero",
+		});
+		var guestTicket = lobby.JoinRoom(new LobbyJoinRoomRequest
+		{
+			RoomId = ownerTicket.RoomId,
+			DisplayName = "Guest",
+			PrimaryActorId = "scout",
+		});
+		var state = CreateState();
+
+		var host = new DedicatedGameServerHost(new DedicatedGameServerHostOptions
+		{
+			ServerEndpoint = ownerTicket.ServerEndpoint,
+			LobbyService = lobby,
+		});
+		var roomHost = host.RegisterRoom(state, lobby.GetRoomState(ownerTicket.RoomId));
+
+		Assert.True(roomHost.Connect(new GameServerConnectRequest
+		{
+			RoomId = ownerTicket.RoomId,
+			Token = ownerTicket.JoinToken,
+		}).Ok);
+		Assert.True(roomHost.Connect(new GameServerConnectRequest
+		{
+			RoomId = guestTicket.RoomId,
+			Token = guestTicket.JoinToken,
+		}).Ok);
+
+		var reservationKey = "container:ground:1:1:0:shared_chest";
+		var ownerTake = roomHost.Execute(new OpenModalClientCommand
+		{
+			RequestId = "req-owner",
+			PlayerSessionId = ownerTicket.PlayerSessionId,
+			ModalId = reservationKey,
+		});
+		Assert.IsType<RoomSnapshotMessage>(ownerTake[0]);
+
+		var guestBusy = roomHost.Execute(new OpenModalClientCommand
+		{
+			RequestId = "req-guest",
+			PlayerSessionId = guestTicket.PlayerSessionId,
+			ModalId = reservationKey,
+		});
+
+		var busy = Assert.IsType<ReservationBusyMessage>(Assert.Single(guestBusy));
+		Assert.Equal(ownerTicket.PlayerSessionId, busy.BusyByPlayerSessionId);
+		Assert.Equal(reservationKey, busy.ReservationKey);
 	}
 
 	private static GameState CreateState()

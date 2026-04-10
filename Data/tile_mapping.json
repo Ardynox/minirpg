@@ -27,7 +27,17 @@
     "air": "BLACK TILE",
     "dirt": "Wall A1_N",
     "stone": "Stone A1_N",
-    "grass_block": "Ground B1_N"
+    "grass_block": "Ground B1_N",
+    "ore_coal": "Stone B1_N",
+    "ore_iron": "Stone B2_N",
+    "ore_copper": "Stone B3_N",
+    "ore_gold": "Stone B4_N",
+    "ore_crystal": "Stone B5_N",
+    "ore_coal": "Stone B1_N",
+    "ore_iron": "Stone B2_N",
+    "ore_copper": "Stone B3_N",
+    "ore_gold": "Stone B4_N",
+    "ore_crystal": "Stone B5_N"
   },
   "entity": {
     "player": "Misc B1_N",

@@ -12,7 +12,7 @@ public sealed class DebugPanelControllerTests
 	[Fact]
 	public void BuildRenderPerfStatus_FormatsPerfLines()
 	{
-		var controllerType = typeof(GameState).Assembly.GetType("MiniRPG.DebugPanelController", throwOnError: true)!;
+		var controllerType = typeof(MiniRPG.DebugPanelController);
 		var controller = RuntimeHelpers.GetUninitializedObject(controllerType);
 
 		SetField(

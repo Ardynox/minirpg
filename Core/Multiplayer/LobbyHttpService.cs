@@ -16,6 +16,10 @@ public sealed class LobbyHttpService : IDisposable
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		WriteIndented = true,
+		Converters =
+		{
+			new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+		},
 	};
 
 	private readonly HttpListener _listener = new();
@@ -109,6 +113,15 @@ public sealed class LobbyHttpService : IDisposable
 		var request = context.Request;
 		var path = request.Url?.AbsolutePath?.TrimEnd('/') ?? string.Empty;
 		var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+		if (request.HttpMethod == "GET" && segments.Length == 1 && string.Equals(segments[0], "healthz", StringComparison.OrdinalIgnoreCase))
+		{
+			await WriteJsonAsync(context.Response, HttpStatusCode.OK, new
+			{
+				ok = true,
+			}).ConfigureAwait(false);
+			return;
+		}
 
 		if (request.HttpMethod == "GET" && segments.Length == 1 && string.Equals(segments[0], "rooms", StringComparison.OrdinalIgnoreCase))
 		{

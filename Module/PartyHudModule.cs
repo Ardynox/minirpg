@@ -19,6 +19,7 @@ public sealed class PartyHudModule
 	private readonly List<PartyMemberSlot> _slots = [];
 
 	private GameState? _state;
+	private bool _visible;
 
 	public PartyHudModule(PanelContainer root)
 	{
@@ -89,14 +90,15 @@ public sealed class PartyHudModule
 		Refresh();
 	}
 
-	public void Update(GameState state)
+	public void Update(GameState state, bool visible)
 	{
 		_state = state;
+		_visible = visible;
 		var members = PartyModule.GetMembers(state);
 		var activeId = PartyModule.GetActiveId(state);
 
 		// 只有多于 1 人时才显示
-		_root.Visible = members.Count > 1;
+		_root.Visible = visible && members.Count > 1;
 		if (!_root.Visible) return;
 
 		// 确保 slot 数量匹配
@@ -123,7 +125,7 @@ public sealed class PartyHudModule
 
 	private void Refresh()
 	{
-		if (_state != null) Update(_state);
+		if (_state != null) Update(_state, _visible);
 	}
 
 	/// <summary>单个队伍成员的 UI 槽位。</summary>

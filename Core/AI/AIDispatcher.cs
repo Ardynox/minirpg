@@ -439,6 +439,10 @@ public static class AIDispatcher
 				}
 				break;
 
+			case DecisionType.MoveVertical:
+				result = ExecuteVerticalMove(state, actor, decision.TargetZ);
+				break;
+
 			case DecisionType.Attack:
 				result = ExecuteAttack(state, actor, decision);
 				break;
@@ -451,6 +455,20 @@ public static class AIDispatcher
 		if (tickBuffs && result.Consumed)
 			actor.TickBuffs();
 
+		return result;
+	}
+
+	private static ActionExecutionResult ExecuteVerticalMove(GameState state, Actor actor, int? targetZ)
+	{
+		var result = new ActionExecutionResult();
+		if (targetZ == null || targetZ.Value == actor.Z)
+			return result;
+
+		var goDown = targetZ.Value > actor.Z;
+		if (!VerticalTraversalService.TryMoveActorVertical(state, actor, goDown))
+			return result;
+
+		result.Consumed = true;
 		return result;
 	}
 

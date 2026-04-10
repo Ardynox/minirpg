@@ -1,0 +1,85 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "MiniRPG.Server/1.0.0": {
+        "dependencies": {
+          "MiniRPG.Runtime": "1.0.0"
+        },
+        "runtime": {
+          "MiniRPG.Server.dll": {}
+        }
+      },
+      "Godot.SourceGenerators/4.6.1": {},
+      "GodotSharp/4.6.1": {
+        "runtime": {
+          "lib/net8.0/GodotSharp.dll": {
+            "assemblyVersion": "4.6.1.0",
+            "fileVersion": "4.6.1.0"
+          }
+        }
+      },
+      "GodotSharpEditor/4.6.1": {
+        "dependencies": {
+          "GodotSharp": "4.6.1"
+        },
+        "runtime": {
+          "lib/net8.0/GodotSharpEditor.dll": {
+            "assemblyVersion": "4.6.1.0",
+            "fileVersion": "4.6.1.0"
+          }
+        }
+      },
+      "MiniRPG.Runtime/1.0.0": {
+        "dependencies": {
+          "Godot.SourceGenerators": "4.6.1",
+          "GodotSharp": "4.6.1",
+          "GodotSharpEditor": "4.6.1"
+        },
+        "runtime": {
+          "MiniRPG.Runtime.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MiniRPG.Server/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Godot.SourceGenerators/4.6.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-C/IYyVRGBsv/4MYPUs/K9/ku5kX+/2JbXRZhFPOw0oG3loTXBVkrzGba5G55In1me+Zw4H1LdEtq/RXNub8/IA==",
+      "path": "godot.sourcegenerators/4.6.1",
+      "hashPath": "godot.sourcegenerators.4.6.1.nupkg.sha512"
+    },
+    "GodotSharp/4.6.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Ce5ZaDaPE5bdpFCf0D6v7S9T2D8PpH37PN1nblQTUVbnd+yClvojbeu0i/Vw9xpoD7EcjtUG77hox4FrmKx9FQ==",
+      "path": "godotsharp/4.6.1",
+      "hashPath": "godotsharp.4.6.1.nupkg.sha512"
+    },
+    "GodotSharpEditor/4.6.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-a3DW+z/ZU1cr1sYKqv2TEJri/FfUsCRjzKhFYjOTXQyQxO7hLXQnVxu8XxP6/vfGjy/IGYT4AzcZgfcnzke8Hg==",
+      "path": "godotsharpeditor/4.6.1",
+      "hashPath": "godotsharpeditor.4.6.1.nupkg.sha512"
+    },
+    "MiniRPG.Runtime/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

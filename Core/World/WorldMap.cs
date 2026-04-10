@@ -390,6 +390,22 @@ public class WorldMap
 	public bool HasFixture(int x, int y, int z, string fixtureId) =>
 		GetEntities(x, y, z).Any(e => e.Type == CellEntityType.Fixture && e.EntityId == fixtureId);
 
+	public bool HasVerticalAnchor(int x, int y, int z, bool goDown)
+	{
+		if (HasFixture(x, y, z, Entities.Ladder))
+			return true;
+
+		return goDown
+			? HasFixture(x, y, z, Entities.StairDown)
+			: HasFixture(x, y, z, Entities.StairUp);
+	}
+
+	public bool CanTraverseVertical(int x, int y, int z, bool goDown)
+	{
+		var targetZ = goDown ? z + 1 : z - 1;
+		return HasVerticalAnchor(x, y, z, goDown) && IsWalkable(x, y, targetZ);
+	}
+
 	private static bool FixtureBlocksSight(CellEntity fixture)
 	{
 		if (fixture.Meta != null
@@ -604,6 +620,7 @@ public class WorldMap
 		Entities.House => "H",
 		Entities.Campfire => "*",
 		Entities.Fire => "*",
+		Entities.Ladder => "|",
 		_ => string.IsNullOrWhiteSpace(fixtureId) ? string.Empty : fixtureId[..1],
 	};
 

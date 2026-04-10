@@ -8,6 +8,7 @@ public enum DecisionType
 	Idle,
 	Wander,
 	MoveTo,
+	MoveVertical,
 	Attack,
 	Flee,
 	Interact,
@@ -18,6 +19,7 @@ public class Decision
 {
 	public DecisionType Type { get; set; } = DecisionType.Idle;
 	public (int X, int Y)? TargetPos { get; set; }
+	public int? TargetZ { get; set; }
 	public string? TargetActorId { get; set; }
 	public string? ActionDefId { get; set; }
 	public string? TargetLimbId { get; set; }

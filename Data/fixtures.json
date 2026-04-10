@@ -75,5 +75,16 @@
     "removedOnDestroy": true,
     "blocksSight": false,
     "controlledFireSource": false
+  },
+  {
+    "id": "ladder",
+    "name": "Ladder",
+    "material": "wood",
+    "maxDurability": 20,
+    "flammable": true,
+    "burnsInto": "fire",
+    "removedOnDestroy": true,
+    "blocksSight": false,
+    "controlledFireSource": false
   }
 ]

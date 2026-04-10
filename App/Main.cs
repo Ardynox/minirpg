@@ -12,6 +12,7 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Dialog;
 using MiniRPG.Core.Facility;
+using MiniRPG.Core.Session;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
@@ -63,6 +64,14 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private InputModule _inputModule = null!;
 	private InputBindingService _inputBindings = null!;
 	private LineEdit _inputBar = null!;
+	private HBoxContainer _panelLauncherBar = null!;
+	private Button _statusLauncherBtn = null!;
+	private Button _skillBarLauncherBtn = null!;
+	private Button _skillMgrLauncherBtn = null!;
+	private Button _inventoryLauncherBtn = null!;
+	private Button _questLauncherBtn = null!;
+	private Button _debugLauncherBtn = null!;
+	private Button _settingsLauncherBtn = null!;
 	private TileMapRenderModule? _mapRender;
 	private MapEditorSession _mapEditor = null!;
 	private MapEditorBarModule _mapEditorBar = null!;
@@ -84,6 +93,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _layoutResetPending;
 
 	private GameSessionModule _session = null!;
+	private IGameSessionBackend _sessionBackend = null!;
 	private MenuModule _menu = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
@@ -137,6 +147,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _inspectModeActive;
 	private bool _skillCastCursorActive;
 	private Vector3I? _inspectWorldCell;
+	private Vector3I? _hoverWorldCell;
+	private Label _worldHoverLabel = null!;
 	private string? _inspectPreviousFocusId;
 	private string? _inspectActorId;
 	private PlayerTargetingContext _playerTargeting = PlayerTargetingContext.Empty;
@@ -624,6 +636,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 
 			_session = new GameSessionModule(_state, _fogTracker);
+			_sessionBackend = new LocalSessionBackend(_session, _state, Dispatch);
 			_menu = new MenuModule(this);
 
 			_mapPanelNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/MapPanel");
@@ -632,6 +645,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_log = new LogModule(logContent);
 			_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
 			var lineEdit = _inputBar;
+			BindWorldHoverOverlay();
 			BindPanelLauncherBar();
 			_mapEditor = new MapEditorSession(_state);
 
@@ -670,6 +684,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_panelDrag = new PanelDragService(layoutStore, floatingRoot);
 			_panelChrome = new PanelHoverChromeService(floatingRoot, _panelLayouts, _panelDrag);
 			_inputBindings = new InputBindingService(ProjectSettings.GlobalizePath("user://keybindings.json"));
+			_inputBindings.Changed += () =>
+			{
+				ApplyPanelLauncherTooltips();
+				RefreshPanelLauncherState();
+			};
 
 			_statusPanelModule = new StatusPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TopRow/StatusPanel"));
 			_turnPanelModule = new TurnPanelModule(GetNode<PanelContainer>($"{HudRootPath}/TurnPanel"));
@@ -772,6 +791,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_mainAppFlowCoordinator = new MainAppFlowCoordinator(
 				_state,
 				_session,
+				_sessionBackend,
 				_log,
 				_menu,
 				_settingsFlow,
@@ -966,10 +986,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panelChrome.Update(GetViewport().GetMousePosition(), enabled: snapshot.AllowPanelChrome);
 		UpdateThreatHud(delta, snapshot);
 		UpdateTargetSummaryHud(snapshot);
-		_needsHud.Update(ActorModule.GetPlayer(_state), _state.Turn, !snapshot.InMenu);
+		_needsHud.Update(ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
 		_healthAlerts.Update(_state, ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
-		_partyHud.Update(_state);
-		_incidentAlerts.Update((float)delta);
+		_partyHud.Update(_state, !snapshot.SuppressHudAndAlerts);
+		_incidentAlerts.Update((float)delta, !snapshot.SuppressHudAndAlerts);
 		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();
@@ -1038,7 +1058,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			AllowPanelDrag: !busyOperationActive && !mapEditorActive && !hasVisibleModalLayer,
 			BlocksGameplayInput: busyOperationActive || inMenu || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
 			SuppressHudAndAlerts: !sessionStarted || inMenu || PlayerDead || busyOperationActive || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
-			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || loadRecoveryDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive);
+			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || loadRecoveryDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive || settingsOverlayVisible);
 	}
 
 	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
@@ -1335,6 +1355,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void FailStartupBootstrap(string path, Exception ex)
 	{
 		GD.PrintErr($"[Startup] Bootstrap failed: {path} ({ex.GetType().Name}: {ex.Message})");
+		GD.PrintErr($"[Startup] Bootstrap exception detail: {ex}");
 		TransitionToStartupFailed(path);
 	}
 
@@ -1363,7 +1384,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_startupState == StartupState.Failed)
 			return true;
 
-		return !IsNodeReady();
+		return false;
 	}
 
 	private void RefreshStartupUi()
@@ -1392,6 +1413,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (_menu != null && _session != null)
 			RefreshMainMenuContinueState();
 		SyncSettingsUiState();
+		RefreshPanelLauncherState();
 	}
 
 	private SettingsUiState BuildSettingsUiState(SettingsEntryContext? context = null)
@@ -1562,6 +1584,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_busyOperationActive = false;
 		_busyOperationProgress = 0f;
 		RefreshStartupUi();
+		RefreshPanelLauncherState();
 	}
 
 	private void PlayCombatFx(GameEvent e)
@@ -1688,7 +1711,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 
 		var snapshot = CaptureRuntimeUiMode();
-		_mainInputCoordinator.HandleInput(@event, snapshot);
+		if (_mainInputCoordinator.HandleInput(@event, snapshot))
+			GetViewport().SetInputAsHandled();
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -1709,6 +1733,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private bool HandleGameplayMouseInput(InputEvent @event, RuntimeUiModeSnapshot snapshot)
 	{
+		if (HandleWorldHoverInput(@event, snapshot))
+			return true;
+
 		if (@event is not InputEventMouseButton mb || !mb.Pressed)
 			return false;
 		if (!snapshot.AllowGameplayInput)
@@ -1761,6 +1788,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panels.FocusFromPointer(hit, clearFocusStack);
 		return false;
 	}
+
 
 	private bool HandleGameplayMouseWheelInput(InputEventMouseButton mb, RuntimeUiModeSnapshot snapshot)
 	{
@@ -3672,13 +3700,19 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		if (_busyOperationActive)
 			return;
 
-		if (!TryFindNearbyStairs(out var goDown))
+		if (CanClimbAtPlayerCell(goDown: true))
 		{
-			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
+			await ExecuteClimb(goDown: true);
 			return;
 		}
 
-		await ExecuteClimb(goDown);
+		if (CanClimbAtPlayerCell(goDown: false))
+		{
+			await ExecuteClimb(goDown: false);
+			return;
+		}
+
+		_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
 	}
 
 	private async void DoClimb(bool goDown)
@@ -3704,12 +3738,24 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 			if (ChestOpen) CloseChestPanel();
 
 			await ShowBusyOperationStageAsync("ui.loading.floor.load", 0.76f);
-			_session.ChangeFloor(goDown);
+			var player = ActorModule.GetPlayer(_state);
+			if (player == null)
+			{
+				_log.Add(LocalizationService.TOrFallback("log.vertical.missing_player", "当前没有可移动的玩家角色。"));
+				return;
+			}
+			if (!VerticalTraversalService.TryMoveActorVertical(_state, player, goDown))
+			{
+				_log.Add(LocalizationService.TOrFallback(
+					"log.vertical.blocked",
+					goDown ? "无法向下移动：当前位置没有可用通道或下层被阻挡。" : "无法向上移动：当前位置没有可用通道或上层被阻挡。"));
+				return;
+			}
 
 			await ShowBusyOperationStageAsync("ui.loading.floor.finalize", 0.95f);
-			_log.Add(LocalizationService.T(
-				goDown ? "log.floor.enter_down" : "log.floor.enter_up",
-				("floor", _state.PlayerZ)));
+			_log.Add(LocalizationService.TOrFallback(
+				goDown ? "log.vertical.climb_down" : "log.vertical.climb_up",
+				goDown ? $"你沿竖向通道下降到 Z={_state.PlayerZ}。" : $"你沿竖向通道上升到 Z={_state.PlayerZ}。"));
 			FlushMap();
 		}
 		finally
@@ -3718,89 +3764,43 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		}
 	}
 
-	private bool TryFindNearbyStairs(out bool goDown)
-	{
-		var px = _state.PlayerX;
-		var py = _state.PlayerY;
-		var dirs = new (int Dx, int Dy)[] { (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0) };
-
-		foreach (var (dx, dy) in dirs)
-		{
-			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairDown))
-			{
-				goDown = true;
-				return true;
-			}
-
-			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairUp))
-			{
-				goDown = false;
-				return true;
-			}
-		}
-
-		goDown = false;
-		return false;
-	}
 
 	private bool CanClimbAtPlayerCell(bool goDown)
 	{
 		if (_state.World == null)
 			return false;
 
-		var px = _state.PlayerX;
-		var py = _state.PlayerY;
-		var pz = _state.PlayerZ;
-		var targetZ = goDown ? pz + 1 : pz - 1;
-
-		var hasVerticalAnchor = goDown
-			? MapModule.HasFixture(_state, px, py, pz, Entities.StairDown)
-			: MapModule.HasFixture(_state, px, py, pz, Entities.StairUp);
-		if (!hasVerticalAnchor)
-			return false;
-
-		return _state.World.IsWalkable(px, py, targetZ);
+		return VerticalTraversalService.CanClimb(_state.World, _state.PlayerX, _state.PlayerY, _state.PlayerZ, goDown);
 	}
 
 	private void ApplyPlayerGravityIfUnsupported()
 	{
-		var world = _state.World;
-		if (world == null)
-			return;
-
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null)
 			return;
 
-		var x = _state.PlayerX;
-		var y = _state.PlayerY;
-		var z = _state.PlayerZ;
-		var fellLayers = 0;
-		const int maxFallPerStep = 6;
-
-		while (fellLayers < maxFallPerStep)
-		{
-			var belowZ = z + 1;
-			var hasDownStair = world.HasFixture(x, y, z, Entities.StairDown)
-				|| world.HasFixture(x, y, belowZ, Entities.StairUp);
-			if (hasDownStair)
-				break;
-
-			if (!world.IsWalkable(x, y, belowZ))
-				break;
-
-			z = belowZ;
-			fellLayers++;
-		}
-
+		var runtime = GameConfig.WorldRuntime;
+		var fellLayers = VerticalTraversalService.ApplyGravity(_state, player, runtime.MaxFallLayersPerStep);
 		if (fellLayers <= 0)
 			return;
 
-		_state.PlayerZ = z;
-		player.Z = z;
-		if (_state.World != null)
-			_state.World.UpdateActorChunk(player, x, y, _state.PlayerZ - fellLayers);
-		_log.Add(LocalizationService.T("log.floor.enter_down", ("floor", _state.PlayerZ)));
+		_log.Add(LocalizationService.TOrFallback(
+			"log.fall.player",
+			$"你失足下坠了 {fellLayers} 层，当前位于 Z={_state.PlayerZ}。"));
+
+		var freeLayers = Math.Clamp(runtime.FallDamageFreeLayers, 0, 16);
+		if (fellLayers > freeLayers && player.Limbs.Count > 0)
+		{
+			var impact = player.Limbs.Find(limb => limb.BodyPart == BodyParts.Leg)
+				?? player.Limbs.Find(limb => limb.BodyPart == BodyParts.Foot)
+				?? player.Limbs.Find(limb => limb.BodyPart == BodyParts.Torso)
+				?? player.Limbs[0];
+			var damagePerLayer = Math.Clamp(runtime.FallDamagePerLayer, 1, 100);
+			var fallDamage = (fellLayers - freeLayers) * damagePerLayer;
+			var events = CombatModule.ApplyEnvironmentalDamage(_state, player, impact, fallDamage, DamageTypes.Blunt);
+			if (events.Count > 0)
+				Dispatch(events);
+		}
 	}
 
 
@@ -3979,12 +3979,26 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		if (!_menu.InMenu) FlushMap();
 	}
 
+	/// <summary>
+	/// 将 PlayerX/Y/Z 同步到当前激活角色的位置。
+	/// 这样所有依赖 PlayerX/Y/Z 的渲染和 UI 面板自动跟随激活角色。
+	/// </summary>
+	private void SyncViewToActiveActor()
+	{
+		var active = PartyModule.GetActiveActor(_state);
+		if (active == null) return;
+		_state.PlayerX = active.X;
+		_state.PlayerY = active.Y;
+		_state.PlayerZ = active.Z;
+	}
+
 	/// <summary>立即刷新地图，标记 UI 面板为脏（由 _Process 统一驱动刷新）。</summary>
 	private void FlushMap()
 	{
 		if (_mapRender == null)
 			return;
 
+		SyncViewToActiveActor();
 		_mapRender.InspectWorldCell = _inspectModeActive ? _inspectWorldCell : null;
 		_mapRender.SetEditorView(
 			MapEditorActive,
@@ -4035,6 +4049,8 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		_weatherLabPanelController?.FlushIfDirty();
 		if (_actorInspectPanel?.Visible == true && _actorInspectPanel.Dirty)
 			RefreshActorInspectPanel();
+
+		RefreshPanelLauncherState();
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -4269,16 +4285,184 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 	private void RefreshAllBorders() => _panels.RefreshBorders();
 
+	private void BindWorldHoverOverlay()
+	{
+		var overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
+		overlayLayer.GetNodeOrNull<Control>("WorldHoverOverlay")?.QueueFree();
+		var root = new MarginContainer
+		{
+			Name = "WorldHoverOverlay",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Visible = false,
+			ZIndex = 80,
+		};
+		root.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+		root.OffsetLeft = 12f;
+		root.OffsetTop = 64f;
+		root.OffsetRight = -12f;
+		root.OffsetBottom = 0f;
+		root.AddThemeConstantOverride("margin_left", 8);
+		root.AddThemeConstantOverride("margin_top", 4);
+		root.AddThemeConstantOverride("margin_right", 8);
+		root.AddThemeConstantOverride("margin_bottom", 4);
+
+		var panel = new PanelContainer
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Visible = true,
+		};
+		var label = new Label
+		{
+			Name = "CellInfo",
+			Visible = true,
+			AutowrapMode = TextServer.AutowrapMode.Off,
+			HorizontalAlignment = HorizontalAlignment.Left,
+		};
+		panel.AddChild(label);
+		root.AddChild(panel);
+		overlayLayer.AddChild(root);
+		_worldHoverLabel = label;
+	}
+
+	private bool HandleWorldHoverInput(InputEvent @event, RuntimeUiModeSnapshot snapshot)
+	{
+		if (@event is not InputEventMouseMotion motion)
+			return false;
+
+		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
+		{
+			SetWorldHoverCell(null);
+			return false;
+		}
+
+		if (_mapRender.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var worldCell))
+		{
+			SetWorldHoverCell(worldCell);
+			return false;
+		}
+
+		SetWorldHoverCell(null);
+		return false;
+	}
+
+	private void SetWorldHoverCell(Vector3I? cell)
+	{
+		if (_hoverWorldCell == cell)
+			return;
+
+		_hoverWorldCell = cell;
+		RefreshWorldHoverOverlay();
+	}
+
+	private void RefreshWorldHoverOverlay()
+	{
+		var overlay = GetNodeOrNull<Control>($"{OverlayRootPath}/WorldHoverOverlay");
+		if (overlay == null || _worldHoverLabel == null)
+			return;
+
+		if (_hoverWorldCell is not { } cell || _state.World == null)
+		{
+			overlay.Visible = false;
+			return;
+		}
+
+		var terrain = _state.World.GetTerrain(cell.X, cell.Y, cell.Z);
+		var actor = ActorModule.GetAt(_state, cell.X, cell.Y, cell.Z);
+		var actorText = actor != null
+			? IdentificationModule.GetActorDisplayName(_state, actor)
+			: "-";
+		var passable = _state.World.IsWalkable(cell.X, cell.Y, cell.Z) ? "Y" : "N";
+		_worldHoverLabel.Text = $"Cell ({cell.X}, {cell.Y}, {cell.Z})  Terrain: {GameLocalizer.LocalizeTerrainName(terrain.StringId)}  Walkable: {passable}  Actor: {actorText}";
+		overlay.Visible = true;
+	}
+
 	private void BindPanelLauncherBar()
 	{
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/StatusBtn").Pressed += ToggleStatusPanel;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillBarBtn").Pressed += ToggleSkillBarPanel;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillMgrBtn").Pressed += ToggleSkillManager;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/InventoryBtn").Pressed += ToggleInventory;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/QuestBtn").Pressed += ToggleQuestPanel;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/DebugBtn").Pressed += ToggleDebugPanel;
-		GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SettingsBtn").Pressed += ToggleSettingsPanel;
+		_panelLauncherBar = GetNode<HBoxContainer>($"{HudRootPath}/PanelLauncherBar");
+		_statusLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/StatusBtn");
+		_skillBarLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillBarBtn");
+		_skillMgrLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SkillMgrBtn");
+		_inventoryLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/InventoryBtn");
+		_questLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/QuestBtn");
+		_debugLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/DebugBtn");
+		_settingsLauncherBtn = GetNode<Button>($"{HudRootPath}/PanelLauncherBar/SettingsBtn");
+
+		_statusLauncherBtn.Pressed += ToggleStatusPanel;
+		_skillBarLauncherBtn.Pressed += ToggleSkillBarPanel;
+		_skillMgrLauncherBtn.Pressed += ToggleSkillManager;
+		_inventoryLauncherBtn.Pressed += ToggleInventory;
+		_questLauncherBtn.Pressed += ToggleQuestPanel;
+		_debugLauncherBtn.Pressed += ToggleDebugPanel;
+		_settingsLauncherBtn.Pressed += ToggleSettingsPanel;
+
+		ApplyPanelLauncherTooltips();
+		RefreshPanelLauncherState();
 	}
+
+	private void ApplyPanelLauncherTooltips()
+	{
+		_statusLauncherBtn.TooltipText = BuildActionTooltip("toggle_status", "Toggle status panel");
+		_skillBarLauncherBtn.TooltipText = BuildActionTooltip("skillbar", "Toggle skill bar");
+		_skillMgrLauncherBtn.TooltipText = BuildActionTooltip("skills", "Toggle skills panel");
+		_inventoryLauncherBtn.TooltipText = BuildActionTooltip("inventory", "Toggle inventory");
+		_questLauncherBtn.TooltipText = BuildActionTooltip("quests", "Toggle quest panel");
+		_debugLauncherBtn.TooltipText = BuildActionTooltip("debug_panel", "Toggle debug panel");
+		_settingsLauncherBtn.TooltipText = BuildActionTooltip("open_settings", "Open settings");
+	}
+
+	private string BuildActionTooltip(string actionId, string fallback)
+	{
+		if (_inputBindings == null)
+			return fallback;
+
+		var action = _inputBindings
+			.GetActions(InputBindingContext.Action)
+			.FirstOrDefault(candidate => string.Equals(candidate.Id, actionId, StringComparison.Ordinal));
+		if (string.IsNullOrEmpty(action.Id))
+			return fallback;
+
+		var primary = action.Primary.ToDisplayString();
+		var secondary = action.Secondary.ToDisplayString();
+		if (action.Secondary.IsEmpty)
+			return $"{action.Label} [{primary}]";
+
+		return $"{action.Label} [{primary} / {secondary}]";
+	}
+
+	private void RefreshPanelLauncherState()
+	{
+		if (_statusLauncherBtn == null || _settingsFlow == null || _debugPanelController == null)
+			return;
+
+		ConfigureLauncherButton(_statusLauncherBtn, _statusPanelModule.PanelNode.Visible);
+		ConfigureLauncherButton(_skillBarLauncherBtn, _skillBar.Visible);
+		ConfigureLauncherButton(_skillMgrLauncherBtn, _skillMgr.Visible);
+		ConfigureLauncherButton(_inventoryLauncherBtn, _inventoryPanel.Visible);
+		ConfigureLauncherButton(_questLauncherBtn, _questPanel?.Visible == true);
+		ConfigureLauncherButton(_debugLauncherBtn, _debugPanelController.IsVisible);
+		ConfigureLauncherButton(_settingsLauncherBtn, _settingsFlow.SettingsVisible);
+		UpdatePanelLauncherInteractivity();
+	}
+
+	private void UpdatePanelLauncherInteractivity()
+	{
+		if (_panelLauncherBar == null)
+			return;
+
+		var disabled = _busyOperationActive || _startupState != StartupState.Ready;
+		foreach (var child in _panelLauncherBar.GetChildren())
+		{
+			if (child is Button button)
+				button.Disabled = disabled;
+		}
+	}
+
+	private static void ConfigureLauncherButton(Button button, bool pressed)
+	{
+		button.ButtonPressed = pressed;
+		button.Modulate = pressed ? new Color(1f, 1f, 1f, 1f) : new Color(0.86f, 0.86f, 0.9f, 1f);
+	}
+
 
 	private void PrimeTimelineStatusLog(TimelineDebugSnapshot snapshot)
 	{

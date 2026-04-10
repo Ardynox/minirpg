@@ -46,9 +46,10 @@ internal sealed class MainInputCoordinator(
 		var modalLayer = GetVisibleModalLayer();
 		if (modalLayer != null)
 		{
-			if (modalLayer.HandleKeyInput(key!))
+			var handledByModal = modalLayer.HandleKeyInput(key!);
+			if (handledByModal)
 				_markInputHandled();
-			return true;
+			return handledByModal;
 		}
 
 		if (snapshot.LayoutEditActive)
@@ -117,7 +118,7 @@ internal sealed class MainInputCoordinator(
 
 			if (handled)
 				_markInputHandled();
-			return true;
+			return handled;
 		}
 
 		if (snapshot.LayoutEditActive)
@@ -140,7 +141,9 @@ internal sealed class MainInputCoordinator(
 			return true;
 		}
 
-		return snapshot.BlocksGameplayInput;
+		// Do not swallow mouse input globally when gameplay is blocked (e.g. main menu),
+		// otherwise Control buttons can hover but never receive click events.
+		return snapshot.BlocksGameplayInput && isKeyEvent;
 	}
 
 	private IModalInputLayer? GetVisibleModalLayer()

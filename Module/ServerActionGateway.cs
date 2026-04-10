@@ -15,6 +15,8 @@ public sealed class ServerActionResult
 {
 	public ServerActionStatus Status { get; init; } = ServerActionStatus.Accepted;
 	public string? ErrorCode { get; init; }
+	public string? ReservationKey { get; init; }
+	public string? BusyByPlayerSessionId { get; init; }
 	public List<GameEvent> Events { get; init; } = [];
 	public List<string> Logs { get; init; } = [];
 
@@ -37,11 +39,17 @@ public sealed class ServerActionResult
 			Logs = [message],
 		};
 
-	public static ServerActionResult Busy(string message, string? errorCode = null) =>
+	public static ServerActionResult Busy(
+		string message,
+		string? errorCode = null,
+		string? reservationKey = null,
+		string? busyByPlayerSessionId = null) =>
 		new()
 		{
 			Status = ServerActionStatus.Busy,
 			ErrorCode = errorCode,
+			ReservationKey = reservationKey,
+			BusyByPlayerSessionId = busyByPlayerSessionId,
 			Logs = [message],
 		};
 }
@@ -52,6 +60,7 @@ public static class ServerActionGateway
 	{
 		ArgumentNullException.ThrowIfNull(state);
 		ArgumentNullException.ThrowIfNull(command);
+		var timestamp = now ?? DateTimeOffset.UtcNow;
 
 		return command switch
 		{
@@ -66,15 +75,18 @@ public static class ServerActionGateway
 					targetX: cast.TargetX,
 					targetY: cast.TargetY,
 					targetZ: cast.TargetZ)),
-			InteractClientCommand interact => ExecuteInteraction(state, interact),
+			InteractClientCommand interact => ExecuteInteraction(state, interact, timestamp),
 			PickupClientCommand pickup => ExecutePickup(state, pickup),
 			InventoryToggleEquipClientCommand toggleEquip => ExecuteInventoryToggleEquip(state, toggleEquip),
 			InventoryDropClientCommand drop => ExecuteInventoryDrop(state, drop),
-			ChestTakeClientCommand take => ExecuteChestTake(state, take),
-			ChestTakeAllClientCommand takeAll => ExecuteChestTakeAll(state, takeAll),
-			ChestPutClientCommand put => ExecuteChestPut(state, put),
-			TradeBuyClientCommand buy => ExecuteTradeBuy(state, buy),
-			TradeSellClientCommand sell => ExecuteTradeSell(state, sell),
+			ChestTakeClientCommand take => ExecuteChestTake(state, take, timestamp),
+			ChestTakeAllClientCommand takeAll => ExecuteChestTakeAll(state, takeAll, timestamp),
+			ChestPutClientCommand put => ExecuteChestPut(state, put, timestamp),
+			TradeBuyClientCommand buy => ExecuteTradeBuy(state, buy, timestamp),
+			TradeSellClientCommand sell => ExecuteTradeSell(state, sell, timestamp),
+			DialogChooseClientCommand dialogChoose => ExecuteDialogChoose(state, dialogChoose, timestamp),
+			OpenModalClientCommand openModal => ExecuteOpenModal(state, openModal, timestamp),
+			CloseModalClientCommand closeModal => ExecuteCloseModal(state, closeModal),
 			DelegateActorClientCommand delegateActor => ExecuteDelegateActor(state, delegateActor),
 			ReclaimPrimaryActorClientCommand reclaim => ExecuteReclaimPrimaryActor(state, reclaim),
 			_ => ServerActionResult.Reject(
@@ -92,12 +104,12 @@ public static class ServerActionGateway
 		ArgumentNullException.ThrowIfNull(e);
 
 		var logs = new List<string>();
-		var player = ActorModule.GetPlayer(state);
-		if (player != null)
+		var rewardActor = ResolveRewardActor(state, e);
+		if (rewardActor != null)
 		{
 			var goldDrop = e.Damage > 0 ? e.Damage : 5;
-			player.Gold += goldDrop;
-			logs.Add(LocalizationService.T("combat.gold_reward", ("gold", goldDrop), ("total", player.Gold)));
+			rewardActor.Gold += goldDrop;
+			logs.Add(LocalizationService.T("combat.gold_reward", ("gold", goldDrop), ("total", rewardActor.Gold)));
 		}
 
 		GenerateLoot(state, e, logs);
@@ -110,7 +122,7 @@ public static class ServerActionGateway
 		return ServerActionResult.Accept(events: timelineResult.Events);
 	}
 
-	private static ServerActionResult ExecuteInteraction(GameState state, InteractClientCommand command)
+	private static ServerActionResult ExecuteInteraction(GameState state, InteractClientCommand command, DateTimeOffset now)
 	{
 		var actor = ResolveActor(state, command.ActorId);
 		var target = ActorModule.GetById(state, command.TargetActorId);
@@ -120,6 +132,10 @@ public static class ServerActionGateway
 		var interaction = InteractionDefs.All.FirstOrDefault(def => string.Equals(def.Id, command.InteractionDefId, StringComparison.Ordinal));
 		if (interaction == null)
 			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), "invalid_interaction");
+
+		var reservationResult = TryReserveInteractionTarget(state, command.PlayerSessionId, target.Id, interaction.EffectType, now);
+		if (reservationResult != null)
+			return reservationResult;
 
 		return ServerActionResult.Accept(events: InteractionModule.Execute(state, actor, target, interaction));
 	}
@@ -154,13 +170,19 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		if (actor == null)
 			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_actor");
+		if (command.InventoryIndex < 0 || command.InventoryIndex >= actor.Inventory.Count)
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_inventory_index");
 
 		var events = InteractionModule.DropItem(state, actor, command.InventoryIndex);
 		return ServerActionResult.Accept(events: events);
 	}
 
-	private static ServerActionResult ExecuteChestTake(GameState state, ChestTakeClientCommand command)
+	private static ServerActionResult ExecuteChestTake(GameState state, ChestTakeClientCommand command, DateTimeOffset now)
 	{
+		var reservationResult = TryReserveIfNeeded(state, command.PlayerSessionId, BuildContainerReservationKey(command), now);
+		if (reservationResult != null)
+			return reservationResult;
+
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest?.Contents == null)
@@ -183,8 +205,12 @@ public static class ServerActionGateway
 		]);
 	}
 
-	private static ServerActionResult ExecuteChestTakeAll(GameState state, ChestTakeAllClientCommand command)
+	private static ServerActionResult ExecuteChestTakeAll(GameState state, ChestTakeAllClientCommand command, DateTimeOffset now)
 	{
+		var reservationResult = TryReserveIfNeeded(state, command.PlayerSessionId, BuildContainerReservationKey(command), now);
+		if (reservationResult != null)
+			return reservationResult;
+
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest?.Contents == null)
@@ -204,8 +230,12 @@ public static class ServerActionGateway
 		]);
 	}
 
-	private static ServerActionResult ExecuteChestPut(GameState state, ChestPutClientCommand command)
+	private static ServerActionResult ExecuteChestPut(GameState state, ChestPutClientCommand command, DateTimeOffset now)
 	{
+		var reservationResult = TryReserveIfNeeded(state, command.PlayerSessionId, BuildContainerReservationKey(command), now);
+		if (reservationResult != null)
+			return reservationResult;
+
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest == null)
@@ -237,8 +267,12 @@ public static class ServerActionGateway
 		]);
 	}
 
-	private static ServerActionResult ExecuteTradeBuy(GameState state, TradeBuyClientCommand command)
+	private static ServerActionResult ExecuteTradeBuy(GameState state, TradeBuyClientCommand command, DateTimeOffset now)
 	{
+		var reservationResult = TryReserveIfNeeded(state, command.PlayerSessionId, BuildTradeReservationKey(command.TraderActorId), now);
+		if (reservationResult != null)
+			return reservationResult;
+
 		var buyer = ResolveActor(state, command.ActorId);
 		var trader = ActorModule.GetById(state, command.TraderActorId);
 		if (buyer == null || trader == null)
@@ -261,8 +295,12 @@ public static class ServerActionGateway
 			: ServerActionResult.Reject(result.Message, "trade_buy_rejected");
 	}
 
-	private static ServerActionResult ExecuteTradeSell(GameState state, TradeSellClientCommand command)
+	private static ServerActionResult ExecuteTradeSell(GameState state, TradeSellClientCommand command, DateTimeOffset now)
 	{
+		var reservationResult = TryReserveIfNeeded(state, command.PlayerSessionId, BuildTradeReservationKey(command.TraderActorId), now);
+		if (reservationResult != null)
+			return reservationResult;
+
 		var seller = ResolveActor(state, command.ActorId);
 		var trader = ActorModule.GetById(state, command.TraderActorId);
 		if (seller == null || trader == null)
@@ -276,6 +314,73 @@ public static class ServerActionGateway
 				LocalizationService.T("trade.gold_remaining", ("gold", seller.Gold)),
 			])
 			: ServerActionResult.Reject(result.Message, "trade_sell_rejected");
+	}
+
+	private static ServerActionResult ExecuteDialogChoose(GameState state, DialogChooseClientCommand command, DateTimeOffset now)
+	{
+		if (string.IsNullOrWhiteSpace(command.DialogId) || string.IsNullOrWhiteSpace(command.OptionId))
+		{
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("log.server_action.invalid_dialog", "Dialog choice is invalid."),
+				"invalid_dialog");
+		}
+
+		var reservationResult = TryReserveIfNeeded(
+			state,
+			command.PlayerSessionId,
+			BuildPrefixedReservationKey("dialog", command.DialogId),
+			now);
+		return reservationResult ?? ServerActionResult.Accept();
+	}
+
+	private static ServerActionResult ExecuteOpenModal(GameState state, OpenModalClientCommand command, DateTimeOffset now)
+	{
+		if (string.IsNullOrWhiteSpace(command.ModalId))
+		{
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("log.server_action.invalid_modal", "Modal id is invalid."),
+				"invalid_modal");
+		}
+
+		var reservationResult = TryReserveIfNeeded(
+			state,
+			command.PlayerSessionId,
+			BuildPrefixedReservationKey("modal", command.ModalId),
+			now);
+		return reservationResult ?? ServerActionResult.Accept();
+	}
+
+	private static ServerActionResult ExecuteCloseModal(GameState state, CloseModalClientCommand command)
+	{
+		if (string.IsNullOrWhiteSpace(command.ModalId))
+		{
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("log.server_action.invalid_modal", "Modal id is invalid."),
+				"invalid_modal");
+		}
+
+		if (!state.Room.IsActive)
+			return ServerActionResult.Accept();
+		if (string.IsNullOrWhiteSpace(command.PlayerSessionId))
+			return ServerActionResult.Reject("Missing player session id.", "missing_player_session");
+
+		var reservationKey = BuildPrefixedReservationKey("modal", command.ModalId);
+		if (RoomRuntimeModule.ReleaseInteraction(state, reservationKey, command.PlayerSessionId))
+			return ServerActionResult.Accept();
+
+		if (state.Room.InteractionReservations.TryGetValue(reservationKey, out var reservation))
+		{
+			return ServerActionResult.Busy(
+				LocalizationService.TOrFallback(
+					"log.server_action.reservation_busy",
+					"Another player is already using {reservationKey}.",
+					("reservationKey", reservationKey)),
+				errorCode: "reservation_busy",
+				reservationKey: reservationKey,
+				busyByPlayerSessionId: reservation.PlayerSessionId);
+		}
+
+		return ServerActionResult.Accept();
 	}
 
 	private static ServerActionResult ExecuteDelegateActor(GameState state, DelegateActorClientCommand command)
@@ -342,10 +447,25 @@ public static class ServerActionGateway
 			("item", IdentificationModule.GetItemDisplayName(state, item))));
 	}
 
+	private static Actor? ResolveRewardActor(GameState state, GameEvent e)
+	{
+		if (!string.IsNullOrWhiteSpace(e.InitiatorId))
+		{
+			var initiator = ActorModule.GetById(state, e.InitiatorId);
+			if (initiator != null)
+				return initiator;
+		}
+
+		return ActorModule.GetPlayer(state);
+	}
+
 	private static Actor? ResolveActor(GameState state, string? actorId)
 	{
 		if (!string.IsNullOrWhiteSpace(actorId))
 			return ActorModule.GetById(state, actorId);
+
+		if (state.Room.IsActive)
+			return null;
 
 		return ActorModule.GetPlayer(state);
 	}
@@ -391,4 +511,93 @@ public static class ServerActionGateway
 		TradeGoodSourceKind.Inventory => TradeGood.Source.Inventory,
 		_ => TradeGood.Source.Shop,
 	};
+
+	private static ServerActionResult? TryReserveInteractionTarget(
+		GameState state,
+		string? playerSessionId,
+		string targetActorId,
+		string? effectType,
+		DateTimeOffset now)
+	{
+		if (string.Equals(effectType, "trade", StringComparison.OrdinalIgnoreCase))
+			return TryReserveIfNeeded(state, playerSessionId, BuildTradeReservationKey(targetActorId), now);
+		if (string.Equals(effectType, "talk", StringComparison.OrdinalIgnoreCase))
+			return TryReserveIfNeeded(state, playerSessionId, BuildPrefixedReservationKey("dialog", targetActorId), now);
+
+		return null;
+	}
+
+	private static ServerActionResult? TryReserveIfNeeded(
+		GameState state,
+		string? playerSessionId,
+		string reservationKey,
+		DateTimeOffset now)
+	{
+		if (!state.Room.IsActive)
+			return null;
+		if (string.IsNullOrWhiteSpace(playerSessionId))
+			return ServerActionResult.Reject("Missing player session id.", "missing_player_session");
+		if (RoomRuntimeModule.TryReserveInteraction(state, reservationKey, playerSessionId, now, out var conflictingReservation))
+			return null;
+
+		return ServerActionResult.Busy(
+			LocalizationService.TOrFallback(
+				"log.server_action.reservation_busy",
+				"Another player is already using {reservationKey}.",
+				("reservationKey", reservationKey)),
+			errorCode: "reservation_busy",
+			reservationKey: reservationKey,
+			busyByPlayerSessionId: conflictingReservation?.PlayerSessionId);
+	}
+
+	private static string BuildTradeReservationKey(string traderActorId) =>
+		BuildPrefixedReservationKey("trade", traderActorId);
+
+	private static string BuildContainerReservationKey(ChestTakeClientCommand command) =>
+		BuildContainerReservationKey(
+			command.ContainerSource,
+			command.ContainerInstanceId,
+			command.ContainerOwnerActorId,
+			command.ContainerX,
+			command.ContainerY,
+			command.ContainerZ);
+
+	private static string BuildContainerReservationKey(ChestTakeAllClientCommand command) =>
+		BuildContainerReservationKey(
+			command.ContainerSource,
+			command.ContainerInstanceId,
+			command.ContainerOwnerActorId,
+			command.ContainerX,
+			command.ContainerY,
+			command.ContainerZ);
+
+	private static string BuildContainerReservationKey(ChestPutClientCommand command) =>
+		BuildContainerReservationKey(
+			command.ContainerSource,
+			command.ContainerInstanceId,
+			command.ContainerOwnerActorId,
+			command.ContainerX,
+			command.ContainerY,
+			command.ContainerZ);
+
+	private static string BuildContainerReservationKey(
+		ContainerSourceKind source,
+		string containerInstanceId,
+		string? ownerActorId,
+		int x,
+		int y,
+		int z) => source switch
+	{
+		ContainerSourceKind.Inventory => $"container:inventory:{ownerActorId ?? string.Empty}:{containerInstanceId}",
+		_ => $"container:ground:{x}:{y}:{z}:{containerInstanceId}",
+	};
+
+	private static string BuildPrefixedReservationKey(string prefix, string rawId)
+	{
+		var normalizedId = rawId.Trim();
+		if (normalizedId.Contains(':', StringComparison.Ordinal))
+			return normalizedId;
+
+		return $"{prefix}:{normalizedId}";
+	}
 }

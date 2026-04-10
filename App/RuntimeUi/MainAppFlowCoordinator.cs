@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
+using MiniRPG.Core.Session;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module.Panel;
@@ -15,6 +16,7 @@ internal sealed class MainAppFlowCoordinator
 {
 	private readonly GameState _state;
 	private readonly GameSessionModule _session;
+	private readonly IGameSessionBackend _sessionBackend;
 	private readonly LogModule _log;
 	private readonly MenuModule _menu;
 	private readonly SettingsFlowCoordinator _settingsFlow;
@@ -97,6 +99,7 @@ internal sealed class MainAppFlowCoordinator
 	public MainAppFlowCoordinator(
 		GameState state,
 		GameSessionModule session,
+		IGameSessionBackend sessionBackend,
 		LogModule log,
 		MenuModule menu,
 		SettingsFlowCoordinator settingsFlow,
@@ -153,6 +156,7 @@ internal sealed class MainAppFlowCoordinator
 	{
 		_state = state;
 		_session = session;
+		_sessionBackend = sessionBackend;
 		_log = log;
 		_menu = menu;
 		_settingsFlow = settingsFlow;
@@ -310,11 +314,22 @@ internal sealed class MainAppFlowCoordinator
 			PrepareSessionTransition(clearLogs: true);
 
 			await _showBusyOperationStageAsync("ui.loading.new_game.generate", 0.72f);
-			var entry = _session.StartWorldCharacter(worldId, options);
+			var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+			{
+				Kind = GameSessionStartKind.WorldCharacter,
+				WorldId = worldId,
+				PlayerCreationOptions = options,
+			});
+			if (!startResult.Success)
+			{
+				_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+				return;
+			}
 
 			await _showBusyOperationStageAsync("ui.loading.new_game.finalize", 0.95f);
 			FinalizeNewGameStart();
-			_showWorldCharacterEntryHint(entry.WorldName, entry.CharacterName);
+			if (startResult.WorldCharacterEntry != null)
+				_showWorldCharacterEntryHint(startResult.WorldCharacterEntry.WorldName, startResult.WorldCharacterEntry.CharacterName);
 			_showGameHints();
 			_doEnterGame();
 		}
@@ -338,7 +353,15 @@ internal sealed class MainAppFlowCoordinator
 			PrepareSessionTransition(clearLogs: true);
 
 			await _showBusyOperationStageAsync("ui.loading.blank_editor.generate", 0.72f);
-			_session.NewBlankEditorMap();
+			var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+			{
+				Kind = GameSessionStartKind.BlankEditor,
+			});
+			if (!startResult.Success)
+			{
+				_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+				return;
+			}
 
 			await _showBusyOperationStageAsync("ui.loading.blank_editor.finalize", 0.95f);
 			FinalizeBlankEditorStart();
@@ -350,17 +373,34 @@ internal sealed class MainAppFlowCoordinator
 		}
 	}
 
-	public void DoStartNewGame(PlayerCreationOptions? options = null)
+	public async void DoStartNewGame(PlayerCreationOptions? options = null)
 	{
 		PrepareSessionTransition(clearLogs: true);
-		_session.NewGame(options ?? PlayerCreationOptions.CreateDefault());
+		var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+		{
+			Kind = GameSessionStartKind.NewGame,
+			PlayerCreationOptions = options ?? PlayerCreationOptions.CreateDefault(),
+		});
+		if (!startResult.Success)
+		{
+			_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+			return;
+		}
 		FinalizeNewGameStart();
 	}
 
-	public void DoStartBlankEditor()
+	public async void DoStartBlankEditor()
 	{
 		PrepareSessionTransition(clearLogs: true);
-		_session.NewBlankEditorMap();
+		var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+		{
+			Kind = GameSessionStartKind.BlankEditor,
+		});
+		if (!startResult.Success)
+		{
+			_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+			return;
+		}
 		FinalizeBlankEditorStart();
 	}
 

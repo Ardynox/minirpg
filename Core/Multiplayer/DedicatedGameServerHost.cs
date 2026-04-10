@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Map;
 using MiniRPG.Module;
 
 namespace MiniRPG.Core.Multiplayer;
@@ -9,6 +10,7 @@ public sealed class DedicatedGameServerHostOptions
 {
 	public string ServerEndpoint { get; set; } = "enet://127.0.0.1:2455";
 	public TimeSpan ReconnectGracePeriod { get; set; } = MultiplayerDefaults.ReconnectGracePeriod;
+	public ILobbyService? LobbyService { get; set; }
 }
 
 public sealed class GameServerConnectRequest
@@ -49,6 +51,7 @@ public sealed class DedicatedGameServerHost
 
 		var host = new RoomRuntimeHost(clonedState, Options);
 		_rooms[clonedState.Room.RoomId] = host;
+		Options.LobbyService?.UpdateRoomState(clonedState.Room);
 		return host;
 	}
 
@@ -58,14 +61,22 @@ public sealed class DedicatedGameServerHost
 	private static GameState CloneState(GameState source)
 	{
 		var snapshot = SaveModule.BuildSnapshot(source);
-		var clone = new GameState();
-		SaveModule.ApplySnapshot(clone, snapshot);
-		return clone;
+		return CreateStateFromSnapshot(snapshot);
+	}
+
+	internal static GameState CreateStateFromSnapshot(SaveFile? snapshot)
+	{
+		var state = new GameState();
+		if (snapshot != null)
+			SaveModule.ApplySnapshot(state, snapshot);
+
+		return state;
 	}
 }
 
 public sealed class RoomRuntimeHost
 {
+	private readonly object _gate = new();
 	private readonly DedicatedGameServerHostOptions _options;
 
 	internal RoomRuntimeHost(GameState state, DedicatedGameServerHostOptions options)
@@ -79,118 +90,178 @@ public sealed class RoomRuntimeHost
 	public void SynchronizeRoom(RoomRuntimeState room)
 	{
 		ArgumentNullException.ThrowIfNull(room);
-		State.Room = room.Clone();
-		RoomRuntimeModule.RefreshControlledActorIds(State);
+		lock (_gate)
+		{
+			State.Room = room.Clone();
+			RoomRuntimeModule.RefreshControlledActorIds(State);
+		}
 	}
 
 	public GameServerConnectResult Connect(GameServerConnectRequest request)
 	{
 		ArgumentNullException.ThrowIfNull(request);
-		if (!string.Equals(State.Room.RoomId, request.RoomId, StringComparison.Ordinal))
+		lock (_gate)
 		{
-			return new GameServerConnectResult
+			var timestamp = DateTimeOffset.UtcNow;
+			if (!string.Equals(State.Room.RoomId, request.RoomId, StringComparison.Ordinal))
 			{
-				ErrorCode = "room_not_found",
-				ErrorReason = "Room does not exist on this dedicated server.",
-			};
-		}
+				return new GameServerConnectResult
+				{
+					ErrorCode = "room_not_found",
+					ErrorReason = "Room does not exist on this dedicated server.",
+				};
+			}
 
-		var player = request.IsReconnectClaim
-			? State.Room.Players.Values.FirstOrDefault(candidate =>
-				string.Equals(candidate.ReconnectToken, request.Token, StringComparison.Ordinal))
-			: State.Room.Players.Values.FirstOrDefault(candidate =>
-				string.Equals(candidate.JoinToken, request.Token, StringComparison.Ordinal));
-		if (player == null)
-		{
-			return new GameServerConnectResult
+			var player = request.IsReconnectClaim
+				? State.Room.Players.Values.FirstOrDefault(candidate =>
+					string.Equals(candidate.ReconnectToken, request.Token, StringComparison.Ordinal))
+				: State.Room.Players.Values.FirstOrDefault(candidate =>
+					string.Equals(candidate.JoinToken, request.Token, StringComparison.Ordinal));
+			if (player == null)
 			{
-				ErrorCode = request.IsReconnectClaim ? "invalid_reconnect_token" : "invalid_join_token",
-				ErrorReason = "The supplied join token is invalid.",
-			};
-		}
+				return new GameServerConnectResult
+				{
+					ErrorCode = request.IsReconnectClaim ? "invalid_reconnect_token" : "invalid_join_token",
+					ErrorReason = "The supplied join token is invalid.",
+				};
+			}
+			if (request.IsReconnectClaim
+				&& player.ReconnectDeadlineUtc is { } reconnectDeadlineUtc
+				&& timestamp > reconnectDeadlineUtc)
+			{
+				return new GameServerConnectResult
+				{
+					ErrorCode = "reconnect_expired",
+					ErrorReason = "The reconnect claim has expired.",
+				};
+			}
 
-		player.Connected = true;
-		player.ReconnectDeadlineUtc = null;
-		RoomRuntimeModule.RefreshControlledActorIds(State);
-		if (request.IsReconnectClaim && !string.IsNullOrWhiteSpace(player.PrimaryActorId))
-			RoomRuntimeModule.ReclaimPrimaryActor(State, player.PrimaryActorId, player.PlayerSessionId);
+			player.Connected = true;
+			player.ReconnectDeadlineUtc = null;
+			RoomRuntimeModule.RefreshControlledActorIds(State);
+			if (request.IsReconnectClaim && !string.IsNullOrWhiteSpace(player.PrimaryActorId))
+				RoomRuntimeModule.ReclaimPrimaryActor(State, player.PrimaryActorId, player.PlayerSessionId);
+			SyncLobbyRoom();
 
-		return new GameServerConnectResult
-		{
-			Ok = true,
-			Messages =
-			[
+			var messages = new List<ServerMessage>
+			{
 				new JoinAcceptedMessage
 				{
 					RoomId = State.Room.RoomId,
 					RoomCode = State.Room.RoomCode,
 					PlayerSessionId = player.PlayerSessionId,
 				},
-				new RoomSnapshotMessage
+			};
+			if (request.IsReconnectClaim && !string.IsNullOrWhiteSpace(player.PrimaryActorId))
+			{
+				messages.Add(new ReconnectClaimedMessage
 				{
-					Room = State.Room.Clone(),
-					Snapshot = SaveModule.BuildSnapshot(State),
-				},
-			],
-		};
+					PlayerSessionId = player.PlayerSessionId,
+					ActorId = player.PrimaryActorId,
+				});
+			}
+			messages.Add(new RoomSnapshotMessage
+			{
+				Room = State.Room.Clone(),
+				Snapshot = SaveModule.BuildSnapshot(State),
+			});
+
+			return new GameServerConnectResult
+			{
+				Ok = true,
+				Messages = messages,
+			};
+		}
 	}
 
 	public IReadOnlyList<ServerMessage> Execute(ClientCommand command, DateTimeOffset? now = null)
 	{
 		ArgumentNullException.ThrowIfNull(command);
-		var timestamp = now ?? DateTimeOffset.UtcNow;
-		RoomRuntimeModule.CleanupExpiredReservations(State, timestamp);
-
-		var result = ServerActionGateway.Execute(State, command, timestamp);
-		if (!result.Ok)
+		lock (_gate)
 		{
-			ServerMessage rejectedMessage = result.Status == ServerActionStatus.Busy
-				? new ReservationBusyMessage
-				{
-					RequestId = command.RequestId,
-					ReservationKey = result.ErrorCode ?? string.Empty,
-					BusyByPlayerSessionId = command.PlayerSessionId ?? string.Empty,
-				}
-				: new CommandRejectedMessage
-				{
-					RequestId = command.RequestId,
-					Reason = result.Logs.FirstOrDefault() ?? "Command rejected.",
-					Code = result.ErrorCode,
-				};
-			return [rejectedMessage];
-		}
+			if (!string.IsNullOrWhiteSpace(command.ActorId)
+				&& State.Room.IsActive
+				&& !RoomRuntimeModule.IsAuthorizedToControl(State, command.PlayerSessionId, command.ActorId))
+			{
+				return
+				[
+					new CommandRejectedMessage
+					{
+						RequestId = command.RequestId,
+						Reason = "You are not authorized to control this actor.",
+						Code = "unauthorized_actor",
+					},
+				];
+			}
 
-		State.Room.LastSnapshotSequence++;
-		return
-		[
-			new StateDeltaMessage
+			var timestamp = now ?? DateTimeOffset.UtcNow;
+			RoomRuntimeModule.CleanupExpiredReservations(State, timestamp);
+
+			var result = ServerActionGateway.Execute(State, command, timestamp);
+			if (!result.Ok)
 			{
-				RequestId = command.RequestId,
-				Sequence = State.Room.LastSnapshotSequence,
-				Events = [.. result.Events],
-			},
-			new EventBatchMessage
+				ServerMessage rejectedMessage = result.Status == ServerActionStatus.Busy
+					? new ReservationBusyMessage
+					{
+						RequestId = command.RequestId,
+						ReservationKey = result.ReservationKey ?? string.Empty,
+						BusyByPlayerSessionId = result.BusyByPlayerSessionId ?? string.Empty,
+					}
+					: new CommandRejectedMessage
+					{
+						RequestId = command.RequestId,
+						Reason = result.Logs.FirstOrDefault() ?? "Command rejected.",
+						Code = result.ErrorCode,
+					};
+				return [rejectedMessage];
+			}
+
+			State.Room.LastSnapshotSequence++;
+			SyncLobbyRoom();
+
+			var messages = new List<ServerMessage>
 			{
-				RequestId = command.RequestId,
-				Events = [.. result.Events],
-			},
-		];
+				new RoomSnapshotMessage
+				{
+					RequestId = command.RequestId,
+					Room = State.Room.Clone(),
+					Snapshot = SaveModule.BuildSnapshot(State),
+				},
+			};
+			if (result.Events.Count > 0)
+			{
+				messages.Add(new EventBatchMessage
+				{
+					RequestId = command.RequestId,
+					Events = [.. result.Events],
+				});
+			}
+
+			return messages;
+		}
 	}
 
 	public void Disconnect(string playerSessionId, DateTimeOffset? now = null)
 	{
-		RoomRuntimeModule.SetPlayerConnection(
-			State,
-			playerSessionId,
-			connected: false,
-			now ?? DateTimeOffset.UtcNow,
-			_options.ReconnectGracePeriod);
+		lock (_gate)
+		{
+			RoomRuntimeModule.SetPlayerConnection(
+				State,
+				playerSessionId,
+				connected: false,
+				now ?? DateTimeOffset.UtcNow,
+				_options.ReconnectGracePeriod);
 
-		var reservationKeys = State.Room.InteractionReservations
-			.Where(entry => string.Equals(entry.Value.PlayerSessionId, playerSessionId, StringComparison.Ordinal))
-			.Select(static entry => entry.Key)
-			.ToArray();
-		foreach (var reservationKey in reservationKeys)
-			State.Room.InteractionReservations.Remove(reservationKey);
+			var reservationKeys = State.Room.InteractionReservations
+				.Where(entry => string.Equals(entry.Value.PlayerSessionId, playerSessionId, StringComparison.Ordinal))
+				.Select(static entry => entry.Key)
+				.ToArray();
+			foreach (var reservationKey in reservationKeys)
+				State.Room.InteractionReservations.Remove(reservationKey);
+
+			SyncLobbyRoom();
+		}
 	}
+
+	private void SyncLobbyRoom() => _options.LobbyService?.UpdateRoomState(State.Room);
 }

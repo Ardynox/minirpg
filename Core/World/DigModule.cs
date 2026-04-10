@@ -145,6 +145,11 @@ public static class DigModule
 			if (!world.HasFixture(actorX, actorY, tz, Entities.StairDown))
 				world.SetFixture(actorX, actorY, tz, WorldMap.ResolveFixtureGlyph(Entities.StairDown), Entities.StairDown);
 		}
+
+		if (!world.HasFixture(actorX, actorY, actorZ, Entities.Ladder))
+			world.SetFixture(actorX, actorY, actorZ, WorldMap.ResolveFixtureGlyph(Entities.Ladder), Entities.Ladder);
+		if (!world.HasFixture(actorX, actorY, tz, Entities.Ladder))
+			world.SetFixture(actorX, actorY, tz, WorldMap.ResolveFixtureGlyph(Entities.Ladder), Entities.Ladder);
 	}
 
 	private static GameEvent DigFailed(Actor actor, string reason) =>

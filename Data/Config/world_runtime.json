@@ -6,5 +6,8 @@
   "max_cached_chunks": 512,
   "chunk_evict_padding_xy": 2,
   "chunk_simulation_near_radius_xy": 1,
-  "nest_nearby_count_radius": 3
+  "nest_nearby_count_radius": 3,
+  "fall_damage_free_layers": 1,
+  "fall_damage_per_layer": 4,
+  "max_fall_layers_per_step": 6
 }

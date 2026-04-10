@@ -1,0 +1,92 @@
+using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace MiniRPG.Core.Multiplayer;
+
+/// <summary>
+/// Polymorphic JSON serializer for <see cref="ClientCommand"/> and <see cref="ServerMessage"/>.
+/// Uses the Kind discriminator to dispatch to the correct concrete type.
+/// </summary>
+public static class ProtocolSerializer
+{
+	private static readonly JsonSerializerOptions Options = new()
+	{
+		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		Converters =
+		{
+			new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+		},
+	};
+
+	public static byte[] SerializeCommand(ClientCommand command) =>
+		JsonSerializer.SerializeToUtf8Bytes(command, command.GetType(), Options);
+
+	public static byte[] SerializeMessage(ServerMessage message) =>
+		JsonSerializer.SerializeToUtf8Bytes(message, message.GetType(), Options);
+
+	public static ClientCommand? DeserializeCommand(ReadOnlySpan<byte> data)
+	{
+		using var doc = JsonDocument.Parse(data.ToArray());
+		if (!doc.RootElement.TryGetProperty("kind", out var kindProp))
+			return null;
+
+		var kindStr = kindProp.GetString();
+		if (!Enum.TryParse<ClientCommandKind>(kindStr, ignoreCase: true, out var kind))
+			return null;
+
+		var raw = data.ToArray();
+		return kind switch
+		{
+			ClientCommandKind.Move => JsonSerializer.Deserialize<MoveClientCommand>(raw, Options),
+			ClientCommandKind.CastSkill => JsonSerializer.Deserialize<CastSkillClientCommand>(raw, Options),
+			ClientCommandKind.Interact => JsonSerializer.Deserialize<InteractClientCommand>(raw, Options),
+			ClientCommandKind.Pickup => JsonSerializer.Deserialize<PickupClientCommand>(raw, Options),
+			ClientCommandKind.InventoryToggleEquip => JsonSerializer.Deserialize<InventoryToggleEquipClientCommand>(raw, Options),
+			ClientCommandKind.InventoryDrop => JsonSerializer.Deserialize<InventoryDropClientCommand>(raw, Options),
+			ClientCommandKind.ChestTake => JsonSerializer.Deserialize<ChestTakeClientCommand>(raw, Options),
+			ClientCommandKind.ChestTakeAll => JsonSerializer.Deserialize<ChestTakeAllClientCommand>(raw, Options),
+			ClientCommandKind.ChestPut => JsonSerializer.Deserialize<ChestPutClientCommand>(raw, Options),
+			ClientCommandKind.TradeBuy => JsonSerializer.Deserialize<TradeBuyClientCommand>(raw, Options),
+			ClientCommandKind.TradeSell => JsonSerializer.Deserialize<TradeSellClientCommand>(raw, Options),
+			ClientCommandKind.DialogChoose => JsonSerializer.Deserialize<DialogChooseClientCommand>(raw, Options),
+			ClientCommandKind.OpenModal => JsonSerializer.Deserialize<OpenModalClientCommand>(raw, Options),
+			ClientCommandKind.CloseModal => JsonSerializer.Deserialize<CloseModalClientCommand>(raw, Options),
+			ClientCommandKind.DelegateActor => JsonSerializer.Deserialize<DelegateActorClientCommand>(raw, Options),
+			ClientCommandKind.ReclaimPrimaryActor => JsonSerializer.Deserialize<ReclaimPrimaryActorClientCommand>(raw, Options),
+			_ => null,
+		};
+	}
+
+	public static byte[] SerializeConnectRequest(GameServerConnectRequest request) =>
+		JsonSerializer.SerializeToUtf8Bytes(request, Options);
+
+	public static GameServerConnectRequest? DeserializeConnectRequest(ReadOnlySpan<byte> data) =>
+		JsonSerializer.Deserialize<GameServerConnectRequest>(data, Options);
+
+	public static ServerMessage? DeserializeMessage(ReadOnlySpan<byte> data)
+	{
+		using var doc = JsonDocument.Parse(data.ToArray());
+		if (!doc.RootElement.TryGetProperty("kind", out var kindProp))
+			return null;
+
+		var kindStr = kindProp.GetString();
+		if (!Enum.TryParse<ServerMessageKind>(kindStr, ignoreCase: true, out var kind))
+			return null;
+
+		var raw = data.ToArray();
+		return kind switch
+		{
+			ServerMessageKind.JoinAccepted => JsonSerializer.Deserialize<JoinAcceptedMessage>(raw, Options),
+			ServerMessageKind.RoomSnapshot => JsonSerializer.Deserialize<RoomSnapshotMessage>(raw, Options),
+			ServerMessageKind.StateDelta => JsonSerializer.Deserialize<StateDeltaMessage>(raw, Options),
+			ServerMessageKind.EventBatch => JsonSerializer.Deserialize<EventBatchMessage>(raw, Options),
+			ServerMessageKind.CommandRejected => JsonSerializer.Deserialize<CommandRejectedMessage>(raw, Options),
+			ServerMessageKind.RosterChanged => JsonSerializer.Deserialize<RosterChangedMessage>(raw, Options),
+			ServerMessageKind.ReservationBusy => JsonSerializer.Deserialize<ReservationBusyMessage>(raw, Options),
+			ServerMessageKind.ReconnectClaimed => JsonSerializer.Deserialize<ReconnectClaimedMessage>(raw, Options),
+			_ => null,
+		};
+	}
+}

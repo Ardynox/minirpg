@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "0HXzjMV8Ue4=",
+  "success": true,
+  "projectFilePath": "D:\\Godot\\mini-rpg\\MiniRPG.Server\\MiniRPG.Server.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\12536\\.nuget\\packages\\godot.sourcegenerators\\4.6.1\\godot.sourcegenerators.4.6.1.nupkg.sha512",
+    "C:\\Users\\12536\\.nuget\\packages\\godotsharp\\4.6.1\\godotsharp.4.6.1.nupkg.sha512",
+    "C:\\Users\\12536\\.nuget\\packages\\godotsharpeditor\\4.6.1\\godotsharpeditor.4.6.1.nupkg.sha512"
+  ],
+  "logs": []
+}

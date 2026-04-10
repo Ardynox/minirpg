@@ -39,7 +39,12 @@ public class SimpleBrain : IBrainModule
 		{
 			var closest = FindClosest(self, enemies);
 			if (closest != null)
+			{
+				var verticalDecision = BuildVerticalMoveToTargetIfPossible(self, closest, perception);
+				if (verticalDecision != null)
+					return verticalDecision;
 				return BuildMoveTo(self, closest.X, closest.Y, perception);
+			}
 		}
 
 		return BuildReturnHome(self, perception) ?? BuildWander(self, perception, rng);
@@ -166,6 +171,29 @@ public class SimpleBrain : IBrainModule
 		ActionDefId = skill.Id,
 	};
 
+	private static Decision? BuildVerticalMoveToTargetIfPossible(Actor self, Actor target, Perception perception)
+	{
+		if (perception.State?.World == null)
+			return null;
+		if (self.Z == target.Z)
+			return null;
+
+		var world = perception.State.World;
+		var goDown = target.Z > self.Z;
+		if (world.CanTraverseVertical(self.X, self.Y, self.Z, goDown))
+		{
+			return new Decision { Type = DecisionType.MoveVertical, TargetZ = self.Z + (goDown ? 1 : -1) };
+		}
+
+		var anchor = FindNearestVerticalAnchorCell(self, goDown, perception);
+		if (anchor == null)
+			return null;
+		if (anchor.Value.X == self.X && anchor.Value.Y == self.Y)
+			return null;
+
+		return BuildMoveTo(self, anchor.Value.X, anchor.Value.Y, perception);
+	}
+
 	private static Decision BuildMoveTo(Actor self, int targetX, int targetY, Perception perception)
 	{
 		var pos = StepToward(self.X, self.Y, targetX, targetY, perception);
@@ -283,6 +311,48 @@ public class SimpleBrain : IBrainModule
 
 	private static bool IsAtPosition(Actor self, int x, int y) =>
 		self.X == x && self.Y == y;
+
+	private static (int X, int Y)? FindNearestVerticalAnchorCell(Actor self, bool goDown, Perception perception)
+	{
+		if (perception.State?.World == null)
+			return null;
+
+		var state = perception.State;
+		var world = state.World;
+		var maxRadius = Math.Max(2, AwarenessModule.SearchRadius + 2);
+		(int X, int Y)? best = null;
+		var bestCost = int.MaxValue;
+		for (var dy = -maxRadius; dy <= maxRadius; dy++)
+		{
+			for (var dx = -maxRadius; dx <= maxRadius; dx++)
+			{
+				var x = self.X + dx;
+				var y = self.Y + dy;
+				if (!world.CanTraverseVertical(x, y, self.Z, goDown))
+					continue;
+				if (!IsWalkable(perception, x, y))
+					continue;
+
+				var path = Pathfinding.FindPath(
+					self.X,
+					self.Y,
+					x,
+					y,
+					(px, py) => FireSystem.IsSafeWalkableForActor(state, self, px, py, self.Z));
+				if (path == null)
+					continue;
+
+				var pathCost = path.Count;
+				if (pathCost < bestCost)
+				{
+					bestCost = pathCost;
+					best = (x, y);
+				}
+			}
+		}
+
+		return best;
+	}
 
 	private static bool IsWalkable(Perception perception, int x, int y)
 	{

@@ -21,7 +21,7 @@
     "minPartySize": 2,
     "threatPoints": 50,
     "workerId": "raid",
-    "params": { "templateId": "bandit" }
+    "params": { "templateId": "orc_warrior" }
   },
   {
     "id": "raid_beast",
@@ -57,7 +57,7 @@
     "minPartySize": 0,
     "threatPoints": 0,
     "workerId": "trader_visit",
-    "params": { "templateId": "trader" }
+    "params": { "templateId": "merchant" }
   },
   {
     "id": "resource_drop",
@@ -117,6 +117,6 @@
     "minPartySize": 2,
     "threatPoints": 0,
     "workerId": "wanderer_join",
-    "params": { "templateId": "refugee" }
+    "params": { "templateId": "villager" }
   }
 ]

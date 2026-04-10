@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Map;
 
 namespace MiniRPG.Core.Multiplayer;
 
@@ -11,6 +12,7 @@ public sealed class LobbyCreateRoomRequest
 	public string ServerEndpoint { get; set; } = "enet://127.0.0.1:2455";
 	public string PrimaryActorId { get; set; } = GameState.DefaultPlayerId;
 	public string? RequestedRoomCode { get; set; }
+	public SaveFile? InitialSnapshot { get; set; }
 }
 
 public sealed class LobbyJoinRoomRequest
@@ -67,6 +69,7 @@ public interface ILobbyService
 	LobbyJoinTicket JoinRoom(LobbyJoinRoomRequest request);
 	LobbyJoinTicket ReconnectClaim(LobbyReconnectClaimRequest request);
 	RoomRuntimeState GetRoomState(string roomId);
+	void UpdateRoomState(RoomRuntimeState room);
 }
 
 public sealed class InMemoryLobbyService : ILobbyService
@@ -195,6 +198,11 @@ public sealed class InMemoryLobbyService : ILobbyService
 				string.Equals(candidate.ReconnectToken, request.ReconnectToken, StringComparison.Ordinal));
 			if (player == null)
 				throw new InvalidOperationException($"Reconnect token is invalid for room '{request.RoomId}'.");
+			if (player.ReconnectDeadlineUtc is { } reconnectDeadlineUtc
+				&& DateTimeOffset.UtcNow > reconnectDeadlineUtc)
+			{
+				throw new InvalidOperationException($"Reconnect token expired for room '{request.RoomId}'.");
+			}
 
 			player.Connected = true;
 			player.JoinToken = Guid.NewGuid().ToString("N");
@@ -209,6 +217,18 @@ public sealed class InMemoryLobbyService : ILobbyService
 	{
 		lock (_gate)
 			return GetRoomEntry(roomId).Room.Clone();
+	}
+
+	public void UpdateRoomState(RoomRuntimeState room)
+	{
+		ArgumentNullException.ThrowIfNull(room);
+		ArgumentException.ThrowIfNullOrWhiteSpace(room.RoomId);
+
+		lock (_gate)
+		{
+			var entry = GetRoomEntry(room.RoomId);
+			entry.Room = room.Clone();
+		}
 	}
 
 	private LobbyRoomEntry GetRoomEntry(string roomId)
@@ -239,7 +259,8 @@ public sealed class InMemoryLobbyService : ILobbyService
 			return normalized;
 		}
 
-		while (true)
+		const int maxAttempts = 100;
+		for (var i = 0; i < maxAttempts; i++)
 		{
 			var candidate = Convert.ToHexString(Guid.NewGuid().ToByteArray()[..3]);
 			if (_roomCodeIndex.ContainsKey(candidate))
@@ -247,6 +268,8 @@ public sealed class InMemoryLobbyService : ILobbyService
 
 			return candidate;
 		}
+
+		throw new InvalidOperationException("Failed to generate a unique room code after maximum attempts.");
 	}
 
 	private static LobbyJoinTicket BuildTicket(LobbyRoomEntry entry, RoomPlayerState player) => new()
@@ -268,6 +291,6 @@ public sealed class InMemoryLobbyService : ILobbyService
 		public string RoomDisplayName { get; init; } = string.Empty;
 		public string ServerEndpoint { get; init; } = string.Empty;
 		public DateTimeOffset CreatedAtUtc { get; init; }
-		public RoomRuntimeState Room { get; init; } = new();
+		public RoomRuntimeState Room { get; set; } = new();
 	}
 }
