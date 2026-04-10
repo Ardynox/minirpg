@@ -15,6 +15,133 @@ public sealed class ENetTransportSmokeTests
 	[Fact]
 	public void ENetTransport_JoinAndCommandRoundTrip_Works()
 	{
+		using var fixture = CreateRunningFixture();
+		var messages = new List<ServerMessage>();
+		string? disconnectedReason = null;
+		fixture.Client.MessageReceived += message => messages.Add(message);
+		fixture.Client.Disconnected += reason => disconnectedReason = reason;
+
+		var connectErr = fixture.Client.Connect("127.0.0.1", fixture.Port, new GameServerConnectRequest
+		{
+			RoomId = "room-smoke",
+			Token = "join-smoke-token",
+			IsReconnectClaim = false,
+		});
+		Assert.Equal(TransportError.Ok, connectErr);
+
+		PumpUntil(() => fixture.Client.State == ENetClientState.InRoom, fixture.Server, fixture.Client, TimeSpan.FromSeconds(5), () => disconnectedReason, messages);
+		Assert.Equal(ENetClientState.InRoom, fixture.Client.State);
+		Assert.Contains(messages, static message => message is JoinAcceptedMessage);
+		Assert.Contains(messages, static message => message is RoomSnapshotMessage);
+
+		messages.Clear();
+		var sendOk = fixture.Client.SendCommand(new OpenModalClientCommand
+		{
+			ModalId = "inventory",
+		});
+		Assert.True(sendOk);
+
+		PumpUntil(
+			() => messages.Count > 0,
+			fixture.Server,
+			fixture.Client,
+			TimeSpan.FromSeconds(5),
+			() => disconnectedReason,
+			messages);
+
+		Assert.Contains(messages, static message => message is RoomSnapshotMessage);
+	}
+
+	[Fact]
+	public void ENetTransport_InvalidJoinToken_RejectedWithCode()
+	{
+		using var fixture = CreateRunningFixture();
+		var messages = new List<ServerMessage>();
+		string? disconnectedReason = null;
+		fixture.Client.MessageReceived += message => messages.Add(message);
+		fixture.Client.Disconnected += reason => disconnectedReason = reason;
+
+		var connectErr = fixture.Client.Connect("127.0.0.1", fixture.Port, new GameServerConnectRequest
+		{
+			RoomId = "room-smoke",
+			Token = "bad-join-token",
+			IsReconnectClaim = false,
+		});
+		Assert.Equal(TransportError.Ok, connectErr);
+
+		PumpUntil(
+			() => messages.OfType<CommandRejectedMessage>().Any(),
+			fixture.Server,
+			fixture.Client,
+			TimeSpan.FromSeconds(5),
+			() => disconnectedReason,
+			messages);
+
+		var rejected = Assert.Single(messages.OfType<CommandRejectedMessage>());
+		Assert.Equal("invalid_join_token", rejected.Code);
+	}
+
+	[Fact]
+	public void ENetTransport_InvalidReconnectToken_RejectedWithCode()
+	{
+		using var fixture = CreateRunningFixture();
+		var messages = new List<ServerMessage>();
+		string? disconnectedReason = null;
+		fixture.Client.MessageReceived += message => messages.Add(message);
+		fixture.Client.Disconnected += reason => disconnectedReason = reason;
+
+		var connectErr = fixture.Client.Connect("127.0.0.1", fixture.Port, new GameServerConnectRequest
+		{
+			RoomId = "room-smoke",
+			Token = "bad-reconnect-token",
+			IsReconnectClaim = true,
+		});
+		Assert.Equal(TransportError.Ok, connectErr);
+
+		PumpUntil(
+			() => messages.OfType<CommandRejectedMessage>().Any(),
+			fixture.Server,
+			fixture.Client,
+			TimeSpan.FromSeconds(5),
+			() => disconnectedReason,
+			messages);
+
+		var rejected = Assert.Single(messages.OfType<CommandRejectedMessage>());
+		Assert.Equal("invalid_reconnect_token", rejected.Code);
+	}
+
+	[Fact]
+	public void ENetTransport_ReconnectClaim_WorksAndEmitsReconnectClaimed()
+	{
+		using var fixture = CreateRunningFixture();
+		var messages = new List<ServerMessage>();
+		string? disconnectedReason = null;
+		fixture.Client.MessageReceived += message => messages.Add(message);
+		fixture.Client.Disconnected += reason => disconnectedReason = reason;
+
+		var connectErr = fixture.Client.Connect("127.0.0.1", fixture.Port, new GameServerConnectRequest
+		{
+			RoomId = "room-smoke",
+			Token = "reconnect-smoke-token",
+			IsReconnectClaim = true,
+		});
+		Assert.Equal(TransportError.Ok, connectErr);
+
+		PumpUntil(
+			() => fixture.Client.State == ENetClientState.InRoom,
+			fixture.Server,
+			fixture.Client,
+			TimeSpan.FromSeconds(5),
+			() => disconnectedReason,
+			messages);
+
+		Assert.Contains(messages, static message => message is JoinAcceptedMessage);
+		Assert.Contains(messages, static message => message is ReconnectClaimedMessage);
+		Assert.Contains(messages, static message => message is RoomSnapshotMessage);
+	}
+
+	private static TestFixture CreateRunningFixture()
+	{
 		TestSupport.EnsureGameplayDataLoaded();
 
 		var host = new DedicatedGameServerHost();
@@ -31,49 +158,17 @@ public sealed class ENetTransportSmokeTests
 			ReconnectToken = "reconnect-smoke-token",
 			Connected = false,
 			IsRoomOwner = true,
+			PrimaryActorId = "player",
 		};
 		host.RegisterRoom(new GameState(), room);
 
-		using var server = new ENetGameServer(host);
+		var server = new ENetGameServer(host);
 		var port = PickAvailablePort();
 		var listenErr = server.Listen("127.0.0.1", port);
 		Assert.Equal(TransportError.Ok, listenErr);
 
-		using var client = new ENetGameClient();
-		var messages = new List<ServerMessage>();
-		string? disconnectedReason = null;
-		client.MessageReceived += message => messages.Add(message);
-		client.Disconnected += reason => disconnectedReason = reason;
-
-		var connectErr = client.Connect("127.0.0.1", port, new GameServerConnectRequest
-		{
-			RoomId = "room-smoke",
-			Token = "join-smoke-token",
-			IsReconnectClaim = false,
-		});
-		Assert.Equal(TransportError.Ok, connectErr);
-
-		PumpUntil(() => client.State == ENetClientState.InRoom, server, client, TimeSpan.FromSeconds(5), () => disconnectedReason, messages);
-		Assert.Equal(ENetClientState.InRoom, client.State);
-		Assert.Contains(messages, static message => message is JoinAcceptedMessage);
-		Assert.Contains(messages, static message => message is RoomSnapshotMessage);
-
-		messages.Clear();
-		var sendOk = client.SendCommand(new OpenModalClientCommand
-		{
-			ModalId = "inventory",
-		});
-		Assert.True(sendOk);
-
-		PumpUntil(
-			() => messages.Count > 0,
-			server,
-			client,
-			TimeSpan.FromSeconds(5),
-			() => disconnectedReason,
-			messages);
-
-		Assert.True(messages.Count > 0, "Expected at least one server response for command roundtrip.");
+		var client = new ENetGameClient();
+		return new TestFixture(server, client, port);
 	}
 
 	private static int PickAvailablePort()
@@ -86,6 +181,26 @@ public sealed class ENetTransportSmokeTests
 		}
 
 		return 2456;
+	}
+
+	private sealed class TestFixture : IDisposable
+	{
+		public TestFixture(ENetGameServer server, ENetGameClient client, int port)
+		{
+			Server = server;
+			Client = client;
+			Port = port;
+		}
+
+		public ENetGameServer Server { get; }
+		public ENetGameClient Client { get; }
+		public int Port { get; }
+
+		public void Dispose()
+		{
+			Client.Dispose();
+			Server.Dispose();
+		}
 	}
 
 	private static void PumpUntil(

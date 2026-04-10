@@ -197,7 +197,7 @@ public static class AIDispatcher
 				continue;
 			}
 
-			var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
+			var rng = CreateActorRng(state, actor);
 			Decision decision;
 			if (captureProfile)
 			{
@@ -258,59 +258,14 @@ public static class AIDispatcher
 			return new ActionExecutionResult();
 
 		var perception = PerceptionBuilder.Build(state, actor, SimDetail.Full);
-		var behaviorContext = new AIBehaviorContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, AwarenessModule.CreateTurnContext(state));
-		var healthExecution = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (healthExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(healthExecution.Events);
-			return shortCircuit;
-		}
-		var fireExecution = FireBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (fireExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(fireExecution.Events);
-			return shortCircuit;
-		}
-		var temperatureExecution = TemperatureBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (temperatureExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(temperatureExecution.Events);
-			return shortCircuit;
-		}
-		var needExecution = NeedBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (needExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(needExecution.Events);
-			return shortCircuit;
-		}
-		var jobExecution = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (jobExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(jobExecution.Events);
-			return shortCircuit;
-		}
-		var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
-		var decision = brain.Decide(perception, rng);
-		var result = new ActionExecutionResult();
-		result.Events.AddRange(awarenessEvents);
-		if (decision.Type != DecisionType.Attack)
-			return result;
+		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
+		if (behaviorExecution.Consumed)
+			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
 
-		var execution = ExecuteDecision(state, actor, decision, tickBuffs);
-		result.Consumed = execution.Consumed;
-		result.Events.AddRange(execution.Events);
-		return result;
+		var rng = CreateActorRng(state, actor);
+		var decision = brain.Decide(perception, rng);
+		return ExecuteDecisionWithAwareness(state, actor, decision, tickBuffs, awarenessEvents, attackOnly: true);
 	}
 
 	public static List<GameEvent> DecideAndExecuteAny(GameState state, Actor actor) =>
@@ -326,51 +281,83 @@ public static class AIDispatcher
 			return new ActionExecutionResult();
 
 		var perception = PerceptionBuilder.Build(state, actor, SimDetail.Full);
-		var behaviorContext = new AIBehaviorContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, AwarenessModule.CreateTurnContext(state));
+		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
+		if (behaviorExecution.Consumed)
+			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
+
+		var rng = CreateActorRng(state, actor);
+		var decision = brain.Decide(perception, rng);
+		return ExecuteDecisionWithAwareness(state, actor, decision, tickBuffs, awarenessEvents, attackOnly: false);
+	}
+
+	private static Random CreateActorRng(GameState state, Actor actor)
+	{
+		var stableActorHash = ComputeStableStringHash(actor.Id);
+		var seed = unchecked(state.RngSeed * 31 + state.Turn * 17 + stableActorHash);
+		return new Random(seed);
+	}
+
+	private static int ComputeStableStringHash(string value)
+	{
+		unchecked
+		{
+			var hash = (int)2166136261;
+			for (var i = 0; i < value.Length; i++)
+				hash = (hash ^ value[i]) * 16777619;
+			return hash;
+		}
+	}
+
+	private static ActionExecutionResult ExecuteDecisionWithAwareness(
+		GameState state,
+		Actor actor,
+		Decision decision,
+		bool tickBuffs,
+		IReadOnlyList<GameEvent> awarenessEvents,
+		bool attackOnly)
+	{
+		var result = new ActionExecutionResult();
+		result.Events.AddRange(awarenessEvents);
+		if (attackOnly && decision.Type != DecisionType.Attack)
+			return result;
+
+		var execution = ExecuteDecision(state, actor, decision, tickBuffs);
+		result.Consumed = execution.Consumed;
+		result.Events.AddRange(execution.Events);
+		return result;
+	}
+
+	private static ActionExecutionResult TryExecuteBehaviorChain(GameState state, Actor actor, Perception perception, bool tickBuffs)
+	{
+		var behaviorContext = new AIBehaviorContext(state);
 		var healthExecution = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (healthExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(healthExecution.Events);
-			return shortCircuit;
-		}
+			return healthExecution;
+
 		var fireExecution = FireBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (fireExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(fireExecution.Events);
-			return shortCircuit;
-		}
+			return fireExecution;
+
 		var temperatureExecution = TemperatureBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (temperatureExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(temperatureExecution.Events);
-			return shortCircuit;
-		}
+			return temperatureExecution;
+
 		var needExecution = NeedBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (needExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(needExecution.Events);
-			return shortCircuit;
-		}
+			return needExecution;
+
 		var jobExecution = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (jobExecution.Consumed)
-		{
-			var shortCircuit = new ActionExecutionResult { Consumed = true };
-			shortCircuit.Events.AddRange(awarenessEvents);
-			shortCircuit.Events.AddRange(jobExecution.Events);
-			return shortCircuit;
-		}
-		var rng = new Random(state.RngSeed + state.Turn + actor.Id.GetHashCode());
-		var decision = brain.Decide(perception, rng);
-		var execution = ExecuteDecision(state, actor, decision, tickBuffs);
+			return jobExecution;
+
+		return new ActionExecutionResult();
+	}
+
+	private static ActionExecutionResult MergeAwarenessWithExecution(
+		IReadOnlyList<GameEvent> awarenessEvents,
+		ActionExecutionResult execution)
+	{
 		var result = new ActionExecutionResult
 		{
 			Consumed = execution.Consumed,
@@ -380,12 +367,12 @@ public static class AIDispatcher
 		return result;
 	}
 
-	internal static SimDetail Classify(GameState state, Actor actor, int cx, int cy, int range)
+	public static SimDetail Classify(GameState state, Actor actor, int cx, int cy, int range)
 	{
 		return Classify(state, actor, [new WorldCoord(cx, cy, actor.Z)], range);
 	}
 
-	internal static SimDetail Classify(GameState state, Actor actor, IReadOnlyList<WorldCoord> anchors, int range)
+	public static SimDetail Classify(GameState state, Actor actor, IReadOnlyList<WorldCoord> anchors, int range)
 	{
 		if (anchors.Count == 0)
 			return SimDetail.Summary;

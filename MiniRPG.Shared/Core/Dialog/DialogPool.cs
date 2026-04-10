@@ -1,6 +1,6 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using Godot;
 using MiniRPG.Core.Config;
 
 namespace MiniRPG.Core.Dialog;
@@ -31,7 +31,7 @@ public static class DialogPool
 
 		if (!GameDataLocator.TryReadText(path, out var json, out var sourceLabel))
 		{
-			GD.PrintErr($"DialogPool: cannot open {path} (tried: {sourceLabel})");
+			Console.Error.WriteLine($"DialogPool: cannot open {path} (tried: {sourceLabel})");
 			_loaded = true;
 			return;
 		}

@@ -2,14 +2,11 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Godot;
-using GodotFileAccess = Godot.FileAccess;
 
 namespace MiniRPG.Core.Config;
 
 public static class AppSettingsStore
 {
-	private const string SettingsPath = "user://app_settings.json";
 	private const int SchemaVersion = 6;
 
 	public static string LoadLocale()
@@ -24,7 +21,7 @@ public static class AppSettingsStore
 		}
 		catch (Exception ex)
 		{
-			GD.PushWarning($"[AppSettingsStore] Failed to load locale: {ex.Message}");
+			LogWarning($"[AppSettingsStore] Failed to load locale: {ex.Message}");
 			return LocalizationService.DefaultLocale;
 		}
 	}
@@ -187,7 +184,7 @@ public static class AppSettingsStore
 		}
 		catch (Exception ex)
 		{
-			GD.PushWarning($"[AppSettingsStore] Failed to load settings: {ex.Message}");
+			LogWarning($"[AppSettingsStore] Failed to load settings: {ex.Message}");
 			return CreateDefaultSettings();
 		}
 	}
@@ -205,7 +202,7 @@ public static class AppSettingsStore
 		}
 		catch (Exception ex)
 		{
-			GD.PushWarning($"[AppSettingsStore] Failed to save {label}: {ex.Message}");
+			LogWarning($"[AppSettingsStore] Failed to save {label}: {ex.Message}");
 		}
 	}
 
@@ -387,26 +384,7 @@ public static class AppSettingsStore
 
 	private static bool TryReadSettingsJson(out string json)
 	{
-		if (CanUseGodotFileAccess())
-		{
-			if (!GodotFileAccess.FileExists(SettingsPath))
-			{
-				json = string.Empty;
-				return false;
-			}
-
-			using var file = GodotFileAccess.Open(SettingsPath, GodotFileAccess.ModeFlags.Read);
-			if (file == null)
-			{
-				json = string.Empty;
-				return false;
-			}
-
-			json = file.GetAsText();
-			return true;
-		}
-
-		var path = GetFallbackSettingsPath();
+		var path = GetSettingsPath();
 		if (!File.Exists(path))
 		{
 			json = string.Empty;
@@ -419,51 +397,14 @@ public static class AppSettingsStore
 
 	private static void WriteSettingsJson(string json)
 	{
-		if (CanUseGodotFileAccess())
-		{
-			using var file = GodotFileAccess.Open(SettingsPath, GodotFileAccess.ModeFlags.Write);
-			file?.StoreString(json);
-			return;
-		}
-
-		var path = GetFallbackSettingsPath();
+		var path = GetSettingsPath();
 		var directory = Path.GetDirectoryName(path);
 		if (!string.IsNullOrWhiteSpace(directory))
 			Directory.CreateDirectory(directory);
 		File.WriteAllText(path, json);
 	}
 
-	private static bool CanUseGodotFileAccess()
-	{
-		try
-		{
-			var processPath = System.Environment.ProcessPath;
-			if (string.IsNullOrWhiteSpace(processPath))
-				return false;
-
-			var processName = Path.GetFileNameWithoutExtension(processPath);
-			if (string.IsNullOrWhiteSpace(processName))
-				return false;
-
-			var processDirectory = Path.GetDirectoryName(processPath);
-			if (string.IsNullOrWhiteSpace(processDirectory))
-				return false;
-
-			if (processName.Contains("godot", StringComparison.OrdinalIgnoreCase))
-				return true;
-
-			if (File.Exists(Path.Combine(processDirectory, $"{processName}.pck")))
-				return true;
-
-			return Directory.GetDirectories(processDirectory, $"data_{processName}_*").Length > 0;
-		}
-		catch
-		{
-			return false;
-		}
-	}
-
-	private static string GetFallbackSettingsPath() =>
+	private static string GetSettingsPath() =>
 		Path.Combine(ResolveUserDataDir(), "app_settings.json");
 
 	private static string ResolveUserDataDir()
@@ -488,6 +429,18 @@ public static class AppSettingsStore
 			? Path.Combine(home, ".local", "share")
 			: xdgData;
 		return Path.Combine(rootDir, "godot", "app_userdata", appName);
+	}
+
+	private static void LogWarning(string message)
+	{
+		try
+		{
+			Console.Error.WriteLine(message);
+		}
+		catch
+		{
+			// Ignore logging failures.
+		}
 	}
 }
 

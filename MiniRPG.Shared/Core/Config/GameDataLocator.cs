@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using Godot;
-using GodotFileAccess = Godot.FileAccess;
 
 namespace MiniRPG.Core.Config;
 
@@ -13,6 +11,12 @@ namespace MiniRPG.Core.Config;
 public static class GameDataLocator
 {
 	private const string DataFolderName = "Data";
+	private static Func<string, string?>? _resourceTextReader;
+
+	public static void ConfigureResourceTextReader(Func<string, string?>? resourceTextReader)
+	{
+		_resourceTextReader = resourceTextReader;
+	}
 
 	public static string? GetExternalDataRoot()
 	{
@@ -47,7 +51,6 @@ public static class GameDataLocator
 			relativeDataPath,
 			GetExternalDataRoot(),
 			GetProjectDataRoot(),
-			CanUseGodotResourceFileAccess(),
 			out text,
 			out sourceLabel);
 
@@ -64,7 +67,6 @@ public static class GameDataLocator
 		string relativeDataPath,
 		string? externalDataRoot,
 		string? projectDataRoot,
-		bool tryResourceFallback,
 		out string text,
 		out string sourceLabel)
 	{
@@ -83,7 +85,7 @@ public static class GameDataLocator
 			return true;
 		}
 
-		if (tryResourceFallback)
+		if (_resourceTextReader != null)
 		{
 			var resourcePath = GetResourcePath(normalized);
 			if (TryReadTextFromResource(resourcePath, out text))
@@ -255,10 +257,10 @@ public static class GameDataLocator
 	{
 		try
 		{
-			using var file = GodotFileAccess.Open(resourcePath, GodotFileAccess.ModeFlags.Read);
-			if (file != null)
+			var resourceText = _resourceTextReader?.Invoke(resourcePath);
+			if (resourceText != null)
 			{
-				text = file.GetAsText();
+				text = resourceText;
 				return true;
 			}
 		}

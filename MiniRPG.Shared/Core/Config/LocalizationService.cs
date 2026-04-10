@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Godot;
 
 namespace MiniRPG.Core.Config;
 
@@ -10,10 +9,8 @@ public static class LocalizationService
 {
 	public const string DefaultLocale = "zh_CN";
 
-	private const string LocaleMeta = "__loc_text_key";
-	private const string PlaceholderMeta = "__loc_placeholder_key";
+	private static Action<object>? _treeLocalizer;
 	private static readonly Regex NamedArgPattern = new(@"\{([A-Za-z0-9_]+)\}", RegexOptions.Compiled);
-	private static readonly Regex KeyPattern = new(@"^[A-Za-z0-9_.-]+$", RegexOptions.Compiled);
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		ReadCommentHandling = JsonCommentHandling.Skip,
@@ -105,15 +102,12 @@ public static class LocalizationService
 		return raw.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 	}
 
-	public static void LocalizeTree(Node root)
+	public static void ConfigureTreeLocalizer(Action<object>? treeLocalizer)
 	{
-		ApplyNode(root);
-		foreach (var child in root.GetChildren())
-		{
-			if (child is Node childNode)
-				LocalizeTree(childNode);
-		}
+		_treeLocalizer = treeLocalizer;
 	}
+
+	public static void LocalizeTree(object root) => _treeLocalizer?.Invoke(root);
 
 	private static Dictionary<string, string> LoadCatalog(string locale)
 	{
@@ -178,46 +172,6 @@ public static class LocalizationService
 				: match.Value;
 		});
 	}
-
-	private static void ApplyNode(Node node)
-	{
-		switch (node)
-		{
-			case Button button:
-				ApplyText(button, LocaleMeta, () => button.Text, value => button.Text = value);
-				break;
-			case Label label:
-				ApplyText(label, LocaleMeta, () => label.Text, value => label.Text = value);
-				break;
-			case RichTextLabel richTextLabel:
-				ApplyText(richTextLabel, LocaleMeta, () => richTextLabel.Text, value => richTextLabel.Text = value);
-				break;
-			case LineEdit lineEdit:
-				ApplyText(lineEdit, PlaceholderMeta, () => lineEdit.PlaceholderText, value => lineEdit.PlaceholderText = value);
-				break;
-		}
-	}
-
-	private static void ApplyText(GodotObject obj, string metaKey, Func<string> getter, Action<string> setter)
-	{
-		string key;
-		if (obj.HasMeta(metaKey))
-			key = obj.GetMeta(metaKey).AsString();
-		else
-		{
-			key = getter();
-			if (!LooksLikeKey(key))
-				return;
-			obj.SetMeta(metaKey, key);
-		}
-
-		setter(T(key));
-	}
-
-	private static bool LooksLikeKey(string value) =>
-		!string.IsNullOrWhiteSpace(value)
-		&& value.Contains('.')
-		&& KeyPattern.IsMatch(value);
 
 	private static void LogWarning(string message)
 	{
