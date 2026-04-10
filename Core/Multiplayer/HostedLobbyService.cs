@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using MiniRPG.Core.Map;
 
 namespace MiniRPG.Core.Multiplayer;
@@ -18,11 +19,12 @@ public sealed class HostedLobbyService : ILobbyService
 	{
 		ArgumentNullException.ThrowIfNull(request);
 
-		var ticket = _inner.CreateRoom(request);
+		var resolvedRequest = ResolveCreateRoomRequest(request);
+		var ticket = _inner.CreateRoom(resolvedRequest);
 		if (_gameHost.TryGetRoom(ticket.RoomId, out _))
 			return ticket;
 
-		var initialState = CreateInitialState(request.InitialSnapshot);
+		var initialState = CreateInitialState(resolvedRequest.InitialSnapshot);
 		_gameHost.RegisterRoom(initialState, ticket.Room);
 		return ticket;
 	}
@@ -38,6 +40,38 @@ public sealed class HostedLobbyService : ILobbyService
 	public RoomRuntimeState GetRoomState(string roomId) => _inner.GetRoomState(roomId);
 
 	public void UpdateRoomState(RoomRuntimeState room) => _inner.UpdateRoomState(room);
+
+	private static LobbyCreateRoomRequest ResolveCreateRoomRequest(LobbyCreateRoomRequest request)
+	{
+		var resolvedSnapshot = request.InitialSnapshot;
+		if (!string.IsNullOrWhiteSpace(request.TemplateId))
+		{
+			if (!PresetScenarioCatalog.TryGet(request.TemplateId, out var scenario))
+				throw new InvalidOperationException($"Unknown preset scenario: {request.TemplateId}");
+
+			resolvedSnapshot = SaveModule.DeserializeSaveFile(PresetScenarioCatalog.ReadText(scenario.TemplatePath))
+				?? throw new InvalidOperationException($"Failed to deserialize preset scenario '{request.TemplateId}'.");
+		}
+
+		var resolvedPrimaryActorId = request.PrimaryActorId;
+		if (string.IsNullOrWhiteSpace(resolvedPrimaryActorId) && resolvedSnapshot != null)
+		{
+			resolvedPrimaryActorId = RoomActorCatalog.EnumerateAssignableActorIds(resolvedSnapshot).FirstOrDefault()
+				?? resolvedSnapshot.Payload.PlayerId;
+		}
+
+		return new LobbyCreateRoomRequest
+		{
+			RoomDisplayName = request.RoomDisplayName,
+			OwnerDisplayName = request.OwnerDisplayName,
+			ServerEndpoint = request.ServerEndpoint,
+			PrimaryActorId = resolvedPrimaryActorId ?? string.Empty,
+			RequestedRoomCode = request.RequestedRoomCode,
+			IsPublic = request.IsPublic,
+			TemplateId = request.TemplateId,
+			InitialSnapshot = resolvedSnapshot,
+		};
+	}
 
 	private static GameState CreateInitialState(SaveFile? initialSnapshot)
 		=> DedicatedGameServerHost.CreateStateFromSnapshot(initialSnapshot);

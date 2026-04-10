@@ -67,7 +67,7 @@ public class TradeUIModule
 		{
 			var good = _panel.GetSelectedBuyGood();
 			if (good == null) return;
-			result = ServerActionGateway.Execute(_ui.State, new TradeBuyClientCommand
+			var command = new TradeBuyClientCommand
 			{
 				ActorId = player.Id,
 				TraderActorId = _trader.Id,
@@ -75,19 +75,35 @@ public class TradeUIModule
 					? TradeGoodSourceKind.Inventory
 					: TradeGoodSourceKind.Shop,
 				GoodIndex = good.Index,
-			});
+			};
+			if (_ui.TrySubmitClientCommand(command))
+			{
+				_panel.RefreshData(player, _trader);
+				_panel.RefreshHeader(player, _trader);
+				return;
+			}
+
+			result = ServerActionGateway.Execute(_ui.State, command);
 		}
 		else
 		{
 			var sel = _panel.GetSelectedSellItem();
 			if (sel == null) return;
 			var (invIdx, _) = sel.Value;
-			result = ServerActionGateway.Execute(_ui.State, new TradeSellClientCommand
+			var command = new TradeSellClientCommand
 			{
 				ActorId = player.Id,
 				TraderActorId = _trader.Id,
 				InventoryIndex = invIdx,
-			});
+			};
+			if (_ui.TrySubmitClientCommand(command))
+			{
+				_panel.RefreshData(player, _trader);
+				_panel.RefreshHeader(player, _trader);
+				return;
+			}
+
+			result = ServerActionGateway.Execute(_ui.State, command);
 		}
 
 		foreach (var log in result.Logs)

@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://Scene/ConfirmDialog.tscn" id="20_confirmdialog"]
 [ext_resource type="PackedScene" path="res://Scene/WeatherLabPanel.tscn" id="21_weatherlab"]
 [ext_resource type="PackedScene" path="res://Scene/LoadRecoveryDialog.tscn" id="22_loadrecovery"]
+[ext_resource type="PackedScene" path="res://Scene/MultiplayerHub.tscn" id="23_multiplayerhub"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -169,6 +170,8 @@ show_percentage = true
 [node name="PauseMenuPanel" parent="OverlayLayer" instance=ExtResource("11_pausemenu")]
 
 [node name="MainMenu" parent="OverlayLayer" instance=ExtResource("7_menu")]
+
+[node name="MultiplayerHub" parent="OverlayLayer" instance=ExtResource("23_multiplayerhub")]
 
 [node name="SkillBar" parent="OverlayLayer" instance=ExtResource("8_skillbar")]
 

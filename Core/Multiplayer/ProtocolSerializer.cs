@@ -40,7 +40,13 @@ public static class ProtocolSerializer
 		return kind switch
 		{
 			ClientCommandKind.Move => JsonSerializer.Deserialize<MoveClientCommand>(raw, Options),
+			ClientCommandKind.Dig => JsonSerializer.Deserialize<DigClientCommand>(raw, Options),
+			ClientCommandKind.Attack => JsonSerializer.Deserialize<AttackClientCommand>(raw, Options),
 			ClientCommandKind.CastSkill => JsonSerializer.Deserialize<CastSkillClientCommand>(raw, Options),
+			ClientCommandKind.EatInventory => JsonSerializer.Deserialize<EatInventoryClientCommand>(raw, Options),
+			ClientCommandKind.Rest => JsonSerializer.Deserialize<RestClientCommand>(raw, Options),
+			ClientCommandKind.FacilityDeliver => JsonSerializer.Deserialize<FacilityDeliverClientCommand>(raw, Options),
+			ClientCommandKind.FacilityConstruct => JsonSerializer.Deserialize<FacilityConstructClientCommand>(raw, Options),
 			ClientCommandKind.Interact => JsonSerializer.Deserialize<InteractClientCommand>(raw, Options),
 			ClientCommandKind.Pickup => JsonSerializer.Deserialize<PickupClientCommand>(raw, Options),
 			ClientCommandKind.InventoryToggleEquip => JsonSerializer.Deserialize<InventoryToggleEquipClientCommand>(raw, Options),

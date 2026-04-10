@@ -425,15 +425,31 @@ public class GameSessionModule
 	}
 
 	public SaveLoadStatus ApplyMultiplayerRoomSnapshot(LobbyJoinTicket joinTicket, SaveFile snapshot)
+		=> ApplyMultiplayerRoomSnapshot(
+			joinTicket.Room,
+			joinTicket.PlayerSessionId,
+			joinTicket.DisplayName,
+			joinTicket.PrimaryActorId,
+			snapshot);
+
+	public SaveLoadStatus ApplyMultiplayerRoomSnapshot(
+		RoomRuntimeState room,
+		string playerSessionId,
+		string displayName,
+		string? primaryActorId,
+		SaveFile snapshot)
 	{
-		ArgumentNullException.ThrowIfNull(joinTicket);
+		ArgumentNullException.ThrowIfNull(room);
+		ArgumentException.ThrowIfNullOrWhiteSpace(playerSessionId);
 		ArgumentNullException.ThrowIfNull(snapshot);
 
-		SaveModule.ApplySnapshot(_state, snapshot);
+		var effectiveActorId = ResolveMultiplayerPlayerActorId(room, playerSessionId, primaryActorId);
+		var rewrittenSnapshot = RewriteSnapshotForPlayer(snapshot, effectiveActorId);
+		SaveModule.ApplySnapshot(_state, rewrittenSnapshot);
 		var status = FinalizeLoadedGame(
 			currentSavePath: null,
 			presetScenarioId: null,
-			header: snapshot.Header,
+			header: rewrittenSnapshot.Header,
 			knownWorld: null,
 			fallbackCharacterId: null,
 			sessionKindOverride: ActiveSessionKind.MultiplayerRoom,
@@ -441,11 +457,12 @@ public class GameSessionModule
 		if (status != SaveLoadStatus.Success)
 			return status;
 
-		_state.Room = joinTicket.Room.Clone();
-		if (_state.Room.Players.TryGetValue(joinTicket.PlayerSessionId, out var player))
+		_state.Room = room.Clone();
+		if (_state.Room.Players.TryGetValue(playerSessionId, out var player))
 		{
 			player.Connected = true;
-			player.DisplayName = joinTicket.DisplayName;
+			if (!string.IsNullOrWhiteSpace(displayName))
+				player.DisplayName = displayName;
 		}
 
 		CurrentSavePath = null;
@@ -922,6 +939,48 @@ public class GameSessionModule
 
 		candidate = null!;
 		return false;
+	}
+
+	private static SaveFile RewriteSnapshotForPlayer(SaveFile snapshot, string? actorId)
+	{
+		if (string.IsNullOrWhiteSpace(actorId))
+			return snapshot;
+
+		var cloned = SaveModule.DeserializeSaveFile(SaveModule.SerializeSaveFile(snapshot))
+			?? throw new InvalidOperationException("Failed to clone multiplayer room snapshot.");
+		var actor = cloned.Payload.Actors.FirstOrDefault(candidate =>
+			string.Equals(candidate.Id, actorId, StringComparison.Ordinal));
+		if (actor == null)
+			return cloned;
+
+		cloned.Payload.PlayerId = actor.Id;
+		cloned.Payload.PlayerX = actor.X;
+		cloned.Payload.PlayerY = actor.Y;
+		cloned.Payload.PlayerZ = actor.Z;
+		return cloned;
+	}
+
+	private static string? ResolveMultiplayerPlayerActorId(
+		RoomRuntimeState room,
+		string playerSessionId,
+		string? primaryActorId)
+	{
+		if (!string.IsNullOrWhiteSpace(primaryActorId))
+			return primaryActorId;
+
+		if (!room.Players.TryGetValue(playerSessionId, out var player))
+			return null;
+
+		if (!string.IsNullOrWhiteSpace(player.PrimaryActorId))
+			return player.PrimaryActorId;
+
+		foreach (var actorId in player.CurrentControllerActorIds)
+		{
+			if (!string.IsNullOrWhiteSpace(actorId))
+				return actorId;
+		}
+
+		return null;
 	}
 
 	private SaveLoadStatus FinalizeLoadedGame(

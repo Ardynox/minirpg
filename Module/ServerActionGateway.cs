@@ -65,6 +65,10 @@ public static class ServerActionGateway
 		return command switch
 		{
 			MoveClientCommand move => ExecuteTimelineAction(state, TimelinePlayerAction.Move(move.Dx, move.Dy)),
+			DigClientCommand dig => ExecuteTimelineAction(state, TimelinePlayerAction.Dig(dig.Dx, dig.Dy, dig.SkillId)),
+			AttackClientCommand attack => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.Attack(attack.TargetActorId, attack.SkillId, attack.TargetLimbId)),
 			CastSkillClientCommand cast => ExecuteTimelineAction(
 				state,
 				TimelinePlayerAction.CastSkill(
@@ -72,9 +76,18 @@ public static class ServerActionGateway
 					cast.TargetType,
 					cast.TargetActorId,
 					cast.TargetLimbId,
+					cast.TargetItemId,
 					targetX: cast.TargetX,
 					targetY: cast.TargetY,
 					targetZ: cast.TargetZ)),
+			EatInventoryClientCommand eat => ExecuteTimelineAction(state, TimelinePlayerAction.EatInventory(eat.InventoryIndex)),
+			RestClientCommand => ExecuteTimelineAction(state, TimelinePlayerAction.Rest()),
+			FacilityDeliverClientCommand deliver => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.FacilityDeliver(deliver.FacilityId)),
+			FacilityConstructClientCommand construct => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.FacilityConstruct(construct.FacilityId)),
 			InteractClientCommand interact => ExecuteInteraction(state, interact, timestamp),
 			PickupClientCommand pickup => ExecutePickup(state, pickup),
 			InventoryToggleEquipClientCommand toggleEquip => ExecuteInventoryToggleEquip(state, toggleEquip),

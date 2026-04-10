@@ -14,6 +14,7 @@ public interface IGameUI
 	void FlushMap();
 	void Dispatch(System.Collections.Generic.List<GameEvent> events);
 	void SubmitPlayerAction(TimelinePlayerAction action);
+	bool TrySubmitClientCommand(ClientCommand command);
 	bool TryHandleItemRightClick(Item item);
 	GameState State { get; }
 	bool PlayerDead { get; set; }

@@ -127,6 +127,7 @@ public static class AppSettingsStore
 				? null
 				: new MultiplayerReconnectTicket
 				{
+					LobbyBaseUrl = settings.LastReconnectTicket.LobbyBaseUrl ?? string.Empty,
 					RoomId = settings.LastReconnectTicket.RoomId ?? string.Empty,
 					RoomCode = settings.LastReconnectTicket.RoomCode ?? string.Empty,
 					RoomDisplayName = settings.LastReconnectTicket.RoomDisplayName ?? string.Empty,
@@ -161,6 +162,7 @@ public static class AppSettingsStore
 				? null
 				: new MultiplayerReconnectTicketDto
 				{
+					LobbyBaseUrl = normalized.LastReconnectTicket.LobbyBaseUrl,
 					RoomId = normalized.LastReconnectTicket.RoomId,
 					RoomCode = normalized.LastReconnectTicket.RoomCode,
 					RoomDisplayName = normalized.LastReconnectTicket.RoomDisplayName,
@@ -274,6 +276,9 @@ public static class AppSettingsStore
 
 	private sealed class MultiplayerReconnectTicketDto
 	{
+		[JsonPropertyName("lobbyBaseUrl")]
+		public string? LobbyBaseUrl { get; set; }
+
 		[JsonPropertyName("roomId")]
 		public string? RoomId { get; set; }
 
@@ -343,6 +348,7 @@ public static class AppSettingsStore
 
 		return new MultiplayerReconnectTicket
 		{
+			LobbyBaseUrl = NormalizeHttpPrefix(ticket.LobbyBaseUrl, "http://127.0.0.1:5076/"),
 			RoomId = ticket.RoomId.Trim(),
 			RoomCode = ticket.RoomCode?.Trim() ?? string.Empty,
 			RoomDisplayName = ticket.RoomDisplayName?.Trim() ?? string.Empty,

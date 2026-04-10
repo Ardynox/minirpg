@@ -69,6 +69,10 @@ public sealed class LocalSessionBackend : IGameSessionBackend
 			: GameSessionCommandSubmitResult.Reject(result.Logs.Count > 0 ? result.Logs[0] : "Command rejected."));
 	}
 
+	public void Poll()
+	{
+	}
+
 	public ValueTask DisposeAsync()
 	{
 		Disconnected?.Invoke("Local session closed.");
@@ -81,6 +85,7 @@ public sealed class LocalSessionBackend : IGameSessionBackend
 		SnapshotReceived?.Invoke(new GameSessionSnapshotEnvelope
 		{
 			Snapshot = snapshot,
+			Room = _state.Room.Clone(),
 		});
 	}
 }

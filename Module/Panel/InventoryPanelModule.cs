@@ -20,6 +20,7 @@ public class InventoryPanelModule : ListPanelBase
 		void AddLog(string msg);
 		void Dispatch(List<GameEvent> events);
 		void SubmitPlayerAction(TimelinePlayerAction action);
+		bool TrySubmitClientCommand(ClientCommand command);
 		void FlushMap();
 		void OpenChestFromInventory(Item chestItem);
 		void CloseInventory();
@@ -241,11 +242,19 @@ public class InventoryPanelModule : ListPanelBase
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null || _cursor < 0 || _cursor >= _displayItems.Count) return false;
 		var (invIdx, _) = _displayItems[_cursor];
-		var result = ServerActionGateway.Execute(_host.State, new InventoryToggleEquipClientCommand
+		var command = new InventoryToggleEquipClientCommand
 		{
 			ActorId = player.Id,
 			InventoryIndex = invIdx,
-		});
+		};
+		if (_host.TrySubmitClientCommand(command))
+		{
+			Refresh();
+			_host.FlushMap();
+			return true;
+		}
+
+		var result = ServerActionGateway.Execute(_host.State, command);
 		ApplyServerActionResult(result);
 		Refresh();
 		_host.FlushMap();
@@ -290,11 +299,19 @@ public class InventoryPanelModule : ListPanelBase
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null || _cursor < 0 || _cursor >= _displayItems.Count) return false;
 		var (invIdx, _) = _displayItems[_cursor];
-		var result = ServerActionGateway.Execute(_host.State, new InventoryDropClientCommand
+		var command = new InventoryDropClientCommand
 		{
 			ActorId = player.Id,
 			InventoryIndex = invIdx,
-		});
+		};
+		if (_host.TrySubmitClientCommand(command))
+		{
+			Refresh();
+			_host.FlushMap();
+			return true;
+		}
+
+		var result = ServerActionGateway.Execute(_host.State, command);
 		ApplyServerActionResult(result);
 		Refresh();
 		_host.FlushMap();

@@ -12,10 +12,12 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Dialog;
 using MiniRPG.Core.Facility;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Session;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.Network;
 using MiniRPG.Module.Panel;
 using MiniRPG.Module.Render;
 
@@ -94,6 +96,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private GameSessionModule _session = null!;
 	private IGameSessionBackend _sessionBackend = null!;
+	private MultiplayerSessionBackend? _multiplayerSessionBackend;
+	private ILocalServerLauncher _localServerLauncher = null!;
 	private MenuModule _menu = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
@@ -111,6 +115,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MainInputCoordinator _mainInputCoordinator = null!;
 	private MainAppFlowCoordinator _mainAppFlowCoordinator = null!;
 	private MultiplayerFlowCoordinator _multiplayerFlowCoordinator = null!;
+	private MultiplayerHubModule _multiplayerHub = null!;
 	private DebugPanelController _debugPanelController = null!;
 	private WeatherLabPanelController _weatherLabPanelController = null!;
 	private LayoutEditBarModule _layoutEditBar = null!;
@@ -158,6 +163,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _enableDebugPanel = true;
 	private float _mapZoomMin = 0.6f;
 	private float _mapZoomMax = 2.4f;
+	private bool _suppressMultiplayerDisconnectHandling;
+	private IReadOnlyList<LobbyRoomSummary> _multiplayerHubRooms = Array.Empty<LobbyRoomSummary>();
+	private IReadOnlyList<MultiplayerHubTemplateOption> _multiplayerHubTemplates = Array.Empty<MultiplayerHubTemplateOption>();
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
@@ -405,6 +413,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	void IGameUI.FlushMap() => FlushMap();
 	void IGameUI.Dispatch(List<GameEvent> events) => Dispatch(events);
 	void IGameUI.SubmitPlayerAction(TimelinePlayerAction action) => SubmitPlayerAction(action);
+	bool IGameUI.TrySubmitClientCommand(ClientCommand command) => TrySubmitClientCommand(command);
 	bool IGameUI.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
 	void InventoryPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
@@ -413,6 +422,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
 	GameState InventoryPanelModule.IHost.State => _state;
 	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
+	bool InventoryPanelModule.IHost.TrySubmitClientCommand(ClientCommand command) => TrySubmitClientCommand(command);
 	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(
 		chestItem,
 		ContainerSourceKind.Inventory,
@@ -526,14 +536,136 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void SubmitPlayerAction(TimelinePlayerAction action)
 	{
+		if (TrySubmitMultiplayerTimelineAction(action))
+			return;
+
 		_ = SubmitPlayerActionWithResult(action);
 	}
 
 	private TimelineStepResult SubmitPlayerActionWithResult(TimelinePlayerAction action)
 	{
+		if (TrySubmitMultiplayerTimelineAction(action))
+			return new TimelineStepResult();
+
 		var result = TimelineTurnGateway.SubmitPlayerAction(_state, action);
 		ApplyTimelineStep(result);
 		return result;
+	}
+
+	private bool TrySubmitClientCommand(ClientCommand command)
+	{
+		if (!IsMultiplayerSession)
+			return false;
+
+		if (_multiplayerSessionBackend == null)
+		{
+			_log.Add(LocalizationService.TOrFallback(
+				"ui.multiplayer.status.backend_missing",
+				"Multiplayer backend is not available."));
+			return true;
+		}
+
+		_ = SubmitMultiplayerCommandAsync(command);
+		return true;
+	}
+
+	private bool TrySubmitMultiplayerTimelineAction(TimelinePlayerAction action)
+	{
+		if (!IsMultiplayerSession)
+			return false;
+
+		var actorId = ActorModule.GetPlayer(_state)?.Id;
+		if (string.IsNullOrWhiteSpace(actorId))
+		{
+			_log.Add(LocalizationService.TOrFallback(
+				"ui.multiplayer.status.no_actor",
+				"No controlled actor is available for multiplayer input."));
+			return true;
+		}
+
+		if (!TryBuildClientCommand(action, actorId, out var command))
+		{
+			_log.Add(LocalizationService.TOrFallback(
+				"ui.multiplayer.status.unsupported_action",
+				"This action is not available in multiplayer yet."));
+			return true;
+		}
+
+		return TrySubmitClientCommand(command);
+	}
+
+	private async Task SubmitMultiplayerCommandAsync(ClientCommand command)
+	{
+		if (_multiplayerSessionBackend == null)
+			return;
+
+		var result = await _multiplayerSessionBackend.SubmitCommandAsync(command);
+		if (!result.Accepted && !string.IsNullOrWhiteSpace(result.FailureReason))
+			_log.Add(result.FailureReason);
+	}
+
+	private static bool TryBuildClientCommand(
+		TimelinePlayerAction action,
+		string actorId,
+		out ClientCommand command)
+	{
+		command = action.Type switch
+		{
+			TimelinePlayerActionType.Move => new MoveClientCommand
+			{
+				ActorId = actorId,
+				Dx = action.Dx,
+				Dy = action.Dy,
+			},
+			TimelinePlayerActionType.Dig => new DigClientCommand
+			{
+				ActorId = actorId,
+				Dx = action.Dx,
+				Dy = action.Dy,
+				SkillId = action.SkillId ?? string.Empty,
+			},
+			TimelinePlayerActionType.Attack => new AttackClientCommand
+			{
+				ActorId = actorId,
+				SkillId = action.SkillId,
+				TargetActorId = action.TargetActorId ?? string.Empty,
+				TargetLimbId = action.TargetLimbId,
+			},
+			TimelinePlayerActionType.CastSkill => new CastSkillClientCommand
+			{
+				ActorId = actorId,
+				SkillId = action.SkillId ?? string.Empty,
+				TargetType = action.TargetType,
+				TargetActorId = action.TargetActorId,
+				TargetLimbId = action.TargetLimbId,
+				TargetItemId = action.TargetItemId,
+				TargetX = action.TargetX,
+				TargetY = action.TargetY,
+				TargetZ = action.TargetZ,
+			},
+			TimelinePlayerActionType.EatInventory => new EatInventoryClientCommand
+			{
+				ActorId = actorId,
+				InventoryIndex = action.InventoryIndex,
+			},
+			TimelinePlayerActionType.Rest => new RestClientCommand
+			{
+				ActorId = actorId,
+			},
+			TimelinePlayerActionType.FacilityDeliver => new FacilityDeliverClientCommand
+			{
+				ActorId = actorId,
+				FacilityId = action.FacilityId ?? string.Empty,
+			},
+			TimelinePlayerActionType.FacilityConstruct => new FacilityConstructClientCommand
+			{
+				ActorId = actorId,
+				FacilityId = action.FacilityId ?? string.Empty,
+			},
+			_ => null!,
+		};
+
+		return command != null;
 	}
 
 	private void AdvanceTimelineAutoStep()
@@ -639,6 +771,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 			_session = new GameSessionModule(_state, _fogTracker);
 			_sessionBackend = new LocalSessionBackend(_session, _state, Dispatch);
+			_localServerLauncher = new LocalProcessServerLauncher(ProjectSettings.GlobalizePath("res://"));
 			_menu = new MenuModule(this);
 
 			_mapPanelNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/MapPanel");
@@ -725,6 +858,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var loadRecoveryDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/LoadRecoveryDialog");
 			loadRecoveryDialogNode.Theme = uiTheme;
 			_loadRecoveryDialog = new LoadRecoveryDialogModule(loadRecoveryDialogNode);
+			var multiplayerHubNode = GetNode<PanelContainer>($"{OverlayRootPath}/MultiplayerHub");
+			multiplayerHubNode.Theme = uiTheme;
+			_multiplayerHub = new MultiplayerHubModule(multiplayerHubNode);
 
 			var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
 			skillBarNode.Theme = uiTheme;
@@ -877,7 +1013,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_multiplayerFlowCoordinator = new MultiplayerFlowCoordinator(
 				AppSettingsStore.LoadMultiplayerSettings,
 				AppSettingsStore.SaveMultiplayerSettings,
-				ShowMainMenuWithCurrentContinue);
+				ShowMainMenuWithCurrentContinue,
+				_localServerLauncher,
+				baseUrl => new LobbyHttpClient(baseUrl),
+				() => new MultiplayerSessionBackend());
 			_mainInputCoordinator = new MainInputCoordinator(
 				_modalInputLayers,
 				() => GetViewport().SetInputAsHandled(),
@@ -951,7 +1090,16 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				}
 				_mainAppFlowCoordinator.HandleQuickLoadRequested();
 			};
-			_settingsFlow.ReturnToMenuRequested += _mainAppFlowCoordinator.HandleBackToMenu;
+			_settingsFlow.ReturnToMenuRequested += () =>
+			{
+				if (IsMultiplayerSession)
+				{
+					HandleMultiplayerReturnToMenu();
+					return;
+				}
+
+				_mainAppFlowCoordinator.HandleBackToMenu();
+			};
 			_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
 			_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
 			_layoutEditBar.CancelRequested += CancelLayoutEditMode;
@@ -1010,8 +1158,17 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_menu.OnAutoTest += HandleAutoTest;
 			_menu.OnQuit += () => GetTree().Quit();
 			_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;
+			_multiplayerHub.BackRequested += HandleMultiplayerHubBackRequested;
+			_multiplayerHub.SaveSettingsRequested += HandleMultiplayerHubSaveSettingsRequested;
+			_multiplayerHub.RefreshRoomsRequested += HandleMultiplayerHubRefreshRequested;
+			_multiplayerHub.JoinRoomRequested += HandleMultiplayerHubJoinRoomRequested;
+			_multiplayerHub.JoinByCodeRequested += HandleMultiplayerHubJoinByCodeRequested;
+			_multiplayerHub.CreateRoomRequested += HandleMultiplayerHubCreateRequested;
+			_multiplayerHub.ReconnectRequested += HandleMultiplayerHubReconnectRequested;
 
 			LocalizationService.LocalizeTree(this);
+			_multiplayerHub.RefreshTexts();
+			_multiplayerHubTemplates = BuildMultiplayerHubTemplates();
 			_settingsFlow.RefreshTexts();
 			SyncSettingsUiState();
 			ShowMainMenuWithCurrentContinue();
@@ -1024,12 +1181,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 	}
 
+	public override void _ExitTree()
+	{
+		CloseMultiplayerBackendAsync(suppressDisconnectHandling: true).GetAwaiter().GetResult();
+		_localServerLauncher?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+	}
+
 	/// <summary>每帧更新：驱动异步资源加载 + 脏面板统一刷新 + 看海模式自动推进。</summary>
 	public override void _Process(double delta)
 	{
 		if (ShouldSkipRuntimeCallbacks())
 			return;
 
+		_multiplayerSessionBackend?.Poll();
 		var snapshot = CaptureRuntimeUiMode();
 		ResAccess.PollAsyncLoads();
 		PollHeavyStartupLoad();
@@ -1513,6 +1677,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void ShowMainMenuWithCurrentContinue()
 	{
 		var continueTarget = _session.ResolveContinueTarget();
+		_multiplayerHub?.Close();
 		_menu.ShowMainMenu(
 			continueTarget.Kind != ContinueTargetKind.None,
 			ResourcesReady,
@@ -1904,16 +2069,259 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_mainAppFlowCoordinator.HandleMenuMapEditor();
 	}
 
-	private void HandleMenuMultiplayer()
+	private async void HandleMenuMultiplayer()
+	{
+		await OpenMultiplayerHubAsync(refreshRooms: true);
+	}
+
+	private IReadOnlyList<MultiplayerHubTemplateOption> BuildMultiplayerHubTemplates() =>
+		_session.ListScenarioEntries()
+			.Select(static slot => new MultiplayerHubTemplateOption
+			{
+				Id = slot.Id,
+				DisplayName = slot.DisplayName,
+				Summary = slot.Summary,
+			})
+			.ToArray();
+
+	private MultiplayerHubViewState BuildMultiplayerHubState(
+		bool busy = false,
+		string? statusMessage = null,
+		bool statusIsError = false) =>
+		_multiplayerFlowCoordinator.BuildHubViewState(
+			_multiplayerHubTemplates,
+			_multiplayerHubRooms,
+			busy,
+			statusMessage,
+			statusIsError);
+
+	private async Task OpenMultiplayerHubAsync(
+		bool refreshRooms,
+		string? statusMessage = null,
+		bool statusIsError = false)
 	{
 		_multiplayerFlowCoordinator.OpenHub();
+		_menu.ShowMultiplayerHub();
+		_multiplayerHub.Open(BuildMultiplayerHubState(
+			busy: refreshRooms,
+			statusMessage: statusMessage,
+			statusIsError: statusIsError));
+		if (!refreshRooms)
+			return;
+
+		try
+		{
+			_multiplayerHubRooms = await _multiplayerFlowCoordinator.RefreshRoomsAsync(
+				_multiplayerFlowCoordinator.CurrentSettings);
+			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+				statusMessage: statusMessage,
+				statusIsError: statusIsError));
+		}
+		catch (Exception ex)
+		{
+			_multiplayerHubRooms = Array.Empty<LobbyRoomSummary>();
+			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+				statusMessage: ex.Message,
+				statusIsError: true));
+		}
+	}
+
+	private void HandleMultiplayerHubBackRequested() =>
+		_multiplayerFlowCoordinator.BackToMainMenu();
+
+	private void HandleMultiplayerHubSaveSettingsRequested(MultiplayerSettings settings)
+	{
+		_multiplayerFlowCoordinator.SaveSettings(settings);
+		_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+			statusMessage: LocalizationService.TOrFallback(
+				"ui.multiplayer.status.settings_saved",
+				"Multiplayer settings saved."),
+			statusIsError: false));
+	}
+
+	private async void HandleMultiplayerHubRefreshRequested(MultiplayerSettings settings)
+	{
+		_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+			busy: true,
+			statusMessage: LocalizationService.TOrFallback(
+				"ui.multiplayer.status.refreshing_rooms",
+				"Refreshing room list..."),
+			statusIsError: false));
+		try
+		{
+			_multiplayerHubRooms = await _multiplayerFlowCoordinator.RefreshRoomsAsync(settings);
+			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+				statusMessage: LocalizationService.TOrFallback(
+					"ui.multiplayer.status.rooms_ready",
+					"Room list updated."),
+				statusIsError: false));
+		}
+		catch (Exception ex)
+		{
+			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+				statusMessage: ex.Message,
+				statusIsError: true));
+		}
+	}
+
+	private async void HandleMultiplayerHubJoinRoomRequested(MultiplayerHubJoinRequest request) =>
+		await ExecuteMultiplayerHubConnectAsync(
+			() => _multiplayerFlowCoordinator.JoinRoomAsync(request),
+			LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+
+	private async void HandleMultiplayerHubJoinByCodeRequested(MultiplayerHubJoinCodeRequest request) =>
+		await ExecuteMultiplayerHubConnectAsync(
+			() => _multiplayerFlowCoordinator.JoinByCodeAsync(request),
+			LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+
+	private async void HandleMultiplayerHubCreateRequested(MultiplayerHubCreateRequest request) =>
+		await ExecuteMultiplayerHubConnectAsync(
+			() => _multiplayerFlowCoordinator.CreateTemplateRoomAsync(request),
+			LocalizationService.TOrFallback("ui.multiplayer.status.creating_room", "Creating room..."));
+
+	private async void HandleMultiplayerHubReconnectRequested(MultiplayerSettings _) =>
+		await ExecuteMultiplayerHubConnectAsync(
+			() => _multiplayerFlowCoordinator.ReconnectAsync(),
+			LocalizationService.TOrFallback("ui.multiplayer.status.reconnecting", "Reconnecting to last room..."));
+
+	private async Task ExecuteMultiplayerHubConnectAsync(
+		Func<Task<MultiplayerConnectResult>> connectAsync,
+		string statusMessage)
+	{
+		_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+			busy: true,
+			statusMessage: statusMessage,
+			statusIsError: false));
+
+		var result = await connectAsync();
+		if (!result.Success)
+		{
+			await OpenMultiplayerHubAsync(
+				refreshRooms: true,
+				statusMessage: result.FailureReason,
+				statusIsError: true);
+			return;
+		}
+
+		await ActivateMultiplayerSessionAsync(result);
+	}
+
+	private async Task ActivateMultiplayerSessionAsync(MultiplayerConnectResult result)
+	{
+		if (result.Backend == null || result.JoinTicket == null || result.InitialSnapshot == null)
+			return;
+
+		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		_multiplayerSessionBackend = result.Backend;
+		_multiplayerSessionBackend.SnapshotReceived += HandleMultiplayerSnapshotReceived;
+		_multiplayerSessionBackend.DeltaReceived += HandleMultiplayerDeltaReceived;
+		_multiplayerSessionBackend.Disconnected += HandleMultiplayerDisconnected;
+		_multiplayerSessionBackend.CommandRejected += HandleMultiplayerCommandRejected;
+
+		_mainAppFlowCoordinator.PrepareSessionTransition(clearLogs: true);
+		var status = _session.ApplyMultiplayerRoomSnapshot(
+			result.JoinTicket,
+			result.InitialSnapshot.Snapshot);
+		if (status != SaveLoadStatus.Success)
+		{
+			await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+			await OpenMultiplayerHubAsync(
+				refreshRooms: false,
+				statusMessage: LocalizationService.TOrFallback(
+					"ui.multiplayer.status.load_failed",
+					"Failed to apply the multiplayer room snapshot."),
+				statusIsError: true);
+			return;
+		}
+
+		_multiplayerFlowCoordinator.EnterMultiplayerGame();
+		FinalizeSessionPanels(openSkillBar: true);
 		_log.Clear();
-		_log.Add(LocalizationService.TOrFallback("ui.multiplayer.hub.title", "Multiplayer"));
-		if (_multiplayerFlowCoordinator.HasReconnectTicket())
-			_log.Add(LocalizationService.TOrFallback("ui.multiplayer.hub.resume_available", "Reconnect is available for your last room."));
-		else
-			_log.Add(LocalizationService.TOrFallback("ui.multiplayer.hub.resume_unavailable", "No recoverable multiplayer session was found."));
-		_log.Add(LocalizationService.TOrFallback("ui.multiplayer.hub.hint", "Use room list or room code to join, or create a new room."));
+		_log.Add(LocalizationService.TOrFallback(
+			"ui.multiplayer.status.connected",
+			"Connected to room {room}.",
+			("room", string.IsNullOrWhiteSpace(result.JoinTicket.RoomDisplayName)
+				? result.JoinTicket.RoomCode
+				: result.JoinTicket.RoomDisplayName)));
+		MarkUIDirty();
+		ProcessDirtyPanels();
+		DoEnterGame();
+	}
+
+	private void HandleMultiplayerSnapshotReceived(GameSessionSnapshotEnvelope envelope)
+	{
+		if (_multiplayerSessionBackend == null || envelope.Room == null)
+			return;
+
+		var playerSessionId = envelope.PlayerSessionId ?? _multiplayerSessionBackend.PlayerSessionId;
+		if (string.IsNullOrWhiteSpace(playerSessionId))
+			return;
+
+		_session.ApplyMultiplayerRoomSnapshot(
+			envelope.Room,
+			playerSessionId,
+			_multiplayerFlowCoordinator.CurrentSettings.DisplayName,
+			primaryActorId: null,
+			envelope.Snapshot);
+		RefreshVisiblePanels();
+		MarkUIDirty();
+		FlushMap();
+	}
+
+	private void HandleMultiplayerDeltaReceived(GameSessionDeltaEnvelope envelope)
+	{
+		if (envelope.Events.Count == 0)
+			return;
+
+		Dispatch([.. envelope.Events]);
+		MarkUIDirty();
+	}
+
+	private void HandleMultiplayerCommandRejected(string reason)
+	{
+		if (!string.IsNullOrWhiteSpace(reason))
+			_log.Add(reason);
+	}
+
+	private async void HandleMultiplayerDisconnected(string reason)
+	{
+		if (_suppressMultiplayerDisconnectHandling)
+			return;
+
+		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		_multiplayerFlowCoordinator.MarkDisconnectedRecoverable(reason);
+		_menu.ShowMultiplayerHub();
+		_multiplayerHub.Open(BuildMultiplayerHubState(
+			statusMessage: reason,
+			statusIsError: true));
+	}
+
+	private async void HandleMultiplayerReturnToMenu()
+	{
+		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		_multiplayerFlowCoordinator.BackToMainMenu();
+	}
+
+	private async Task CloseMultiplayerBackendAsync(bool suppressDisconnectHandling)
+	{
+		if (_multiplayerSessionBackend == null)
+			return;
+
+		var backend = _multiplayerSessionBackend;
+		_multiplayerSessionBackend = null;
+		_suppressMultiplayerDisconnectHandling = suppressDisconnectHandling;
+		backend.SnapshotReceived -= HandleMultiplayerSnapshotReceived;
+		backend.DeltaReceived -= HandleMultiplayerDeltaReceived;
+		backend.Disconnected -= HandleMultiplayerDisconnected;
+		backend.CommandRejected -= HandleMultiplayerCommandRejected;
+		try
+		{
+			await backend.DisposeAsync();
+		}
+		finally
+		{
+			_suppressMultiplayerDisconnectHandling = false;
+		}
 	}
 
 	private void HandleAutoTest()
@@ -1966,6 +2374,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (!ResourcesReady)
 			return;
 
+		_multiplayerHub.Close();
 		_menu.EnterGame();
 		_inputModule.EnterActionMode();
 		_weatherLabPanelController.RefreshSessionState(autoOpen: true);
@@ -2015,6 +2424,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void RefreshLocalizedUi(bool clearLogs)
 	{
 		LocalizationService.LocalizeTree(this);
+		_multiplayerHub.RefreshTexts();
+		_multiplayerHubTemplates = BuildMultiplayerHubTemplates();
 		_settingsFlow.RefreshTexts();
 		_weatherLabPanelController.RefreshTexts();
 		SyncSettingsUiState();
@@ -3383,11 +3794,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	/// <summary>标记所有常驻面板脏标记，下帧统一刷新。</summary>
 	private void PickupGroundItem(Actor player, Item itemInfo)
 	{
-		var result = ServerActionGateway.Execute(_state, new PickupClientCommand
+		var command = new PickupClientCommand
 		{
 			ActorId = player.Id,
 			ItemInstanceId = itemInfo.InstanceId,
-		});
+		};
+		if (TrySubmitClientCommand(command))
+		{
+			_groundPanel.Invalidate();
+			_groundPanel.Refresh();
+			return;
+		}
+
+		var result = ServerActionGateway.Execute(_state, command);
 		ApplyServerActionResult(result);
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
@@ -3492,6 +3911,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void PersistOpenChestState(Item chestItem)
 	{
+		if (IsMultiplayerSession)
+			return;
 		if (_state.World == null || _openChestContext == null || _openChestContext.Value.Source != ContainerSourceKind.Ground)
 			return;
 
@@ -3539,9 +3960,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		}
 
 		var context = _openChestContext.Value;
-		return command switch
+		var resolvedCommand = command switch
 		{
-			ChestTakeClientCommand take => ServerActionGateway.Execute(_state, take with
+			ChestTakeClientCommand take => take with
 			{
 				ContainerSource = context.Source,
 				ContainerInstanceId = context.ContainerInstanceId,
@@ -3549,8 +3970,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				ContainerX = context.X,
 				ContainerY = context.Y,
 				ContainerZ = context.Z,
-			}),
-			ChestTakeAllClientCommand takeAll => ServerActionGateway.Execute(_state, takeAll with
+			},
+			ChestTakeAllClientCommand takeAll => takeAll with
 			{
 				ContainerSource = context.Source,
 				ContainerInstanceId = context.ContainerInstanceId,
@@ -3558,8 +3979,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				ContainerX = context.X,
 				ContainerY = context.Y,
 				ContainerZ = context.Z,
-			}),
-			ChestPutClientCommand put => ServerActionGateway.Execute(_state, put with
+			},
+			ChestPutClientCommand put => put with
 			{
 				ContainerSource = context.Source,
 				ContainerInstanceId = context.ContainerInstanceId,
@@ -3567,9 +3988,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				ContainerX = context.X,
 				ContainerY = context.Y,
 				ContainerZ = context.Z,
-			}),
-			_ => ServerActionGateway.Execute(_state, command),
+			},
+			_ => command,
 		};
+		if (TrySubmitClientCommand(resolvedCommand))
+			return ServerActionResult.Accept();
+
+		return ServerActionGateway.Execute(_state, resolvedCommand);
 	}
 
 	private void ApplyServerActionResult(ServerActionResult result)
@@ -3598,6 +4023,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var d = def;
 			options.Add((d.Name, () =>
 			{
+				var command = new InteractClientCommand
+				{
+					ActorId = player.Id,
+					TargetActorId = target.Id,
+					InteractionDefId = d.Id,
+				};
+				if (TrySubmitClientCommand(command))
+				{
+					FlushMap();
+					return;
+				}
+
 				var events = InteractionModule.Execute(_state, player, target, d);
 				Dispatch(events);
 				FlushMap();

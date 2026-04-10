@@ -14,6 +14,8 @@ public sealed class LocalServerLaunchOptions
 {
 	public string? ExecutablePath { get; init; }
 	public string LobbyBaseUrl { get; init; } = "http://127.0.0.1:5076/";
+	public string GameAddress { get; init; } = "127.0.0.1";
+	public int GamePort { get; init; } = 2455;
 	public TimeSpan HealthCheckTimeout { get; init; } = TimeSpan.FromSeconds(12);
 	public TimeSpan HealthCheckInterval { get; init; } = TimeSpan.FromMilliseconds(350);
 }

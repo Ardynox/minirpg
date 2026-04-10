@@ -7,7 +7,13 @@ namespace MiniRPG.Core.Multiplayer;
 public enum ClientCommandKind
 {
 	Move,
+	Dig,
+	Attack,
 	CastSkill,
+	EatInventory,
+	Rest,
+	FacilityDeliver,
+	FacilityConstruct,
 	Interact,
 	Pickup,
 	InventoryToggleEquip,
@@ -66,15 +72,49 @@ public sealed record MoveClientCommand() : ClientCommand(ClientCommandKind.Move)
 	public int Dy { get; init; }
 }
 
+public sealed record DigClientCommand() : ClientCommand(ClientCommandKind.Dig)
+{
+	public int Dx { get; init; }
+	public int Dy { get; init; }
+	public string SkillId { get; init; } = string.Empty;
+}
+
+public sealed record AttackClientCommand() : ClientCommand(ClientCommandKind.Attack)
+{
+	public string? SkillId { get; init; }
+	public string TargetActorId { get; init; } = string.Empty;
+	public string? TargetLimbId { get; init; }
+}
+
 public sealed record CastSkillClientCommand() : ClientCommand(ClientCommandKind.CastSkill)
 {
 	public string SkillId { get; init; } = string.Empty;
 	public SkillTargetType TargetType { get; init; }
 	public string? TargetActorId { get; init; }
 	public string? TargetLimbId { get; init; }
+	public string? TargetItemId { get; init; }
 	public int TargetX { get; init; }
 	public int TargetY { get; init; }
 	public int TargetZ { get; init; }
+}
+
+public sealed record EatInventoryClientCommand() : ClientCommand(ClientCommandKind.EatInventory)
+{
+	public int InventoryIndex { get; init; }
+}
+
+public sealed record RestClientCommand() : ClientCommand(ClientCommandKind.Rest)
+{
+}
+
+public sealed record FacilityDeliverClientCommand() : ClientCommand(ClientCommandKind.FacilityDeliver)
+{
+	public string FacilityId { get; init; } = string.Empty;
+}
+
+public sealed record FacilityConstructClientCommand() : ClientCommand(ClientCommandKind.FacilityConstruct)
+{
+	public string FacilityId { get; init; } = string.Empty;
 }
 
 public sealed record InteractClientCommand() : ClientCommand(ClientCommandKind.Interact)

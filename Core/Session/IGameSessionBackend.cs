@@ -15,6 +15,7 @@ public interface IGameSessionBackend : IAsyncDisposable
 
 	ValueTask<GameSessionStartResult> StartAsync(GameSessionStartRequest request, CancellationToken cancellationToken = default);
 	ValueTask<GameSessionCommandSubmitResult> SubmitCommandAsync(ClientCommand command, CancellationToken cancellationToken = default);
+	void Poll();
 }
 
 public enum GameSessionStartKind
@@ -70,6 +71,9 @@ public sealed class GameSessionCommandSubmitResult
 public sealed class GameSessionSnapshotEnvelope
 {
 	public SaveFile Snapshot { get; init; } = null!;
+	public RoomRuntimeState? Room { get; init; }
+	public string? PlayerSessionId { get; init; }
+	public string? RequestId { get; init; }
 }
 
 public sealed class GameSessionDeltaEnvelope

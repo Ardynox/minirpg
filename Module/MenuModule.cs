@@ -6,7 +6,7 @@ namespace MiniRPG.Module;
 
 public class MenuModule
 {
-	public enum Screen { MainMenu, Settings, InGame }
+	public enum Screen { MainMenu, Settings, MultiplayerHub, InGame }
 
 	private readonly PanelContainer _mainMenu;
 	private readonly VBoxContainer _gameUI;
@@ -82,6 +82,13 @@ public class MenuModule
 	public void ShowSettingsFromMenu()
 	{
 		CurrentScreen = Screen.Settings;
+		_mainMenu.Visible = false;
+		_gameUI.Visible = false;
+	}
+
+	public void ShowMultiplayerHub()
+	{
+		CurrentScreen = Screen.MultiplayerHub;
 		_mainMenu.Visible = false;
 		_gameUI.Visible = false;
 	}

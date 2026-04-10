@@ -34,6 +34,7 @@ public sealed class MultiplayerSettings
 
 public sealed class MultiplayerReconnectTicket
 {
+	public string LobbyBaseUrl { get; init; } = string.Empty;
 	public string RoomId { get; init; } = string.Empty;
 	public string RoomCode { get; init; } = string.Empty;
 	public string RoomDisplayName { get; init; } = string.Empty;
@@ -49,6 +50,7 @@ public sealed class MultiplayerReconnectTicket
 
 	public MultiplayerReconnectTicket Clone() => new()
 	{
+		LobbyBaseUrl = LobbyBaseUrl,
 		RoomId = RoomId,
 		RoomCode = RoomCode,
 		RoomDisplayName = RoomDisplayName,

@@ -58,6 +58,7 @@ public sealed class LobbyJoinTicket
 	public string RoomDisplayName { get; init; } = string.Empty;
 	public string ServerEndpoint { get; init; } = string.Empty;
 	public string PlayerSessionId { get; init; } = string.Empty;
+	public string PrimaryActorId { get; init; } = string.Empty;
 	public string DisplayName { get; init; } = string.Empty;
 	public string JoinToken { get; init; } = string.Empty;
 	public string ReconnectToken { get; init; } = string.Empty;
@@ -91,6 +92,11 @@ public sealed class InMemoryLobbyService : ILobbyService
 			var roomId = Guid.NewGuid().ToString("N");
 			var roomCode = CreateUniqueRoomCode(request.RequestedRoomCode);
 			var playerSessionId = Guid.NewGuid().ToString("N");
+			var assignableActorIds = RoomActorCatalog.EnumerateAssignableActorIds(request.InitialSnapshot);
+			var resolvedOwnerActorId = ResolveRequestedPrimaryActorId(
+				request.PrimaryActorId,
+				assignableActorIds,
+				allowUnassigned: true);
 			var room = new RoomRuntimeState
 			{
 				RoomId = roomId,
@@ -101,7 +107,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 			{
 				PlayerSessionId = playerSessionId,
 				DisplayName = string.IsNullOrWhiteSpace(request.OwnerDisplayName) ? "Host" : request.OwnerDisplayName,
-				PrimaryActorId = request.PrimaryActorId ?? string.Empty,
+				PrimaryActorId = resolvedOwnerActorId,
 				Connected = true,
 				IsRoomOwner = true,
 				JoinToken = Guid.NewGuid().ToString("N"),
@@ -119,6 +125,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 				ServerEndpoint = string.IsNullOrWhiteSpace(request.ServerEndpoint) ? "enet://127.0.0.1:2455" : request.ServerEndpoint,
 				IsPublic = request.IsPublic,
 				TemplateId = request.TemplateId,
+				AssignableActorIds = assignableActorIds,
 				CreatedAtUtc = DateTimeOffset.UtcNow,
 				Room = room,
 			};
@@ -174,12 +181,13 @@ public sealed class InMemoryLobbyService : ILobbyService
 		lock (_gate)
 		{
 			var entry = GetRoomEntry(request.RoomId);
+			var primaryActorId = ResolveJoinPrimaryActorId(entry, request.PrimaryActorId);
 			var playerSessionId = Guid.NewGuid().ToString("N");
 			var player = new RoomPlayerState
 			{
 				PlayerSessionId = playerSessionId,
 				DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? $"Player {entry.Room.Players.Count + 1}" : request.DisplayName,
-				PrimaryActorId = request.PrimaryActorId ?? string.Empty,
+				PrimaryActorId = primaryActorId,
 				Connected = true,
 				IsRoomOwner = false,
 				JoinToken = Guid.NewGuid().ToString("N"),
@@ -288,6 +296,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 		RoomDisplayName = entry.RoomDisplayName,
 		ServerEndpoint = entry.ServerEndpoint,
 		PlayerSessionId = player.PlayerSessionId,
+		PrimaryActorId = player.PrimaryActorId,
 		DisplayName = player.DisplayName,
 		JoinToken = player.JoinToken,
 		ReconnectToken = player.ReconnectToken,
@@ -295,12 +304,62 @@ public sealed class InMemoryLobbyService : ILobbyService
 		Room = entry.Room.Clone(),
 	};
 
+	private static string ResolveRequestedPrimaryActorId(
+		string? requestedPrimaryActorId,
+		IReadOnlyList<string> assignableActorIds,
+		bool allowUnassigned)
+	{
+		var normalized = requestedPrimaryActorId?.Trim() ?? string.Empty;
+		if (!string.IsNullOrWhiteSpace(normalized))
+		{
+			if (assignableActorIds.Count == 0 || assignableActorIds.Contains(normalized, StringComparer.Ordinal))
+				return normalized;
+
+			throw new InvalidOperationException($"Actor '{normalized}' is not assignable for this room.");
+		}
+
+		if (assignableActorIds.Count > 0)
+			return assignableActorIds[0];
+
+		if (allowUnassigned)
+			return string.Empty;
+
+		throw new InvalidOperationException("No assignable actor is available for this room.");
+	}
+
+	private static string ResolveJoinPrimaryActorId(LobbyRoomEntry entry, string? requestedPrimaryActorId)
+	{
+		var normalized = requestedPrimaryActorId?.Trim() ?? string.Empty;
+		var assignedActorIds = entry.Room.Players.Values
+			.Where(static player => !string.IsNullOrWhiteSpace(player.PrimaryActorId))
+			.Select(static player => player.PrimaryActorId)
+			.ToHashSet(StringComparer.Ordinal);
+
+		if (!string.IsNullOrWhiteSpace(normalized))
+		{
+			if (!entry.AssignableActorIds.Contains(normalized, StringComparer.Ordinal))
+				throw new InvalidOperationException($"Actor '{normalized}' is not assignable for this room.");
+			if (assignedActorIds.Contains(normalized))
+				throw new InvalidOperationException($"Actor '{normalized}' is already assigned to another player.");
+			return normalized;
+		}
+
+		foreach (var actorId in entry.AssignableActorIds)
+		{
+			if (!assignedActorIds.Contains(actorId))
+				return actorId;
+		}
+
+		throw new InvalidOperationException("No free primary actor is available for this room.");
+	}
+
 	private sealed class LobbyRoomEntry
 	{
 		public string RoomDisplayName { get; init; } = string.Empty;
 		public string ServerEndpoint { get; init; } = string.Empty;
 		public bool IsPublic { get; init; }
 		public string? TemplateId { get; init; }
+		public IReadOnlyList<string> AssignableActorIds { get; init; } = Array.Empty<string>();
 		public DateTimeOffset CreatedAtUtc { get; init; }
 		public RoomRuntimeState Room { get; set; } = new();
 	}
