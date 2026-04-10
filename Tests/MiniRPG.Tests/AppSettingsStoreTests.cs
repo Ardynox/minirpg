@@ -1,3 +1,4 @@
+using System;
 using MiniRPG.Core.Config;
 using Xunit;
 
@@ -45,6 +46,64 @@ public sealed class AppSettingsStoreTests
 		{
 			AppSettingsStore.SaveMapZoomMin(originalMin);
 			AppSettingsStore.SaveMapZoomMax(originalMax);
+		}
+	}
+
+	[Fact]
+	public void MultiplayerSettings_CanRoundTripIncludingReconnectTicket()
+	{
+		var original = AppSettingsStore.LoadMultiplayerSettings();
+		var deadline = new DateTimeOffset(2026, 4, 10, 18, 30, 0, TimeSpan.Zero);
+		try
+		{
+			AppSettingsStore.SaveMultiplayerSettings(new MultiplayerSettings
+			{
+				DisplayName = "Guest",
+				LobbyBaseUrl = "http://lobby.example",
+				PreferredHostMode = MultiplayerHostMode.Remote,
+				LocalServerExecutablePath = @"D:\Servers\MiniRPG.Server.exe",
+				LocalLobbyPrefix = "http://127.0.0.1:6001",
+				LocalGameAddress = "192.168.0.25",
+				LocalGamePort = 3555,
+				LastReconnectTicket = new MultiplayerReconnectTicket
+				{
+					LobbyBaseUrl = "http://lobby.example",
+					RoomId = "room-alpha",
+					RoomCode = "AB12CD",
+					RoomDisplayName = "Alpha",
+					ServerEndpoint = "enet://game.example:3555",
+					PlayerSessionId = "player-guest",
+					PrimaryActorId = "scout",
+					ReconnectToken = "token-guest",
+					DisplayName = "Guest",
+					ReconnectDeadlineUtc = deadline,
+				},
+			});
+
+			var loaded = AppSettingsStore.LoadMultiplayerSettings();
+
+			Assert.Equal("Guest", loaded.DisplayName);
+			Assert.Equal("http://lobby.example/", loaded.LobbyBaseUrl);
+			Assert.Equal(MultiplayerHostMode.Remote, loaded.PreferredHostMode);
+			Assert.Equal(@"D:\Servers\MiniRPG.Server.exe", loaded.LocalServerExecutablePath);
+			Assert.Equal("http://127.0.0.1:6001/", loaded.LocalLobbyPrefix);
+			Assert.Equal("192.168.0.25", loaded.LocalGameAddress);
+			Assert.Equal(3555, loaded.LocalGamePort);
+			Assert.NotNull(loaded.LastReconnectTicket);
+			Assert.Equal("http://lobby.example/", loaded.LastReconnectTicket!.LobbyBaseUrl);
+			Assert.Equal("room-alpha", loaded.LastReconnectTicket.RoomId);
+			Assert.Equal("AB12CD", loaded.LastReconnectTicket.RoomCode);
+			Assert.Equal("Alpha", loaded.LastReconnectTicket.RoomDisplayName);
+			Assert.Equal("enet://game.example:3555", loaded.LastReconnectTicket.ServerEndpoint);
+			Assert.Equal("player-guest", loaded.LastReconnectTicket.PlayerSessionId);
+			Assert.Equal("scout", loaded.LastReconnectTicket.PrimaryActorId);
+			Assert.Equal("token-guest", loaded.LastReconnectTicket.ReconnectToken);
+			Assert.Equal("Guest", loaded.LastReconnectTicket.DisplayName);
+			Assert.Equal(deadline, loaded.LastReconnectTicket.ReconnectDeadlineUtc);
+		}
+		finally
+		{
+			AppSettingsStore.SaveMultiplayerSettings(original);
 		}
 	}
 }

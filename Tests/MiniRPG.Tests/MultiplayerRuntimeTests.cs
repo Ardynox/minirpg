@@ -178,6 +178,35 @@ public sealed class MultiplayerRuntimeTests
 	}
 
 	[Fact]
+	public void LobbyCreateRoom_FromSnapshot_AutoAssignsPrimaryActors()
+	{
+		var state = CreateState();
+		var lobby = new InMemoryLobbyService();
+
+		var ownerTicket = lobby.CreateRoom(new LobbyCreateRoomRequest
+		{
+			RoomDisplayName = "Alpha",
+			OwnerDisplayName = "Owner",
+			ServerEndpoint = "enet://127.0.0.1:2455",
+			PrimaryActorId = string.Empty,
+			InitialSnapshot = SaveModule.BuildSnapshot(state),
+		});
+		var guestTicket = lobby.JoinRoom(new LobbyJoinRoomRequest
+		{
+			RoomId = ownerTicket.RoomId,
+			DisplayName = "Guest",
+			PrimaryActorId = string.Empty,
+		});
+
+		Assert.Equal("hero", ownerTicket.PrimaryActorId);
+		Assert.Equal("scout", guestTicket.PrimaryActorId);
+
+		var roomState = lobby.GetRoomState(ownerTicket.RoomId);
+		Assert.Equal("hero", roomState.Players[ownerTicket.PlayerSessionId].PrimaryActorId);
+		Assert.Equal("scout", roomState.Players[guestTicket.PlayerSessionId].PrimaryActorId);
+	}
+
+	[Fact]
 	public void DedicatedHost_BusyReservation_ReturnsActualOwnerPlayerSessionId()
 	{
 		var lobby = new InMemoryLobbyService();

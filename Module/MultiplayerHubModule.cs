@@ -280,7 +280,8 @@ public sealed class MultiplayerHubModule
 		_localGamePortInput.Editable = !busy;
 		_saveSettingsButton.Disabled = busy;
 		_refreshRoomsButton.Disabled = busy;
-		_roomList.Disabled = busy;
+		_roomList.MouseFilter = busy ? Control.MouseFilterEnum.Ignore : Control.MouseFilterEnum.Stop;
+		_roomList.FocusMode = busy ? Control.FocusModeEnum.None : Control.FocusModeEnum.All;
 		_roomCodeInput.Editable = !busy;
 		_joinByCodeButton.Disabled = busy;
 		_roomDisplayNameInput.Editable = !busy;

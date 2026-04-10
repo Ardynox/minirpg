@@ -291,7 +291,7 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 		};
 
 		var next = _settings.Clone();
-		next = next withReconnect(ticket);
+		next = next.WithReconnect(ticket);
 		SaveSettings(next);
 	}
 
@@ -301,7 +301,7 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 		if (current != null)
 		{
 			var next = _settings.Clone();
-			next = next withReconnect(new MultiplayerReconnectTicket
+			next = next.WithReconnect(new MultiplayerReconnectTicket
 			{
 				LobbyBaseUrl = current.LobbyBaseUrl,
 				RoomId = current.RoomId,
@@ -323,7 +323,7 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 	public void ClearReconnectTicket()
 	{
 		var next = _settings.Clone();
-		next = next withReconnect(null);
+		next = next.WithReconnect(null);
 		SaveSettings(next);
 	}
 
@@ -380,7 +380,7 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 			return settings;
 
 		var next = settings.Clone();
-		next = next withReconnect(null);
+		next = next.WithReconnect(null);
 		_saveSettings(next);
 		return next;
 	}
@@ -399,7 +399,7 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 
 file static class MultiplayerSettingsExtensions
 {
-	public static MultiplayerSettings withReconnect(this MultiplayerSettings settings, MultiplayerReconnectTicket? ticket) => new()
+	public static MultiplayerSettings WithReconnect(this MultiplayerSettings settings, MultiplayerReconnectTicket? ticket) => new()
 	{
 		DisplayName = settings.DisplayName,
 		LobbyBaseUrl = settings.LobbyBaseUrl,

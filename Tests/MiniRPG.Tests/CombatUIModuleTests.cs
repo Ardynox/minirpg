@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module;
 using Xunit;
 
@@ -43,6 +44,7 @@ public sealed class CombatUIModuleTests
 		public void FlushMap() { }
 		public void Dispatch(List<GameEvent> events) { }
 		public void SubmitPlayerAction(TimelinePlayerAction action) { }
+		public bool TrySubmitClientCommand(ClientCommand command) => false;
 		public bool TryHandleItemRightClick(Item item) => false;
 		public GameState State => state;
 		public bool PlayerDead { get; set; }

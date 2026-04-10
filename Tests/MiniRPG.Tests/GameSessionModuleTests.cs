@@ -5,6 +5,7 @@ using System.Text.Json;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module;
 using MiniRPG.Module.Render;
 using Xunit;
@@ -622,6 +623,94 @@ public sealed class GameSessionModuleTests
 
 			Assert.Equal(SaveLoadStatus.Success, session.LoadGame(legacyPath));
 			Assert.Equal("Legacy Save: legacy-slot", session.DescribeCurrentSessionLabel());
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void ApplyMultiplayerRoomSnapshot_RebindsPlayerAndDoesNotPersistContinueState()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-multiplayer-apply");
+		try
+		{
+			var sourceState = new GameState();
+			var sourceSession = new GameSessionModule(sourceState, new FogOfWarTracker(), root);
+			sourceSession.NewGame(CreateOptions("Owner"));
+			var snapshot = SaveModule.BuildSnapshot(sourceState);
+			AddPlayerRecoveryCandidate(
+				snapshot,
+				sourceState.PlayerId,
+				"scout",
+				"Scout",
+				sourceState.PlayerX + 4,
+				sourceState.PlayerY + 2,
+				sourceState.PlayerZ);
+
+			var preservedContinueState = new ContinueState
+			{
+				LastContinueKind = "legacy_save",
+				LastWorldId = "world-sentinel",
+				LastCharacterId = "character-sentinel",
+				LastLegacySavePath = "legacy-sentinel.json",
+			};
+			AppSettingsStore.SaveContinueState(preservedContinueState);
+
+			var room = new RoomRuntimeState
+			{
+				RoomId = "room-alpha",
+				RoomCode = "AB12CD",
+			};
+			room.Players["owner"] = new RoomPlayerState
+			{
+				PlayerSessionId = "owner",
+				DisplayName = "Owner",
+				PrimaryActorId = sourceState.PlayerId,
+				Connected = true,
+				IsRoomOwner = true,
+			};
+			room.Players["guest"] = new RoomPlayerState
+			{
+				PlayerSessionId = "guest",
+				DisplayName = "Guest",
+				PrimaryActorId = "scout",
+				Connected = true,
+				IsRoomOwner = false,
+			};
+			var roomState = new GameState { Room = room };
+			RoomRuntimeModule.AssignPrimaryActor(roomState, "owner", sourceState.PlayerId);
+			RoomRuntimeModule.AssignPrimaryActor(roomState, "guest", "scout");
+
+			var restoredState = new GameState();
+			var restoredSession = new GameSessionModule(restoredState, new FogOfWarTracker(), root);
+			var status = restoredSession.ApplyMultiplayerRoomSnapshot(
+				room,
+				playerSessionId: "guest",
+				displayName: "Guest",
+				primaryActorId: "scout",
+				snapshot);
+
+			Assert.Equal(SaveLoadStatus.Success, status);
+			Assert.True(restoredSession.GameStarted);
+			Assert.True(restoredSession.IsMultiplayerRoomSession);
+			Assert.Null(restoredSession.CurrentSavePath);
+			Assert.Null(restoredSession.CurrentWorldId);
+			Assert.Null(restoredSession.CurrentCharacterId);
+			Assert.Equal("scout", restoredState.PlayerId);
+			Assert.Equal(restoredState.Actors["scout"].X, restoredState.PlayerX);
+			Assert.Equal(restoredState.Actors["scout"].Y, restoredState.PlayerY);
+			Assert.Equal(restoredState.Actors["scout"].Z, restoredState.PlayerZ);
+			Assert.Equal("Guest", restoredState.Room.Players["guest"].DisplayName);
+
+			var continueState = AppSettingsStore.LoadContinueState();
+			Assert.Equal(preservedContinueState.LastContinueKind, continueState.LastContinueKind);
+			Assert.Equal(preservedContinueState.LastWorldId, continueState.LastWorldId);
+			Assert.Equal(preservedContinueState.LastCharacterId, continueState.LastCharacterId);
+			Assert.Equal(preservedContinueState.LastLegacySavePath, continueState.LastLegacySavePath);
 		}
 		finally
 		{

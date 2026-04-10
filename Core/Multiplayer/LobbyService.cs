@@ -337,7 +337,8 @@ public sealed class InMemoryLobbyService : ILobbyService
 
 		if (!string.IsNullOrWhiteSpace(normalized))
 		{
-			if (!entry.AssignableActorIds.Contains(normalized, StringComparer.Ordinal))
+			if (entry.AssignableActorIds.Count > 0
+				&& !entry.AssignableActorIds.Contains(normalized, StringComparer.Ordinal))
 				throw new InvalidOperationException($"Actor '{normalized}' is not assignable for this room.");
 			if (assignedActorIds.Contains(normalized))
 				throw new InvalidOperationException($"Actor '{normalized}' is already assigned to another player.");
@@ -349,6 +350,9 @@ public sealed class InMemoryLobbyService : ILobbyService
 			if (!assignedActorIds.Contains(actorId))
 				return actorId;
 		}
+
+		if (entry.AssignableActorIds.Count == 0)
+			return string.Empty;
 
 		throw new InvalidOperationException("No free primary actor is available for this room.");
 	}

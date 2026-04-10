@@ -49,7 +49,7 @@ internal sealed class MainInputCoordinator(
 			var handledByModal = modalLayer.HandleKeyInput(key!);
 			if (handledByModal)
 				_markInputHandled();
-			return handledByModal;
+			return true;
 		}
 
 		if (snapshot.LayoutEditActive)
@@ -118,7 +118,7 @@ internal sealed class MainInputCoordinator(
 
 			if (handled)
 				_markInputHandled();
-			return handled;
+			return true;
 		}
 
 		if (snapshot.LayoutEditActive)

@@ -28,6 +28,7 @@ public sealed class LobbyHttpClientTests
 				OwnerDisplayName = "Owner",
 				ServerEndpoint = "enet://127.0.0.1:2455",
 				PrimaryActorId = "hero",
+				IsPublic = true,
 			});
 			Assert.False(string.IsNullOrWhiteSpace(created.RoomId));
 			Assert.False(string.IsNullOrWhiteSpace(created.RoomCode));
@@ -37,6 +38,7 @@ public sealed class LobbyHttpClientTests
 
 			var resolved = await client.ResolveRoomCodeAsync(created.RoomCode);
 			Assert.Equal(created.RoomId, resolved.RoomId);
+			Assert.True(resolved.IsPublic);
 
 			var joined = await client.JoinRoomAsync(new LobbyJoinRoomRequest
 			{
@@ -47,6 +49,49 @@ public sealed class LobbyHttpClientTests
 			Assert.Equal(created.RoomId, joined.RoomId);
 			Assert.Equal(2, joined.Room.Players.Count);
 			Assert.Contains(joined.Room.Players.Values, player => string.Equals(player.DisplayName, "Guest", StringComparison.Ordinal));
+		}
+		finally
+		{
+			await service.StopAsync();
+		}
+	}
+
+	[Fact]
+	public async Task LobbyHttpClient_ListRooms_ExcludesPrivateRooms()
+	{
+		var prefix = $"http://127.0.0.1:{PickAvailablePort()}/";
+		var lobby = new InMemoryLobbyService();
+		using var service = new LobbyHttpService(lobby, prefix);
+		service.Start();
+
+		try
+		{
+			using var client = new LobbyHttpClient(prefix);
+			var publicRoom = await client.CreateRoomAsync(new LobbyCreateRoomRequest
+			{
+				RoomDisplayName = "Public",
+				OwnerDisplayName = "Owner",
+				ServerEndpoint = "enet://127.0.0.1:2455",
+				PrimaryActorId = "hero",
+				IsPublic = true,
+			});
+			var privateRoom = await client.CreateRoomAsync(new LobbyCreateRoomRequest
+			{
+				RoomDisplayName = "Private",
+				OwnerDisplayName = "Owner",
+				ServerEndpoint = "enet://127.0.0.1:2455",
+				PrimaryActorId = "hero",
+				IsPublic = false,
+			});
+
+			var rooms = await client.ListRoomsAsync();
+
+			Assert.Contains(rooms, room => room.RoomId == publicRoom.RoomId);
+			Assert.DoesNotContain(rooms, room => room.RoomId == privateRoom.RoomId);
+
+			var resolved = await client.ResolveRoomCodeAsync(privateRoom.RoomCode);
+			Assert.Equal(privateRoom.RoomId, resolved.RoomId);
+			Assert.False(resolved.IsPublic);
 		}
 		finally
 		{

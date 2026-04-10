@@ -10,7 +10,7 @@ using MiniRPG.Core.Multiplayer;
 
 namespace MiniRPG.Module.Network;
 
-public interface ILobbyClient
+public interface ILobbyClient : IDisposable
 {
 	Task<IReadOnlyList<LobbyRoomSummary>> ListRoomsAsync(CancellationToken cancellationToken = default);
 	Task<LobbyJoinTicket> CreateRoomAsync(LobbyCreateRoomRequest request, CancellationToken cancellationToken = default);
@@ -20,7 +20,7 @@ public interface ILobbyClient
 	Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class LobbyHttpClient : ILobbyClient, IDisposable
+public sealed class LobbyHttpClient : ILobbyClient
 {
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
