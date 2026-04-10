@@ -102,6 +102,8 @@ public static class ServerActionGateway
 			CloseModalClientCommand closeModal => ExecuteCloseModal(state, closeModal),
 			DelegateActorClientCommand delegateActor => ExecuteDelegateActor(state, delegateActor),
 			ReclaimPrimaryActorClientCommand reclaim => ExecuteReclaimPrimaryActor(state, reclaim),
+			AssignPrimaryActorClientCommand assign => ExecuteAssignPrimaryActor(state, assign),
+			KickPlayerClientCommand kick => ExecuteKickPlayer(state, kick),
 			_ => ServerActionResult.Reject(
 				LocalizationService.TOrFallback(
 					"log.server_action.unsupported",
@@ -439,6 +441,65 @@ public static class ServerActionGateway
 					"Failed to reclaim {actor}.",
 					("actor", command.ActorId)),
 				"reclaim_failed");
+	}
+
+	private static ServerActionResult ExecuteAssignPrimaryActor(GameState state, AssignPrimaryActorClientCommand command)
+	{
+		if (string.IsNullOrWhiteSpace(command.PlayerSessionId)
+			|| string.IsNullOrWhiteSpace(command.TargetPlayerSessionId)
+			|| string.IsNullOrWhiteSpace(command.TargetActorId))
+		{
+			return ServerActionResult.Reject("Invalid assignment request.", "invalid_assign_request");
+		}
+
+		var ok = RoomRuntimeModule.AssignPrimaryActorByHost(
+			state,
+			command.PlayerSessionId,
+			command.TargetPlayerSessionId,
+			command.TargetActorId);
+		return ok
+			? ServerActionResult.Accept(logs:
+			[
+				LocalizationService.TOrFallback(
+					"log.multiplayer.assign_primary_actor",
+					"Assigned {actor} to {player}.",
+					("actor", command.TargetActorId),
+					("player", command.TargetPlayerSessionId)),
+			])
+			: ServerActionResult.Reject(
+				LocalizationService.TOrFallback(
+					"log.multiplayer.assign_primary_actor_failed",
+					"Failed to assign {actor}.",
+					("actor", command.TargetActorId)),
+				"assign_primary_actor_failed");
+	}
+
+	private static ServerActionResult ExecuteKickPlayer(GameState state, KickPlayerClientCommand command)
+	{
+		if (string.IsNullOrWhiteSpace(command.PlayerSessionId)
+			|| string.IsNullOrWhiteSpace(command.TargetPlayerSessionId))
+		{
+			return ServerActionResult.Reject("Invalid kick request.", "invalid_kick_request");
+		}
+
+		var ok = RoomRuntimeModule.KickPlayerByHost(
+			state,
+			command.PlayerSessionId,
+			command.TargetPlayerSessionId);
+		return ok
+			? ServerActionResult.Accept(logs:
+			[
+				LocalizationService.TOrFallback(
+					"log.multiplayer.kick_player",
+					"Kicked player {player}.",
+					("player", command.TargetPlayerSessionId)),
+			])
+			: ServerActionResult.Reject(
+				LocalizationService.TOrFallback(
+					"log.multiplayer.kick_player_failed",
+					"Failed to kick player {player}.",
+					("player", command.TargetPlayerSessionId)),
+				"kick_player_failed");
 	}
 
 	private static void GenerateLoot(GameState state, GameEvent e, List<string> logs)

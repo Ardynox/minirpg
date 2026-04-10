@@ -28,6 +28,8 @@ public enum ClientCommandKind
 	CloseModal,
 	DelegateActor,
 	ReclaimPrimaryActor,
+	AssignPrimaryActor,
+	KickPlayer,
 }
 
 public enum ServerMessageKind
@@ -205,6 +207,17 @@ public sealed record DelegateActorClientCommand() : ClientCommand(ClientCommandK
 
 public sealed record ReclaimPrimaryActorClientCommand() : ClientCommand(ClientCommandKind.ReclaimPrimaryActor)
 {
+}
+
+public sealed record AssignPrimaryActorClientCommand() : ClientCommand(ClientCommandKind.AssignPrimaryActor)
+{
+	public string TargetPlayerSessionId { get; init; } = string.Empty;
+	public string TargetActorId { get; init; } = string.Empty;
+}
+
+public sealed record KickPlayerClientCommand() : ClientCommand(ClientCommandKind.KickPlayer)
+{
+	public string TargetPlayerSessionId { get; init; } = string.Empty;
 }
 
 public abstract record ServerMessage(ServerMessageKind Kind)

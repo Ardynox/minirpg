@@ -2217,6 +2217,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_multiplayerSessionBackend.DeltaReceived += HandleMultiplayerDeltaReceived;
 		_multiplayerSessionBackend.Disconnected += HandleMultiplayerDisconnected;
 		_multiplayerSessionBackend.CommandRejected += HandleMultiplayerCommandRejected;
+		_multiplayerSessionBackend.RosterChanged += HandleMultiplayerRosterChanged;
+		_multiplayerSessionBackend.ReconnectClaimed += HandleMultiplayerReconnectClaimed;
 
 		_mainAppFlowCoordinator.PrepareSessionTransition(clearLogs: true);
 		var status = _session.ApplyMultiplayerRoomSnapshot(
@@ -2264,8 +2266,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			primaryActorId: null,
 			envelope.Snapshot);
 		RefreshVisiblePanels();
+		RefreshPlayerCharacterVisual();
 		MarkUIDirty();
 		FlushMap();
+	}
+
+	private void HandleMultiplayerRosterChanged(RoomRuntimeState room)
+	{
+		if (!IsMultiplayerSession)
+			return;
+
+		_state.Room = room.Clone();
+		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
+		RefreshVisiblePanels();
+		RefreshPlayerCharacterVisual();
+		MarkUIDirty();
 	}
 
 	private void HandleMultiplayerDeltaReceived(GameSessionDeltaEnvelope envelope)
@@ -2281,6 +2296,26 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		if (!string.IsNullOrWhiteSpace(reason))
 			_log.Add(reason);
+	}
+
+	private void HandleMultiplayerReconnectClaimed(string playerSessionId, string actorId)
+	{
+		if (_multiplayerSessionBackend == null
+			|| !string.Equals(_multiplayerSessionBackend.PlayerSessionId, playerSessionId, StringComparison.Ordinal)
+			|| string.IsNullOrWhiteSpace(actorId)
+			|| !_state.Actors.TryGetValue(actorId, out var actor))
+		{
+			return;
+		}
+
+		_state.PlayerId = actor.Id;
+		_state.PlayerX = actor.X;
+		_state.PlayerY = actor.Y;
+		_state.PlayerZ = actor.Z;
+		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
+		RefreshPlayerCharacterVisual();
+		MarkUIDirty();
+		FlushMap();
 	}
 
 	private async void HandleMultiplayerDisconnected(string reason)
@@ -2314,6 +2349,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		backend.DeltaReceived -= HandleMultiplayerDeltaReceived;
 		backend.Disconnected -= HandleMultiplayerDisconnected;
 		backend.CommandRejected -= HandleMultiplayerCommandRejected;
+		backend.RosterChanged -= HandleMultiplayerRosterChanged;
+		backend.ReconnectClaimed -= HandleMultiplayerReconnectClaimed;
 		try
 		{
 			await backend.DisposeAsync();

@@ -60,6 +60,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 	public event Action<GameSessionDeltaEnvelope>? DeltaReceived;
 	public event Action<string>? Disconnected;
 	public event Action<string>? CommandRejected;
+	public event Action<RoomRuntimeState>? RosterChanged;
 	public event Action<string, string>? ReconnectClaimed;
 
 	public async ValueTask<MultiplayerSessionConnectResult> ConnectAsync(
@@ -203,6 +204,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 
 			case RosterChangedMessage rosterChanged:
 				LastRoom = rosterChanged.Room.Clone();
+				RosterChanged?.Invoke(LastRoom.Clone());
 				break;
 		}
 	}

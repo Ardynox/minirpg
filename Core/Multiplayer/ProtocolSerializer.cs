@@ -60,6 +60,8 @@ public static class ProtocolSerializer
 			ClientCommandKind.CloseModal => JsonSerializer.Deserialize<CloseModalClientCommand>(raw, Options),
 			ClientCommandKind.DelegateActor => JsonSerializer.Deserialize<DelegateActorClientCommand>(raw, Options),
 			ClientCommandKind.ReclaimPrimaryActor => JsonSerializer.Deserialize<ReclaimPrimaryActorClientCommand>(raw, Options),
+			ClientCommandKind.AssignPrimaryActor => JsonSerializer.Deserialize<AssignPrimaryActorClientCommand>(raw, Options),
+			ClientCommandKind.KickPlayer => JsonSerializer.Deserialize<KickPlayerClientCommand>(raw, Options),
 			_ => null,
 		};
 	}

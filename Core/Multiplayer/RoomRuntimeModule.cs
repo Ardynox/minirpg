@@ -92,6 +92,54 @@ public static class RoomRuntimeModule
 		return true;
 	}
 
+	public static bool AssignPrimaryActorByHost(
+		GameState state,
+		string hostPlayerSessionId,
+		string targetPlayerSessionId,
+		string actorId)
+	{
+		if (!state.Room.IsActive)
+			return false;
+		if (!state.Room.Players.TryGetValue(hostPlayerSessionId, out var host) || !host.IsRoomOwner)
+			return false;
+		if (!state.Room.Players.ContainsKey(targetPlayerSessionId))
+			return false;
+		if (!state.Actors.ContainsKey(actorId))
+			return false;
+
+		foreach (var player in state.Room.Players.Values)
+		{
+			if (string.Equals(player.PrimaryActorId, actorId, StringComparison.Ordinal))
+				player.PrimaryActorId = string.Empty;
+		}
+
+		AssignPrimaryActor(state, targetPlayerSessionId, actorId);
+		return true;
+	}
+
+	public static bool KickPlayerByHost(GameState state, string hostPlayerSessionId, string targetPlayerSessionId)
+	{
+		if (!state.Room.IsActive)
+			return false;
+		if (string.Equals(hostPlayerSessionId, targetPlayerSessionId, StringComparison.Ordinal))
+			return false;
+		if (!state.Room.Players.TryGetValue(hostPlayerSessionId, out var host) || !host.IsRoomOwner)
+			return false;
+		if (!state.Room.Players.Remove(targetPlayerSessionId))
+			return false;
+
+		foreach (var binding in state.Room.ActorControlBindings.Values)
+		{
+			if (string.Equals(binding.PrimaryOwnerPlayerId, targetPlayerSessionId, StringComparison.Ordinal))
+				binding.PrimaryOwnerPlayerId = string.Empty;
+			if (string.Equals(binding.TemporaryControllerPlayerId, targetPlayerSessionId, StringComparison.Ordinal))
+				binding.TemporaryControllerPlayerId = null;
+		}
+
+		RefreshControlledActorIds(state);
+		return true;
+	}
+
 	public static void SetPlayerConnection(
 		GameState state,
 		string playerSessionId,
