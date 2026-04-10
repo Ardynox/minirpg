@@ -7,6 +7,7 @@
 ## Purpose
 
 - `AutoTest` is the in-game one-click inspection runner.
+- `AutoTest` also has a scriptable CLI entry point for unattended runs.
 - It is separate from the existing `xUnit` project.
 - Primary usage is:
   1. User launches the game manually.
@@ -15,6 +16,61 @@
   4. AI reads the log file, locates failures, and then fixes code or test expectations.
 
 Use this system for end-to-end gameplay diagnostics, resource smoke checks, runtime state assertions, and readable failure context.
+
+## CLI Usage
+
+CLI args are parsed from `OS.GetCmdlineUserArgs()` only.
+
+Supported args:
+
+- `--autotest`
+  Enables CLI AutoTest mode.
+- `--autotest-scenarios=<csv>` or `--autotest-scenarios <csv>`
+  Overrides `DebugConfig.AutoTestScenarios` for the current process only.
+- `--autotest-step-delay=<float>` or `--autotest-step-delay <float>`
+  Overrides `DebugConfig.AutoTestStepDelay` for the current process only.
+- `--autotest-stop-on-fail`
+  Forces stop-on-fail behavior for the current process only.
+
+Unknown `--autotest-*` args, empty scenario overrides, and invalid numeric values are treated as CLI usage errors.
+
+Direct Godot examples:
+
+```powershell
+godot --path D:\Godot\mini-rpg -- --autotest
+godot --headless --path D:\Godot\mini-rpg -- --autotest
+godot --headless --path D:\Godot\mini-rpg -- --autotest --autotest-scenarios resource_smoke --autotest-step-delay 0
+```
+
+PowerShell wrapper:
+
+- [`../Tools/run_autotest.ps1`](../Tools/run_autotest.ps1)
+
+Wrapper examples:
+
+```powershell
+.\Tools\run_autotest.ps1 -GodotExe D:\Godot\godot\bin\godot.windows.editor.dev.x86_64.mono.console.exe
+.\Tools\run_autotest.ps1 -GodotExe D:\Godot\godot\bin\godot.windows.editor.dev.x86_64.mono.console.exe -Headless
+.\Tools\run_autotest.ps1 -GodotExe D:\Godot\godot\bin\godot.windows.editor.dev.x86_64.mono.console.exe -Headless -Scenarios resource_smoke -StepDelay 0
+```
+
+Exit codes:
+
+- `0`
+  Run finished with no failures. Warnings are allowed.
+- `1`
+  At least one failing AutoTest case, or startup failed before AutoTest could begin.
+- `2`
+  Invalid CLI usage.
+
+Runtime mode is inferred from `DisplayServer.GetName() == "headless"`.
+
+Headless-specific downgrade:
+
+- `resource_smoke.layout.viewport_nonzero`
+- `resource_smoke.layout.map_viewport_nonzero`
+
+Those viewport assertions become `pass` with an explicit headless skip message. Resource loading, save/load, AI, combat, interaction, and other scenario assertions still run normally.
 
 ## Branch Policy
 
@@ -54,6 +110,10 @@ Primary code entry points:
   Main menu button wiring and runtime event dispatch.
 - [`../App/Main.AutoTest.cs`](../App/Main.AutoTest.cs)
   `IAutoTestHost` bridge from `Main` into AutoTest.
+- [`../App/Main.AutoTestCli.cs`](../App/Main.AutoTestCli.cs)
+  CLI parse/bootstrap/auto-run/auto-quit path.
+- [`../Module/AutoTestCli.cs`](../Module/AutoTestCli.cs)
+  Pure CLI parser, runtime override builder, and exit-code mapping.
 - [`../Module/AutoTestModule.cs`](../Module/AutoTestModule.cs)
   Scenario orchestration and assertions.
 - [`../Module/AutoTestModels.cs`](../Module/AutoTestModels.cs)
@@ -120,6 +180,9 @@ Important machine-readable fields:
 - `startup_state`
 - `startup_sync_fallback_used`
 - `startup_load_path`
+- `display_server_name`
+- `headless_mode`
+- `invoked_from_cli`
 - `weather_type_id`
 - `weather_intensity_id`
 - `weather_exposed`
@@ -149,6 +212,13 @@ When a user says `我执行自动测试了` or asks to inspect the run:
    or an outdated/too-strict AutoTest expectation.
 
 Do not ask the user to manually copy logs unless file access is blocked. The intended workflow is AI reads the log directly from disk.
+
+When the run came from CLI/headless automation, also check:
+
+1. `display_server_name`
+2. `headless_mode`
+3. `invoked_from_cli`
+4. whether the result is a normal scenario run or the startup-failure fallback case `autotest.startup_failed`
 
 ## How To Extend AutoTest
 
@@ -181,6 +251,20 @@ After changing AutoTest or systems it exercises:
 3. Ask the user to click `自动化测试` in-game, or do it manually if the session is available.
 4. Re-read `user://test_results.log`.
 5. Compare the new `run_id`, failure list, and warnings with the previous run.
+
+CLI validation alternative:
+
+1. Run:
+   `dotnet build MiniRPG.csproj --no-restore`
+2. Run:
+   `dotnet test Tests\MiniRPG.Tests\MiniRPG.Tests.csproj --no-restore`
+3. Run:
+   `.\Tools\run_autotest.ps1 -GodotExe <path-to-godot> -Headless -StepDelay 0`
+4. Re-read `user://test_results.log`.
+5. Confirm process exit code matches the report:
+   `0` for pass/warn-only,
+   `1` for failure/startup failure,
+   `2` for CLI usage error.
 
 ## Common Failure Triage Heuristics
 
