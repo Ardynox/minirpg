@@ -86,7 +86,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 			Token = request.Token,
 			IsReconnectClaim = request.IsReconnectClaim,
 		});
-		if (connectError != Godot.Error.Ok)
+		if (connectError != TransportError.Ok)
 		{
 			ResetPendingConnectState();
 			return MultiplayerSessionConnectResult.Fail($"Failed to connect to room server: {connectError}.");

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using Godot;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module.Network;
@@ -38,7 +37,7 @@ public sealed class ENetTransportSmokeTests
 		using var server = new ENetGameServer(host);
 		var port = PickAvailablePort();
 		var listenErr = server.Listen("127.0.0.1", port);
-		Assert.Equal(Error.Ok, listenErr);
+		Assert.Equal(TransportError.Ok, listenErr);
 
 		using var client = new ENetGameClient();
 		var messages = new List<ServerMessage>();
@@ -52,7 +51,7 @@ public sealed class ENetTransportSmokeTests
 			Token = "join-smoke-token",
 			IsReconnectClaim = false,
 		});
-		Assert.Equal(Error.Ok, connectErr);
+		Assert.Equal(TransportError.Ok, connectErr);
 
 		PumpUntil(() => client.State == ENetClientState.InRoom, server, client, TimeSpan.FromSeconds(5), () => disconnectedReason, messages);
 		Assert.Equal(ENetClientState.InRoom, client.State);

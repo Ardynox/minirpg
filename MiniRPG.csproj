@@ -12,9 +12,7 @@
     <CompilerVisibleProperty Include="GodotProjectDir" />
     <Compile Remove=".godot\**\*.cs" />
     <Compile Remove="Artifacts\**\*.cs" />
-    <Compile Remove="Core\**\*.cs" />
-    <Compile Remove="Module\**\*.cs" />
-    <Compile Remove="MiniRPG.Runtime\**\*.cs" />
+    <Compile Remove="MiniRPG.Shared\**\*.cs" />
     <Compile Remove="MiniRPG.Server\**\*.cs" />
     <Compile Remove="Tests\**\*.cs" />
     <Compile Remove="Tools\MonsterMapAssetGenerator.cs" />
@@ -24,6 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="MiniRPG.Runtime\MiniRPG.Runtime.csproj" />
+    <ProjectReference Include="MiniRPG.Shared\MiniRPG.Shared.csproj" />
   </ItemGroup>
 </Project>

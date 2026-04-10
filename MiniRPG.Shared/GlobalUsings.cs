@@ -1,0 +1,13 @@
+global using MiniRPG.Core.Combat;
+global using MiniRPG.Core.Config;
+global using MiniRPG.Core.Data;
+global using MiniRPG.Core.Debug;
+global using MiniRPG.Core.Dialog;
+global using MiniRPG.Core.Health;
+global using MiniRPG.Core.Map;
+global using MiniRPG.Core.Multiplayer;
+global using MiniRPG.Core.Needs;
+global using MiniRPG.Core.Trade;
+global using MiniRPG.Core.Weather;
+global using MiniRPG.Module.Panel;
+global using MiniRPG.Module.Render;

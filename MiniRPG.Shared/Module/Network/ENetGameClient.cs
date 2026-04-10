@@ -1,6 +1,5 @@
 using System;
 using enet;
-using Godot;
 using MiniRPG.Core.Multiplayer;
 using static enet.ENet;
 
@@ -21,24 +20,24 @@ public sealed unsafe class ENetGameClient : IDisposable
 	public event Action? Connected;
 	public event Action<string>? Disconnected;
 
-	public Error Connect(string address, int port, GameServerConnectRequest joinRequest)
+	public TransportError Connect(string address, int port, GameServerConnectRequest joinRequest)
 	{
 		ArgumentNullException.ThrowIfNull(joinRequest);
 		if (State != ENetClientState.Disconnected)
-			return Error.AlreadyInUse;
+			return TransportError.AlreadyInUse;
 
 		if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > ushort.MaxValue)
-			return Error.InvalidParameter;
+			return TransportError.InvalidParameter;
 
 		var initError = ENetNativeLifetime.Acquire();
-		if (initError != Error.Ok)
+		if (initError != TransportError.Ok)
 			return initError;
 
 		ENetAddress remote = default;
 		if (enet_address_set_host_ip(&remote, address) != 0)
 		{
 			ENetNativeLifetime.Release();
-			return Error.CantResolve;
+			return TransportError.CantResolve;
 		}
 
 		remote.port = (ushort)port;
@@ -46,7 +45,7 @@ public sealed unsafe class ENetGameClient : IDisposable
 		if (_host == null)
 		{
 			ENetNativeLifetime.Release();
-			return Error.CantCreate;
+			return TransportError.CantCreate;
 		}
 
 		_peer = enet_host_connect(_host, &remote, 1, 0);
@@ -55,13 +54,13 @@ public sealed unsafe class ENetGameClient : IDisposable
 			enet_host_destroy(_host);
 			_host = null;
 			ENetNativeLifetime.Release();
-			return Error.CantConnect;
+			return TransportError.CantConnect;
 		}
 
 		_pendingJoin = joinRequest;
 		_disconnectReason = null;
 		State = ENetClientState.Connecting;
-		return Error.Ok;
+		return TransportError.Ok;
 	}
 
 	public bool SendCommand(ClientCommand command)

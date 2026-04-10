@@ -20,7 +20,7 @@ internal static class Program
 
 		using var gameServer = new ENetGameServer(gameHost);
 		var listenError = gameServer.Listen(options.GameAddress, options.GamePort, options.MaxClients);
-		if (listenError != Godot.Error.Ok)
+		if (listenError != TransportError.Ok)
 		{
 			Console.Error.WriteLine($"Failed to start ENet listener: {listenError}");
 			return 1;

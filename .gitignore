@@ -22,9 +22,8 @@ new_c_sharp_script.cs
 # Test build outputs
 Tests/MiniRPG.Tests/bin/
 Tests/MiniRPG.Tests/obj/
-MiniRPG.Runtime/.godot/
-MiniRPG.Runtime/bin/
-MiniRPG.Runtime/obj/
+MiniRPG.Shared/bin/
+MiniRPG.Shared/obj/
 MiniRPG.Server/bin/
 MiniRPG.Server/obj/
 

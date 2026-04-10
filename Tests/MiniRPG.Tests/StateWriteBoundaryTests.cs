@@ -34,7 +34,7 @@ public sealed class StateWriteBoundaryTests
 			],
 			allowedRelativePaths:
 			[
-				"Module/ActorDerivedStateUpdater.cs",
+				"MiniRPG.Shared/Module/ActorDerivedStateUpdater.cs",
 			]);
 
 		AssertNoHits(
@@ -69,8 +69,8 @@ public sealed class StateWriteBoundaryTests
 			root,
 			[
 				Path.Combine(root, "App"),
-				Path.Combine(root, "Core"),
 				Path.Combine(root, "Module"),
+				Path.Combine(root, "MiniRPG.Shared"),
 			],
 			[
 				"SaveModule.LoadGame(",
@@ -78,8 +78,8 @@ public sealed class StateWriteBoundaryTests
 			],
 			allowedRelativePaths:
 			[
-				"Module/GameSessionModule.cs",
-				"Core/Multiplayer/DedicatedGameServerHost.cs",
+				"MiniRPG.Shared/Module/GameSessionModule.cs",
+				"MiniRPG.Shared/Core/Multiplayer/DedicatedGameServerHost.cs",
 			]);
 
 		AssertNoHits(
@@ -95,15 +95,15 @@ public sealed class StateWriteBoundaryTests
 			root,
 			[
 				Path.Combine(root, "App"),
-				Path.Combine(root, "Core"),
 				Path.Combine(root, "Module"),
+				Path.Combine(root, "MiniRPG.Shared"),
 			],
 			[
 				"MapGenModule.InitializeWorld(",
 			],
 			allowedRelativePaths:
 			[
-				"Module/GameSessionModule.cs",
+				"MiniRPG.Shared/Module/GameSessionModule.cs",
 			]);
 
 		AssertNoHits(

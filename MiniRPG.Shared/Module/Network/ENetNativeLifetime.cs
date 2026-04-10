@@ -1,5 +1,4 @@
 using System.Threading;
-using Godot;
 using static enet.ENet;
 
 namespace MiniRPG.Module.Network;
@@ -8,19 +7,19 @@ internal static class ENetNativeLifetime
 {
 	private static int _refCount;
 
-	public static Error Acquire()
+	public static TransportError Acquire()
 	{
 		var next = Interlocked.Increment(ref _refCount);
 		if (next != 1)
-			return Error.Ok;
+			return TransportError.Ok;
 
 		if (enet_initialize() != 0)
 		{
 			Interlocked.Decrement(ref _refCount);
-			return Error.Failed;
+			return TransportError.Failed;
 		}
 
-		return Error.Ok;
+		return TransportError.Ok;
 	}
 
 	public static void Release()

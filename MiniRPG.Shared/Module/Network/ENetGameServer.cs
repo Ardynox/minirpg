@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using enet;
-using Godot;
 using MiniRPG.Core.Multiplayer;
 using static enet.ENet;
 
@@ -21,22 +20,22 @@ public sealed unsafe class ENetGameServer : IDisposable
 
 	public bool IsListening => _host != null;
 
-	public Error Listen(string address, int port, int maxClients = 8)
+	public TransportError Listen(string address, int port, int maxClients = 8)
 	{
 		if (_host != null)
-			return Error.AlreadyInUse;
+			return TransportError.AlreadyInUse;
 		if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > ushort.MaxValue || maxClients <= 0)
-			return Error.InvalidParameter;
+			return TransportError.InvalidParameter;
 
 		var initError = ENetNativeLifetime.Acquire();
-		if (initError != Error.Ok)
+		if (initError != TransportError.Ok)
 			return initError;
 
 		ENetAddress bindAddress = default;
 		if (enet_address_set_host_ip(&bindAddress, address) != 0)
 		{
 			ENetNativeLifetime.Release();
-			return Error.CantResolve;
+			return TransportError.CantResolve;
 		}
 
 		bindAddress.port = (ushort)port;
@@ -44,10 +43,10 @@ public sealed unsafe class ENetGameServer : IDisposable
 		if (_host == null)
 		{
 			ENetNativeLifetime.Release();
-			return Error.CantCreate;
+			return TransportError.CantCreate;
 		}
 
-		return Error.Ok;
+		return TransportError.Ok;
 	}
 
 	public void Poll()

@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\MiniRPG.Runtime\MiniRPG.Runtime.csproj" />
+    <ProjectReference Include="..\..\MiniRPG.Shared\MiniRPG.Shared.csproj" />
     <ProjectReference Include="..\..\MiniRPG.csproj" />
   </ItemGroup>
 </Project>
