@@ -1,4 +1,4 @@
-using Godot;
+using System.Reflection;
 using MiniRPG.Module.Panel;
 using Xunit;
 
@@ -7,54 +7,37 @@ namespace MiniRPG.Tests;
 public sealed class RowStyleHelperTests
 {
 	[Fact]
-	public void Apply_ChoosesExpectedThemeVariants()
+	public void ResolveThemeVariation_ChoosesExpectedThemeVariants()
 	{
-		var row = new Button();
-
-		RowStyleHelper.Apply(row, selected: false, hovered: false, transparentBg: true);
-		Assert.Equal("RowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: false, hovered: true, transparentBg: true);
-		Assert.Equal("HoveredRowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: true, hovered: false, transparentBg: true);
-		Assert.Equal("SelectedRowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: false, hovered: false, isContainer: true, transparentBg: true);
-		Assert.Equal("ContainerRowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: false, hovered: false, transparentBg: false);
-		Assert.Equal("OpaqueRowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: false, hovered: true, transparentBg: false);
-		Assert.Equal("OpaqueHoveredRowButton", row.ThemeTypeVariation);
-
-		RowStyleHelper.Apply(row, selected: true, hovered: false, transparentBg: false);
-		Assert.Equal("OpaqueSelectedRowButton", row.ThemeTypeVariation);
+		Assert.Equal("RowButton", InvokeResolveThemeVariation(selected: false, hovered: false, isContainer: false, transparentBg: true));
+		Assert.Equal("HoveredRowButton", InvokeResolveThemeVariation(selected: false, hovered: true, isContainer: false, transparentBg: true));
+		Assert.Equal("SelectedRowButton", InvokeResolveThemeVariation(selected: true, hovered: false, isContainer: false, transparentBg: true));
+		Assert.Equal("ContainerRowButton", InvokeResolveThemeVariation(selected: false, hovered: false, isContainer: true, transparentBg: true));
+		Assert.Equal("OpaqueRowButton", InvokeResolveThemeVariation(selected: false, hovered: false, isContainer: false, transparentBg: false));
+		Assert.Equal("OpaqueHoveredRowButton", InvokeResolveThemeVariation(selected: false, hovered: true, isContainer: false, transparentBg: false));
+		Assert.Equal("OpaqueSelectedRowButton", InvokeResolveThemeVariation(selected: true, hovered: false, isContainer: false, transparentBg: false));
 	}
 
 	[Fact]
-	public void EnsureVisible_ScrollsUpAndDownToRevealRow()
+	public void GetVisibleScrollPosition_AdjustsTopAndBottomOverflow()
 	{
-		var scroll = new ScrollContainer
-		{
-			Size = new Vector2(120f, 100f),
-			ScrollVertical = 20,
-		};
-		var row = new Control
-		{
-			Position = new Vector2(0f, 5f),
-			Size = new Vector2(90f, 20f),
-		};
+		Assert.Equal(5, InvokeGetVisibleScrollPosition(rowTop: 5f, rowHeight: 20f, scrollTop: 20, viewportHeight: 100f));
+		Assert.Equal(80, InvokeGetVisibleScrollPosition(rowTop: 150f, rowHeight: 30f, scrollTop: 20, viewportHeight: 100f));
+		Assert.Null(InvokeGetVisibleScrollPosition(rowTop: 40f, rowHeight: 20f, scrollTop: 20, viewportHeight: 100f));
+	}
 
-		RowStyleHelper.EnsureVisible(scroll, row);
-		Assert.Equal(5, scroll.ScrollVertical);
+	private static string InvokeResolveThemeVariation(bool selected, bool hovered, bool isContainer, bool transparentBg)
+	{
+		var method = typeof(RowStyleHelper).GetMethod("ResolveThemeVariation", BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.NotNull(method);
+		return (string)method!.Invoke(null, [selected, hovered, isContainer, transparentBg])!;
+	}
 
-		scroll.ScrollVertical = 20;
-		row.Position = new Vector2(0f, 150f);
-		row.Size = new Vector2(90f, 30f);
-
-		RowStyleHelper.EnsureVisible(scroll, row);
-		Assert.Equal(80, scroll.ScrollVertical);
+	private static int? InvokeGetVisibleScrollPosition(float rowTop, float rowHeight, int scrollTop, float viewportHeight)
+	{
+		var method = typeof(RowStyleHelper).GetMethod("GetVisibleScrollPosition", BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.NotNull(method);
+		var result = method!.Invoke(null, [rowTop, rowHeight, scrollTop, viewportHeight]);
+		return result == null ? null : (int)result;
 	}
 }

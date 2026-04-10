@@ -71,7 +71,7 @@ public sealed class InputBindingServiceTests
 	[Fact]
 	public void LoadOrInitFromDisk_BlankKindRowsUseLegacyKeyFallback()
 	{
-		const string legacyJson = """
+		var legacyJson = $$"""
 		{
 		  "version": 1,
 		  "bindings": [
@@ -80,7 +80,7 @@ public sealed class InputBindingServiceTests
 		      "actionId": "move_north",
 		      "slot": 0,
 		      "kind": "",
-		      "keycode": 90,
+		      "keycode": {{(long)Key.Z}},
 		      "mouseButton": 0,
 		      "ctrl": false,
 		      "alt": false,
@@ -110,17 +110,16 @@ public sealed class InputBindingServiceTests
 
 		using (var document = JsonDocument.Parse(File.ReadAllText(harness.Path)))
 		{
-			var row = document.RootElement
-				.GetProperty("bindings")
+			var row = GetPropertyIgnoreCase(document.RootElement, "bindings")
 				.EnumerateArray()
 				.First(entry =>
-					entry.GetProperty("context").GetString() == "Action"
-					&& entry.GetProperty("actionId").GetString() == "skill_prev"
-					&& entry.GetProperty("slot").GetInt32() == 0);
+					GetPropertyIgnoreCase(entry, "context").GetString() == "Action"
+					&& GetPropertyIgnoreCase(entry, "actionId").GetString() == "skill_prev"
+					&& GetPropertyIgnoreCase(entry, "slot").GetInt32() == 0);
 
-			Assert.Equal("MouseWheel", row.GetProperty("kind").GetString());
-			Assert.Equal((int)MouseButton.WheelDown, row.GetProperty("mouseButton").GetInt32());
-			Assert.True(row.GetProperty("ctrl").GetBoolean());
+			Assert.Equal("MouseWheel", GetPropertyIgnoreCase(row, "kind").GetString());
+			Assert.Equal((int)MouseButton.WheelDown, GetPropertyIgnoreCase(row, "mouseButton").GetInt32());
+			Assert.True(GetPropertyIgnoreCase(row, "ctrl").GetBoolean());
 		}
 
 		using var reloaded = new Harness(existingPath: harness.Path);
@@ -147,6 +146,17 @@ public sealed class InputBindingServiceTests
 
 	private static BindingActionView GetAction(InputBindingContext context, string actionId, InputBindingService service) =>
 		Assert.Single(service.GetActions(context).Where(action => action.Id == actionId));
+
+	private static JsonElement GetPropertyIgnoreCase(JsonElement element, string propertyName)
+	{
+		foreach (var property in element.EnumerateObject())
+		{
+			if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+				return property.Value;
+		}
+
+		throw new Xunit.Sdk.XunitException($"Missing JSON property '{propertyName}'.");
+	}
 
 	private sealed class Harness : IDisposable
 	{

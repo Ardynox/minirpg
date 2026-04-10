@@ -10,7 +10,7 @@ namespace MiniRPG.Core.Config;
 public static class AppSettingsStore
 {
 	private const string SettingsPath = "user://app_settings.json";
-	private const int SchemaVersion = 5;
+	private const int SchemaVersion = 6;
 
 	public static string LoadLocale()
 	{
@@ -111,6 +111,69 @@ public static class AppSettingsStore
 		}, "continue state");
 	}
 
+	public static MultiplayerSettings LoadMultiplayerSettings()
+	{
+		var settings = LoadSettings();
+		return NormalizeMultiplayerSettings(new MultiplayerSettings
+		{
+			DisplayName = settings.MultiplayerDisplayName ?? "Player",
+			LobbyBaseUrl = settings.MultiplayerLobbyBaseUrl ?? "http://127.0.0.1:5076/",
+			PreferredHostMode = ParseHostMode(settings.MultiplayerPreferredHostMode),
+			LocalServerExecutablePath = settings.MultiplayerLocalServerExecutablePath ?? string.Empty,
+			LocalLobbyPrefix = settings.MultiplayerLocalLobbyPrefix ?? "http://127.0.0.1:5076/",
+			LocalGameAddress = settings.MultiplayerLocalGameAddress ?? "127.0.0.1",
+			LocalGamePort = settings.MultiplayerLocalGamePort ?? 2455,
+			LastReconnectTicket = settings.LastReconnectTicket == null
+				? null
+				: new MultiplayerReconnectTicket
+				{
+					RoomId = settings.LastReconnectTicket.RoomId ?? string.Empty,
+					RoomCode = settings.LastReconnectTicket.RoomCode ?? string.Empty,
+					RoomDisplayName = settings.LastReconnectTicket.RoomDisplayName ?? string.Empty,
+					ServerEndpoint = settings.LastReconnectTicket.ServerEndpoint ?? string.Empty,
+					PlayerSessionId = settings.LastReconnectTicket.PlayerSessionId ?? string.Empty,
+					PrimaryActorId = settings.LastReconnectTicket.PrimaryActorId ?? string.Empty,
+					ReconnectToken = settings.LastReconnectTicket.ReconnectToken ?? string.Empty,
+					DisplayName = settings.LastReconnectTicket.DisplayName ?? string.Empty,
+					ReconnectDeadlineUtc = settings.LastReconnectTicket.ReconnectDeadlineUtc,
+				},
+		});
+	}
+
+	public static void SaveMultiplayerSettings(MultiplayerSettings multiplayerSettings)
+	{
+		ArgumentNullException.ThrowIfNull(multiplayerSettings);
+		var normalized = NormalizeMultiplayerSettings(multiplayerSettings);
+		SaveSettings(settings =>
+		{
+			settings.MultiplayerDisplayName = normalized.DisplayName;
+			settings.MultiplayerLobbyBaseUrl = normalized.LobbyBaseUrl;
+			settings.MultiplayerPreferredHostMode = normalized.PreferredHostMode switch
+			{
+				MultiplayerHostMode.Remote => "remote",
+				_ => "local",
+			};
+			settings.MultiplayerLocalServerExecutablePath = normalized.LocalServerExecutablePath;
+			settings.MultiplayerLocalLobbyPrefix = normalized.LocalLobbyPrefix;
+			settings.MultiplayerLocalGameAddress = normalized.LocalGameAddress;
+			settings.MultiplayerLocalGamePort = normalized.LocalGamePort;
+			settings.LastReconnectTicket = normalized.LastReconnectTicket == null
+				? null
+				: new MultiplayerReconnectTicketDto
+				{
+					RoomId = normalized.LastReconnectTicket.RoomId,
+					RoomCode = normalized.LastReconnectTicket.RoomCode,
+					RoomDisplayName = normalized.LastReconnectTicket.RoomDisplayName,
+					ServerEndpoint = normalized.LastReconnectTicket.ServerEndpoint,
+					PlayerSessionId = normalized.LastReconnectTicket.PlayerSessionId,
+					PrimaryActorId = normalized.LastReconnectTicket.PrimaryActorId,
+					ReconnectToken = normalized.LastReconnectTicket.ReconnectToken,
+					DisplayName = normalized.LastReconnectTicket.DisplayName,
+					ReconnectDeadlineUtc = normalized.LastReconnectTicket.ReconnectDeadlineUtc,
+				};
+		}, "multiplayer settings");
+	}
+
 	private static AppSettingsDto LoadSettings()
 	{
 		if (!TryReadSettingsJson(out var json))
@@ -183,6 +246,60 @@ public static class AppSettingsStore
 
 		[JsonPropertyName("lastLegacySavePath")]
 		public string? LastLegacySavePath { get; set; }
+
+		[JsonPropertyName("multiplayerDisplayName")]
+		public string? MultiplayerDisplayName { get; set; }
+
+		[JsonPropertyName("multiplayerLobbyBaseUrl")]
+		public string? MultiplayerLobbyBaseUrl { get; set; }
+
+		[JsonPropertyName("multiplayerPreferredHostMode")]
+		public string? MultiplayerPreferredHostMode { get; set; }
+
+		[JsonPropertyName("multiplayerLocalServerExecutablePath")]
+		public string? MultiplayerLocalServerExecutablePath { get; set; }
+
+		[JsonPropertyName("multiplayerLocalLobbyPrefix")]
+		public string? MultiplayerLocalLobbyPrefix { get; set; }
+
+		[JsonPropertyName("multiplayerLocalGameAddress")]
+		public string? MultiplayerLocalGameAddress { get; set; }
+
+		[JsonPropertyName("multiplayerLocalGamePort")]
+		public int? MultiplayerLocalGamePort { get; set; }
+
+		[JsonPropertyName("lastReconnectTicket")]
+		public MultiplayerReconnectTicketDto? LastReconnectTicket { get; set; }
+	}
+
+	private sealed class MultiplayerReconnectTicketDto
+	{
+		[JsonPropertyName("roomId")]
+		public string? RoomId { get; set; }
+
+		[JsonPropertyName("roomCode")]
+		public string? RoomCode { get; set; }
+
+		[JsonPropertyName("roomDisplayName")]
+		public string? RoomDisplayName { get; set; }
+
+		[JsonPropertyName("serverEndpoint")]
+		public string? ServerEndpoint { get; set; }
+
+		[JsonPropertyName("playerSessionId")]
+		public string? PlayerSessionId { get; set; }
+
+		[JsonPropertyName("primaryActorId")]
+		public string? PrimaryActorId { get; set; }
+
+		[JsonPropertyName("reconnectToken")]
+		public string? ReconnectToken { get; set; }
+
+		[JsonPropertyName("displayName")]
+		public string? DisplayName { get; set; }
+
+		[JsonPropertyName("reconnectDeadlineUtc")]
+		public DateTimeOffset? ReconnectDeadlineUtc { get; set; }
 	}
 
 	private static AppSettingsDto CreateDefaultSettings() => new()
@@ -197,7 +314,70 @@ public static class AppSettingsStore
 		LastWorldId = null,
 		LastCharacterId = null,
 		LastLegacySavePath = null,
+		MultiplayerDisplayName = "Player",
+		MultiplayerLobbyBaseUrl = "http://127.0.0.1:5076/",
+		MultiplayerPreferredHostMode = "local",
+		MultiplayerLocalServerExecutablePath = string.Empty,
+		MultiplayerLocalLobbyPrefix = "http://127.0.0.1:5076/",
+		MultiplayerLocalGameAddress = "127.0.0.1",
+		MultiplayerLocalGamePort = 2455,
+		LastReconnectTicket = null,
 	};
+
+	private static MultiplayerSettings NormalizeMultiplayerSettings(MultiplayerSettings settings) => new()
+	{
+		DisplayName = NormalizeDisplayName(settings.DisplayName),
+		LobbyBaseUrl = NormalizeHttpPrefix(settings.LobbyBaseUrl, "http://127.0.0.1:5076/"),
+		PreferredHostMode = settings.PreferredHostMode,
+		LocalServerExecutablePath = settings.LocalServerExecutablePath?.Trim() ?? string.Empty,
+		LocalLobbyPrefix = NormalizeHttpPrefix(settings.LocalLobbyPrefix, "http://127.0.0.1:5076/"),
+		LocalGameAddress = string.IsNullOrWhiteSpace(settings.LocalGameAddress) ? "127.0.0.1" : settings.LocalGameAddress.Trim(),
+		LocalGamePort = Math.Clamp(settings.LocalGamePort, 1, ushort.MaxValue),
+		LastReconnectTicket = NormalizeReconnectTicket(settings.LastReconnectTicket),
+	};
+
+	private static MultiplayerReconnectTicket? NormalizeReconnectTicket(MultiplayerReconnectTicket? ticket)
+	{
+		if (ticket == null || string.IsNullOrWhiteSpace(ticket.RoomId) || string.IsNullOrWhiteSpace(ticket.ReconnectToken))
+			return null;
+
+		return new MultiplayerReconnectTicket
+		{
+			RoomId = ticket.RoomId.Trim(),
+			RoomCode = ticket.RoomCode?.Trim() ?? string.Empty,
+			RoomDisplayName = ticket.RoomDisplayName?.Trim() ?? string.Empty,
+			ServerEndpoint = ticket.ServerEndpoint?.Trim() ?? string.Empty,
+			PlayerSessionId = ticket.PlayerSessionId?.Trim() ?? string.Empty,
+			PrimaryActorId = ticket.PrimaryActorId?.Trim() ?? string.Empty,
+			ReconnectToken = ticket.ReconnectToken.Trim(),
+			DisplayName = NormalizeDisplayName(ticket.DisplayName),
+			ReconnectDeadlineUtc = ticket.ReconnectDeadlineUtc,
+		};
+	}
+
+	private static MultiplayerHostMode ParseHostMode(string? value) =>
+		string.Equals(value, "remote", StringComparison.OrdinalIgnoreCase)
+			? MultiplayerHostMode.Remote
+			: MultiplayerHostMode.Local;
+
+	private static string NormalizeDisplayName(string? value)
+	{
+		var trimmed = value?.Trim();
+		return string.IsNullOrWhiteSpace(trimmed)
+			? "Player"
+			: PlayerCreationOptions.NormalizeDisplayName(trimmed);
+	}
+
+	private static string NormalizeHttpPrefix(string? value, string fallback)
+	{
+		var trimmed = value?.Trim();
+		if (string.IsNullOrWhiteSpace(trimmed))
+			return fallback;
+
+		return trimmed.EndsWith("/", StringComparison.Ordinal)
+			? trimmed
+			: $"{trimmed}/";
+	}
 
 	private static bool TryReadSettingsJson(out string json)
 	{
