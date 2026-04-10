@@ -12,6 +12,7 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Dialog;
 using MiniRPG.Core.Facility;
+using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Session;
 using MiniRPG.Core.World;
@@ -116,6 +117,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MainAppFlowCoordinator _mainAppFlowCoordinator = null!;
 	private MultiplayerFlowCoordinator _multiplayerFlowCoordinator = null!;
 	private MultiplayerHubModule _multiplayerHub = null!;
+	private MultiplayerRoomPanelModule _multiplayerRoomPanel = null!;
 	private DebugPanelController _debugPanelController = null!;
 	private WeatherLabPanelController _weatherLabPanelController = null!;
 	private LayoutEditBarModule _layoutEditBar = null!;
@@ -166,6 +168,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _suppressMultiplayerDisconnectHandling;
 	private IReadOnlyList<LobbyRoomSummary> _multiplayerHubRooms = Array.Empty<LobbyRoomSummary>();
 	private IReadOnlyList<MultiplayerHubTemplateOption> _multiplayerHubTemplates = Array.Empty<MultiplayerHubTemplateOption>();
+	private bool _multiplayerRoomPanelBusy;
+	private bool _multiplayerRoomPanelStatusIsError;
+	private string _multiplayerRoomPanelStatusMessage = string.Empty;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
@@ -184,6 +189,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool IsCharacterCreationOpen => _characterCreation != null && _characterCreation.Visible;
 	private bool IsConfirmDialogOpen => _confirmDialog != null && _confirmDialog.Visible;
 	private bool IsLoadRecoveryDialogOpen => _loadRecoveryDialog != null && _loadRecoveryDialog.Visible;
+	private bool IsMultiplayerRoomPanelOpen => _multiplayerRoomPanel != null && _multiplayerRoomPanel.Visible;
 	private bool ResourcesReady => _startupState == StartupState.Ready;
 	private bool RenderReady => _mapRender != null;
 	private bool IsMultiplayerSession => _session != null && _session.IsMultiplayerRoomSession;
@@ -861,6 +867,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			var multiplayerHubNode = GetNode<PanelContainer>($"{OverlayRootPath}/MultiplayerHub");
 			multiplayerHubNode.Theme = uiTheme;
 			_multiplayerHub = new MultiplayerHubModule(multiplayerHubNode);
+			var multiplayerRoomPanelNode = GetNode<PanelContainer>($"{OverlayRootPath}/MultiplayerRoomPanel");
+			multiplayerRoomPanelNode.Theme = uiTheme;
+			_multiplayerRoomPanel = new MultiplayerRoomPanelModule(multiplayerRoomPanelNode);
 
 			var skillBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/SkillBar");
 			skillBarNode.Theme = uiTheme;
@@ -912,12 +921,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_worldSettingsDialog,
 				_saveNameDialog,
 				_characterCreation,
+				_multiplayerRoomPanel,
 				_settingsFlowModalInput,
 			];
 			_modalStateController = new ModalStateController(
 				_panelChrome.CloseActiveSettings,
 				HideSettingsPanels,
 				CloseSettingsOverlayIfVisible,
+				() => _multiplayerHub.Close(),
+				() => CloseMultiplayerRoomPanel(),
 				() => ExitMapEditor(silent: true),
 				CancelLayoutEditMode,
 				() => _mainAppFlowCoordinator.CloseConfirmDialog(),
@@ -1100,6 +1112,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 				_mainAppFlowCoordinator.HandleBackToMenu();
 			};
+			_settingsFlow.MultiplayerRoomRequested += HandleMultiplayerRoomRequested;
 			_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
 			_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
 			_layoutEditBar.CancelRequested += CancelLayoutEditMode;
@@ -1165,9 +1178,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_multiplayerHub.JoinByCodeRequested += HandleMultiplayerHubJoinByCodeRequested;
 			_multiplayerHub.CreateRoomRequested += HandleMultiplayerHubCreateRequested;
 			_multiplayerHub.ReconnectRequested += HandleMultiplayerHubReconnectRequested;
+			_multiplayerRoomPanel.CloseRequested += CloseMultiplayerRoomPanel;
+			_multiplayerRoomPanel.HostCurrentSessionRequested += HandleMultiplayerRoomHostCurrentSessionRequested;
+			_multiplayerRoomPanel.AssignPrimaryActorRequested += HandleMultiplayerRoomAssignPrimaryActorRequested;
+			_multiplayerRoomPanel.KickPlayerRequested += HandleMultiplayerRoomKickPlayerRequested;
+			_multiplayerRoomPanel.ReclaimPrimaryActorRequested += HandleMultiplayerRoomReclaimPrimaryActorRequested;
 
 			LocalizationService.LocalizeTree(this);
 			_multiplayerHub.RefreshTexts();
+			_multiplayerRoomPanel.RefreshTexts();
 			_multiplayerHubTemplates = BuildMultiplayerHubTemplates();
 			_settingsFlow.RefreshTexts();
 			SyncSettingsUiState();
@@ -1254,6 +1273,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		var worldSettingsDialogOpen = IsWorldSettingsDialogOpen;
 		var saveNameDialogOpen = IsSaveNameDialogOpen;
 		var characterCreationOpen = IsCharacterCreationOpen;
+		var multiplayerRoomPanelOpen = IsMultiplayerRoomPanelOpen;
 		var settingsOverlayVisible = _settingsFlow.HasVisibleOverlay;
 		var hasVisibleModalLayer = confirmDialogOpen
 			|| loadRecoveryDialogOpen
@@ -1261,6 +1281,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			|| worldSettingsDialogOpen
 			|| saveNameDialogOpen
 			|| characterCreationOpen
+			|| multiplayerRoomPanelOpen
 			|| settingsOverlayVisible;
 		return new RuntimeUiModeSnapshot(
 			BusyOperationActive: busyOperationActive,
@@ -1274,7 +1295,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			AllowPanelDrag: !busyOperationActive && !mapEditorActive && !hasVisibleModalLayer,
 			BlocksGameplayInput: busyOperationActive || inMenu || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
 			SuppressHudAndAlerts: !sessionStarted || inMenu || PlayerDead || busyOperationActive || layoutEditActive || mapEditorActive || hasVisibleModalLayer,
-			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || loadRecoveryDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || mapEditorActive || layoutEditActive || settingsOverlayVisible);
+			PausesGameplayLoop: busyOperationActive || confirmDialogOpen || loadRecoveryDialogOpen || worldManagerOpen || worldSettingsDialogOpen || saveNameDialogOpen || multiplayerRoomPanelOpen || mapEditorActive || layoutEditActive || settingsOverlayVisible);
 	}
 
 	/// <summary>拦截未处理的键盘事件：优先让 PanelManager 处理（面板聚焦时），否则走 InputModule。</summary>
@@ -2095,6 +2116,324 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			statusMessage,
 			statusIsError);
 
+	private MultiplayerRoomPanelViewState BuildMultiplayerRoomPanelState()
+	{
+		var settings = _multiplayerFlowCoordinator.CurrentSettings;
+		var currentHostRoomName = _multiplayerRoomPanel != null && _multiplayerRoomPanel.Visible
+			? _multiplayerRoomPanel.HostRoomDisplayName
+			: _session.DescribeCurrentSessionLabel();
+		var currentHostPublic = _multiplayerRoomPanel != null && _multiplayerRoomPanel.Visible && _multiplayerRoomPanel.HostRoomIsPublic;
+
+		if (!IsMultiplayerSession || _multiplayerSessionBackend == null)
+		{
+			return new MultiplayerRoomPanelViewState
+			{
+				Mode = MultiplayerRoomPanelMode.LocalSession,
+				Subtitle = LocalizationService.TOrFallback(
+					"ui.multiplayer.room_panel.subtitle.local",
+					"Host the current run as a multiplayer room without going back to the main menu."),
+				Summary = LocalizationService.TOrFallback(
+					"ui.multiplayer.room_panel.summary.local",
+					"Current session: {session}\nMultiplayer profile: {displayName}\nHost mode: {hostMode}",
+					("session", _session.DescribeCurrentSessionLabel()),
+					("displayName", settings.DisplayName),
+					("hostMode", DescribeMultiplayerHostMode(settings.PreferredHostMode))),
+				StatusMessage = _multiplayerRoomPanelStatusMessage,
+				StatusIsError = _multiplayerRoomPanelStatusIsError,
+				Busy = _multiplayerRoomPanelBusy,
+				CanHostCurrentSession = _session.GameStarted && !MapEditorActive,
+				HostRoomDisplayName = currentHostRoomName,
+				HostRoomIsPublic = currentHostPublic,
+			};
+		}
+
+		var currentPlayerSessionId = _multiplayerSessionBackend.PlayerSessionId ?? string.Empty;
+		var roomDisplayName = ResolveCurrentMultiplayerRoomDisplayName();
+		var roomOwnerDisplayName = ResolveCurrentRoomOwnerDisplayName();
+
+		return new MultiplayerRoomPanelViewState
+		{
+			Mode = MultiplayerRoomPanelMode.MultiplayerRoom,
+			Subtitle = LocalizationService.TOrFallback(
+				"ui.multiplayer.room_panel.subtitle.room",
+				"Inspect the live room roster and manage actor ownership from inside the run."),
+			Summary = LocalizationService.TOrFallback(
+				"ui.multiplayer.room_panel.summary.room",
+				"Room: {room} [{code}]\nOwner: {owner}\nYou are controlling: {actor}",
+				("room", roomDisplayName),
+				("code", _state.Room.RoomCode),
+				("owner", roomOwnerDisplayName),
+				("actor", ResolveActorDisplayName(_state.PlayerId))),
+			StatusMessage = _multiplayerRoomPanelStatusMessage,
+			StatusIsError = _multiplayerRoomPanelStatusIsError,
+			Busy = _multiplayerRoomPanelBusy,
+			Players = BuildMultiplayerRoomPlayerOptions(currentPlayerSessionId),
+			Actors = BuildMultiplayerRoomActorOptions(),
+			CurrentPlayerSessionId = currentPlayerSessionId,
+			IsCurrentPlayerRoomOwner = _state.Room.Players.TryGetValue(currentPlayerSessionId, out var currentPlayer) && currentPlayer.IsRoomOwner,
+			CanReclaimPrimaryActor = TryGetCurrentPlayerPrimaryActorId(currentPlayerSessionId, out _),
+		};
+	}
+
+	private void RefreshMultiplayerRoomPanelState()
+	{
+		if (_multiplayerRoomPanel == null || !_multiplayerRoomPanel.Visible)
+			return;
+
+		_multiplayerRoomPanel.ApplyState(BuildMultiplayerRoomPanelState());
+	}
+
+	private void HandleMultiplayerRoomRequested()
+	{
+		if (!_session.GameStarted)
+			return;
+
+		_modalStateController.Prepare(RuntimeUiResetReason.OpenMultiplayerRoomPanel);
+		_multiplayerRoomPanelBusy = false;
+		_multiplayerRoomPanelStatusMessage = string.Empty;
+		_multiplayerRoomPanelStatusIsError = false;
+		_multiplayerRoomPanel.Open(BuildMultiplayerRoomPanelState());
+	}
+
+	private async void HandleMultiplayerRoomHostCurrentSessionRequested(MultiplayerRoomHostRequest request)
+	{
+		if (!_session.GameStarted || IsMultiplayerSession)
+			return;
+
+		_multiplayerRoomPanelBusy = true;
+		_multiplayerRoomPanelStatusMessage = LocalizationService.TOrFallback(
+			"ui.multiplayer.room_panel.status.hosting",
+			"Hosting current session...");
+		_multiplayerRoomPanelStatusIsError = false;
+		RefreshMultiplayerRoomPanelState();
+
+		var snapshot = SaveModule.BuildSnapshot(_state);
+		var result = await _multiplayerFlowCoordinator.CreateSnapshotRoomAsync(new MultiplayerSnapshotRoomCreateRequest
+		{
+			Settings = _multiplayerFlowCoordinator.CurrentSettings,
+			RoomDisplayName = request.RoomDisplayName,
+			IsPublic = request.IsPublic,
+			Snapshot = snapshot,
+			PrimaryActorId = snapshot.Payload.PlayerId,
+		});
+
+		_multiplayerRoomPanelBusy = false;
+		if (!result.Success)
+		{
+			_multiplayerRoomPanelStatusMessage = result.FailureReason ?? LocalizationService.TOrFallback(
+				"ui.multiplayer.room_panel.status.host_failed",
+				"Failed to host the current session.");
+			_multiplayerRoomPanelStatusIsError = true;
+			RefreshMultiplayerRoomPanelState();
+			return;
+		}
+
+		CloseMultiplayerRoomPanel();
+		await ActivateMultiplayerSessionAsync(result);
+	}
+
+	private void HandleMultiplayerRoomAssignPrimaryActorRequested(string targetPlayerSessionId, string targetActorId)
+	{
+		if (_multiplayerSessionBackend == null)
+			return;
+
+		_multiplayerRoomPanelStatusMessage = LocalizationService.TOrFallback(
+			"ui.multiplayer.room_panel.status.assignment_sent",
+			"Assignment request sent.");
+		_multiplayerRoomPanelStatusIsError = false;
+		RefreshMultiplayerRoomPanelState();
+		TrySubmitClientCommand(new AssignPrimaryActorClientCommand
+		{
+			TargetPlayerSessionId = targetPlayerSessionId,
+			TargetActorId = targetActorId,
+		});
+	}
+
+	private void HandleMultiplayerRoomKickPlayerRequested(string targetPlayerSessionId)
+	{
+		if (_multiplayerSessionBackend == null)
+			return;
+
+		_multiplayerRoomPanelStatusMessage = LocalizationService.TOrFallback(
+			"ui.multiplayer.room_panel.status.kick_sent",
+			"Kick request sent.");
+		_multiplayerRoomPanelStatusIsError = false;
+		RefreshMultiplayerRoomPanelState();
+		TrySubmitClientCommand(new KickPlayerClientCommand
+		{
+			TargetPlayerSessionId = targetPlayerSessionId,
+		});
+	}
+
+	private void HandleMultiplayerRoomReclaimPrimaryActorRequested()
+	{
+		if (_multiplayerSessionBackend == null)
+			return;
+		if (!TryGetCurrentPlayerPrimaryActorId(_multiplayerSessionBackend.PlayerSessionId ?? string.Empty, out var actorId))
+			return;
+
+		_multiplayerRoomPanelStatusMessage = LocalizationService.TOrFallback(
+			"ui.multiplayer.room_panel.status.reclaim_sent",
+			"Reclaim request sent.");
+		_multiplayerRoomPanelStatusIsError = false;
+		RefreshMultiplayerRoomPanelState();
+		TrySubmitClientCommand(new ReclaimPrimaryActorClientCommand
+		{
+			ActorId = actorId,
+		});
+	}
+
+	private void CloseMultiplayerRoomPanel()
+	{
+		if (_multiplayerRoomPanel.Visible)
+			_multiplayerRoomPanel.Close();
+	}
+
+	private IReadOnlyList<MultiplayerRoomPlayerOption> BuildMultiplayerRoomPlayerOptions(string currentPlayerSessionId) =>
+		_state.Room.Players.Values
+			.OrderByDescending(static player => player.IsRoomOwner)
+			.ThenByDescending(player => string.Equals(player.PlayerSessionId, currentPlayerSessionId, StringComparison.Ordinal))
+			.ThenBy(player => string.IsNullOrWhiteSpace(player.DisplayName) ? player.PlayerSessionId : player.DisplayName, StringComparer.Ordinal)
+			.Select(player => new MultiplayerRoomPlayerOption
+			{
+				PlayerSessionId = player.PlayerSessionId,
+				DisplayLabel = BuildMultiplayerRoomPlayerLabel(player, currentPlayerSessionId),
+			})
+			.ToArray();
+
+	private IReadOnlyList<MultiplayerRoomActorOption> BuildMultiplayerRoomActorOptions() =>
+		_state.Actors.Values
+			.Where(IsAssignableMultiplayerRoomActor)
+			.OrderBy(GetAssignableMultiplayerActorPriority)
+			.ThenBy(actor => ResolveActorDisplayName(actor.Id), StringComparer.Ordinal)
+			.ThenBy(static actor => actor.Id, StringComparer.Ordinal)
+			.Select(actor => new MultiplayerRoomActorOption
+			{
+				ActorId = actor.Id,
+				DisplayLabel = BuildMultiplayerRoomActorLabel(actor),
+			})
+			.ToArray();
+
+	private string BuildMultiplayerRoomPlayerLabel(RoomPlayerState player, string currentPlayerSessionId)
+	{
+		var flags = new List<string>();
+		if (player.IsRoomOwner)
+			flags.Add("owner");
+		if (string.Equals(player.PlayerSessionId, currentPlayerSessionId, StringComparison.Ordinal))
+			flags.Add("you");
+		flags.Add(player.Connected ? "online" : "offline");
+
+		var actorLabel = ResolveActorDisplayName(player.PrimaryActorId);
+		return string.IsNullOrWhiteSpace(actorLabel)
+			? $"{player.DisplayName} ({string.Join(", ", flags)})"
+			: $"{player.DisplayName} ({string.Join(", ", flags)}) | {actorLabel}";
+	}
+
+	private string BuildMultiplayerRoomActorLabel(Actor actor)
+	{
+		var ownerPlayerId = _state.Room.ActorControlBindings.TryGetValue(actor.Id, out var binding)
+			? binding.PrimaryOwnerPlayerId
+			: _state.Room.Players.Values.FirstOrDefault(player =>
+				string.Equals(player.PrimaryActorId, actor.Id, StringComparison.Ordinal))?.PlayerSessionId;
+		var controllerPlayerId = RoomRuntimeModule.GetCurrentControllerPlayerId(_state, actor.Id);
+		var ownerDisplayName = ResolvePlayerDisplayName(ownerPlayerId);
+		var controllerDisplayName = ResolvePlayerDisplayName(controllerPlayerId);
+		return LocalizationService.TOrFallback(
+			"ui.multiplayer.room_panel.actor_row",
+			"{actor} | owner: {owner} | control: {controller}",
+			("actor", ResolveActorDisplayName(actor.Id)),
+			("owner", ownerDisplayName),
+			("controller", controllerDisplayName));
+	}
+
+	private string ResolveCurrentMultiplayerRoomDisplayName()
+	{
+		var ticket = _multiplayerFlowCoordinator.GetReconnectTicket();
+		if (ticket != null
+			&& string.Equals(ticket.RoomId, _state.Room.RoomId, StringComparison.Ordinal)
+			&& !string.IsNullOrWhiteSpace(ticket.RoomDisplayName))
+		{
+			return ticket.RoomDisplayName;
+		}
+
+		return string.IsNullOrWhiteSpace(_state.Room.RoomCode)
+			? LocalizationService.T("ui.common.none")
+			: _state.Room.RoomCode;
+	}
+
+	private string ResolveCurrentRoomOwnerDisplayName()
+	{
+		var owner = _state.Room.Players.Values.FirstOrDefault(static player => player.IsRoomOwner);
+		return owner != null
+			? owner.DisplayName
+			: LocalizationService.T("ui.common.none");
+	}
+
+	private string ResolveActorDisplayName(string? actorId)
+	{
+		if (string.IsNullOrWhiteSpace(actorId))
+			return LocalizationService.T("ui.common.none");
+
+		return _state.Actors.TryGetValue(actorId, out var actor)
+			? string.IsNullOrWhiteSpace(actor.DisplayName) ? actor.Id : actor.DisplayName
+			: actorId;
+	}
+
+	private string ResolvePlayerDisplayName(string? playerSessionId)
+	{
+		if (string.IsNullOrWhiteSpace(playerSessionId))
+			return LocalizationService.T("ui.common.none");
+
+		return _state.Room.Players.TryGetValue(playerSessionId, out var player)
+			? player.DisplayName
+			: playerSessionId;
+	}
+
+	private bool TryGetCurrentPlayerPrimaryActorId(string currentPlayerSessionId, out string actorId)
+	{
+		actorId = string.Empty;
+		if (string.IsNullOrWhiteSpace(currentPlayerSessionId))
+			return false;
+		if (!_state.Room.Players.TryGetValue(currentPlayerSessionId, out var player))
+			return false;
+		if (string.IsNullOrWhiteSpace(player.PrimaryActorId))
+			return false;
+		if (string.Equals(
+			RoomRuntimeModule.GetCurrentControllerPlayerId(_state, player.PrimaryActorId),
+			currentPlayerSessionId,
+			StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		actorId = player.PrimaryActorId;
+		return true;
+	}
+
+	private string DescribeMultiplayerHostMode(MultiplayerHostMode hostMode) => hostMode == MultiplayerHostMode.Local
+		? LocalizationService.T("ui.multiplayer.config.host_mode.local")
+		: LocalizationService.T("ui.multiplayer.config.host_mode.remote");
+
+	private bool IsAssignableMultiplayerRoomActor(Actor actor)
+	{
+		if (string.Equals(actor.Id, _state.PlayerId, StringComparison.Ordinal))
+			return true;
+		if (string.Equals(actor.Faction, Factions.Player, StringComparison.Ordinal))
+			return true;
+		return string.Equals(actor.Faction, Factions.Friendly, StringComparison.Ordinal);
+	}
+
+	private int GetAssignableMultiplayerActorPriority(Actor actor)
+	{
+		if (string.Equals(actor.Id, _state.PlayerId, StringComparison.Ordinal))
+			return 0;
+		if (string.Equals(actor.Faction, Factions.Player, StringComparison.Ordinal))
+			return 1;
+		if (string.Equals(actor.Faction, Factions.Friendly, StringComparison.Ordinal))
+			return 2;
+		return 3;
+	}
+
 	private async Task OpenMultiplayerHubAsync(
 		bool refreshRooms,
 		string? statusMessage = null,
@@ -2212,6 +2551,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 
 		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		_multiplayerRoomPanelBusy = false;
+		_multiplayerRoomPanelStatusMessage = string.Empty;
+		_multiplayerRoomPanelStatusIsError = false;
 		_multiplayerSessionBackend = result.Backend;
 		_multiplayerSessionBackend.SnapshotReceived += HandleMultiplayerSnapshotReceived;
 		_multiplayerSessionBackend.DeltaReceived += HandleMultiplayerDeltaReceived;
@@ -2278,6 +2620,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		_state.Room = room.Clone();
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
+		RefreshMultiplayerRoomPanelState();
 		RefreshVisiblePanels();
 		RefreshPlayerCharacterVisual();
 		MarkUIDirty();
@@ -2295,7 +2638,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void HandleMultiplayerCommandRejected(string reason)
 	{
 		if (!string.IsNullOrWhiteSpace(reason))
+		{
 			_log.Add(reason);
+			_multiplayerRoomPanelStatusMessage = reason;
+			_multiplayerRoomPanelStatusIsError = true;
+			RefreshMultiplayerRoomPanelState();
+		}
 	}
 
 	private void HandleMultiplayerReconnectClaimed(string playerSessionId, string actorId)
@@ -2313,6 +2661,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_state.PlayerY = actor.Y;
 		_state.PlayerZ = actor.Z;
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
+		RefreshMultiplayerRoomPanelState();
 		RefreshPlayerCharacterVisual();
 		MarkUIDirty();
 		FlushMap();
@@ -2324,6 +2673,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 
 		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		CloseMultiplayerRoomPanel();
 		_multiplayerFlowCoordinator.MarkDisconnectedRecoverable(reason);
 		_menu.ShowMultiplayerHub();
 		_multiplayerHub.Open(BuildMultiplayerHubState(
@@ -2334,6 +2684,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private async void HandleMultiplayerReturnToMenu()
 	{
 		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+		CloseMultiplayerRoomPanel();
 		_multiplayerFlowCoordinator.BackToMainMenu();
 	}
 
@@ -2462,6 +2813,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		LocalizationService.LocalizeTree(this);
 		_multiplayerHub.RefreshTexts();
+		_multiplayerRoomPanel.RefreshTexts();
 		_multiplayerHubTemplates = BuildMultiplayerHubTemplates();
 		_settingsFlow.RefreshTexts();
 		_weatherLabPanelController.RefreshTexts();
@@ -2477,6 +2829,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_healthAlerts.RefreshTexts();
 		RefreshMainMenuContinueState();
 		RefreshStartupUi();
+		RefreshMultiplayerRoomPanelState();
 
 		if (MapEditorActive)
 			RefreshMapEditorBar();
@@ -2630,6 +2983,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_dialogUI.RefreshCurrentEntry();
 		if (_worldManager.Visible)
 			RefreshWorldManagerContents();
+		if (_multiplayerRoomPanel.Visible)
+			RefreshMultiplayerRoomPanelState();
 	}
 
 	private void OpenCharacterCreationDialog(string worldId, string worldName) =>

@@ -21,6 +21,7 @@ public enum PauseMenuAction
 	QuickSave,
 	QuickLoad,
 	OpenSettings,
+	OpenMultiplayerRoom,
 	ReturnToMenu,
 }
 
@@ -119,6 +120,7 @@ public sealed class SettingsFlowCoordinator
 
 	public event Action? QuickSaveRequested;
 	public event Action? QuickLoadRequested;
+	public event Action? MultiplayerRoomRequested;
 	public event Action? ReturnToMenuRequested;
 	public event Action? MainMenuRestoreRequested;
 	public event Action? RenderToggleRequested;
@@ -266,6 +268,9 @@ public sealed class SettingsFlowCoordinator
 				break;
 			case PauseMenuAction.QuickLoad:
 				QuickLoadRequested?.Invoke();
+				break;
+			case PauseMenuAction.OpenMultiplayerRoom:
+				MultiplayerRoomRequested?.Invoke();
 				break;
 			case PauseMenuAction.ReturnToMenu:
 				ReturnToMenuRequested?.Invoke();

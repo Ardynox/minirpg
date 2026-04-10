@@ -55,6 +55,11 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.pause_menu.settings"
 
+[node name="MultiplayerRoomBtn" type="Button" parent="Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.pause_menu.multiplayer_room"
+
 [node name="ReturnToMenuBtn" type="Button" parent="Margin/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"

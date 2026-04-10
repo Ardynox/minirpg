@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniRPG.Core.Config;
+using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Session;
 using MiniRPG.Module;
@@ -46,6 +47,15 @@ internal sealed class MultiplayerConnectResult
 		Success = false,
 		FailureReason = reason,
 	};
+}
+
+internal sealed class MultiplayerSnapshotRoomCreateRequest
+{
+	public MultiplayerSettings Settings { get; init; } = new();
+	public string RoomDisplayName { get; init; } = string.Empty;
+	public bool IsPublic { get; init; }
+	public SaveFile Snapshot { get; init; } = null!;
+	public string PrimaryActorId { get; init; } = string.Empty;
 }
 
 internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
@@ -174,6 +184,40 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 				PrimaryActorId = string.Empty,
 				IsPublic = request.IsPublic,
 				TemplateId = request.TemplateId,
+			}, cancellationToken).ConfigureAwait(false);
+			return await ConnectToRoomAsync(joinTicket, lobbyBaseUrl, cancellationToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			State = MultiplayerFlowState.MultiplayerHub;
+			return MultiplayerConnectResult.Fail(ex.Message);
+		}
+	}
+
+	public async Task<MultiplayerConnectResult> CreateSnapshotRoomAsync(
+		MultiplayerSnapshotRoomCreateRequest request,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(request);
+		ArgumentNullException.ThrowIfNull(request.Snapshot);
+		var settings = request.Settings.Clone();
+		SaveSettings(settings);
+
+		try
+		{
+			var lobbyBaseUrl = await EnsureLobbyReadyAsync(settings, cancellationToken).ConfigureAwait(false);
+			State = MultiplayerFlowState.ConnectingLobby;
+			using var lobby = _lobbyClientFactory(lobbyBaseUrl);
+			var joinTicket = await lobby.CreateRoomAsync(new LobbyCreateRoomRequest
+			{
+				RoomDisplayName = request.RoomDisplayName,
+				OwnerDisplayName = settings.DisplayName,
+				ServerEndpoint = BuildCreateServerEndpoint(settings, lobbyBaseUrl),
+				PrimaryActorId = string.IsNullOrWhiteSpace(request.PrimaryActorId)
+					? request.Snapshot.Payload.PlayerId
+					: request.PrimaryActorId,
+				IsPublic = request.IsPublic,
+				InitialSnapshot = request.Snapshot,
 			}, cancellationToken).ConfigureAwait(false);
 			return await ConnectToRoomAsync(joinTicket, lobbyBaseUrl, cancellationToken).ConfigureAwait(false);
 		}

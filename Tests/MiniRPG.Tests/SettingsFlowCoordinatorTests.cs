@@ -140,6 +140,22 @@ public sealed class SettingsFlowCoordinatorTests
 		Assert.Equal(1, toggleCount);
 	}
 
+	[Fact]
+	public void MultiplayerRoomAction_ForwardedFromPauseMenu()
+	{
+		var focusHost = new FakeFocusHost();
+		var pause = new FakePauseMenuOverlay();
+		var settings = new FakeSettingsOverlay();
+		var coordinator = new SettingsFlowCoordinator(focusHost, pause, settings);
+		var requestCount = 0;
+		coordinator.MultiplayerRoomRequested += () => requestCount++;
+
+		coordinator.OpenPauseMenu();
+		pause.TriggerAction(PauseMenuAction.OpenMultiplayerRoom);
+
+		Assert.Equal(1, requestCount);
+	}
+
 	private sealed class FakePauseMenuOverlay : IPauseMenuOverlay
 	{
 		public bool Visible { get; private set; }

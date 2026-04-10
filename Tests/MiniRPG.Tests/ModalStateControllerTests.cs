@@ -12,6 +12,8 @@ public sealed class ModalStateControllerTests
 		{
 			ActionIds.ClosePanelChromeSettings,
 			ActionIds.HideSettingsPanels,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.ExitMapEditor,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
@@ -25,6 +27,8 @@ public sealed class ModalStateControllerTests
 		{
 			ActionIds.ClosePanelChromeSettings,
 			ActionIds.CloseSettingsOverlayIfVisible,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.ExitMapEditor,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
@@ -36,7 +40,22 @@ public sealed class ModalStateControllerTests
 		yield return [(int)RuntimeUiResetReason.OpenMenuSettings, new[]
 		{
 			ActionIds.ClosePanelChromeSettings,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.HideSettingsPanels,
+			ActionIds.CloseConfirmDialog,
+			ActionIds.CloseLoadRecoveryDialog,
+			ActionIds.CloseWorldManager,
+			ActionIds.CloseWorldSettingsDialog,
+			ActionIds.CloseSaveNameDialog,
+			ActionIds.CloseCharacterCreationDialog,
+		}];
+		yield return [(int)RuntimeUiResetReason.OpenMultiplayerRoomPanel, new[]
+		{
+			ActionIds.ClosePanelChromeSettings,
+			ActionIds.HideSettingsPanels,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.CloseConfirmDialog,
 			ActionIds.CloseLoadRecoveryDialog,
 			ActionIds.CloseWorldManager,
@@ -47,6 +66,8 @@ public sealed class ModalStateControllerTests
 		yield return [(int)RuntimeUiResetReason.OpenWorldSettings, new[]
 		{
 			ActionIds.ClosePanelChromeSettings,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CloseConfirmDialog,
 			ActionIds.CloseLoadRecoveryDialog,
@@ -57,6 +78,8 @@ public sealed class ModalStateControllerTests
 		yield return [(int)RuntimeUiResetReason.OpenCharacterCreation, new[]
 		{
 			ActionIds.ClosePanelChromeSettings,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CloseConfirmDialog,
 			ActionIds.CloseLoadRecoveryDialog,
@@ -67,6 +90,8 @@ public sealed class ModalStateControllerTests
 		yield return [(int)RuntimeUiResetReason.EnterMapEditor, new[]
 		{
 			ActionIds.ClosePanelChromeSettings,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.HideSettingsPanels,
 			ActionIds.CancelLayoutEdit,
 			ActionIds.CloseConfirmDialog,
@@ -79,6 +104,8 @@ public sealed class ModalStateControllerTests
 		yield return [(int)RuntimeUiResetReason.EnterLayoutEdit, new[]
 		{
 			ActionIds.ClosePanelChromeSettings,
+			ActionIds.CloseMultiplayerHub,
+			ActionIds.CloseMultiplayerRoomPanel,
 			ActionIds.HideSettingsPanels,
 		}];
 	}
@@ -101,6 +128,8 @@ public sealed class ModalStateControllerTests
 		public const string ClosePanelChromeSettings = "close_panel_chrome_settings";
 		public const string HideSettingsPanels = "hide_settings_panels";
 		public const string CloseSettingsOverlayIfVisible = "close_settings_overlay_if_visible";
+		public const string CloseMultiplayerHub = "close_multiplayer_hub";
+		public const string CloseMultiplayerRoomPanel = "close_multiplayer_room_panel";
 		public const string ExitMapEditor = "exit_map_editor";
 		public const string CancelLayoutEdit = "cancel_layout_edit";
 		public const string CloseConfirmDialog = "close_confirm_dialog";
@@ -115,6 +144,8 @@ public sealed class ModalStateControllerTests
 			ClosePanelChromeSettings,
 			HideSettingsPanels,
 			CloseSettingsOverlayIfVisible,
+			CloseMultiplayerHub,
+			CloseMultiplayerRoomPanel,
 			ExitMapEditor,
 			CancelLayoutEdit,
 			CloseConfirmDialog,
@@ -139,6 +170,8 @@ public sealed class ModalStateControllerTests
 				Count(ActionIds.ClosePanelChromeSettings),
 				Count(ActionIds.HideSettingsPanels),
 				Count(ActionIds.CloseSettingsOverlayIfVisible),
+				Count(ActionIds.CloseMultiplayerHub),
+				Count(ActionIds.CloseMultiplayerRoomPanel),
 				Count(ActionIds.ExitMapEditor),
 				Count(ActionIds.CancelLayoutEdit),
 				Count(ActionIds.CloseConfirmDialog),

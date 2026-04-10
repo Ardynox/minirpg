@@ -29,6 +29,7 @@ public sealed class PauseMenuPanelModule : IPauseMenuOverlay, IPanel
 			(PauseMenuAction.QuickSave, panel.GetNode<Button>("Margin/VBox/QuickSaveBtn"), "ui.pause_menu.quick_save"),
 			(PauseMenuAction.QuickLoad, panel.GetNode<Button>("Margin/VBox/QuickLoadBtn"), "ui.pause_menu.quick_load"),
 			(PauseMenuAction.OpenSettings, panel.GetNode<Button>("Margin/VBox/SettingsBtn"), "ui.pause_menu.settings"),
+			(PauseMenuAction.OpenMultiplayerRoom, panel.GetNode<Button>("Margin/VBox/MultiplayerRoomBtn"), "ui.pause_menu.multiplayer_room"),
 			(PauseMenuAction.ReturnToMenu, panel.GetNode<Button>("Margin/VBox/ReturnToMenuBtn"), "ui.pause_menu.return_to_menu"),
 		];
 
@@ -83,6 +84,7 @@ public sealed class PauseMenuPanelModule : IPauseMenuOverlay, IPanel
 			case "3":
 			case "4":
 			case "5":
+			case "6":
 				ActivateByIndex(cmd[0] - '1');
 				return true;
 			case "close":
@@ -116,7 +118,9 @@ public sealed class PauseMenuPanelModule : IPauseMenuOverlay, IPanel
 	{
 		for (var i = 0; i < _items.Count; i++)
 		{
-			var text = LocalizationService.T(_items[i].TextKey);
+			var text = _items[i].Action == PauseMenuAction.OpenMultiplayerRoom
+				? LocalizationService.TOrFallback(_items[i].TextKey, "Multiplayer Room")
+				: LocalizationService.T(_items[i].TextKey);
 			_items[i].Button.Text = i == _selectedIndex
 				? $"> {text}"
 				: text;
