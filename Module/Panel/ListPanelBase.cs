@@ -70,6 +70,7 @@ public abstract class ListPanelBase : IPanel
 		row.Pressed += () => OnRowPressed(idx);
 		row.MouseEntered += () => OnRowHover(idx);
 		row.MouseExited += () => OnRowHoverExit(idx);
+		row.GuiInput += ev => HandleRowGuiInput(ev, idx);
 		PanelButtonScaleRegistry.Track(PanelId, row);
 		return row;
 	}
@@ -92,6 +93,7 @@ public abstract class ListPanelBase : IPanel
 		UpdateRowVisuals(GetRowDataCount());
 	}
 
+	protected virtual void HandleRowGuiInput(InputEvent ev, int index) { }
 	protected abstract int GetRowDataCount();
 	protected virtual void OnSelectionChanged() { }
 

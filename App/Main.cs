@@ -755,8 +755,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		try
 		{
+			ParseAutoTestCliOptions();
+			if (_autoTestCliExitRequested)
+				return;
+
 			BindStartupOverlayNodes();
 			GameConfig.Load();
+			FinalizeAutoTestCliConfig();
 			PresetDB.Load();
 			LocalizationService.Initialize();
 			LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
@@ -1217,6 +1222,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		ResAccess.PollAsyncLoads();
 		PollHeavyStartupLoad();
 		PollPostStartupTasks();
+		TryStartAutoTestCli();
 		_session.ProcessWorldStreaming();
 		_panelChrome.Update(GetViewport().GetMousePosition(), enabled: snapshot.AllowPanelChrome);
 		UpdateThreatHud(delta, snapshot);
@@ -1604,6 +1610,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_startupLoadStartedAtMsec = 0;
 		_startupStatusKey = "ui.startup.status.failed";
 		RefreshStartupUi();
+		HandleAutoTestCliStartupFailed(path);
 	}
 
 	private void BindStartupOverlayNodes()

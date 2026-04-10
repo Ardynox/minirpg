@@ -13,7 +13,7 @@ public partial class Main : IAutoTestHost
 {
 	GameSessionModule IAutoTestHost.Session => _session;
 	FogOfWarTracker IAutoTestHost.FogTracker => _fogTracker;
-	DebugConfig IAutoTestHost.AutoTestConfig => GameConfig.Debug;
+	DebugConfig IAutoTestHost.AutoTestConfig => _autoTestRuntimeConfig;
 	bool IAutoTestHost.ResourcesReady => ResourcesReady;
 
 	Task IAutoTestHost.StartDefaultNewGameAsync()
@@ -46,7 +46,7 @@ public partial class Main : IAutoTestHost
 
 	private async Task WaitForAutoTestStepAsync(float? delaySeconds)
 	{
-		var delay = delaySeconds ?? GameConfig.Debug.AutoTestStepDelay;
+		var delay = delaySeconds ?? _autoTestRuntimeConfig.AutoTestStepDelay;
 		var tree = GetTree();
 		if (delay > 0f)
 			await tree.ToSignal(tree.CreateTimer(delay), SceneTreeTimer.SignalName.Timeout);
@@ -60,7 +60,8 @@ public partial class Main : IAutoTestHost
 		var groundItemCount = _state.World == null
 			? 0
 			: MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY).Count;
-		var viewportSize = GetViewport().GetVisibleRect().Size;
+		var viewport = IsInsideTree() ? GetViewport() : null;
+		var viewportSize = viewport?.GetVisibleRect().Size ?? Vector2.Zero;
 		var mapViewportSize = _mapRender?.MapViewportSize ?? Vector2I.Zero;
 		var weatherExposed = _state.World != null
 			&& player != null
@@ -68,12 +69,16 @@ public partial class Main : IAutoTestHost
 		var weatherSample = _state.World != null && player != null
 			? WeatherRules.GetLocalWeather(_state, player.X, player.Y, player.Z)
 			: default(WeatherSample?);
+		var displayServerName = GetCurrentDisplayServerName();
 
 		return new AutoTestRuntimeSnapshot
 		{
-			GameStarted = _session.GameStarted,
+			GameStarted = _session?.GameStarted ?? false,
 			ResourcesReady = ResourcesReady,
 			RenderReady = RenderReady,
+			DisplayServerName = displayServerName,
+			HeadlessMode = AutoTestCli.IsHeadlessDisplayServer(displayServerName),
+			InvokedFromCli = IsAutoTestCliEnabled,
 			StartupState = _startupState.ToString().ToLowerInvariant(),
 			StartupSyncFallbackUsed = _startupSyncFallbackUsed,
 			StartupLoadPath = _startupLoadPath ?? _startupLastLoadPath,
@@ -85,13 +90,13 @@ public partial class Main : IAutoTestHost
 			PlayerGold = player?.Gold ?? 0,
 			PlayerDead = PlayerDead,
 			ActorCount = _state.Actors.Count,
-			CurrentPresetScenarioId = _session.CurrentPresetScenarioId,
-			CurrentSavePath = _session.CurrentSavePath,
+			CurrentPresetScenarioId = _session?.CurrentPresetScenarioId,
+			CurrentSavePath = _session?.CurrentSavePath,
 			WatchMode = _watchModeEnabled,
 			TimelineAutoAdvancePending = _timelineAutoAdvancePending,
 			BusyOperationActive = _busyOperationActive,
-			InputFocus = _inputModule.Focus.ToString().ToLowerInvariant(),
-			FocusedPanelId = _panels.FocusedId,
+			InputFocus = _inputModule == null ? string.Empty : _inputModule.Focus.ToString().ToLowerInvariant(),
+			FocusedPanelId = _panels?.FocusedId,
 			InventoryOpen = InventoryOpen,
 			ChestOpen = ChestOpen,
 			DialogOpen = _dialogUI?.InDialog == true,
@@ -109,7 +114,7 @@ public partial class Main : IAutoTestHost
 			ViewportHeight = Mathf.RoundToInt(viewportSize.Y),
 			MapViewportWidth = mapViewportSize.X,
 			MapViewportHeight = mapViewportSize.Y,
-			LastLogLine = _log.LastLine,
+			LastLogLine = _log?.LastLine,
 		};
 	}
 }

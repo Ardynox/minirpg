@@ -118,7 +118,7 @@ internal sealed class MainInputCoordinator(
 
 			if (handled)
 				_markInputHandled();
-			return true;
+			return isKeyEvent || handled;
 		}
 
 		if (snapshot.LayoutEditActive)

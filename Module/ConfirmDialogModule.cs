@@ -76,28 +76,23 @@ public sealed class ConfirmDialogModule : IModalInputLayer
 
 	public bool HandleKeyInput(InputEventKey key)
 	{
-		if (!key.Pressed || key.Echo || key.AltPressed || key.CtrlPressed || key.MetaPressed)
+		var focusOwner = _panel.GetViewport().GuiGetFocusOwner();
+		var result = ModalInputLogic.HandleKey(key, blockConfirm: focusOwner is Button);
+		if (!result.Handled)
 			return false;
 
-		if (key.Keycode == Key.Escape)
+		if (result.CancelRequested)
 		{
 			CancelRequested?.Invoke();
 			return true;
 		}
 
-		if (key.Keycode is not (Key.Enter or Key.KpEnter))
-			return false;
-
-		var focusOwner = _panel.GetViewport().GuiGetFocusOwner();
-		if (focusOwner is Button)
-			return false;
-
-		if (_defaultActionIndex >= 0 && _defaultActionIndex < _actions.Count)
+		if (result.ConfirmRequested && _defaultActionIndex >= 0 && _defaultActionIndex < _actions.Count)
 		{
 			ActionSelected?.Invoke(_actions[_defaultActionIndex].Id);
 			return true;
 		}
 
-		return false;
+		return true;
 	}
 }

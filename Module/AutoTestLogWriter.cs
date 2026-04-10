@@ -44,6 +44,9 @@ public sealed class AutoTestLogWriter
 		builder.AppendLine($"step_delay_seconds: {report.StepDelaySeconds:F2}");
 		builder.AppendLine($"structured_log_enabled: {report.StructuredLogEnabled}");
 		builder.AppendLine($"resource_smoke_enabled: {report.ResourceSmokeEnabled}");
+		builder.AppendLine($"display_server_name: {FormatText(report.DisplayServerName)}");
+		builder.AppendLine($"headless_mode: {report.HeadlessMode}");
+		builder.AppendLine($"invoked_from_cli: {report.InvokedFromCli}");
 		builder.AppendLine($"scenario_filter: {(report.ScenarioFilter.Count == 0 ? "<default>" : string.Join(", ", report.ScenarioFilter))}");
 		builder.AppendLine();
 		builder.AppendLine($"result: {report.PassCount} pass / {report.FailCount} fail / {report.WarnCount} warn");
@@ -165,4 +168,7 @@ public sealed class AutoTestLogWriter
 		metrics.TryGetValue(key, out var value)
 			? value.ToString(format)
 			: "n/a";
+
+	private static string FormatText(string? value) =>
+		string.IsNullOrWhiteSpace(value) ? "<unknown>" : value;
 }

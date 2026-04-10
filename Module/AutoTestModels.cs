@@ -58,6 +58,15 @@ public sealed class AutoTestRunReport
 	[JsonPropertyName("resource_smoke_enabled")]
 	public bool ResourceSmokeEnabled { get; init; }
 
+	[JsonPropertyName("display_server_name")]
+	public string DisplayServerName { get; init; } = "";
+
+	[JsonPropertyName("headless_mode")]
+	public bool HeadlessMode { get; init; }
+
+	[JsonPropertyName("invoked_from_cli")]
+	public bool InvokedFromCli { get; init; }
+
 	[JsonPropertyName("scenario_filter")]
 	public List<string> ScenarioFilter { get; init; } = [];
 
@@ -165,6 +174,15 @@ public sealed class AutoTestRuntimeSnapshot
 
 	[JsonPropertyName("render_ready")]
 	public bool RenderReady { get; init; }
+
+	[JsonPropertyName("display_server_name")]
+	public string DisplayServerName { get; init; } = "";
+
+	[JsonPropertyName("headless_mode")]
+	public bool HeadlessMode { get; init; }
+
+	[JsonPropertyName("invoked_from_cli")]
+	public bool InvokedFromCli { get; init; }
 
 	[JsonPropertyName("startup_state")]
 	public string StartupState { get; init; } = "";

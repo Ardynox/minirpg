@@ -148,14 +148,6 @@ public class InventoryPanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
-	protected override Button CreateRow(int index)
-	{
-		var row = base.CreateRow(index);
-		var idx = index;
-		row.GuiInput += ev => OnRowInput(ev, idx);
-		return row;
-	}
-
 	private void BuildFilterButtons()
 	{
 		for (var i = 0; i < FilterIds.Length; i++)
@@ -352,7 +344,7 @@ public class InventoryPanelModule : ListPanelBase
 		row.Text = $"{eqTag}{ItemFormatHelper.GetDisplayName(_host.State, item)}{statSegment}{weightSegment}";
 	}
 
-	private void OnRowInput(InputEvent ev, int index)
+	protected override void HandleRowGuiInput(InputEvent ev, int index)
 	{
 		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= _displayItems.Count) return;
 		if (mb.ButtonIndex == MouseButton.Left)

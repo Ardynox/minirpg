@@ -115,14 +115,6 @@ public class GroundPanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
-	protected override Button CreateRow(int index)
-	{
-		var row = base.CreateRow(index);
-		var idx = index;
-		row.GuiInput += ev => OnRowInput(ev, idx);
-		return row;
-	}
-
 	private void ApplyRowContent(Button row, int index)
 	{
 		var item = _groundItems[index];
@@ -138,7 +130,7 @@ public class GroundPanelModule : ListPanelBase
 		row.Text = $"{icon} {nameText}{statSegment}{weightSegment}";
 	}
 
-	private void OnRowInput(InputEvent ev, int index)
+	protected override void HandleRowGuiInput(InputEvent ev, int index)
 	{
 		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= _groundItems.Count)
 			return;

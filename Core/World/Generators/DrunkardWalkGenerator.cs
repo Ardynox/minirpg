@@ -84,40 +84,16 @@ public class DrunkardWalkGenerator : IMapGenerator
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xD1D2D3D4);
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
-		var downPlaced = false;
-		var upPlaced = false;
-
-		for (var ly = 0; ly < ChunkData.Size; ly++)
-		for (var lx = 0; lx < ChunkData.Size; lx++)
-		{
-			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
-			if (chunk.GetEntities(lx, ly).Count > 0) continue;
-
-			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
-			{
-				chunk.PushEntity(lx, ly, new CellEntity
-					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
-				downPlaced = true;
-			}
-			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100))
-			{
-				chunk.PushEntity(lx, ly, new CellEntity
-					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
-				upPlaced = true;
-			}
-			else if (rng.Next(100) < Math.Clamp(config.NestChancePercent, 0, 100))
-			{
-				chunk.PushEntity(lx, ly, new CellEntity
-					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
-				chunk.Nests.Add(new NestData
-				{
-					X = chunk.Coord.Cx * ChunkData.Size + lx,
-					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = config.NestSpawnInterval,
-					MaxSpawned = config.NestMaxSpawned,
-				});
-			}
-		}
+		GeneratorPopulateHelper.PlaceDungeonFixtures(
+			chunk,
+			rng,
+			floorId,
+			config.StairDownChancePercent,
+			config.StairUpChancePercent,
+			allowStairUp: true,
+			config.NestChancePercent,
+			config.NestSpawnInterval,
+			config.NestMaxSpawned);
 	}
 
 	/// <summary>确保 chunk 四条边各有至少一个开口，方便跨 chunk 通行。</summary>

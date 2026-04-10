@@ -117,23 +117,15 @@ public sealed class CharacterCreationModule : IModalInputLayer
 
 	public bool HandleKeyInput(InputEventKey key)
 	{
-		if (!key.Pressed || key.Echo || key.AltPressed || key.CtrlPressed || key.MetaPressed)
-			return false;
-
-		if (key.Keycode == Key.Escape)
-		{
-			CancelRequested?.Invoke();
-			return true;
-		}
-
-		if (key.Keycode is not (Key.Enter or Key.KpEnter))
-			return false;
-
 		var focusOwner = _panel.GetViewport().GuiGetFocusOwner();
-		if (focusOwner is Button or OptionButton)
+		var result = ModalInputLogic.HandleKey(key, blockConfirm: focusOwner is Button or OptionButton);
+		if (!result.Handled)
 			return false;
 
-		TryConfirm();
+		if (result.CancelRequested)
+			CancelRequested?.Invoke();
+		if (result.ConfirmRequested)
+			TryConfirm();
 		return true;
 	}
 

@@ -21,6 +21,8 @@ namespace MiniRPG.Module;
 
 public class AutoTestModule
 {
+	internal readonly record struct AutoTestViewportAssertionResult(bool Passed, bool SkippedAsHeadless, string Message);
+
 	private const string HeavyTileSetPath = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres";
 	private static readonly string[] ResourceScenePaths =
 	[
@@ -42,7 +44,60 @@ public class AutoTestModule
 
 	public void RunAll(IAutoTestHost host) => _ = RunAllSafeAsync(host);
 
-	public Task RunAllAsync(IAutoTestHost host) => RunAllCoreAsync(host);
+	public Task<AutoTestRunReport> RunAllAsync(IAutoTestHost host) => RunAllSafeAsync(host);
+
+	internal static AutoTestRunReport CreateStartupFailureReport(
+		DebugConfig config,
+		AutoTestRuntimeSnapshot snapshot,
+		string startupPath)
+	{
+		var finishedAt = DateTimeOffset.UtcNow;
+		var report = CreateRunReport(config, snapshot);
+		var scenario = new AutoTestScenarioResult
+		{
+			ScenarioId = "autotest",
+			DisplayName = "AutoTest Startup",
+			StartedAtUtc = report.StartedAtUtc,
+			FinishedAtUtc = finishedAt,
+		};
+		scenario.Cases.Add(new AutoTestCaseResult
+		{
+			RunId = report.RunId,
+			ScenarioId = scenario.ScenarioId,
+			CaseId = "autotest.startup_failed",
+			Status = "fail",
+			Severity = "error",
+			Message = $"Startup failed before AutoTest could begin. path={startupPath}.",
+			Turn = snapshot.Turn,
+			PlayerPos = snapshot.PlayerPos,
+			PresetScenarioId = snapshot.CurrentPresetScenarioId,
+			Snapshot = snapshot,
+			TimestampUtc = finishedAt,
+		});
+		report.Scenarios.Add(scenario);
+		report.FinishedAtUtc = finishedAt;
+		return report;
+	}
+
+	internal static AutoTestViewportAssertionResult EvaluateViewportAvailability(
+		string subject,
+		int width,
+		int height,
+		bool headlessMode)
+	{
+		if (headlessMode)
+		{
+			return new AutoTestViewportAssertionResult(
+				Passed: true,
+				SkippedAsHeadless: true,
+				Message: $"Headless mode skipped viewport assertion for {subject}; actual={width}x{height}.");
+		}
+
+		return new AutoTestViewportAssertionResult(
+			Passed: width > 0 && height > 0,
+			SkippedAsHeadless: false,
+			Message: $"Expected {subject} size > 0; actual={width}x{height}.");
+	}
 
 	internal void RecordCase(
 		AutoTestScenarioResult scenario,
@@ -84,11 +139,11 @@ public class AutoTestModule
 			ShouldAbort = true;
 	}
 
-	private async Task RunAllSafeAsync(IAutoTestHost host)
+	private async Task<AutoTestRunReport> RunAllSafeAsync(IAutoTestHost host)
 	{
 		try
 		{
-			await RunAllCoreAsync(host);
+			return await RunAllCoreAsync(host);
 		}
 		catch (Exception ex)
 		{
@@ -97,16 +152,7 @@ public class AutoTestModule
 			{
 				var config = host.AutoTestConfig;
 				_continueOnFailure = config.AutoTestContinueOnFailure && !config.AutoTestStopOnFail;
-				_report = new AutoTestRunReport
-				{
-					RunId = Guid.NewGuid().ToString("N"),
-					StartedAtUtc = DateTimeOffset.UtcNow,
-					ContinueOnFailure = _continueOnFailure,
-					StepDelaySeconds = config.AutoTestStepDelay,
-					StructuredLogEnabled = config.AutoTestWriteStructuredLog,
-					ResourceSmokeEnabled = config.AutoTestEnableResourceSmoke,
-					ScenarioFilter = [.. config.AutoTestScenarios],
-				};
+				_report = CreateRunReport(config, CaptureSnapshotSafely(host));
 			}
 
 			var fatalScenario = new AutoTestScenarioResult
@@ -121,29 +167,22 @@ public class AutoTestModule
 			RecordCase(fatalScenario, "autotest.fatal", "fail", "error", "Auto test crashed before completion.", ex);
 			_report.FinishedAtUtc = DateTimeOffset.UtcNow;
 			_logWriter.Write(_report);
+			return _report;
 		}
 	}
 
-	private async Task RunAllCoreAsync(IAutoTestHost host)
+	private async Task<AutoTestRunReport> RunAllCoreAsync(IAutoTestHost host)
 	{
 		_lastHost = host;
 		var config = host.AutoTestConfig;
 		_continueOnFailure = config.AutoTestContinueOnFailure && !config.AutoTestStopOnFail;
 		ShouldAbort = false;
-		_report = new AutoTestRunReport
-		{
-			RunId = Guid.NewGuid().ToString("N"),
-			StartedAtUtc = DateTimeOffset.UtcNow,
-			ContinueOnFailure = _continueOnFailure,
-			StepDelaySeconds = config.AutoTestStepDelay,
-			StructuredLogEnabled = config.AutoTestWriteStructuredLog,
-			ResourceSmokeEnabled = config.AutoTestEnableResourceSmoke,
-			ScenarioFilter = [.. config.AutoTestScenarios],
-		};
+		_report = CreateRunReport(config, CaptureSnapshotSafely(host));
 
 		GD.Print("[AutoTest] ========================================");
 		GD.Print("[AutoTest] AUTO TEST START");
 		GD.Print($"[AutoTest] run_id={_report.RunId} delay={config.AutoTestStepDelay:F2}s continue_on_failure={_continueOnFailure}");
+		GD.Print($"[AutoTest] display_server={_report.DisplayServerName} headless={_report.HeadlessMode} cli={_report.InvokedFromCli}");
 		GD.Print("[AutoTest] ========================================");
 
 		foreach (var scenario in BuildScenarioSequence(config))
@@ -158,6 +197,7 @@ public class AutoTestModule
 		var path = _logWriter.Write(_report);
 		GD.Print($"[AutoTest] RESULT: {_report.PassCount} PASS / {_report.FailCount} FAIL / {_report.WarnCount} WARN");
 		GD.Print($"[AutoTest] Report path: {path}");
+		return _report;
 	}
 
 	private IEnumerable<AutoTestScenarioDef> BuildScenarioSequence(DebugConfig config)
@@ -307,16 +347,20 @@ public class AutoTestModule
 		context.Pass(
 			"resource_smoke.startup.sync_fallback_observed",
 			$"Observed startup sync fallback used={startupSnapshot.StartupSyncFallbackUsed} last_path={startupSnapshot.StartupLoadPath ?? "<none>"}.");		
-		context.Check(
-			startupSnapshot.ViewportWidth > 0 && startupSnapshot.ViewportHeight > 0,
+		RecordViewportAvailability(
+			context,
 			"resource_smoke.layout.viewport_nonzero",
-			$"Expected viewport size > 0; actual={startupSnapshot.ViewportWidth}x{startupSnapshot.ViewportHeight}.",
-			$"Expected viewport size > 0; actual={startupSnapshot.ViewportWidth}x{startupSnapshot.ViewportHeight}.");
-		context.Check(
-			startupSnapshot.MapViewportWidth > 0 && startupSnapshot.MapViewportHeight > 0,
+			"viewport",
+			startupSnapshot.ViewportWidth,
+			startupSnapshot.ViewportHeight,
+			startupSnapshot.HeadlessMode);
+		RecordViewportAvailability(
+			context,
 			"resource_smoke.layout.map_viewport_nonzero",
-			$"Expected map viewport size > 0; actual={startupSnapshot.MapViewportWidth}x{startupSnapshot.MapViewportHeight}.",
-			$"Expected map viewport size > 0; actual={startupSnapshot.MapViewportWidth}x{startupSnapshot.MapViewportHeight}.");
+			"map viewport",
+			startupSnapshot.MapViewportWidth,
+			startupSnapshot.MapViewportHeight,
+			startupSnapshot.HeadlessMode);
 
 		foreach (var path in ResourceScenePaths)
 			ProbeResourceLoad(context, $"resource_smoke.load.{SanitizeId(Path.GetFileName(path))}", path);
@@ -1257,6 +1301,21 @@ public class AutoTestModule
 		}
 	}
 
+	private void RecordViewportAvailability(
+		AutoTestScenarioContext context,
+		string caseId,
+		string subject,
+		int width,
+		int height,
+		bool headlessMode)
+	{
+		var result = EvaluateViewportAvailability(subject, width, height, headlessMode);
+		if (result.Passed)
+			context.Pass(caseId, result.Message);
+		else
+			context.Fail(caseId, result.Message);
+	}
+
 	private static void PrepareVisionArena(GameState state, int radius)
 	{
 		if (state.World == null)
@@ -1487,6 +1546,35 @@ public class AutoTestModule
 
 	private static bool NearlyEqual(float left, float right, float epsilon = 0.0001f) =>
 		Math.Abs(left - right) <= epsilon;
+
+	private static AutoTestRuntimeSnapshot CaptureSnapshotSafely(IAutoTestHost host)
+	{
+		try
+		{
+			return host.CaptureSnapshot();
+		}
+		catch
+		{
+			return new AutoTestRuntimeSnapshot();
+		}
+	}
+
+	private static AutoTestRunReport CreateRunReport(DebugConfig config, AutoTestRuntimeSnapshot snapshot)
+	{
+		return new AutoTestRunReport
+		{
+			RunId = Guid.NewGuid().ToString("N"),
+			StartedAtUtc = DateTimeOffset.UtcNow,
+			ContinueOnFailure = config.AutoTestContinueOnFailure && !config.AutoTestStopOnFail,
+			StepDelaySeconds = config.AutoTestStepDelay,
+			StructuredLogEnabled = config.AutoTestWriteStructuredLog,
+			ResourceSmokeEnabled = config.AutoTestEnableResourceSmoke,
+			DisplayServerName = snapshot.DisplayServerName,
+			HeadlessMode = snapshot.HeadlessMode,
+			InvokedFromCli = snapshot.InvokedFromCli,
+			ScenarioFilter = [.. config.AutoTestScenarios],
+		};
+	}
 
 	private static string FormatPosition(int x, int y, int z) => $"({x},{y},{z})";
 

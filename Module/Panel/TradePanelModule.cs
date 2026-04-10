@@ -163,21 +163,13 @@ public class TradePanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
-	protected override Button CreateRow(int index)
-	{
-		var row = base.CreateRow(index);
-		var idx = index;
-		row.GuiInput += ev => OnRowInput(ev, idx);
-		return row;
-	}
-
 	private void DoAction()
 	{
 		if (ItemCount == 0) return;
 		OnTradeAction?.Invoke(_currentTab, _cursor);
 	}
 
-	private void OnRowInput(InputEvent ev, int index)
+	protected override void HandleRowGuiInput(InputEvent ev, int index)
 	{
 		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= ItemCount)
 			return;

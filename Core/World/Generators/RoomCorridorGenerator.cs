@@ -196,27 +196,13 @@ public class RoomCorridorGenerator : IMapGenerator
 	private static void PlaceStairs(ChunkData chunk, Random rng, ushort floorId)
 	{
 		var config = GameConfig.Generation.RoomCorridor;
-		var downPlaced = false;
-		var upPlaced = false;
-		for (var ly = 0; ly < ChunkData.Size && (!downPlaced || !upPlaced); ly++)
-		for (var lx = 0; lx < ChunkData.Size && (!downPlaced || !upPlaced); lx++)
-		{
-			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
-			if (chunk.GetEntities(lx, ly).Count > 0) continue;
-
-			if (!downPlaced && rng.Next(100) < Math.Clamp(config.StairDownChancePercent, 0, 100))
-			{
-				chunk.PushEntity(lx, ly, new CellEntity
-					{ Type = CellEntityType.Fixture, Glyph = ">", EntityId = Entities.StairDown });
-				downPlaced = true;
-			}
-			else if (!upPlaced && rng.Next(100) < Math.Clamp(config.StairUpChancePercent, 0, 100) && chunk.Coord.Cz > 0)
-			{
-				chunk.PushEntity(lx, ly, new CellEntity
-					{ Type = CellEntityType.Fixture, Glyph = "<", EntityId = Entities.StairUp });
-				upPlaced = true;
-			}
-		}
+		GeneratorPopulateHelper.PlaceStairs(
+			chunk,
+			rng,
+			floorId,
+			config.StairDownChancePercent,
+			config.StairUpChancePercent,
+			allowStairUp: chunk.Coord.Cz > 0);
 	}
 
 	private static int HashSeed(int worldSeed, ChunkCoord c) =>

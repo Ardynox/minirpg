@@ -154,6 +154,38 @@ public sealed class MainInputCoordinatorTests
 		Assert.True(harness.Calls.IndexOf("panel_drag") < harness.Calls.IndexOf("gameplay_input"));
 	}
 
+	[Fact]
+	public void HandleInput_VisibleModalMouseWithoutConsume_DoesNotSwallowGuiClick()
+	{
+		var harness = new CoordinatorHarness();
+		harness.ModalA.Visible = true;
+
+		var handled = harness.Coordinator.HandleInput(
+			@event: null,
+			CreateSnapshot(hasVisibleModalLayer: true, blocksGameplayInput: true),
+			isKeyEvent: false);
+
+		Assert.False(handled);
+		Assert.Equal(["modal_mouse:A"], harness.Calls);
+		Assert.Equal(0, harness.MarkHandledCount);
+	}
+
+	[Fact]
+	public void HandleInput_VisibleModalKeyWithoutConsume_StillBlocksFallthrough()
+	{
+		var harness = new CoordinatorHarness();
+		harness.ModalA.Visible = true;
+
+		var handled = harness.Coordinator.HandleInput(
+			@event: null,
+			CreateSnapshot(hasVisibleModalLayer: true, blocksGameplayInput: true),
+			isKeyEvent: true);
+
+		Assert.True(handled);
+		Assert.Equal(["modal_key:A"], harness.Calls);
+		Assert.Equal(0, harness.MarkHandledCount);
+	}
+
 	private static RuntimeUiModeSnapshot CreateSnapshot(
 		bool busyOperationActive = false,
 		bool inMenu = false,

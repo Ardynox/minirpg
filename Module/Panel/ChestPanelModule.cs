@@ -116,14 +116,6 @@ public class ChestPanelModule : ListPanelBase
 		UpdateActionButtons();
 	}
 
-	protected override Button CreateRow(int index)
-	{
-		var row = base.CreateRow(index);
-		var idx = index;
-		row.GuiInput += ev => OnRowInput(ev, idx);
-		return row;
-	}
-
 	protected override void OnRowPressed(int index)
 	{
 		if (index < 0 || index >= GetRowDataCount()) return;
@@ -141,7 +133,7 @@ public class ChestPanelModule : ListPanelBase
 		row.Text = $"{ItemFormatHelper.GetDisplayName(_host.State, item)}{statSegment}{weightSegment}";
 	}
 
-	private void OnRowInput(InputEvent ev, int index)
+	protected override void HandleRowGuiInput(InputEvent ev, int index)
 	{
 		if (ev is not InputEventMouseButton mb || !mb.Pressed || index < 0 || index >= GetRowDataCount())
 			return;

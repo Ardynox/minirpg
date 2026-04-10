@@ -165,6 +165,9 @@ public sealed class AutoTestProfilingTests
 			StepDelaySeconds = 0.05f,
 			StructuredLogEnabled = false,
 			ResourceSmokeEnabled = true,
+			DisplayServerName = "headless",
+			HeadlessMode = true,
+			InvokedFromCli = true,
 		};
 		var scenario = new AutoTestScenarioResult
 		{
@@ -204,6 +207,9 @@ public sealed class AutoTestProfilingTests
 		var text = AutoTestLogWriter.BuildText(report);
 
 		Assert.Contains("benchmark_breakdown:", text);
+		Assert.Contains("display_server_name: headless", text);
+		Assert.Contains("headless_mode: True", text);
+		Assert.Contains("invoked_from_cli: True", text);
 		Assert.Contains("count=50", text);
 		Assert.Contains("tick_ms=81.760", text);
 		Assert.Contains("vision_dead_check_ms=12.345", text);
