@@ -1,12 +1,12 @@
 {
   "terrain": {
     "void": "BLACK TILE",
-    "floor": "Ground A1_N",
+    "floor": "Ground H1_N",
     "wall_soil": "Wall A1_N",
-    "wall_stone": "Stone A1_N",
-    "wall_granite": "Stone A10_N",
-    "wall_obsidian": "Stone A20_N",
-    "wall_iron": "Stone A5_N",
+    "wall_stone": "Wall F1_N",
+    "wall_granite": "Wall F2_N",
+    "wall_obsidian": "Wall F3_N",
+    "wall_iron": "Wall F4_N",
     "rubble": "Ground A3_N",
     "grass": "Ground B1_N",
     "water": "Water Ripples 1",

@@ -286,6 +286,7 @@ public class IsometricVoxelRenderer
 			return false;
 
 		var topDiamondImage = BuildTopDiamondFromTile(topSourceImage);
+		topDiamondImage = EnhanceTopFaceEdges(topDiamondImage, terrain.Solid ? 0.48f : 0.26f);
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
@@ -439,6 +440,34 @@ public class IsometricVoxelRenderer
 		}
 
 		return result;
+	}
+
+	private static Image EnhanceTopFaceEdges(Image diamond, float outlineStrength)
+	{
+		var width = diamond.GetWidth();
+		var height = diamond.GetHeight();
+		var outlined = diamond.Duplicate();
+		outlineStrength = Math.Clamp(outlineStrength, 0f, 0.75f);
+
+		for (var y = 1; y < height - 1; y++)
+		for (var x = 1; x < width - 1; x++)
+		{
+			var c = diamond.GetPixel(x, y);
+			if (c.A <= 0.01f)
+				continue;
+
+			var isEdge = diamond.GetPixel(x - 1, y).A <= 0.01f
+				|| diamond.GetPixel(x + 1, y).A <= 0.01f
+				|| diamond.GetPixel(x, y - 1).A <= 0.01f
+				|| diamond.GetPixel(x, y + 1).A <= 0.01f;
+			if (!isEdge)
+				continue;
+
+			var factor = 1f - outlineStrength;
+			outlined.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
+		}
+
+		return outlined;
 	}
 
 	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken)
