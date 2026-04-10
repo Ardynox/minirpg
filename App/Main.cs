@@ -2333,10 +2333,12 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		var flags = new List<string>();
 		if (player.IsRoomOwner)
-			flags.Add("owner");
+			flags.Add(LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.owner", "owner"));
 		if (string.Equals(player.PlayerSessionId, currentPlayerSessionId, StringComparison.Ordinal))
-			flags.Add("you");
-		flags.Add(player.Connected ? "online" : "offline");
+			flags.Add(LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.you", "you"));
+		flags.Add(player.Connected
+			? LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.online", "online")
+			: LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.offline", "offline"));
 
 		var actorLabel = ResolveActorDisplayName(player.PrimaryActorId);
 		return string.IsNullOrWhiteSpace(actorLabel)
@@ -4205,7 +4207,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			return;
 		}
 
-		_log.Add(LocalizationService.T("dig.choose_direction") + " (W/A/S/D + U上挖 + J下挖)");
+		_log.Add(LocalizationService.T("dig.choose_direction"));
 		_inputModule.EnterDirectionMode("dig");
 	}
 
@@ -5087,6 +5089,7 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		if (!_menu.InMenu) FlushMap();
 	}
 
+
 	/// <summary>
 	/// 将 PlayerX/Y/Z 同步到当前激活角色的位置。
 	/// 这样所有依赖 PlayerX/Y/Z 的渲染和 UI 面板自动跟随激活角色。
@@ -5478,9 +5481,19 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		var actor = ActorModule.GetAt(_state, cell.X, cell.Y, cell.Z);
 		var actorText = actor != null
 			? IdentificationModule.GetActorDisplayName(_state, actor)
-			: "-";
-		var passable = _state.World.IsWalkable(cell.X, cell.Y, cell.Z) ? "Y" : "N";
-		_worldHoverLabel.Text = $"Cell ({cell.X}, {cell.Y}, {cell.Z})  Terrain: {GameLocalizer.LocalizeTerrainName(terrain.StringId)}  Walkable: {passable}  Actor: {actorText}";
+			: LocalizationService.T("ui.common.none");
+		var walkable = LocalizationService.T(
+			_state.World.IsWalkable(cell.X, cell.Y, cell.Z)
+				? "ui.world_hover.walkable.yes"
+				: "ui.world_hover.walkable.no");
+		_worldHoverLabel.Text = LocalizationService.T(
+			"ui.world_hover.cell",
+			("x", cell.X),
+			("y", cell.Y),
+			("z", cell.Z),
+			("terrain", GameLocalizer.LocalizeTerrainName(terrain.StringId)),
+			("walkable", walkable),
+			("actor", actorText));
 		overlay.Visible = true;
 	}
 

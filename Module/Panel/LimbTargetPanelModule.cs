@@ -118,7 +118,7 @@ public sealed class LimbTargetPanelModule : ListPanelBase
 		{
 			Name = "CancelBtn",
 			ThemeTypeVariation = "ActionButton",
-			Text = "Cancel",
+			Text = "ui.common.cancel",
 		};
 		actionBar.AddChild(cancelButton);
 

@@ -33,7 +33,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_type_variation = "HeaderLabel"
 horizontal_alignment = 1
-text = "Multiplayer Room"
+text = "ui.multiplayer.room_panel.title"
 
 [node name="Subtitle" type="Label" parent="Margin/VBox"]
 layout_mode = 2
@@ -78,21 +78,21 @@ theme_override_constants/v_separation = 8
 
 [node name="RoomNameLabel" type="Label" parent="Margin/VBox/Content/LocalHostSection/HostGrid"]
 layout_mode = 2
-text = "Room Name"
+text = "ui.multiplayer.room_panel.host.room_name"
 
 [node name="RoomNameInput" type="LineEdit" parent="Margin/VBox/Content/LocalHostSection/HostGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Room display name"
+placeholder_text = "ui.multiplayer.room_panel.host.room_name.placeholder"
 
 [node name="PublicCheck" type="CheckButton" parent="Margin/VBox/Content/LocalHostSection"]
 layout_mode = 2
-text = "List this room publicly"
+text = "ui.multiplayer.room_panel.host.public"
 
 [node name="HostCurrentSessionBtn" type="Button" parent="Margin/VBox/Content/LocalHostSection"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Host Current Session"
+text = "ui.multiplayer.room_panel.host.action"
 
 [node name="InRoomSection" type="HBoxContainer" parent="Margin/VBox/Content"]
 visible = false
@@ -109,7 +109,7 @@ theme_override_constants/separation = 6
 
 [node name="PlayerListTitle" type="Label" parent="Margin/VBox/Content/InRoomSection/PlayerColumn"]
 layout_mode = 2
-text = "Players"
+text = "ui.multiplayer.room_panel.players"
 
 [node name="PlayerList" type="ItemList" parent="Margin/VBox/Content/InRoomSection/PlayerColumn"]
 layout_mode = 2
@@ -126,7 +126,7 @@ theme_override_constants/separation = 6
 
 [node name="ActorListTitle" type="Label" parent="Margin/VBox/Content/InRoomSection/ActorColumn"]
 layout_mode = 2
-text = "Assignable Actors"
+text = "ui.multiplayer.room_panel.actors"
 
 [node name="ActorList" type="ItemList" parent="Margin/VBox/Content/InRoomSection/ActorColumn"]
 layout_mode = 2
@@ -143,17 +143,17 @@ theme_override_constants/separation = 8
 [node name="AssignPrimaryActorBtn" type="Button" parent="Margin/VBox/Content/InRoomSection/ActionColumn"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Assign Selected Actor"
+text = "ui.multiplayer.room_panel.assign_primary_actor"
 
 [node name="KickPlayerBtn" type="Button" parent="Margin/VBox/Content/InRoomSection/ActionColumn"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Kick Selected Player"
+text = "ui.multiplayer.room_panel.kick_player"
 
 [node name="ReclaimPrimaryActorBtn" type="Button" parent="Margin/VBox/Content/InRoomSection/ActionColumn"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Reclaim My Actor"
+text = "ui.multiplayer.room_panel.reclaim_primary_actor"
 
 [node name="Footer" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
@@ -163,4 +163,4 @@ theme_override_constants/separation = 8
 [node name="CloseBtn" type="Button" parent="Margin/VBox/Footer"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Close"
+text = "ui.multiplayer.room_panel.close"

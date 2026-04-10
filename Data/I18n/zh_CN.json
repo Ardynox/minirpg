@@ -609,7 +609,7 @@
     "log.interaction.default":  "[{name}] {target}",
     "dig.no_skills":  "你没有任何地形破坏技能",
     "dig.no_targets":  "附近没有可挖掘的地形",
-    "dig.choose_direction":  "选择方向 (WASD/方向键)...",
+    "dig.choose_direction":  "选择方向 (WASD/方向键/U 上挖/J 下挖)...",
     "dig.invalid_target":  "那里没有可破坏的地形",
     "dig.cannot_break":  "你没有能破坏 {terrain} 的技能",
     "combat.cannot_attack":  "你无法攻击！",
@@ -1687,7 +1687,41 @@
     , "look.weather.current.detail":  "\u5929\u6c14\uff1a{weather} ({intensity}) | {temp}C | {exposure} | \u906e\u853d {shelter}% | \u70ed\u6e90 +{heat}C"
     , "ui.chest.closed":  "\u5bb9\u5668\u5df2\u4e0d\u53ef\u7528\u3002"
     , "ui.chest.detail_hint":  "\u53cc\u51fb\u53d6\u51fa | \u53f3\u952e\u66f4\u591a\u64cd\u4f5c"
+    , "ui.common.cancel":  "\u53d6\u6d88"
     , "ui.common.unknown":  "\u672a\u77e5"
+    , "ui.multiplayer.connect.reconnect_unavailable":  "\u6ca1\u6709\u53ef\u7528\u7684\u91cd\u8fde\u51ed\u8bc1\u3002"
+    , "ui.multiplayer.connect.local_server_failed":  "\u65e0\u6cd5\u542f\u52a8\u672c\u5730\u670d\u52a1\u5668\u3002"
+    , "ui.multiplayer.connect.room_failed":  "\u65e0\u6cd5\u8fde\u63a5\u5230\u623f\u95f4\u3002"
+    , "ui.multiplayer.room_panel.title":  "\u591a\u4eba\u623f\u95f4"
+    , "ui.multiplayer.room_panel.host.hint":  "\u4f7f\u7528\u4f60\u5df2\u4fdd\u5b58\u7684\u591a\u4eba\u6863\u6848\u4e0e\u670d\u52a1\u5668\u8bbe\u7f6e\uff0c\u5c06\u5f53\u524d\u5bf9\u5c40\u6258\u7ba1\u4e3a\u591a\u4eba\u623f\u95f4\u3002"
+    , "ui.multiplayer.room_panel.host.room_name":  "\u623f\u95f4\u540d\u79f0"
+    , "ui.multiplayer.room_panel.host.room_name.placeholder":  "\u623f\u95f4\u663e\u793a\u540d"
+    , "ui.multiplayer.room_panel.host.public":  "\u5c06\u8be5\u623f\u95f4\u5217\u4e3a\u516c\u5f00"
+    , "ui.multiplayer.room_panel.host.action":  "\u6258\u7ba1\u5f53\u524d\u5bf9\u5c40"
+    , "ui.multiplayer.room_panel.host.default_name":  "\u5f53\u524d\u5bf9\u5c40"
+    , "ui.multiplayer.room_panel.players":  "\u73a9\u5bb6"
+    , "ui.multiplayer.room_panel.actors":  "\u53ef\u5206\u914d\u89d2\u8272"
+    , "ui.multiplayer.room_panel.assign_primary_actor":  "\u5206\u914d\u9009\u4e2d\u89d2\u8272"
+    , "ui.multiplayer.room_panel.kick_player":  "\u79fb\u9664\u9009\u4e2d\u73a9\u5bb6"
+    , "ui.multiplayer.room_panel.reclaim_primary_actor":  "\u6536\u56de\u6211\u7684\u89d2\u8272"
+    , "ui.multiplayer.room_panel.close":  "\u5173\u95ed"
+    , "ui.multiplayer.room_panel.subtitle.local":  "\u65e0\u9700\u8fd4\u56de\u4e3b\u83dc\u5355\uff0c\u76f4\u63a5\u5c06\u5f53\u524d\u5bf9\u5c40\u6258\u7ba1\u4e3a\u591a\u4eba\u623f\u95f4\u3002"
+    , "ui.multiplayer.room_panel.summary.local":  "\u5f53\u524d\u5bf9\u5c40\uff1a{session}\n\u591a\u4eba\u6863\u6848\uff1a{displayName}\n\u5f00\u623f\u6a21\u5f0f\uff1a{hostMode}"
+    , "ui.multiplayer.room_panel.subtitle.room":  "\u5728\u5bf9\u5c40\u5185\u67e5\u770b\u5b9e\u65f6\u623f\u95f4\u6210\u5458\uff0c\u5e76\u7ba1\u7406\u89d2\u8272\u5f52\u5c5e\u3002"
+    , "ui.multiplayer.room_panel.summary.room":  "\u623f\u95f4\uff1a{room} [{code}]\n\u623f\u4e3b\uff1a{owner}\n\u4f60\u5f53\u524d\u63a7\u5236\uff1a{actor}"
+    , "ui.multiplayer.room_panel.status.hosting":  "\u6b63\u5728\u6258\u7ba1\u5f53\u524d\u5bf9\u5c40..."
+    , "ui.multiplayer.room_panel.status.host_failed":  "\u6258\u7ba1\u5f53\u524d\u5bf9\u5c40\u5931\u8d25\u3002"
+    , "ui.multiplayer.room_panel.status.assignment_sent":  "\u5206\u914d\u8bf7\u6c42\u5df2\u53d1\u9001\u3002"
+    , "ui.multiplayer.room_panel.status.kick_sent":  "\u79fb\u9664\u8bf7\u6c42\u5df2\u53d1\u9001\u3002"
+    , "ui.multiplayer.room_panel.status.reclaim_sent":  "\u6536\u56de\u8bf7\u6c42\u5df2\u53d1\u9001\u3002"
+    , "ui.multiplayer.room_panel.flag.owner":  "\u623f\u4e3b"
+    , "ui.multiplayer.room_panel.flag.you":  "\u4f60"
+    , "ui.multiplayer.room_panel.flag.online":  "\u5728\u7ebf"
+    , "ui.multiplayer.room_panel.flag.offline":  "\u79bb\u7ebf"
+    , "ui.multiplayer.room_panel.actor_row":  "{actor} | \u5f52\u5c5e\uff1a{owner} | \u63a7\u5236\uff1a{controller}"
+    , "ui.world_hover.cell":  "\u683c\u5b50 ({x}, {y}, {z})  \u5730\u5f62: {terrain}  \u53ef\u901a\u884c: {walkable}  \u89d2\u8272: {actor}"
+    , "ui.world_hover.walkable.yes":  "\u662f"
+    , "ui.world_hover.walkable.no":  "\u5426"
     , "ui.ground.context.butcher":  "\u80a2\u89e3"
     , "ui.ground.context.harvest":  "\u91c7\u96c6"
     , "ui.ground.context.open":  "\u6253\u5f00"

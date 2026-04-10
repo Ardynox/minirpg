@@ -287,7 +287,12 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 	{
 		var reconnectTicket = GetReconnectTicket();
 		if (reconnectTicket == null)
-			return MultiplayerConnectResult.Fail("No reconnect ticket is available.");
+		{
+			return MultiplayerConnectResult.Fail(
+				LocalizationService.TOrFallback(
+					"ui.multiplayer.connect.reconnect_unavailable",
+					"No reconnect ticket is available."));
+		}
 
 		try
 		{
@@ -387,7 +392,13 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 			GamePort = settings.LocalGamePort,
 		}, cancellationToken).ConfigureAwait(false);
 		if (!launchResult.Success)
-			throw new InvalidOperationException(launchResult.FailureReason ?? "Failed to start local server.");
+		{
+			throw new InvalidOperationException(
+				launchResult.FailureReason
+				?? LocalizationService.TOrFallback(
+					"ui.multiplayer.connect.local_server_failed",
+					"Failed to start local server."));
+		}
 
 		return launchResult.LobbyBaseUrl;
 	}
@@ -409,7 +420,11 @@ internal sealed class MultiplayerFlowCoordinator : IAsyncDisposable
 		{
 			await backend.DisposeAsync().ConfigureAwait(false);
 			State = MultiplayerFlowState.MultiplayerHub;
-			return MultiplayerConnectResult.Fail(connectResult.FailureReason ?? "Failed to connect to room.");
+			return MultiplayerConnectResult.Fail(
+				connectResult.FailureReason
+				?? LocalizationService.TOrFallback(
+					"ui.multiplayer.connect.room_failed",
+					"Failed to connect to room."));
 		}
 
 		State = MultiplayerFlowState.LoadingRemoteSnapshot;
