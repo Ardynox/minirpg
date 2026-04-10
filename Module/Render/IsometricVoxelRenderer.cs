@@ -19,9 +19,31 @@ public class IsometricVoxelRenderer
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
+	private const float WallTopEdgeStrength = 0.58f;
+	private static readonly IsometricLightingSettings DefaultLighting = new(
+		Ambient: 0.84f,
+		TopLight: 1.12f,
+		LeftLight: 0.76f,
+		RightLight: 0.90f,
+		DepthFalloff: 0.06f,
+		Contrast: 1.06f,
+		ShadowStrength: 0.58f,
+		OcclusionStep: 0.085f);
+	private const float MinLight = 0.12f;
+	private const float MaxLight = 1.65f;
+	private const float SolidTopEdgeStrength = 0.40f;
+	private const float NonSolidTopEdgeStrength = 0.22f;
+	private const float WallSideEdgeStrength = 0.38f;
+	private const float SolidSideEdgeStrength = 0.24f;
+	private const float NonSolidSideEdgeStrength = 0.12f;
 	private const int SideTextureWidth = 64;
-	private const int SideTextureHeight = 160;
-	private const int SideFaceHeight = 80;
+	private const int SideTextureHeight = 176;
+	private const int SideFaceHeight = 84;
+	private const int WallSideFaceHeight = 122;
+	private const float DefaultLeftSideDarken = LeftDarken;
+	private const float DefaultRightSideDarken = RightDarken;
+	private const float WallLeftSideDarken = 0.52f;
+	private const float WallRightSideDarken = 0.68f;
 	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
 
 	private readonly GameState _state;
@@ -41,6 +63,7 @@ public class IsometricVoxelRenderer
 
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
 	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
+	private IsometricLightingSettings _lighting = DefaultLighting;
 
 	private static readonly Dictionary<string, Color> TerrainColors = new()
 	{
@@ -87,6 +110,7 @@ public class IsometricVoxelRenderer
 
 	public int LastSpriteCount => _spriteCount;
 	public int LastDrawCommandCount => _lastDrawCommandCount;
+	public IsometricLightingSettings LightingSettings => _lighting;
 
 	public void Init(Node2D root, TileSet tileSet, Camera2D? camera, TileMapRenderModule parentModule)
 	{
@@ -95,6 +119,16 @@ public class IsometricVoxelRenderer
 		_parentModule = parentModule;
 		_textureCache.Clear();
 		_voxelFaceTextureCache.Clear();
+	}
+
+	public void ConfigureLighting(IsometricLightingSettings? settings = null)
+	{
+		var resolved = settings ?? DefaultLighting;
+		if (_lighting.Equals(resolved))
+			return;
+
+		_lighting = resolved.Clamp(MinLight, MaxLight);
+		_textureCache.Clear();
 	}
 
 	// ── Main Render Pass ──
@@ -172,7 +206,7 @@ public class IsometricVoxelRenderer
 		s.Position = cmd.ScreenPos;
 		s.Skew = 0f;
 		s.ZIndex = 0;
-		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		s.Modulate = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
 		s.Visible = true;
 	}
 
@@ -188,7 +222,7 @@ public class IsometricVoxelRenderer
 		s.Position = cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
-		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		s.Modulate = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Left);
 		s.Visible = true;
 	}
 
@@ -204,7 +238,7 @@ public class IsometricVoxelRenderer
 		s.Position = cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f);
 		s.Skew = 0f;
 		s.ZIndex = 0;
-		s.Modulate = GetVisionTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		s.Modulate = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Right);
 		s.Visible = true;
 	}
 
@@ -218,6 +252,66 @@ public class IsometricVoxelRenderer
 			PlayerVisionBand.Memory => new Color(0.22f, 0.22f, 0.28f),
 			_ => new Color(0f, 0f, 0f, 0f),
 		};
+	}
+
+	private Color GetFaceTint(int wx, int wy, int wz, VoxelFace face)
+	{
+		var visionTint = GetVisionTint(wx, wy, wz);
+		if (visionTint.A <= 0f)
+			return visionTint;
+
+		var faceLight = face switch
+		{
+			VoxelFace.Top => _lighting.TopLight,
+			VoxelFace.Left => _lighting.LeftLight,
+			VoxelFace.Right => _lighting.RightLight,
+			_ => 1f,
+		};
+
+		var depth = wz - _state.PlayerZ;
+		var depthAttenuation = Math.Max(0.35f, 1f - depth * _lighting.DepthFalloff);
+		var brightness = Math.Clamp(_lighting.Ambient * faceLight * depthAttenuation, MinLight, MaxLight);
+		brightness = MathF.Pow(brightness, _lighting.Contrast);
+
+		var shadow = ComputeDirectionalShadow(wx, wy, wz, face);
+		var shadedBrightness = Math.Clamp(brightness * (1f - shadow), MinLight, MaxLight);
+
+		return new Color(
+			Math.Clamp(visionTint.R * shadedBrightness, 0f, 1f),
+			Math.Clamp(visionTint.G * shadedBrightness, 0f, 1f),
+			Math.Clamp(visionTint.B * shadedBrightness, 0f, 1f),
+			visionTint.A);
+	}
+
+	private float ComputeDirectionalShadow(int wx, int wy, int wz, VoxelFace face)
+	{
+		if (_state.World == null)
+			return 0f;
+
+		var world = _state.World;
+		var occluders = 0;
+		var maxSample = face == VoxelFace.Top ? 4 : 3;
+		for (var step = 1; step <= maxSample; step++)
+		{
+			var sampleX = wx + step;
+			var sampleY = wy + step;
+			var sampleZ = wz - step;
+			if (world.GetTerrain(sampleX, sampleY, sampleZ).IsOpaque)
+				occluders++;
+		}
+
+		if (face != VoxelFace.Top && world.GetTerrain(wx, wy, wz - 1).IsOpaque)
+			occluders++;
+
+		var baseShadow = occluders * _lighting.OcclusionStep;
+		var faceScale = face switch
+		{
+			VoxelFace.Top => 0.78f,
+			VoxelFace.Left => 1.10f,
+			VoxelFace.Right => 0.92f,
+			_ => 1f,
+		};
+		return Math.Clamp(baseShadow * _lighting.ShadowStrength * faceScale, 0f, 0.82f);
 	}
 
 	// ── Texture Generation ──
@@ -286,7 +380,7 @@ public class IsometricVoxelRenderer
 			return false;
 
 		var topDiamondImage = BuildTopDiamondFromTile(topSourceImage);
-		topDiamondImage = EnhanceTopFaceEdges(topDiamondImage, terrain.Solid ? 0.48f : 0.26f);
+		topDiamondImage = EnhanceTopFaceEdges(topDiamondImage, GetTopEdgeStrength(terrain));
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
@@ -297,8 +391,14 @@ public class IsometricVoxelRenderer
 		else
 			sideSourceImage = topSourceImage;
 
-		var leftImage = GenerateSideFaceFromTile(sideSourceImage, isRight: false, LeftDarken);
-		var rightImage = GenerateSideFaceFromTile(sideSourceImage, isRight: true, RightDarken);
+		var wallLike = IsWallTerrain(terrain);
+		var leftDarken = wallLike ? WallLeftSideDarken : DefaultLeftSideDarken;
+		var rightDarken = wallLike ? WallRightSideDarken : DefaultRightSideDarken;
+		var faceHeight = wallLike ? WallSideFaceHeight : SideFaceHeight;
+		var leftImage = GenerateSideFaceFromTile(sideSourceImage, isRight: false, leftDarken, faceHeight);
+		var rightImage = GenerateSideFaceFromTile(sideSourceImage, isRight: true, rightDarken, faceHeight);
+		EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: GetSideEdgeStrength(terrain));
+		EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: GetSideEdgeStrength(terrain));
 
 		textures = new CachedBlockTextures(
 			topTexture,
@@ -446,7 +546,7 @@ public class IsometricVoxelRenderer
 	{
 		var width = diamond.GetWidth();
 		var height = diamond.GetHeight();
-		var outlined = diamond.Duplicate();
+		var outlined = (Image)diamond.Duplicate();
 		outlineStrength = Math.Clamp(outlineStrength, 0f, 0.75f);
 
 		for (var y = 1; y < height - 1; y++)
@@ -470,14 +570,15 @@ public class IsometricVoxelRenderer
 		return outlined;
 	}
 
-	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken)
+	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken, int faceHeight)
 	{
 		var iw = SideTextureWidth;
 		var ih = SideTextureHeight;
-		var faceH = SideFaceHeight;
+		var faceH = Math.Clamp(faceHeight, 24, ih - 8);
 		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
 		var tw = tileImage.GetWidth();
 		var th = tileImage.GetHeight();
+		var gradientDepth = IsWallFaceHeight(faceH) ? 0.22f : 0.17f;
 
 		for (var px = 0; px < iw; px++)
 		{
@@ -496,7 +597,7 @@ public class IsometricVoxelRenderer
 
 				var sampleY = Math.Clamp((int)Math.Round(((dy + (th - faceH)) / (float)(th - 1)) * (th - 1)), 0, th - 1);
 				var color = SampleArea(tileImage, sampleX, sampleY, tw, th);
-				var gradient = 1.0f - (dy / (float)faceH) * 0.17f;
+				var gradient = 1.0f - (dy / (float)faceH) * gradientDepth;
 				var c = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
 				c.A = color.A;
 				img.SetPixel(px, py, c);
@@ -504,6 +605,65 @@ public class IsometricVoxelRenderer
 		}
 
 		return img;
+	}
+
+	private static float GetTopEdgeStrength(TerrainDef terrain)
+	{
+		if (IsWallTerrain(terrain))
+			return WallTopEdgeStrength;
+		return terrain.Solid ? SolidTopEdgeStrength : NonSolidTopEdgeStrength;
+	}
+
+	private static bool IsWallFaceHeight(int faceHeight) => faceHeight >= WallSideFaceHeight - 6;
+
+	private static float GetSideEdgeStrength(TerrainDef terrain)
+	{
+		if (IsWallTerrain(terrain))
+			return WallSideEdgeStrength;
+		return terrain.Solid ? SolidSideEdgeStrength : NonSolidSideEdgeStrength;
+	}
+
+	private static bool IsWallTerrain(TerrainDef terrain)
+	{
+		return terrain.StringId.StartsWith("wall_", StringComparison.OrdinalIgnoreCase)
+			|| terrain.StringId.Equals(Terrains.Stone, StringComparison.OrdinalIgnoreCase)
+			|| terrain.StringId.Equals(Terrains.Dirt, StringComparison.OrdinalIgnoreCase)
+			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static void EnhanceSideFaceEdge(Image sideFace, bool isRight, float edgeStrength)
+	{
+		edgeStrength = Math.Clamp(edgeStrength, 0f, 0.75f);
+		if (edgeStrength <= 0f)
+			return;
+
+		var width = sideFace.GetWidth();
+		var height = sideFace.GetHeight();
+		for (var y = 0; y < height; y++)
+		{
+			var x = isRight ? width - 1 : 0;
+			while (x >= 0 && x < width)
+			{
+				var c = sideFace.GetPixel(x, y);
+				if (c.A > 0.01f)
+				{
+					var factor = 1f - edgeStrength;
+					sideFace.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
+					var nextX = isRight ? x - 1 : x + 1;
+					if (nextX >= 0 && nextX < width)
+					{
+						var c2 = sideFace.GetPixel(nextX, y);
+						if (c2.A > 0.01f)
+						{
+							var factor2 = 1f - edgeStrength * 0.5f;
+							sideFace.SetPixel(nextX, y, new Color(c2.R * factor2, c2.G * factor2, c2.B * factor2, c2.A));
+						}
+					}
+					break;
+				}
+				x += isRight ? -1 : 1;
+			}
+		}
 	}
 
 	/// <summary>
@@ -1060,6 +1220,37 @@ public class IsometricVoxelRenderer
 	}
 
 	// ── Types ──
+
+	private enum VoxelFace
+	{
+		Top,
+		Left,
+		Right,
+	}
+
+	public readonly record struct IsometricLightingSettings(
+		float Ambient,
+		float TopLight,
+		float LeftLight,
+		float RightLight,
+		float DepthFalloff,
+		float Contrast,
+		float ShadowStrength,
+		float OcclusionStep)
+	{
+		public IsometricLightingSettings Clamp(float minLight, float maxLight)
+		{
+			return new IsometricLightingSettings(
+				Math.Clamp(Ambient, minLight, maxLight),
+				Math.Clamp(TopLight, minLight, maxLight),
+				Math.Clamp(LeftLight, minLight, maxLight),
+				Math.Clamp(RightLight, minLight, maxLight),
+				Math.Clamp(DepthFalloff, 0f, 0.35f),
+				Math.Clamp(Contrast, 0.65f, 1.8f),
+				Math.Clamp(ShadowStrength, 0f, 1.2f),
+				Math.Clamp(OcclusionStep, 0f, 0.35f));
+		}
+	}
 
 	private struct VoxelDrawCommand
 	{

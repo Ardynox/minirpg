@@ -7,7 +7,7 @@ namespace MiniRPG.Core.Config;
 
 public static class AppSettingsStore
 {
-	private const int SchemaVersion = 6;
+	private const int SchemaVersion = 7;
 
 	public static string LoadLocale()
 	{
@@ -40,6 +40,17 @@ public static class AppSettingsStore
 	public static void SaveEnableKeyboardTargeting(bool enabled)
 	{
 		SaveSettings(settings => settings.EnableKeyboardTargeting = enabled, "keyboard targeting setting");
+	}
+
+	public static bool LoadFastTurnMode()
+	{
+		var settings = LoadSettings();
+		return settings.FastTurnMode ?? true;
+	}
+
+	public static void SaveFastTurnMode(bool enabled)
+	{
+		SaveSettings(settings => settings.FastTurnMode = enabled, "fast turn mode setting");
 	}
 
 	public static bool LoadEnableDebugPanel()
@@ -228,6 +239,9 @@ public static class AppSettingsStore
 		[JsonPropertyName("enableDebugPanel")]
 		public bool? EnableDebugPanel { get; set; }
 
+		[JsonPropertyName("fastTurnMode")]
+		public bool? FastTurnMode { get; set; }
+
 		[JsonPropertyName("mapZoomMin")]
 		public float? MapZoomMin { get; set; }
 
@@ -310,6 +324,7 @@ public static class AppSettingsStore
 		Locale = LocalizationService.DefaultLocale,
 		EnableKeyboardTargeting = false,
 		EnableDebugPanel = true,
+		FastTurnMode = true,
 		MapZoomMin = 0.6f,
 		MapZoomMax = 2.4f,
 		LastContinueKind = null,

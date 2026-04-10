@@ -8,6 +8,6 @@ public static class TimelineTurnGateway
 	public static TimelineStepResult SubmitPlayerAction(GameState state, TimelinePlayerAction action) =>
 		TimelineTurnManager.SubmitPlayerAction(state, action);
 
-	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled) =>
-		TimelineTurnManager.AdvanceAuto(state, watchModeEnabled);
+	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled, bool fastTurnModeEnabled) =>
+		TimelineTurnManager.AdvanceAuto(state, watchModeEnabled, fastTurnModeEnabled);
 }

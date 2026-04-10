@@ -30,6 +30,7 @@ public readonly record struct SettingsUiState(
 	string CurrentLocale,
 	bool RenderReady,
 	bool WatchModeEnabled,
+	bool FastTurnModeEnabled,
 	bool MapEditorActive,
 	bool CanOpenSessionTab,
 	bool EnableKeyboardTargeting,
@@ -92,6 +93,7 @@ public interface ISettingsOverlay : ISettingsFlowPanel
 	event Action? BackRequested;
 	event Action? RenderToggleRequested;
 	event Action? WatchModeToggleRequested;
+	event Action? FastTurnModeToggleRequested;
 	event Action? KeyboardTargetingToggleRequested;
 	event Action? DebugPanelToggleRequested;
 	event Action? MapZoomMinDecreaseRequested;
@@ -125,6 +127,7 @@ public sealed class SettingsFlowCoordinator
 	public event Action? MainMenuRestoreRequested;
 	public event Action? RenderToggleRequested;
 	public event Action? WatchModeToggleRequested;
+	public event Action? FastTurnModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
 	public event Action? DebugPanelToggleRequested;
 	public event Action? MapZoomMinDecreaseRequested;
@@ -151,6 +154,7 @@ public sealed class SettingsFlowCoordinator
 			LocalizationService.CurrentLocale,
 			RenderReady: false,
 			WatchModeEnabled: false,
+			FastTurnModeEnabled: true,
 			MapEditorActive: false,
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
@@ -165,6 +169,7 @@ public sealed class SettingsFlowCoordinator
 		_settings.BackRequested += CloseActiveOverlay;
 		_settings.RenderToggleRequested += () => RenderToggleRequested?.Invoke();
 		_settings.WatchModeToggleRequested += () => WatchModeToggleRequested?.Invoke();
+		_settings.FastTurnModeToggleRequested += () => FastTurnModeToggleRequested?.Invoke();
 		_settings.KeyboardTargetingToggleRequested += () => KeyboardTargetingToggleRequested?.Invoke();
 		_settings.DebugPanelToggleRequested += () => DebugPanelToggleRequested?.Invoke();
 		_settings.MapZoomMinDecreaseRequested += () => MapZoomMinDecreaseRequested?.Invoke();

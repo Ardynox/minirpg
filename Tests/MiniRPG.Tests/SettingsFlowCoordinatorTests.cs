@@ -21,6 +21,7 @@ public sealed class SettingsFlowCoordinatorTests
 			"en",
 			RenderReady: true,
 			WatchModeEnabled: false,
+			FastTurnModeEnabled: true,
 			MapEditorActive: false,
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
@@ -59,6 +60,7 @@ public sealed class SettingsFlowCoordinatorTests
 			"en",
 			RenderReady: true,
 			WatchModeEnabled: true,
+			FastTurnModeEnabled: true,
 			MapEditorActive: false,
 			CanOpenSessionTab: true,
 			EnableKeyboardTargeting: true,
@@ -110,6 +112,7 @@ public sealed class SettingsFlowCoordinatorTests
 			"en",
 			RenderReady: true,
 			WatchModeEnabled: false,
+			FastTurnModeEnabled: true,
 			MapEditorActive: false,
 			CanOpenSessionTab: true,
 			EnableKeyboardTargeting: false,
@@ -183,6 +186,7 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? BackRequested;
 		public event Action? RenderToggleRequested { add { } remove { } }
 		public event Action? WatchModeToggleRequested { add { } remove { } }
+		public event Action? FastTurnModeToggleRequested { add { } remove { } }
 		public event Action? KeyboardTargetingToggleRequested { add { } remove { } }
 		public event Action? DebugPanelToggleRequested;
 		public event Action? MapZoomMinDecreaseRequested { add { } remove { } }

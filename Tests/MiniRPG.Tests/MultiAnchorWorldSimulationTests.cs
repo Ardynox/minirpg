@@ -95,7 +95,7 @@ public sealed class MultiAnchorWorldSimulationTests
 
 		Assert.NotEqual(PlayerVisionBand.Unknown, tracker.GetVisionBand(10, 10, 0));
 		Assert.NotEqual(PlayerVisionBand.Unknown, tracker.GetVisionBand(20, 10, 0));
-		Assert.Equal(PlayerVisionBand.Unknown, tracker.GetVisionBand(10, 10, 1));
+		Assert.NotEqual(PlayerVisionBand.Unknown, tracker.GetVisionBand(10, 10, 1));
 	}
 
 	private static GameState CreateState()

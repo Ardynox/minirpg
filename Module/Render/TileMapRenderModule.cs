@@ -143,6 +143,13 @@ public class TileMapRenderModule
 	private IsometricVoxelRenderer? _voxelRenderer;
 	private Node2D? _voxelRoot;
 	private bool _isometricMode = true;
+	private int _lightingProfileIndex;
+	private static readonly (string Key, IsometricVoxelRenderer.IsometricLightingSettings Lighting)[] IsometricLightingProfiles =
+	[
+		("render.lighting.profile.default", new IsometricVoxelRenderer.IsometricLightingSettings(0.84f, 1.12f, 0.76f, 0.90f, 0.06f, 1.06f, 0.58f, 0.085f)),
+		("render.lighting.profile.cinematic", new IsometricVoxelRenderer.IsometricLightingSettings(0.72f, 1.24f, 0.62f, 0.95f, 0.09f, 1.18f, 0.76f, 0.11f)),
+		("render.lighting.profile.soft", new IsometricVoxelRenderer.IsometricLightingSettings(0.94f, 1.04f, 0.86f, 0.92f, 0.03f, 0.92f, 0.42f, 0.06f)),
+	];
 
 	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
@@ -150,6 +157,7 @@ public class TileMapRenderModule
 	public float Zoom => _zoom;
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot;
 	public bool IsIsometricMode => _isometricMode;
+	public int LightingProfileIndex => _lightingProfileIndex;
 	public Vector2I MapViewportSize => _subViewport?.Size ?? Vector2I.Zero;
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
 	public RenderPerfSnapshot LastPerfSnapshot => _lastPerfSnapshot;
@@ -259,6 +267,7 @@ public class TileMapRenderModule
 		_isometricMode = true;
 		_voxelRoot.Visible = true;
 		SetTileMapLayersVisible(false);
+		ApplyLightingProfile(_lightingProfileIndex);
 	}
 
 	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
@@ -587,6 +596,20 @@ public class TileMapRenderModule
 		return LocalizationService.T("render.view_mode.iso_only");
 	}
 
+	public string CycleIsometricLightingProfile()
+	{
+		if (_voxelRenderer == null || IsometricLightingProfiles.Length == 0)
+			return LocalizationService.TOrFallback("render.lighting.unavailable", "Lighting profile is unavailable.");
+
+		_lightingProfileIndex = (_lightingProfileIndex + 1) % IsometricLightingProfiles.Length;
+		ApplyLightingProfile(_lightingProfileIndex);
+		var profileKey = IsometricLightingProfiles[_lightingProfileIndex].Key;
+		return LocalizationService.TOrFallback(
+			"render.lighting.profile_changed",
+			"Lighting profile switched: {profile}",
+			("profile", LocalizationService.TOrFallback(profileKey, profileKey)));
+	}
+
 	public string ToggleMinimap()
 	{
 		MinimapVisible = !MinimapVisible;
@@ -712,6 +735,16 @@ public class TileMapRenderModule
 		_peripheralWeatherFxRoot.Visible = visible;
 		_entitySpriteRoot.Visible = visible;
 		_peripheralEntitySpriteRoot.Visible = visible;
+	}
+
+	private void ApplyLightingProfile(int profileIndex)
+	{
+		if (_voxelRenderer == null || IsometricLightingProfiles.Length == 0)
+			return;
+
+		var clamped = Math.Clamp(profileIndex, 0, IsometricLightingProfiles.Length - 1);
+		_lightingProfileIndex = clamped;
+		_voxelRenderer.ConfigureLighting(IsometricLightingProfiles[clamped].Lighting);
 	}
 
 	private void DrawInspectHighlight(int centerWorldX, int centerWorldY, int centerWorldZ)

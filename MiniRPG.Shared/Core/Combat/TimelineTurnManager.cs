@@ -320,7 +320,27 @@ public static class TimelineTurnManager
 		return result;
 	}
 
-	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled)
+	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled, bool fastTurnModeEnabled)
+	{
+		var aggregate = new TimelineStepResult();
+		var remainingSteps = fastTurnModeEnabled && !watchModeEnabled ? 64 : 1;
+
+		while (remainingSteps-- > 0)
+		{
+			var step = AdvanceAutoSingleStep(state, watchModeEnabled);
+			aggregate.Events.AddRange(step.Events);
+			aggregate.ActingActorId = step.ActingActorId;
+			aggregate.ActionConsumed |= step.ActionConsumed;
+			aggregate.PlayerTurnReady = step.PlayerTurnReady;
+			aggregate.HasPendingAutoStep = step.HasPendingAutoStep;
+			if (watchModeEnabled || step.PlayerTurnReady || !step.HasPendingAutoStep)
+				break;
+		}
+
+		return aggregate;
+	}
+
+	private static TimelineStepResult AdvanceAutoSingleStep(GameState state, bool watchModeEnabled)
 	{
 		var result = new TimelineStepResult();
 		var actor = EnsureCurrentActor(state);

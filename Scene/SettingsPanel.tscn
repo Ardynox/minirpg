@@ -303,6 +303,41 @@ custom_minimum_size = Vector2(132, 0)
 layout_mode = 2
 text = "ui.settings.state.off"
 
+[node name="FastTurnModeRow" type="PanelContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Content" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow/Margin/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="Title" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow/Margin/HBox/Content"]
+layout_mode = 2
+text = "ui.settings.fast_turn_mode.title"
+
+[node name="Status" type="Label" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow/Margin/HBox/Content"]
+layout_mode = 2
+text = ""
+theme_type_variation = &"HintLabel"
+
+[node name="FastTurnModeToggle" type="CheckButton" parent="Margin/VBox/ContentScroll/Pages/GeneralPage/GameplaySection/Margin/VBox/FastTurnModeRow/Margin/HBox"]
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+text = "ui.settings.state.off"
+
 [node name="ControlsPage" type="VBoxContainer" parent="Margin/VBox/ContentScroll/Pages"]
 visible = false
 layout_mode = 2

@@ -24,13 +24,13 @@ public static class ActionModule
 		var nx = actor.X + dx;
 		var ny = actor.Y + dy;
 
-		if (!MapModule.InBounds(state, nx, ny) || MapModule.IsWall(state, nx, ny))
+		if (!MapModule.InBounds(state, nx, ny) || MapModule.IsWall(state, nx, ny, actor.Z))
 		{
 			events.Add(new GameEvent("hit_wall") { InitiatorId = actor.Id });
 			return events;
 		}
 
-		var occupants = ActorModule.GetAllAt(state, nx, ny);
+		var occupants = ActorModule.GetAllAt(state, nx, ny, actor.Z);
 		var enemy = occupants.FirstOrDefault(
 			other => other.Id != actor.Id && AI.FactionRelation.IsHostile(actor.Faction, other.Faction));
 

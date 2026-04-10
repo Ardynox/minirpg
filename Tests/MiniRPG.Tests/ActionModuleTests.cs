@@ -34,6 +34,23 @@ public sealed class ActionModuleTests
 	}
 
 	[Fact]
+	public void TryMove_IgnoresDifferentZTerrain_WhenDestinationSameZIsWalkable()
+	{
+		var (state, player, _) = SkillCastingTestHelper.CreateCombatState(enemyX: 10, enemyY: 10);
+		player.Z = 1;
+		state.PlayerZ = 1;
+		state.World!.SetTerrain(player.X + 1, player.Y, 0, Terrains.WallStone);
+		state.World.SetTerrain(player.X + 1, player.Y, 1, Terrains.Floor);
+
+		var events = ActionModule.TryMove(state, player, 1, 0);
+
+		Assert.Contains(events, evt => evt.Type == "actor_moved");
+		Assert.Equal(2, player.X);
+		Assert.Equal(1, player.Y);
+		Assert.Equal(1, player.Z);
+	}
+
+	[Fact]
 	public void TryCastSkill_RangedAttackSucceeds_WhenTargetInRangeAndVisible()
 	{
 		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState(enemyX: 4, enemyY: 1);

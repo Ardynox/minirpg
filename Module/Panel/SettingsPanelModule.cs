@@ -16,6 +16,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string MapZoomMinRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMinRow";
 	private const string MapZoomMaxRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMaxRow";
 	private const string WatchModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/WatchModeRow";
+	private const string FastTurnModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/FastTurnModeRow";
 	private const string KeyboardTargetingRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow";
 	private const string DebugPanelRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/DebugPanelRow";
 	private const string BindingsRowPath = ControlsPagePath + "/BindingsSection/Margin/VBox/BindingsRow";
@@ -53,6 +54,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _mapZoomMaxStatusLabel;
 	private readonly Label _watchModeTitleLabel;
 	private readonly Label _watchModeStatusLabel;
+	private readonly Label _fastTurnModeTitleLabel;
+	private readonly Label _fastTurnModeStatusLabel;
 	private readonly Label _keyboardTargetingTitleLabel;
 	private readonly Label _keyboardTargetingStatusLabel;
 	private readonly Label _debugPanelTitleLabel;
@@ -76,6 +79,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Button _mapZoomMaxDecreaseButton;
 	private readonly Button _mapZoomMaxIncreaseButton;
 	private readonly CheckButton _watchModeButton;
+	private readonly CheckButton _fastTurnModeButton;
 	private readonly CheckButton _keyboardTargetingButton;
 	private readonly CheckButton _debugPanelToggleButton;
 	private readonly Button _bindingsButton;
@@ -108,6 +112,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	public event Action? BackRequested;
 	public event Action? RenderToggleRequested;
 	public event Action? WatchModeToggleRequested;
+	public event Action? FastTurnModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
 	public event Action? DebugPanelToggleRequested;
 	public event Action? MapZoomMinDecreaseRequested;
@@ -143,6 +148,11 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		state.WatchModeEnabled
 			? "ui.settings.watch_mode.status.on"
 			: "ui.settings.watch_mode.status.off";
+
+	internal static string GetFastTurnModeStatusKey(SettingsUiState state) =>
+		state.FastTurnModeEnabled
+			? "ui.settings.fast_turn_mode.status.on"
+			: "ui.settings.fast_turn_mode.status.off";
 
 	internal static string GetKeyboardTargetingStatusKey(SettingsUiState state) =>
 		state.EnableKeyboardTargeting
@@ -224,6 +234,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMaxStatusLabel = panel.GetNode<Label>(MapZoomMaxRowPath + "/Margin/HBox/Content/Status");
 		_watchModeTitleLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Title");
 		_watchModeStatusLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Status");
+		_fastTurnModeTitleLabel = panel.GetNode<Label>(FastTurnModeRowPath + "/Margin/HBox/Content/Title");
+		_fastTurnModeStatusLabel = panel.GetNode<Label>(FastTurnModeRowPath + "/Margin/HBox/Content/Status");
 		_keyboardTargetingTitleLabel = panel.GetNode<Label>(KeyboardTargetingRowPath + "/Margin/HBox/Content/Title");
 		_keyboardTargetingStatusLabel = panel.GetNode<Label>(KeyboardTargetingRowPath + "/Margin/HBox/Content/Status");
 		_debugPanelTitleLabel = panel.GetNode<Label>(DebugPanelRowPath + "/Margin/HBox/Content/Title");
@@ -248,6 +260,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMaxDecreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxDecreaseBtn");
 		_mapZoomMaxIncreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxIncreaseBtn");
 		_watchModeButton = panel.GetNode<CheckButton>(WatchModeRowPath + "/Margin/HBox/WatchModeToggle");
+		_fastTurnModeButton = panel.GetNode<CheckButton>(FastTurnModeRowPath + "/Margin/HBox/FastTurnModeToggle");
 		_keyboardTargetingButton = panel.GetNode<CheckButton>(KeyboardTargetingRowPath + "/Margin/HBox/KeyboardTargetingToggle");
 		_debugPanelToggleButton = panel.GetNode<CheckButton>(DebugPanelRowPath + "/Margin/HBox/DebugPanelToggle");
 		_bindingsButton = panel.GetNode<Button>(BindingsRowPath + "/Margin/HBox/BindingsBtn");
@@ -267,6 +280,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			[SettingsPanelRowId.MapZoomMin] = panel.GetNode<PanelContainer>(MapZoomMinRowPath),
 			[SettingsPanelRowId.MapZoomMax] = panel.GetNode<PanelContainer>(MapZoomMaxRowPath),
 			[SettingsPanelRowId.WatchMode] = panel.GetNode<PanelContainer>(WatchModeRowPath),
+			[SettingsPanelRowId.FastTurnMode] = panel.GetNode<PanelContainer>(FastTurnModeRowPath),
 			[SettingsPanelRowId.KeyboardTargeting] = panel.GetNode<PanelContainer>(KeyboardTargetingRowPath),
 			[SettingsPanelRowId.DebugPanel] = panel.GetNode<PanelContainer>(DebugPanelRowPath),
 			[SettingsPanelRowId.KeyBindings] = panel.GetNode<PanelContainer>(BindingsRowPath),
@@ -345,6 +359,15 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			SelectRow(SettingsPanelRowId.WatchMode);
 			WatchModeToggleRequested?.Invoke();
 		};
+		_fastTurnModeButton.Pressed += () => SelectRow(SettingsPanelRowId.FastTurnMode);
+		_fastTurnModeButton.Toggled += _ =>
+		{
+			if (_suppressToggleSignals)
+				return;
+
+			SelectRow(SettingsPanelRowId.FastTurnMode);
+			FastTurnModeToggleRequested?.Invoke();
+		};
 		_keyboardTargetingButton.Pressed += () => SelectRow(SettingsPanelRowId.KeyboardTargeting);
 		_keyboardTargetingButton.Toggled += _ =>
 		{
@@ -401,6 +424,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		WireRowSelection(SettingsPanelRowId.MapZoomMin);
 		WireRowSelection(SettingsPanelRowId.MapZoomMax);
 		WireRowSelection(SettingsPanelRowId.WatchMode);
+		WireRowSelection(SettingsPanelRowId.FastTurnMode);
 		WireRowSelection(SettingsPanelRowId.KeyboardTargeting);
 		WireRowSelection(SettingsPanelRowId.DebugPanel);
 		WireRowSelection(SettingsPanelRowId.KeyBindings);
@@ -415,6 +439,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			LocalizationService.CurrentLocale,
 			RenderReady: false,
 			WatchModeEnabled: false,
+			FastTurnModeEnabled: true,
 			MapEditorActive: false,
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
@@ -473,6 +498,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMinTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_min.title");
 		_mapZoomMaxTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_max.title");
 		_watchModeTitleLabel.Text = LocalizationService.T("ui.settings.watch_mode.title");
+		_fastTurnModeTitleLabel.Text = LocalizationService.T("ui.settings.fast_turn_mode.title");
 		_keyboardTargetingTitleLabel.Text = LocalizationService.T("ui.settings.keyboard_targeting.title");
 		_debugPanelTitleLabel.Text = LocalizationService.T("ui.settings.debug_panel.title");
 		_bindingsTitleLabel.Text = LocalizationService.T("ui.settings.key_bindings.title");
@@ -648,6 +674,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			("value", _state.MapZoomMax.ToString("0.0")),
 			("current", _state.MapZoomCurrent.ToString("0.0")));
 		_watchModeStatusLabel.Text = LocalizationService.T(GetWatchModeStatusKey(_state));
+		_fastTurnModeStatusLabel.Text = LocalizationService.T(GetFastTurnModeStatusKey(_state));
 		_keyboardTargetingStatusLabel.Text = LocalizationService.T(GetKeyboardTargetingStatusKey(_state));
 		_debugPanelStatusLabel.Text = LocalizationService.T(GetDebugPanelStatusKey(_state));
 		_bindingsStatusLabel.Text = LocalizationService.T(GetBindingsStatusKey(_selectionModel.KeyBindingsMode, _keyBindingsView.IsCapturing));
@@ -681,6 +708,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_suppressToggleSignals = true;
 		_watchModeButton.ButtonPressed = _state.WatchModeEnabled;
 		_watchModeButton.Text = LocalizationService.T(GetToggleStateKey(_state.WatchModeEnabled));
+		_fastTurnModeButton.ButtonPressed = _state.FastTurnModeEnabled;
+		_fastTurnModeButton.Text = LocalizationService.T(GetToggleStateKey(_state.FastTurnModeEnabled));
 		_keyboardTargetingButton.ButtonPressed = _state.EnableKeyboardTargeting;
 		_keyboardTargetingButton.Text = LocalizationService.T(GetToggleStateKey(_state.EnableKeyboardTargeting));
 		_debugPanelToggleButton.ButtonPressed = _state.EnableDebugPanel;
@@ -741,6 +770,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				break;
 			case SettingsPanelRowId.WatchMode:
 				WatchModeToggleRequested?.Invoke();
+				break;
+			case SettingsPanelRowId.FastTurnMode:
+				FastTurnModeToggleRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.KeyboardTargeting:
 				KeyboardTargetingToggleRequested?.Invoke();

@@ -50,6 +50,24 @@ public sealed class AppSettingsStoreTests
 	}
 
 	[Fact]
+	public void FastTurnMode_CanRoundTripThroughSettingsStore()
+	{
+		var original = AppSettingsStore.LoadFastTurnMode();
+		try
+		{
+			AppSettingsStore.SaveFastTurnMode(false);
+			Assert.False(AppSettingsStore.LoadFastTurnMode());
+
+			AppSettingsStore.SaveFastTurnMode(true);
+			Assert.True(AppSettingsStore.LoadFastTurnMode());
+		}
+		finally
+		{
+			AppSettingsStore.SaveFastTurnMode(original);
+		}
+	}
+
+	[Fact]
 	public void MultiplayerSettings_CanRoundTripIncludingReconnectTicket()
 	{
 		var original = AppSettingsStore.LoadMultiplayerSettings();

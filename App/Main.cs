@@ -88,6 +88,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private CombatFxPlayer? _combatFxPlayer;
 	private double _watchTimer;
 	private bool _watchModeEnabled;
+	private bool _fastTurnModeEnabled = true;
 	private bool _timelineAutoAdvancePending;
 	private bool _zoomHintShown;
 	private ulong _lastZoomLimitLogAtMsec;
@@ -680,7 +681,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private void AdvanceTimelineAutoStep()
 	{
-		var result = TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled);
+		var result = TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled, _fastTurnModeEnabled);
 		ApplyTimelineStep(result);
 	}
 
@@ -770,6 +771,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			LocalizationService.Initialize();
 			LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
 			_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
+			_fastTurnModeEnabled = AppSettingsStore.LoadFastTurnMode();
 			_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
 			_mapZoomMin = AppSettingsStore.LoadMapZoomMin();
 			_mapZoomMax = AppSettingsStore.LoadMapZoomMax();
@@ -1059,6 +1061,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_combatUI = new CombatUIModule(this);
 			_settingsFlow.RenderToggleRequested += ToggleRender;
 			_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
+			_settingsFlow.FastTurnModeToggleRequested += ToggleFastTurnMode;
 			_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
 			_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
 			_settingsFlow.MapZoomMinDecreaseRequested += DecreaseMapZoomMin;
@@ -1679,6 +1682,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			LocalizationService.CurrentLocale,
 			RenderReady,
 			_watchModeEnabled,
+			_fastTurnModeEnabled,
 			MapEditorActive,
 			_session.GameStarted,
 			_enableKeyboardTargeting,
@@ -1728,6 +1732,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		if (!_enableKeyboardTargeting && _inspectModeActive)
 			EndInspectMode(restoreFocus: false);
+	}
+
+	private void ToggleFastTurnMode()
+	{
+		_fastTurnModeEnabled = !_fastTurnModeEnabled;
+		AppSettingsStore.SaveFastTurnMode(_fastTurnModeEnabled);
+		SyncSettingsUiState();
 	}
 
 	private void ToggleDebugPanelSetting()
@@ -4065,6 +4076,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			case ":cycle_party": _partyHud.CycleActive(); FlushMap(); return;
 			case ":quests": ToggleQuestPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
+			case ":lighting" or "lighting": CycleLightingProfile(); return;
 			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
 			case ":status_next": _statusPanelModule.CycleTab(1); return;
 			case ":minimap": ToggleMinimap(); return;
@@ -5089,6 +5101,17 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 		if (!_menu.InMenu) FlushMap();
 	}
 
+	private void CycleLightingProfile()
+	{
+		if (_mapRender == null)
+			return;
+
+		var msg = _mapRender.CycleIsometricLightingProfile();
+		if (_session.GameStarted && !_menu.InMenu)
+			_log.Add(msg);
+		if (!_menu.InMenu)
+			FlushMap();
+	}
 
 	/// <summary>
 	/// 将 PlayerX/Y/Z 同步到当前激活角色的位置。

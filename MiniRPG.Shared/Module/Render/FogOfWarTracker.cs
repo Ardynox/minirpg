@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MiniRPG.Core.World;
 
@@ -17,19 +18,19 @@ public enum PlayerVisionBand
 /// - Peripheral：周边感知，低保真实时信息
 /// - Memory：已探索但当前不可感知，只保留地形记忆
 /// - 未探索：从未见过，黑色迷雾
-/// 朝向视野和全向视野都会破开迷雾（写入已探索）。
+///
+/// 立体视野：在每个 actor 所在层及其上下相邻层分别执行一次 FOV，
+/// 并按高度差衰减半径（越偏离 actor 层，可见半径越小）。
 /// </summary>
 public class FogOfWarTracker
 {
 	private readonly Dictionary<int, HashSet<long>> _seen = new();
 
 	/// <summary>朝向视野内的格子（前方远、后方近）。</summary>
-	private HashSet<(int X, int Y)> _directionalVisible = new();
+	private HashSet<(int X, int Y, int Z)> _directionalVisible = new();
 
 	/// <summary>全向视野内的格子（不受朝向影响的完整圆）。</summary>
-	private HashSet<(int X, int Y)> _fullVisible = new();
-
-	private int _currentZ;
+	private HashSet<(int X, int Y, int Z)> _fullVisible = new();
 
 	/// <summary>基础视野半径。</summary>
 	public int BaseVisionRadius { get; set; } = 12;
@@ -43,6 +44,12 @@ public class FogOfWarTracker
 	public int MinimumVisionRadius { get; set; } = 2;
 
 	public int MinimumRearVisionRadius { get; set; } = 2;
+
+	/// <summary>立体视野上下采样层数（1 表示仅上下各一层）。</summary>
+	public int VerticalVisionDepth { get; set; } = 1;
+
+	/// <summary>高度差每增加 1 层时，前向半径衰减值。</summary>
+	public int VerticalRadiusFalloffPerLevel { get; set; } = 2;
 
 	private static long Pack(int x, int y) => ((long)x << 32) | (uint)y;
 
@@ -63,12 +70,13 @@ public class FogOfWarTracker
 	/// 更新迷雾。计算两套视野：
 	/// 1. 全向视野（完整半径圆）→ 破开迷雾 + 周边感知
 	/// 2. 朝向视野（前方远后方近）→ 正常亮色可见
+	///
+	/// 在 actor 层及其上下相邻层执行，形成 3D 视野体。
 	/// </summary>
 	public void Update(GameState state)
 	{
 		if (state.World == null) return;
 
-		_currentZ = state.PlayerZ;
 		_fullVisible = [];
 		_directionalVisible = [];
 
@@ -83,57 +91,68 @@ public class FogOfWarTracker
 
 		foreach (var actor in visionActors)
 		{
-			if (!_seen.TryGetValue(actor.Z, out var seenSet))
-			{
-				seenSet = new HashSet<long>();
-				_seen[actor.Z] = seenSet;
-			}
-
-			var sight = System.Math.Max(0f, actor.GetCapacity(Caps.Sight));
+			var sight = Math.Max(0f, actor.GetCapacity(Caps.Sight));
 			var baseRadius = BaseVisionRadius;
 			if (actor.Z == 0 && world.IsWeatherExposed(actor.X, actor.Y, actor.Z))
 			{
 				var weather = WeatherRules.GetLocalWeather(state, actor.X, actor.Y, actor.Z);
-				baseRadius = System.Math.Max(1, (int)System.MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
+				baseRadius = Math.Max(1, (int)MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
 			}
 
-			var vision = VisionRangeScaler.ScaleDirectional(
+			var baseVision = VisionRangeScaler.ScaleDirectional(
 				baseRadius,
 				sight,
 				RearVisionRatio,
 				MinimumVisionRadius,
 				MinimumRearVisionRadius,
 				AmbientLight);
-			var frontRadius = vision.FrontRadius;
-			var rearRadius = vision.RearRadius;
-			bool isOpaque(int x, int y) => world.BlocksSight(x, y, actor.Z);
 
-			var fullVisible = ShadowcastFOV.Compute(actor.X, actor.Y, frontRadius, isOpaque);
-			var directionalVisible = ShadowcastFOV.ComputeDirectional(
-				actor.X,
-				actor.Y,
-				frontRadius,
-				rearRadius,
-				actor.FacingX,
-				actor.FacingY,
-				fullVisible);
+			var maxDepth = Math.Max(0, VerticalVisionDepth);
+			for (var dz = -maxDepth; dz <= maxDepth; dz++)
+			{
+				var targetZ = actor.Z + dz;
+				var absDz = Math.Abs(dz);
+				var frontRadius = Math.Max(
+					MinimumVisionRadius,
+					baseVision.FrontRadius - absDz * Math.Max(0, VerticalRadiusFalloffPerLevel));
+				var rearRadius = Math.Max(
+					MinimumRearVisionRadius,
+					baseVision.RearRadius - absDz * Math.Max(0, VerticalRadiusFalloffPerLevel));
 
-			foreach (var (vx, vy) in fullVisible)
-				seenSet.Add(Pack(vx, vy));
+				bool isOpaque(int x, int y) => world.BlocksSight(x, y, targetZ);
 
-			if (actor.Z != _currentZ)
-				continue;
+				var fullVisible = ShadowcastFOV.Compute(actor.X, actor.Y, frontRadius, isOpaque);
+				var directionalVisible = ShadowcastFOV.ComputeDirectional(
+					actor.X,
+					actor.Y,
+					frontRadius,
+					rearRadius,
+					actor.FacingX,
+					actor.FacingY,
+					fullVisible);
 
-			_fullVisible.UnionWith(fullVisible);
-			_directionalVisible.UnionWith(directionalVisible);
+				if (!_seen.TryGetValue(targetZ, out var seenSet))
+				{
+					seenSet = new HashSet<long>();
+					_seen[targetZ] = seenSet;
+				}
+
+				foreach (var (vx, vy) in fullVisible)
+				{
+					seenSet.Add(Pack(vx, vy));
+					_fullVisible.Add((vx, vy, targetZ));
+				}
+
+				foreach (var (vx, vy) in directionalVisible)
+					_directionalVisible.Add((vx, vy, targetZ));
+			}
 		}
 	}
 
 	public PlayerVisionBand GetVisionBand(int x, int y, int z)
 	{
-		if (z != _currentZ) return PlayerVisionBand.Unknown;
-		if (_directionalVisible.Contains((x, y))) return PlayerVisionBand.Focused;
-		if (_fullVisible.Contains((x, y))) return PlayerVisionBand.Peripheral;
+		if (_directionalVisible.Contains((x, y, z))) return PlayerVisionBand.Focused;
+		if (_fullVisible.Contains((x, y, z))) return PlayerVisionBand.Peripheral;
 		if (HasSeen(x, y, z)) return PlayerVisionBand.Memory;
 		return PlayerVisionBand.Unknown;
 	}

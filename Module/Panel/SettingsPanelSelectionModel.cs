@@ -9,6 +9,7 @@ internal enum SettingsPanelRowId
 	MapZoomMin,
 	MapZoomMax,
 	WatchMode,
+	FastTurnMode,
 	KeyboardTargeting,
 	DebugPanel,
 	KeyBindings,
@@ -40,6 +41,7 @@ internal sealed class SettingsPanelSelectionModel
 		LocalizationService.CurrentLocale,
 		RenderReady: false,
 		WatchModeEnabled: false,
+		FastTurnModeEnabled: true,
 		MapEditorActive: false,
 		CanOpenSessionTab: false,
 		EnableKeyboardTargeting: false,
@@ -200,7 +202,10 @@ internal sealed class SettingsPanelSelectionModel
 		};
 
 		if (SettingsPanelModule.ShouldShowWatchMode(_state))
+		{
 			rows.Add(SettingsPanelRowId.WatchMode);
+			rows.Add(SettingsPanelRowId.FastTurnMode);
+		}
 
 		return rows;
 	}

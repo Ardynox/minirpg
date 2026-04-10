@@ -141,19 +141,16 @@ public sealed class IsometricRenderTests
 	private static void SetFogStateForTest(FogOfWarTracker fog)
 	{
 		var fogType = typeof(FogOfWarTracker);
-		var currentZField = fogType.GetField("_currentZ", BindingFlags.NonPublic | BindingFlags.Instance);
 		var directionalField = fogType.GetField("_directionalVisible", BindingFlags.NonPublic | BindingFlags.Instance);
 		var fullField = fogType.GetField("_fullVisible", BindingFlags.NonPublic | BindingFlags.Instance);
 		var seenField = fogType.GetField("_seen", BindingFlags.NonPublic | BindingFlags.Instance);
 
-		Assert.NotNull(currentZField);
 		Assert.NotNull(directionalField);
 		Assert.NotNull(fullField);
 		Assert.NotNull(seenField);
 
-		currentZField!.SetValue(fog, 0);
-		directionalField!.SetValue(fog, new HashSet<(int X, int Y)> { (1, 1) });
-		fullField!.SetValue(fog, new HashSet<(int X, int Y)> { (1, 1), (2, 2) });
+		directionalField!.SetValue(fog, new HashSet<(int X, int Y, int Z)> { (1, 1, 0) });
+		fullField!.SetValue(fog, new HashSet<(int X, int Y, int Z)> { (1, 1, 0), (2, 2, 0) });
 
 		var seen = new Dictionary<int, HashSet<long>>
 		{
