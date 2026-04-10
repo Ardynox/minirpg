@@ -1,23 +1,22 @@
-using System;
-using System.IO;
+using System.Collections;
+using System.Reflection;
 using System.Text.Json;
-using Godot;
 using MiniRPG.Module.Panel;
 using Xunit;
 
 namespace MiniRPG.Tests;
 
-public sealed class PanelLayoutStoreTests : IDisposable
+public sealed class PanelLayoutStoreTests
 {
-	private readonly string _root = TestSupport.CreateTempDirectory("panel-layout-store");
-
 	[Fact]
-	public void Load_MissingFile_LeavesStoreEmpty()
+	public void LoadFromRawJson_MissingContentLeavesStoreEmpty()
 	{
-		var store = new PanelLayoutStore(CreateStorePath());
+		var store = new PanelLayoutStore();
+		store.SetWidth("status", 320f);
 
-		store.Load();
+		var loaded = InvokeLoadFromRawJson(store, null);
 
+		Assert.True(loaded);
 		Assert.False(store.TryGetPosition("status", out _));
 		Assert.False(store.TryGetAppearance("status", out var appearance));
 		Assert.Null(appearance.Width);
@@ -26,23 +25,23 @@ public sealed class PanelLayoutStoreTests : IDisposable
 	}
 
 	[Fact]
-	public void Load_InvalidJson_FallsBackToEmpty()
+	public void LoadFromRawJson_InvalidJsonFallsBackToEmpty()
 	{
-		var path = CreateStorePath();
-		File.WriteAllText(path, "{ invalid json", System.Text.Encoding.UTF8);
-		var store = new PanelLayoutStore(path);
+		var store = new PanelLayoutStore();
+		store.SetHeight("status", 180f);
 
-		store.Load();
+		var loaded = InvokeLoadFromRawJson(store, "{ invalid json");
 
+		Assert.False(loaded);
 		Assert.False(store.TryGetPosition("status", out _));
 		Assert.False(store.TryGetAppearance("status", out _));
+		Assert.Empty(GetEntries(store));
 	}
 
 	[Fact]
-	public void SetWidthSetHeightAndRemoveAppearance_CleansEntryBeforeSave()
+	public void SetWidthSetHeightAndRemoveAppearance_CleansEntry()
 	{
-		var path = CreateStorePath();
-		var store = new PanelLayoutStore(path);
+		var store = new PanelLayoutStore();
 
 		store.SetWidth("status", 320f);
 		store.SetHeight("status", 180f);
@@ -54,49 +53,48 @@ public sealed class PanelLayoutStoreTests : IDisposable
 		Assert.Equal(1.25f, beforeReset.ButtonScale);
 
 		store.RemoveAppearance("status");
+
 		Assert.False(store.TryGetAppearance("status", out _));
-
-		store.Save();
-
-		AssertEmptyJsonObject(path);
+		Assert.Empty(GetEntries(store));
 	}
 
 	[Fact]
-	public void SetWidthAndHeight_WithNonPositiveValues_ClearFieldsAndCleanup()
+	public void SerializeEntries_IgnoresNullFields()
 	{
-		var path = CreateStorePath();
-		var store = new PanelLayoutStore(path);
+		var store = new PanelLayoutStore();
 
 		store.SetWidth("inventory", 480f);
 		store.SetHeight("inventory", 260f);
-
+		store.SetButtonScale("inventory", 1.25f);
 		store.SetWidth("inventory", 0f);
-		Assert.True(store.TryGetAppearance("inventory", out var widthCleared));
-		Assert.Null(widthCleared.Width);
-		Assert.Equal(260f, widthCleared.Height);
-		Assert.Null(widthCleared.ButtonScale);
 
-		store.SetHeight("inventory", -1f);
-		Assert.False(store.TryGetAppearance("inventory", out _));
+		var json = InvokeSerializeEntries(GetEntries(store));
+		using var document = JsonDocument.Parse(json);
+		var entry = document.RootElement.GetProperty("inventory");
 
-		store.Save();
-
-		AssertEmptyJsonObject(path);
+		Assert.False(entry.TryGetProperty("width", out _));
+		Assert.Equal(260f, entry.GetProperty("height").GetSingle());
+		Assert.Equal(1.25f, entry.GetProperty("button_scale").GetSingle());
 	}
 
-	public void Dispose()
+	private static bool InvokeLoadFromRawJson(PanelLayoutStore store, string? raw)
 	{
-		TestSupport.TryDeleteDirectory(_root);
+		var method = typeof(PanelLayoutStore).GetMethod("LoadFromRawJson", BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.NotNull(method);
+		return (bool)method!.Invoke(store, [raw])!;
 	}
 
-	private string CreateStorePath() =>
-		Path.Combine(_root, $"panel-layout-{Guid.NewGuid():N}.json").Replace('\\', '/');
-
-	private static void AssertEmptyJsonObject(string path)
+	private static IDictionary GetEntries(PanelLayoutStore store)
 	{
-		Assert.True(File.Exists(path));
-		using var document = JsonDocument.Parse(File.ReadAllText(path));
-		Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
-		Assert.Empty(document.RootElement.EnumerateObject());
+		var field = typeof(PanelLayoutStore).GetField("_entries", BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.NotNull(field);
+		return Assert.IsAssignableFrom<IDictionary>(field!.GetValue(store));
+	}
+
+	private static string InvokeSerializeEntries(IDictionary entries)
+	{
+		var method = typeof(PanelLayoutStore).GetMethod("SerializeEntries", BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.NotNull(method);
+		return (string)method!.Invoke(null, [entries])!;
 	}
 }

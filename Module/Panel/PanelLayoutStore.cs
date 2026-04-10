@@ -25,13 +25,8 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 			if (file == null)
 				return;
 
-			var raw = file.GetAsText();
-			var parsed = JsonSerializer.Deserialize<Dictionary<string, PanelLayoutEntry>>(raw);
-			if (parsed == null)
-				return;
-
-			foreach (var (panelId, entry) in parsed)
-				_entries[panelId] = entry;
+			if (!LoadFromRawJson(file.GetAsText()))
+				GD.PushWarning("[PanelLayoutStore] load failed, fallback to empty.");
 		}
 		catch (Exception ex)
 		{
@@ -141,12 +136,7 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 	{
 		try
 		{
-			var raw = JsonSerializer.Serialize(_entries, new JsonSerializerOptions
-			{
-				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-				WriteIndented = true,
-			});
-
+			var raw = SerializeEntries(_entries);
 			using var file = Godot.FileAccess.Open(_path, Godot.FileAccess.ModeFlags.Write);
 			file?.StoreString(raw);
 		}
@@ -177,6 +167,42 @@ public sealed class PanelLayoutStore(string path = "user://panel_layout.json")
 
 		_entries.Remove(panelId);
 	}
+
+	private bool LoadFromRawJson(string? raw)
+	{
+		_entries.Clear();
+		if (string.IsNullOrWhiteSpace(raw))
+			return true;
+
+		if (!TryDeserializeEntries(raw, out var parsed))
+			return false;
+
+		foreach (var (panelId, entry) in parsed)
+			_entries[panelId] = entry;
+
+		return true;
+	}
+
+	private static bool TryDeserializeEntries(string raw, out Dictionary<string, PanelLayoutEntry> parsed)
+	{
+		parsed = [];
+		try
+		{
+			parsed = JsonSerializer.Deserialize<Dictionary<string, PanelLayoutEntry>>(raw) ?? [];
+			return true;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	private static string SerializeEntries(Dictionary<string, PanelLayoutEntry> entries) =>
+		JsonSerializer.Serialize(entries, new JsonSerializerOptions
+		{
+			DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+			WriteIndented = true,
+		});
 
 	private sealed class PanelLayoutEntry
 	{

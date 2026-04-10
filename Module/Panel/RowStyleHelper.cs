@@ -19,30 +19,38 @@ public static class RowStyleHelper
 	public static void Apply(Button row, bool selected, bool hovered,
 		bool isContainer = false, bool transparentBg = false)
 	{
-		string desired;
-		if (selected)
-			desired = transparentBg ? SelBtn : OpaqueSelBtn;
-		else if (hovered)
-			desired = transparentBg ? HoverBtn : OpaqueHoverBtn;
-		else if (isContainer && transparentBg)
-			desired = ContainerBtn;
-		else
-			desired = transparentBg ? RowBtn : OpaqueBtn;
-
+		var desired = ResolveThemeVariation(selected, hovered, isContainer, transparentBg);
 		if (row.ThemeTypeVariation != desired)
 			row.ThemeTypeVariation = desired;
 	}
 
 	public static void EnsureVisible(ScrollContainer scroll, Control row)
 	{
-		var rowTop = row.Position.Y;
-		var rowBot = rowTop + row.Size.Y;
-		var scrollTop = scroll.ScrollVertical;
-		var scrollBot = scrollTop + scroll.Size.Y;
+		var targetScroll = GetVisibleScrollPosition(row.Position.Y, row.Size.Y, scroll.ScrollVertical, scroll.Size.Y);
+		if (targetScroll.HasValue)
+			scroll.ScrollVertical = targetScroll.Value;
+	}
+
+	private static string ResolveThemeVariation(bool selected, bool hovered, bool isContainer, bool transparentBg)
+	{
+		if (selected)
+			return transparentBg ? SelBtn : OpaqueSelBtn;
+		if (hovered)
+			return transparentBg ? HoverBtn : OpaqueHoverBtn;
+		if (isContainer && transparentBg)
+			return ContainerBtn;
+		return transparentBg ? RowBtn : OpaqueBtn;
+	}
+
+	private static int? GetVisibleScrollPosition(float rowTop, float rowHeight, int scrollTop, float viewportHeight)
+	{
+		var rowBot = rowTop + rowHeight;
+		var scrollBot = scrollTop + viewportHeight;
 
 		if (rowTop < scrollTop)
-			scroll.ScrollVertical = (int)rowTop;
-		else if (rowBot > scrollBot)
-			scroll.ScrollVertical = (int)(rowBot - scroll.Size.Y);
+			return (int)rowTop;
+		if (rowBot > scrollBot)
+			return (int)(rowBot - viewportHeight);
+		return null;
 	}
 }

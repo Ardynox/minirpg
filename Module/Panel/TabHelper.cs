@@ -14,22 +14,22 @@ public static class TabHelper
 		string? panelId = null)
 		where TTab : struct
 	{
-		var result = new List<Button>(labels.Count);
-		for (var i = 0; i < labels.Count; i++)
+		var plans = BuildTabPlan(labels, tabs, panelId);
+		var result = new List<Button>(plans.Count);
+		foreach (var plan in plans)
 		{
 			var btn = new Button
 			{
-				Text = labels[i],
+				Text = plan.Label,
 				ToggleMode = true,
 				SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
 				FocusMode = Control.FocusModeEnum.None,
 				ThemeTypeVariation = "TabButton",
 			};
-			var tab = tabs[i];
-			btn.Pressed += () => onPressed(tab);
+			btn.Pressed += CreatePressedHandler(onPressed, plan.Tab);
 			tabBar.AddChild(btn);
-			if (!string.IsNullOrEmpty(panelId))
-				PanelButtonScaleRegistry.Track(panelId, btn);
+			if (plan.TrackScale)
+				PanelButtonScaleRegistry.Track(panelId!, btn);
 			result.Add(btn);
 		}
 		return result;
@@ -39,6 +39,26 @@ public static class TabHelper
 		where TTab : struct
 	{
 		for (var i = 0; i < buttons.Count && i < tabs.Count; i++)
-			buttons[i].ButtonPressed = EqualityComparer<TTab>.Default.Equals(tabs[i], current);
+			buttons[i].ButtonPressed = ShouldHighlight(tabs[i], current);
 	}
+
+	private static List<TabButtonPlan<TTab>> BuildTabPlan<TTab>(IReadOnlyList<string> labels, IReadOnlyList<TTab> tabs, string? panelId)
+		where TTab : struct
+	{
+		var result = new List<TabButtonPlan<TTab>>(labels.Count);
+		var trackScale = !string.IsNullOrEmpty(panelId);
+		for (var i = 0; i < labels.Count; i++)
+			result.Add(new TabButtonPlan<TTab>(labels[i], tabs[i], trackScale));
+		return result;
+	}
+
+	private static Action CreatePressedHandler<TTab>(Action<TTab> onPressed, TTab tab)
+		where TTab : struct =>
+		() => onPressed(tab);
+
+	private static bool ShouldHighlight<TTab>(TTab tab, TTab current)
+		where TTab : struct =>
+		EqualityComparer<TTab>.Default.Equals(tab, current);
+
+	private readonly record struct TabButtonPlan<TTab>(string Label, TTab Tab, bool TrackScale);
 }

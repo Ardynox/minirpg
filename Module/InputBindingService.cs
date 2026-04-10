@@ -288,7 +288,10 @@ public sealed class InputBindingService
 		try
 		{
 			var json = File.ReadAllText(SavePath);
-			var store = JsonSerializer.Deserialize<BindingStore>(json);
+			var store = JsonSerializer.Deserialize<BindingStore>(json, new JsonSerializerOptions
+			{
+				PropertyNameCaseInsensitive = true,
+			});
 			if (store == null || store.Bindings == null || store.Bindings.Count == 0)
 			{
 				ResetAllNoSave();
@@ -300,7 +303,7 @@ public sealed class InputBindingService
 			foreach (var row in store.Bindings)
 			{
 				if (!_byId.TryGetValue(row.ActionId, out var state)) continue;
-				if (!Enum.TryParse<InputBindingContext>(row.Context, out var context)) continue;
+				if (!Enum.TryParse<InputBindingContext>(row.Context, ignoreCase: true, out var context)) continue;
 				if (state.Def.Context != context) continue;
 				if (row.Slot is < 0 or > 1) continue;
 
@@ -341,7 +344,7 @@ public sealed class InputBindingService
 		if (string.IsNullOrWhiteSpace(row.Kind))
 			return InputGesture.FromKey((Key)row.Keycode, row.Ctrl, row.Alt, row.Shift);
 
-		if (!Enum.TryParse<InputGestureKind>(row.Kind, out var kind))
+		if (!Enum.TryParse<InputGestureKind>(row.Kind, ignoreCase: true, out var kind))
 			return default;
 
 		return kind switch

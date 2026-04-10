@@ -48,8 +48,7 @@ public sealed class PanelButtonScaleService
 			return;
 
 		var state = GetOrCreate(panelId);
-		if (!state.Buttons.ContainsKey(button))
-			state.Buttons[button] = CaptureBaseline(button);
+		TryAddBaseline(state.Buttons, button, CaptureBaseline(button));
 
 		ApplyScale(button, state.Buttons[button], state.Scale);
 	}
@@ -67,19 +66,16 @@ public sealed class PanelButtonScaleService
 	public void ApplyScale(string panelId, float scale)
 	{
 		var state = GetOrCreate(panelId);
-		state.Scale = Math.Max(0.5f, scale);
+		state.Scale = NormalizeScale(scale);
 
 		if (state.Panel != null && GodotObject.IsInstanceValid(state.Panel))
 			TrackButtonsRecursive(panelId, state.Panel);
 
-		var invalidButtons = new List<Button>();
+		var invalidButtons = CollectInvalidKeys(state.Buttons, GodotObject.IsInstanceValid);
 		foreach (var (button, baseline) in state.Buttons)
 		{
 			if (!GodotObject.IsInstanceValid(button))
-			{
-				invalidButtons.Add(button);
 				continue;
-			}
 
 			ApplyScale(button, baseline, state.Scale);
 		}
@@ -90,13 +86,11 @@ public sealed class PanelButtonScaleService
 
 	private void TrackButtonsRecursive(string panelId, Node node)
 	{
-		foreach (var child in node.GetChildren())
+		TraverseTree(node, GetChildNodes, child =>
 		{
 			if (child is Button button)
 				TrackButton(panelId, button);
-
-			TrackButtonsRecursive(panelId, child);
-		}
+		});
 	}
 
 	private static ButtonBaseline CaptureBaseline(Button button)
@@ -115,10 +109,62 @@ public sealed class PanelButtonScaleService
 
 	private static void ApplyScale(Button button, ButtonBaseline baseline, float scale)
 	{
-		button.CustomMinimumSize = new Vector2(
-			baseline.MinimumSize.X > 0f ? baseline.MinimumSize.X * scale : 0f,
-			baseline.MinimumSize.Y > 0f ? baseline.MinimumSize.Y * scale : 0f);
-		button.AddThemeFontSizeOverride("font_size", Math.Max(1, (int)Math.Round(baseline.FontSize * scale)));
+		var metrics = ScaleMetrics(baseline.MinimumSize, baseline.FontSize, scale);
+		button.CustomMinimumSize = metrics.MinimumSize;
+		button.AddThemeFontSizeOverride("font_size", metrics.FontSize);
+	}
+
+	private static float NormalizeScale(float scale) => Math.Max(0.5f, scale);
+
+	private static bool TryAddBaseline<TKey, TValue>(Dictionary<TKey, TValue> tracked, TKey key, TValue value)
+		where TKey : notnull
+	{
+		if (tracked.ContainsKey(key))
+			return false;
+
+		tracked[key] = value;
+		return true;
+	}
+
+	private static List<TKey> CollectInvalidKeys<TKey, TValue>(Dictionary<TKey, TValue> tracked, Func<TKey, bool> isValid)
+		where TKey : notnull
+	{
+		var invalid = new List<TKey>();
+		foreach (var (key, _) in tracked)
+		{
+			if (!isValid(key))
+				invalid.Add(key);
+		}
+
+		return invalid;
+	}
+
+	private static ScaledButtonMetrics ScaleMetrics(Vector2 baselineMinimumSize, int baselineFontSize, float scale)
+	{
+		var normalizedScale = NormalizeScale(scale);
+		return new ScaledButtonMetrics(
+			new Vector2(
+				baselineMinimumSize.X > 0f ? baselineMinimumSize.X * normalizedScale : 0f,
+				baselineMinimumSize.Y > 0f ? baselineMinimumSize.Y * normalizedScale : 0f),
+			Math.Max(1, (int)Math.Round(baselineFontSize * normalizedScale)));
+	}
+
+	private static void TraverseTree<TNode>(TNode node, Func<TNode, IEnumerable<TNode>> getChildren, Action<TNode> visitor)
+	{
+		foreach (var child in getChildren(node))
+		{
+			visitor(child);
+			TraverseTree(child, getChildren, visitor);
+		}
+	}
+
+	private static IEnumerable<Node> GetChildNodes(Node node)
+	{
+		foreach (var child in node.GetChildren())
+		{
+			if (child is Node childNode)
+				yield return childNode;
+		}
 	}
 
 	private PanelButtonState GetOrCreate(string panelId)
@@ -138,5 +184,6 @@ public sealed class PanelButtonScaleService
 		public Dictionary<Button, ButtonBaseline> Buttons { get; } = [];
 	}
 
+	private readonly record struct ScaledButtonMetrics(Vector2 MinimumSize, int FontSize);
 	private readonly record struct ButtonBaseline(Vector2 MinimumSize, int FontSize);
 }
