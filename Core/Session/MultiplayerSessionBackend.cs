@@ -60,6 +60,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 	public event Action<GameSessionDeltaEnvelope>? DeltaReceived;
 	public event Action<string>? Disconnected;
 	public event Action<string>? CommandRejected;
+	public event Action<string, string>? ReconnectClaimed;
 
 	public async ValueTask<MultiplayerSessionConnectResult> ConnectAsync(
 		MultiplayerSessionConnectRequest request,
@@ -194,6 +195,10 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 					string.IsNullOrWhiteSpace(busy.ReservationKey)
 						? "Another player is already using this interaction."
 						: $"Another player is already using {busy.ReservationKey}.");
+				break;
+
+			case ReconnectClaimedMessage reconnectClaimed:
+				ReconnectClaimed?.Invoke(reconnectClaimed.PlayerSessionId, reconnectClaimed.ActorId);
 				break;
 
 			case RosterChangedMessage rosterChanged:

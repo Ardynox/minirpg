@@ -28,15 +28,14 @@ public static class ProtocolSerializer
 
 	public static ClientCommand? DeserializeCommand(ReadOnlySpan<byte> data)
 	{
-		using var doc = JsonDocument.Parse(data.ToArray());
+		var raw = data.ToArray();
+		using var doc = JsonDocument.Parse(raw);
 		if (!doc.RootElement.TryGetProperty("kind", out var kindProp))
 			return null;
 
 		var kindStr = kindProp.GetString();
 		if (!Enum.TryParse<ClientCommandKind>(kindStr, ignoreCase: true, out var kind))
 			return null;
-
-		var raw = data.ToArray();
 		return kind switch
 		{
 			ClientCommandKind.Move => JsonSerializer.Deserialize<MoveClientCommand>(raw, Options),
@@ -73,20 +72,18 @@ public static class ProtocolSerializer
 
 	public static ServerMessage? DeserializeMessage(ReadOnlySpan<byte> data)
 	{
-		using var doc = JsonDocument.Parse(data.ToArray());
+		var raw = data.ToArray();
+		using var doc = JsonDocument.Parse(raw);
 		if (!doc.RootElement.TryGetProperty("kind", out var kindProp))
 			return null;
 
 		var kindStr = kindProp.GetString();
 		if (!Enum.TryParse<ServerMessageKind>(kindStr, ignoreCase: true, out var kind))
 			return null;
-
-		var raw = data.ToArray();
 		return kind switch
 		{
 			ServerMessageKind.JoinAccepted => JsonSerializer.Deserialize<JoinAcceptedMessage>(raw, Options),
 			ServerMessageKind.RoomSnapshot => JsonSerializer.Deserialize<RoomSnapshotMessage>(raw, Options),
-			ServerMessageKind.StateDelta => JsonSerializer.Deserialize<StateDeltaMessage>(raw, Options),
 			ServerMessageKind.EventBatch => JsonSerializer.Deserialize<EventBatchMessage>(raw, Options),
 			ServerMessageKind.CommandRejected => JsonSerializer.Deserialize<CommandRejectedMessage>(raw, Options),
 			ServerMessageKind.RosterChanged => JsonSerializer.Deserialize<RosterChangedMessage>(raw, Options),

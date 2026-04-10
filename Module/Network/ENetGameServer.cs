@@ -179,6 +179,17 @@ public sealed unsafe class ENetGameServer : IDisposable
 				session.PlayerSessionId = joinAccepted.PlayerSessionId;
 			SendMessage(peer, message);
 		}
+
+		var rosterNotification = new RosterChangedMessage
+		{
+			Room = roomHost.State.Room.Clone(),
+		};
+		foreach (var existingPeer in EnumerateRoomPeers(request.RoomId))
+		{
+			if (existingPeer == (nuint)peer)
+				continue;
+			SendMessage((ENetPeer*)existingPeer, rosterNotification);
+		}
 	}
 
 	private void HandleDisconnect(ENetPeer* peer)
@@ -189,6 +200,13 @@ public sealed unsafe class ENetGameServer : IDisposable
 			return;
 
 		session.RoomHost.Disconnect(session.PlayerSessionId);
+
+		var rosterNotification = new RosterChangedMessage
+		{
+			Room = session.RoomHost.State.Room.Clone(),
+		};
+		foreach (var remainingPeer in EnumerateRoomPeers(session.RoomId!))
+			SendMessage((ENetPeer*)remainingPeer, rosterNotification);
 	}
 
 	private IEnumerable<nuint> EnumerateRoomPeers(string roomId)

@@ -195,10 +195,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 			};
 			entry.Room.Players[playerSessionId] = player;
 			if (!string.IsNullOrWhiteSpace(player.PrimaryActorId))
-				entry.Room.ActorControlBindings[player.PrimaryActorId] = new ActorControlBinding
-				{
-					PrimaryOwnerPlayerId = player.PlayerSessionId,
-				};
+				RoomRuntimeModule.AssignPrimaryActor(new GameState { Room = entry.Room }, player.PlayerSessionId, player.PrimaryActorId);
 			RoomRuntimeModule.RefreshControlledActorIds(new GameState { Room = entry.Room });
 			return BuildTicket(entry, player);
 		}

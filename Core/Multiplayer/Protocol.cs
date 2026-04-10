@@ -34,7 +34,6 @@ public enum ServerMessageKind
 {
 	JoinAccepted,
 	RoomSnapshot,
-	StateDelta,
 	EventBatch,
 	CommandRejected,
 	RosterChanged,
@@ -225,12 +224,6 @@ public sealed record RoomSnapshotMessage() : ServerMessage(ServerMessageKind.Roo
 {
 	public RoomRuntimeState Room { get; init; } = new();
 	public SaveFile Snapshot { get; init; } = null!;
-}
-
-public sealed record StateDeltaMessage() : ServerMessage(ServerMessageKind.StateDelta)
-{
-	public long Sequence { get; init; }
-	public List<GameEvent> Events { get; init; } = [];
 }
 
 public sealed record EventBatchMessage() : ServerMessage(ServerMessageKind.EventBatch)
