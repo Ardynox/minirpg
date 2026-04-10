@@ -22,6 +22,11 @@ new_c_sharp_script.cs
 # Test build outputs
 Tests/MiniRPG.Tests/bin/
 Tests/MiniRPG.Tests/obj/
+MiniRPG.Runtime/.godot/
+MiniRPG.Runtime/bin/
+MiniRPG.Runtime/obj/
+MiniRPG.Server/bin/
+MiniRPG.Server/obj/
 
 # Release/export artifacts and generated local outputs
 MiniRPG.exe
@@ -31,5 +36,6 @@ Tools/**/bin/
 Tools/**/obj/
 stdout_probe.log
 stderr_probe.log
+build-diag.txt
 MiniRPG.csproj.old
 Assets/Fonts/NotoSansSC.zip
