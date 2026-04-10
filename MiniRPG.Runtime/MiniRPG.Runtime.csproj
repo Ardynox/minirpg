@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GodotProjectDir Condition="'$(GodotProjectDir)' == ''">$(MSBuildProjectDirectory)\..</GodotProjectDir>
+    <GodotDisabledSourceGenerators Condition="'$(GodotDisabledSourceGenerators)' == ''">GodotPluginsInitializer</GodotDisabledSourceGenerators>
+    <GodotDisabledSourceGenerators Condition="'$(GodotDisabledSourceGenerators)' != ''">$(GodotDisabledSourceGenerators);GodotPluginsInitializer</GodotDisabledSourceGenerators>
   </PropertyGroup>
 
   <ItemGroup>
