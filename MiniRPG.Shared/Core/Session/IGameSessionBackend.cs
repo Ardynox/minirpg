@@ -74,9 +74,14 @@ public sealed class GameSessionSnapshotEnvelope
 	public RoomRuntimeState? Room { get; init; }
 	public string? PlayerSessionId { get; init; }
 	public string? RequestId { get; init; }
+	public long ServerTick { get; init; }
+	public long SnapshotSequence { get; init; }
 }
 
 public sealed class GameSessionDeltaEnvelope
 {
 	public System.Collections.Generic.IReadOnlyList<GameEvent> Events { get; init; } = Array.Empty<GameEvent>();
+	public string? RequestId { get; init; }
+	public long ServerTick { get; init; }
+	public long SnapshotSequence { get; init; }
 }

@@ -499,6 +499,66 @@ public sealed class ServerActionGatewayTests
 	}
 
 	[Fact]
+	public void CombatAttack_PvpDisabled_RejectsCrossPlayerAttack()
+	{
+		var state = CreateState();
+		ConfigureMultiplayerCombat(state, pvpEnabled: false, teamMode: TeamMode.Solo, friendlyFire: true);
+
+		var result = ServerActionGateway.Execute(state, new AttackClientCommand
+		{
+			PlayerSessionId = "owner",
+			ActorId = "hero",
+			TargetActorId = "enemy",
+			SkillId = "basic_attack",
+		});
+
+		Assert.Equal(ServerActionStatus.Rejected, result.Status);
+		Assert.Equal(ErrorCode.PvpDisabled.ToWireCode(), result.ErrorCode);
+		Assert.Empty(result.Events);
+	}
+
+	[Fact]
+	public void CombatAttack_ManualTeamFriendlyFireDisabled_RejectsSameTeamAttack()
+	{
+		var state = CreateState();
+		ConfigureMultiplayerCombat(state, pvpEnabled: true, teamMode: TeamMode.Manual, friendlyFire: false);
+		state.Room.Players["owner"].TeamId = "alpha";
+		state.Room.Players["guest"].TeamId = "alpha";
+
+		var result = ServerActionGateway.Execute(state, new AttackClientCommand
+		{
+			PlayerSessionId = "owner",
+			ActorId = "hero",
+			TargetActorId = "enemy",
+			SkillId = "basic_attack",
+		});
+
+		Assert.Equal(ServerActionStatus.Rejected, result.Status);
+		Assert.Equal(ErrorCode.FriendlyFireDisabled.ToWireCode(), result.ErrorCode);
+		Assert.Empty(result.Events);
+	}
+
+	[Fact]
+	public void CombatAttack_ManualTeamDifferentTeams_AllowsAttackEvaluation()
+	{
+		var state = CreateState();
+		ConfigureMultiplayerCombat(state, pvpEnabled: true, teamMode: TeamMode.Manual, friendlyFire: false);
+		state.Room.Players["owner"].TeamId = "alpha";
+		state.Room.Players["guest"].TeamId = "beta";
+
+		var result = ServerActionGateway.Execute(state, new AttackClientCommand
+		{
+			PlayerSessionId = "owner",
+			ActorId = "hero",
+			TargetActorId = "enemy",
+			SkillId = "basic_attack",
+		});
+
+		Assert.NotEqual(ErrorCode.PvpDisabled.ToWireCode(), result.ErrorCode);
+		Assert.NotEqual(ErrorCode.FriendlyFireDisabled.ToWireCode(), result.ErrorCode);
+	}
+
+	[Fact]
 	public void HandleActorKilled_RewardsGold_AndEmitsLog()
 	{
 		var state = CreateState();
@@ -540,6 +600,21 @@ public sealed class ServerActionGatewayTests
 		ActorModule.Add(state, CreateActor("enemy", Factions.Hostile, 3, 1, 0));
 		ActorModule.Add(state, CreateActor("trader", Factions.Friendly, 1, 2, 0));
 		return state;
+	}
+
+	private static void ConfigureMultiplayerCombat(GameState state, bool pvpEnabled, TeamMode teamMode, bool friendlyFire)
+	{
+		state.Room.RoomId = "room-1";
+		state.Room.RoomCode = "R1";
+		state.Room.SimulationMode = RoomSimulationMode.CombatTurnBased;
+		state.Room.Rules.PvpEnabled = pvpEnabled;
+		state.Room.Rules.TeamMode = teamMode;
+		state.Room.Rules.FriendlyFire = friendlyFire;
+
+		RoomRuntimeModule.GetOrCreatePlayer(state, "owner", "Owner");
+		RoomRuntimeModule.GetOrCreatePlayer(state, "guest", "Guest");
+		RoomRuntimeModule.AssignPrimaryActor(state, "owner", "hero");
+		RoomRuntimeModule.AssignPrimaryActor(state, "guest", "enemy");
 	}
 
 	private static Actor CreateActor(string id, string faction, int x, int y, int z) => new()

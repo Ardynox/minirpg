@@ -74,6 +74,45 @@
 - 当前仍然不默认引入 ECS、通用状态机或新的外部框架。
 - 当前仍然遵守“先实现再抽象、增量收敛、避免无证明的新层”。
 
+## 局域网导出与打包（Client + Dedicated Server）
+
+- 标准脚本：`Tools/export_and_package_lan.ps1`
+- 目标：一次命令完成客户端导出和服务端发布，并将产物包裹到统一目录。
+
+### 默认输出结构
+
+- 输出根目录：`Build/Packages/`
+- 单次产物目录：`LAN-Package-时间戳/`（传 `-NoTimestamp` 时为 `LAN-Package-latest/`）
+- 目录内容：
+  - `Client/`：客户端导出产物（Debug/Release）
+  - `Server/`：`MiniRPG.Server` 的 `dotnet publish` 产物
+  - `README.txt`：本次产物说明与服务器启动示例
+
+### 推荐用法
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\Tools\export_and_package_lan.ps1"
+```
+
+可选参数示例：
+
+```powershell
+# 指定 Godot bin 目录（默认 D:\Godot\godot\bin）
+powershell -ExecutionPolicy Bypass -File ".\Tools\export_and_package_lan.ps1" -GodotBinDir "D:\Godot\godot\bin"
+
+# 指定 Godot 可执行文件
+powershell -ExecutionPolicy Bypass -File ".\Tools\export_and_package_lan.ps1" -GodotExe "D:\Godot\godot\bin\godot.windows.editor.x86_64.mono.exe"
+
+# 只打包服务端
+powershell -ExecutionPolicy Bypass -File ".\Tools\export_and_package_lan.ps1" -SkipClient
+```
+
+### CI/本地使用约束
+
+- 导出前必须保证项目可构建，脚本遇到任一步失败会立即停止。
+- 客户端导出依赖 Godot 导出预设，默认使用 `Windows Desktop`。
+- 本脚本用于 LAN 打包，不包含加密、签名、安装器构建等发布流程。
+
 ## 非目标
 
 - 本文档不再记录早期 GDScript MVP 步骤、ASCII 伪代码或 Cursor 启动脚本。

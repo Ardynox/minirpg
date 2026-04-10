@@ -6,6 +6,7 @@ using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Map;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Needs;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
@@ -148,6 +149,121 @@ public sealed class SaveModuleTests
 		Assert.Equal(5, restoredChunk.Wetness[0]);
 		Assert.Equal(3, restoredChunk.IceDepth[0]);
 		Assert.Equal(39, restoredChunk.LastWeatherSimTurn);
+	}
+
+	[Fact]
+	public void SaveFile_SaveVersion_RoundTrips_AndLegacySaveDefaultsToVersion()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		Assert.Equal(SaveModule.CurrentVersion, saveFile.SaveVersion);
+
+		var json = SaveModule.SerializeSaveFile(saveFile);
+		var parsed = SaveModule.DeserializeSaveFile(json);
+		Assert.NotNull(parsed);
+		Assert.Equal(SaveModule.CurrentVersion, parsed!.SaveVersion);
+
+		using var doc = System.Text.Json.JsonDocument.Parse(json);
+		var root = doc.RootElement;
+		Assert.True(root.TryGetProperty("saveVersion", out var saveVersionProperty));
+		Assert.Equal(SaveModule.CurrentVersion, saveVersionProperty.GetInt32());
+
+		const string legacyWithoutSaveVersion = """
+		{
+		  "version": 7,
+		  "header": {
+		    "title": "legacy",
+		    "savedAtUtc": "2026-04-05T12:34:56+00:00",
+		    "turn": 12,
+		    "playerZ": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer"
+		  },
+		  "payload": {
+		    "worldSeed": 1,
+		    "turn": 12,
+		    "playerX": 1,
+		    "playerY": 1,
+		    "playerZ": 0,
+		    "playerId": "player",
+		    "killCount": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer",
+		    "actors": [],
+		    "quests": [],
+		    "dirtyChunks": [],
+		    "timeline": {
+		      "actors": []
+		    }
+		  }
+		}
+		""";
+
+		var legacyParsed = SaveModule.DeserializeSaveFile(legacyWithoutSaveVersion);
+		Assert.NotNull(legacyParsed);
+		Assert.Equal(legacyParsed!.Version, legacyParsed.SaveVersion);
+	}
+
+	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripRoomSessions_ReconnectAndTimelineContext()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		state.Room.RoomId = "room-alpha";
+		state.Room.RoomCode = "AB12CD";
+		state.Room.LastSnapshotSequence = 99;
+		state.Room.Players["host"] = new RoomPlayerState
+		{
+			PlayerSessionId = "host",
+			DisplayName = "Host",
+			PrimaryActorId = "hero",
+			DelegatedActorIds = ["hero"],
+			CurrentControllerActorIds = ["hero"],
+			JoinToken = "join-host",
+			ReconnectToken = "reconnect-host",
+			ReconnectDeadlineUtc = DateTimeOffset.Parse("2026-04-10T10:11:12+00:00"),
+			Connected = false,
+			IsRoomOwner = true,
+		};
+		state.Room.InteractionReservations["loot:6:7:0"] = new InteractionReservation
+		{
+			ReservationKey = "loot:6:7:0",
+			PlayerSessionId = "host",
+			LastHeartbeatUtc = DateTimeOffset.Parse("2026-04-10T10:00:00+00:00"),
+			ExpiresAtUtc = DateTimeOffset.Parse("2026-04-10T10:00:15+00:00"),
+		};
+		state.Room.ActorControlBindings["hero"] = new ActorControlBinding
+		{
+			PrimaryOwnerPlayerId = "host",
+			TemporaryControllerPlayerId = null,
+			CanBeDelegated = true,
+		};
+		RoomRuntimeModule.RefreshControlledActorIds(state);
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		var restored = new GameState();
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal("room-alpha", restored.Room.RoomId);
+		Assert.Equal("AB12CD", restored.Room.RoomCode);
+		Assert.Equal(99, restored.Room.LastSnapshotSequence);
+		var restoredPlayer = Assert.Single(restored.Room.Players.Values);
+		Assert.Equal("host", restoredPlayer.PlayerSessionId);
+		Assert.Equal("join-host", restoredPlayer.JoinToken);
+		Assert.Equal("reconnect-host", restoredPlayer.ReconnectToken);
+		Assert.Equal(DateTimeOffset.Parse("2026-04-10T10:11:12+00:00"), restoredPlayer.ReconnectDeadlineUtc);
+		Assert.False(restoredPlayer.Connected);
+		Assert.True(restoredPlayer.IsRoomOwner);
+		Assert.Contains("hero", restoredPlayer.CurrentControllerActorIds);
+		Assert.Single(restored.Room.InteractionReservations);
+		Assert.Single(restored.Room.ActorControlBindings);
+
+		Assert.Equal(state.Timeline.CurrentActorId, restored.Timeline.CurrentActorId);
+		Assert.Equal(state.Timeline.LastActorId, restored.Timeline.LastActorId);
+		Assert.Equal(state.Timeline.Actors.Count, restored.Timeline.Actors.Count);
 	}
 
 	[Fact]

@@ -85,9 +85,13 @@ public static class SaveModule
 		try
 		{
 			var saveFile = JsonSerializer.Deserialize<SaveFile>(json, JsonOpts);
-			return saveFile != null && IsCompatibleVersion(saveFile.Version)
-				? saveFile
-				: null;
+			if (saveFile == null || !IsCompatibleVersion(saveFile.Version))
+				return null;
+
+			if (saveFile.SaveVersion <= 0)
+				saveFile.SaveVersion = saveFile.Version;
+
+			return saveFile;
 		}
 		catch
 		{
@@ -170,6 +174,7 @@ public static class SaveModule
 		return new SaveFile
 		{
 			Version = CurrentVersion,
+			SaveVersion = CurrentVersion,
 			Header = BuildHeader(payload, headerContext),
 			Payload = payload,
 		};

@@ -11,11 +11,33 @@ public static class MultiplayerDefaults
 	public static readonly TimeSpan InteractionReservationTimeout = TimeSpan.FromSeconds(15);
 }
 
+public enum TeamMode
+{
+	Solo,
+	Shared,
+	Manual,
+}
+
+public sealed class RoomRules
+{
+	public bool PvpEnabled { get; set; }
+	public TeamMode TeamMode { get; set; } = TeamMode.Solo;
+	public bool FriendlyFire { get; set; }
+
+	public RoomRules Clone() => new()
+	{
+		PvpEnabled = PvpEnabled,
+		TeamMode = TeamMode,
+		FriendlyFire = FriendlyFire,
+	};
+}
+
 public sealed class RoomPlayerState
 {
 	public string PlayerSessionId { get; set; } = string.Empty;
 	public string DisplayName { get; set; } = string.Empty;
 	public string PrimaryActorId { get; set; } = string.Empty;
+	public string TeamId { get; set; } = string.Empty;
 	public List<string> DelegatedActorIds { get; set; } = [];
 	public List<string> CurrentControllerActorIds { get; set; } = [];
 	public string JoinToken { get; set; } = string.Empty;
@@ -29,6 +51,7 @@ public sealed class RoomPlayerState
 		PlayerSessionId = PlayerSessionId,
 		DisplayName = DisplayName,
 		PrimaryActorId = PrimaryActorId,
+		TeamId = TeamId,
 		DelegatedActorIds = [.. DelegatedActorIds],
 		CurrentControllerActorIds = [.. CurrentControllerActorIds],
 		JoinToken = JoinToken,
@@ -76,14 +99,46 @@ public sealed class InteractionReservation
 	};
 }
 
+public enum RoomSimulationMode
+{
+	ExploreRealtime,
+	CombatTurnBased,
+}
+
+public sealed class RoomModeTransitionRecord
+{
+	public long Sequence { get; set; }
+	public string RequestId { get; set; } = string.Empty;
+	public DateTimeOffset TransitionUtc { get; set; } = DateTimeOffset.UtcNow;
+	public RoomSimulationMode FromMode { get; set; }
+	public RoomSimulationMode ToMode { get; set; }
+	public string Trigger { get; set; } = string.Empty;
+	public string? TriggerActorId { get; set; }
+
+	public RoomModeTransitionRecord Clone() => new()
+	{
+		Sequence = Sequence,
+		RequestId = RequestId,
+		TransitionUtc = TransitionUtc,
+		FromMode = FromMode,
+		ToMode = ToMode,
+		Trigger = Trigger,
+		TriggerActorId = TriggerActorId,
+	};
+}
+
 public sealed class RoomRuntimeState
 {
 	public string RoomId { get; set; } = string.Empty;
 	public string RoomCode { get; set; } = string.Empty;
+	public RoomRules Rules { get; set; } = new();
 	public Dictionary<string, RoomPlayerState> Players { get; set; } = new(StringComparer.Ordinal);
 	public Dictionary<string, InteractionReservation> InteractionReservations { get; set; } = new(StringComparer.Ordinal);
 	public Dictionary<string, ActorControlBinding> ActorControlBindings { get; set; } = new(StringComparer.Ordinal);
+	public RoomSimulationMode SimulationMode { get; set; } = RoomSimulationMode.ExploreRealtime;
 	public long LastSnapshotSequence { get; set; }
+	public long LastModeTransitionSequence { get; set; }
+	public List<RoomModeTransitionRecord> ModeTransitions { get; set; } = [];
 
 	public bool IsActive =>
 		!string.IsNullOrWhiteSpace(RoomId)
@@ -96,7 +151,11 @@ public sealed class RoomRuntimeState
 	{
 		RoomId = RoomId,
 		RoomCode = RoomCode,
+		Rules = Rules.Clone(),
+		SimulationMode = SimulationMode,
 		LastSnapshotSequence = LastSnapshotSequence,
+		LastModeTransitionSequence = LastModeTransitionSequence,
+		ModeTransitions = [.. ModeTransitions.Select(static transition => transition.Clone())],
 		Players = Players.ToDictionary(
 			static entry => entry.Key,
 			static entry => entry.Value.Clone(),

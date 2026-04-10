@@ -112,7 +112,7 @@ public sealed unsafe class ENetGameServer : IDisposable
 			SendMessage(peer, new CommandRejectedMessage
 			{
 				Reason = "Failed to deserialize command.",
-				Code = "deserialization_error",
+				Code = ErrorCode.DeserializationError.ToWireCode(),
 			});
 			return;
 		}
@@ -144,7 +144,7 @@ public sealed unsafe class ENetGameServer : IDisposable
 			SendMessage(peer, new CommandRejectedMessage
 			{
 				Reason = "Invalid join request.",
-				Code = "invalid_join_request",
+				Code = ErrorCode.InvalidJoinRequest.ToWireCode(),
 			});
 			return;
 		}
@@ -154,7 +154,7 @@ public sealed unsafe class ENetGameServer : IDisposable
 			SendMessage(peer, new CommandRejectedMessage
 			{
 				Reason = "Room not found.",
-				Code = "room_not_found",
+				Code = ErrorCode.RoomNotFound.ToWireCode(),
 			});
 			return;
 		}

@@ -66,9 +66,7 @@ public static class ServerActionGateway
 		{
 			MoveClientCommand move => ExecuteTimelineAction(state, TimelinePlayerAction.Move(move.Dx, move.Dy)),
 			DigClientCommand dig => ExecuteTimelineAction(state, TimelinePlayerAction.Dig(dig.Dx, dig.Dy, dig.SkillId)),
-			AttackClientCommand attack => ExecuteTimelineAction(
-				state,
-				TimelinePlayerAction.Attack(attack.TargetActorId, attack.SkillId, attack.TargetLimbId)),
+			AttackClientCommand attack => ExecuteCombatAttack(state, attack),
 			CastSkillClientCommand cast => ExecuteTimelineAction(
 				state,
 				TimelinePlayerAction.CastSkill(
@@ -104,12 +102,16 @@ public static class ServerActionGateway
 			ReclaimPrimaryActorClientCommand reclaim => ExecuteReclaimPrimaryActor(state, reclaim),
 			AssignPrimaryActorClientCommand assign => ExecuteAssignPrimaryActor(state, assign),
 			KickPlayerClientCommand kick => ExecuteKickPlayer(state, kick),
+			StartCombatClientCommand startCombat => ExecuteStartCombat(state, startCombat),
+			EndTurnClientCommand endTurn => ExecuteEndTurn(state, endTurn),
+			UseSkillClientCommand useSkill => ExecuteUseSkill(state, useSkill),
+			EndCombatClientCommand endCombat => ExecuteEndCombat(state, endCombat),
 			_ => ServerActionResult.Reject(
 				LocalizationService.TOrFallback(
 					"log.server_action.unsupported",
 					"Unsupported server command: {kind}",
 					("kind", command.Kind.ToString())),
-				errorCode: "unsupported_command"),
+				errorCode: ErrorCode.UnsupportedCommand.ToWireCode()),
 		};
 	}
 
@@ -142,11 +144,11 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		var target = ActorModule.GetById(state, command.TargetActorId);
 		if (actor == null || target == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), "invalid_target");
+			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), ErrorCode.InvalidTarget.ToWireCode());
 
 		var interaction = InteractionDefs.All.FirstOrDefault(def => string.Equals(def.Id, command.InteractionDefId, StringComparison.Ordinal));
 		if (interaction == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), "invalid_interaction");
+			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), ErrorCode.InvalidInteraction.ToWireCode());
 
 		var reservationResult = TryReserveInteractionTarget(state, command.PlayerSessionId, target.Id, interaction.EffectType, now);
 		if (reservationResult != null)
@@ -162,7 +164,7 @@ public static class ServerActionGateway
 		{
 			return ServerActionResult.Reject(
 				LocalizationService.TOrFallback("log.pickup.invalid_actor", "Pick up failed."),
-				"invalid_actor");
+				ErrorCode.InvalidActor.ToWireCode());
 		}
 
 		return ServerActionResult.Accept(events: InteractionModule.PickupItem(state, actor, command.ItemInstanceId));
@@ -172,21 +174,21 @@ public static class ServerActionGateway
 	{
 		var actor = ResolveActor(state, command.ActorId);
 		if (actor == null)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_actor");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidActor.ToWireCode());
 
 		var result = InventoryModule.ToggleEquip(actor, command.InventoryIndex, state);
 		return result.Ok
 			? ServerActionResult.Accept(logs: [result.Message])
-			: ServerActionResult.Reject(result.Message, "inventory_toggle_rejected");
+			: ServerActionResult.Reject(result.Message, ErrorCode.InventoryToggleRejected.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteInventoryDrop(GameState state, InventoryDropClientCommand command)
 	{
 		var actor = ResolveActor(state, command.ActorId);
 		if (actor == null)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_actor");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidActor.ToWireCode());
 		if (command.InventoryIndex < 0 || command.InventoryIndex >= actor.Inventory.Count)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_inventory_index");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
 
 		var events = InteractionModule.DropItem(state, actor, command.InventoryIndex);
 		return ServerActionResult.Accept(events: events);
@@ -201,11 +203,11 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest?.Contents == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), "invalid_container");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), ErrorCode.InvalidContainer.ToWireCode());
 
 		var index = chest.Contents.FindIndex(item => string.Equals(item.InstanceId, command.ItemInstanceId, StringComparison.Ordinal));
 		if (index < 0)
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), "item_not_found");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), ErrorCode.ItemNotFound.ToWireCode());
 
 		var item = chest.Contents[index];
 		chest.Contents.RemoveAt(index);
@@ -229,7 +231,7 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest?.Contents == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), "invalid_container");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), ErrorCode.InvalidContainer.ToWireCode());
 
 		var count = chest.Contents.Count;
 		foreach (var item in chest.Contents)
@@ -254,22 +256,22 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		var chest = ResolveContainer(state, command.ContainerSource, command.ContainerInstanceId, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
 		if (actor == null || chest == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), "invalid_container");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), ErrorCode.InvalidContainer.ToWireCode());
 		if (command.InventoryIndex < 0 || command.InventoryIndex >= actor.Inventory.Count)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_inventory_index");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
 
 		var candidate = actor.Inventory[command.InventoryIndex];
 		if (candidate.Equipped)
 		{
 			return ServerActionResult.Reject(
 				LocalizationService.T("log.inventory.unequip_first", ("item", ItemFormatHelper.GetDisplayName(state, candidate))),
-				"item_equipped");
+				ErrorCode.ItemEquipped.ToWireCode());
 		}
 
 		chest.Contents ??= [];
 		var removed = InventoryModule.RemoveAt(actor, command.InventoryIndex);
 		if (removed == null)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_inventory_index");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
 
 		chest.Contents.Add(removed);
 		PersistContainer(state, command.ContainerSource, chest, command.ContainerOwnerActorId, command.ContainerX, command.ContainerY, command.ContainerZ);
@@ -291,14 +293,14 @@ public static class ServerActionGateway
 		var buyer = ResolveActor(state, command.ActorId);
 		var trader = ActorModule.GetById(state, command.TraderActorId);
 		if (buyer == null || trader == null)
-			return ServerActionResult.Reject(LocalizationService.T("trade.insufficient_gold", ("required", 0), ("current", 0)), "invalid_trade_actor");
+			return ServerActionResult.Reject(LocalizationService.T("trade.insufficient_gold", ("required", 0), ("current", 0)), ErrorCode.InvalidTradeActor.ToWireCode());
 
 		var good = TradeModule.ListGoods(trader)
 			.FirstOrDefault(entry =>
 				entry.Index == command.GoodIndex
 				&& entry.From == ToTradeGoodSource(command.GoodSource));
 		if (good == null)
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), "trade_good_missing");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.empty_inline"), ErrorCode.TradeGoodMissing.ToWireCode());
 
 		var result = TradeModule.Buy(buyer, trader, good, state);
 		return result.Ok
@@ -307,7 +309,7 @@ public static class ServerActionGateway
 				result.Message,
 				LocalizationService.T("trade.gold_remaining", ("gold", buyer.Gold)),
 			])
-			: ServerActionResult.Reject(result.Message, "trade_buy_rejected");
+			: ServerActionResult.Reject(result.Message, ErrorCode.TradeBuyRejected.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteTradeSell(GameState state, TradeSellClientCommand command, DateTimeOffset now)
@@ -319,7 +321,7 @@ public static class ServerActionGateway
 		var seller = ResolveActor(state, command.ActorId);
 		var trader = ActorModule.GetById(state, command.TraderActorId);
 		if (seller == null || trader == null)
-			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), "invalid_trade_actor");
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidTradeActor.ToWireCode());
 
 		var result = TradeModule.Sell(seller, trader, command.InventoryIndex, state);
 		return result.Ok
@@ -328,7 +330,7 @@ public static class ServerActionGateway
 				result.Message,
 				LocalizationService.T("trade.gold_remaining", ("gold", seller.Gold)),
 			])
-			: ServerActionResult.Reject(result.Message, "trade_sell_rejected");
+			: ServerActionResult.Reject(result.Message, ErrorCode.TradeSellRejected.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteDialogChoose(GameState state, DialogChooseClientCommand command, DateTimeOffset now)
@@ -337,7 +339,7 @@ public static class ServerActionGateway
 		{
 			return ServerActionResult.Reject(
 				LocalizationService.TOrFallback("log.server_action.invalid_dialog", "Dialog choice is invalid."),
-				"invalid_dialog");
+				ErrorCode.InvalidDialog.ToWireCode());
 		}
 
 		var reservationResult = TryReserveIfNeeded(
@@ -354,7 +356,7 @@ public static class ServerActionGateway
 		{
 			return ServerActionResult.Reject(
 				LocalizationService.TOrFallback("log.server_action.invalid_modal", "Modal id is invalid."),
-				"invalid_modal");
+				ErrorCode.InvalidModal.ToWireCode());
 		}
 
 		var reservationResult = TryReserveIfNeeded(
@@ -371,13 +373,13 @@ public static class ServerActionGateway
 		{
 			return ServerActionResult.Reject(
 				LocalizationService.TOrFallback("log.server_action.invalid_modal", "Modal id is invalid."),
-				"invalid_modal");
+				ErrorCode.InvalidModal.ToWireCode());
 		}
 
 		if (!state.Room.IsActive)
 			return ServerActionResult.Accept();
 		if (string.IsNullOrWhiteSpace(command.PlayerSessionId))
-			return ServerActionResult.Reject("Missing player session id.", "missing_player_session");
+			return ServerActionResult.Reject("Missing player session id.", ErrorCode.MissingPlayerSession.ToWireCode());
 
 		var reservationKey = BuildPrefixedReservationKey("modal", command.ModalId);
 		if (RoomRuntimeModule.ReleaseInteraction(state, reservationKey, command.PlayerSessionId))
@@ -390,7 +392,7 @@ public static class ServerActionGateway
 					"log.server_action.reservation_busy",
 					"Another player is already using {reservationKey}.",
 					("reservationKey", reservationKey)),
-				errorCode: "reservation_busy",
+				errorCode: ErrorCode.ReservationBusy.ToWireCode(),
 				reservationKey: reservationKey,
 				busyByPlayerSessionId: reservation.PlayerSessionId);
 		}
@@ -401,7 +403,16 @@ public static class ServerActionGateway
 	private static ServerActionResult ExecuteDelegateActor(GameState state, DelegateActorClientCommand command)
 	{
 		if (string.IsNullOrWhiteSpace(command.ActorId))
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.none"), "invalid_actor");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.none"), ErrorCode.InvalidActor.ToWireCode());
+		if (!RoomRuntimeModule.IsPrimaryOwner(state, command.PlayerSessionId, command.ActorId))
+		{
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback(
+					"log.multiplayer.delegate_actor_unauthorized",
+					"Only the primary owner can delegate {actor}.",
+					("actor", command.ActorId)),
+				ErrorCode.UnauthorizedActor.ToWireCode());
+		}
 
 		var ok = RoomRuntimeModule.DelegateActor(state, command.ActorId, command.TargetPlayerSessionId);
 		return ok
@@ -418,13 +429,13 @@ public static class ServerActionGateway
 					"log.multiplayer.delegate_actor_failed",
 					"Failed to delegate {actor}.",
 					("actor", command.ActorId)),
-				"delegate_failed");
+				ErrorCode.DelegateFailed.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteReclaimPrimaryActor(GameState state, ReclaimPrimaryActorClientCommand command)
 	{
 		if (string.IsNullOrWhiteSpace(command.ActorId) || string.IsNullOrWhiteSpace(command.PlayerSessionId))
-			return ServerActionResult.Reject(LocalizationService.T("ui.common.none"), "invalid_actor");
+			return ServerActionResult.Reject(LocalizationService.T("ui.common.none"), ErrorCode.InvalidActor.ToWireCode());
 
 		var ok = RoomRuntimeModule.ReclaimPrimaryActor(state, command.ActorId, command.PlayerSessionId);
 		return ok
@@ -440,7 +451,7 @@ public static class ServerActionGateway
 					"log.multiplayer.reclaim_actor_failed",
 					"Failed to reclaim {actor}.",
 					("actor", command.ActorId)),
-				"reclaim_failed");
+				ErrorCode.ReclaimFailed.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteAssignPrimaryActor(GameState state, AssignPrimaryActorClientCommand command)
@@ -449,7 +460,7 @@ public static class ServerActionGateway
 			|| string.IsNullOrWhiteSpace(command.TargetPlayerSessionId)
 			|| string.IsNullOrWhiteSpace(command.TargetActorId))
 		{
-			return ServerActionResult.Reject("Invalid assignment request.", "invalid_assign_request");
+			return ServerActionResult.Reject("Invalid assignment request.", ErrorCode.InvalidAssignRequest.ToWireCode());
 		}
 
 		var ok = RoomRuntimeModule.AssignPrimaryActorByHost(
@@ -471,7 +482,7 @@ public static class ServerActionGateway
 					"log.multiplayer.assign_primary_actor_failed",
 					"Failed to assign {actor}.",
 					("actor", command.TargetActorId)),
-				"assign_primary_actor_failed");
+				ErrorCode.AssignPrimaryActorFailed.ToWireCode());
 	}
 
 	private static ServerActionResult ExecuteKickPlayer(GameState state, KickPlayerClientCommand command)
@@ -479,7 +490,7 @@ public static class ServerActionGateway
 		if (string.IsNullOrWhiteSpace(command.PlayerSessionId)
 			|| string.IsNullOrWhiteSpace(command.TargetPlayerSessionId))
 		{
-			return ServerActionResult.Reject("Invalid kick request.", "invalid_kick_request");
+			return ServerActionResult.Reject("Invalid kick request.", ErrorCode.InvalidKickRequest.ToWireCode());
 		}
 
 		var ok = RoomRuntimeModule.KickPlayerByHost(
@@ -499,7 +510,97 @@ public static class ServerActionGateway
 					"log.multiplayer.kick_player_failed",
 					"Failed to kick player {player}.",
 					("player", command.TargetPlayerSessionId)),
-				"kick_player_failed");
+				ErrorCode.KickPlayerFailed.ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteStartCombat(GameState state, StartCombatClientCommand command)
+	{
+		if (state.Room.SimulationMode == RoomSimulationMode.CombatTurnBased)
+			return ServerActionResult.Accept();
+		if (string.IsNullOrWhiteSpace(command.TargetActorId))
+			return ServerActionResult.Reject("Invalid combat target.", ErrorCode.StartCombatRejected.ToWireCode());
+
+		var actor = ResolveActor(state, command.ActorId);
+		var target = ActorModule.GetById(state, command.TargetActorId);
+		if (actor == null || target == null)
+			return ServerActionResult.Reject("Invalid combat actor.", ErrorCode.StartCombatRejected.ToWireCode());
+
+		if (!string.Equals(target.Faction, Factions.Hostile, StringComparison.Ordinal))
+			return ServerActionResult.Reject("Target is not hostile.", ErrorCode.StartCombatRejected.ToWireCode());
+
+		TimelineTurnManager.SyncActors(state);
+		if (state.Timeline.Actors.Count == 0)
+			TimelineTurnManager.Reset(state);
+
+		return ServerActionResult.Accept(logs: ["combat_mode_entered"]);
+	}
+
+	private static ServerActionResult ExecuteEndTurn(GameState state, EndTurnClientCommand command)
+	{
+		if (state.Room.SimulationMode != RoomSimulationMode.CombatTurnBased)
+			return ServerActionResult.Reject("Room is not in combat mode.", ErrorCode.NotInCombat.ToWireCode());
+		if (!TimelineTurnManager.IsPlayerTurn(state))
+			return ServerActionResult.Reject("Not your turn.", ErrorCode.NotYourTurn.ToWireCode());
+
+		var timelineResult = TimelineTurnGateway.SubmitPlayerAction(state, TimelinePlayerAction.Rest());
+		return timelineResult.ActionConsumed
+			? ServerActionResult.Accept(events: timelineResult.Events)
+			: ServerActionResult.Reject("Failed to end turn.", ErrorCode.EndTurnRejected.ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteCombatAttack(GameState state, AttackClientCommand command)
+	{
+		var attackerActorId = command.ActorId ?? string.Empty;
+		if (!RoomCombatRules.TryValidateAttack(state, attackerActorId, command.TargetActorId, out var ruleErrorCode))
+		{
+			return ServerActionResult.Reject(
+				ruleErrorCode == ErrorCode.PvpDisabled ? "PvP is disabled in this room." : "Friendly fire is disabled for your team.",
+				ruleErrorCode.ToWireCode());
+		}
+
+		var timelineResult = TimelineTurnGateway.SubmitPlayerAction(
+			state,
+			TimelinePlayerAction.Attack(command.TargetActorId, command.SkillId, command.TargetLimbId));
+		return timelineResult.ActionConsumed
+			? ServerActionResult.Accept(events: timelineResult.Events)
+			: ServerActionResult.Reject("Attack rejected.", ErrorCode.NotYourTurn.ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteUseSkill(GameState state, UseSkillClientCommand command)
+	{
+		if (state.Room.SimulationMode != RoomSimulationMode.CombatTurnBased)
+			return ServerActionResult.Reject("Room is not in combat mode.", ErrorCode.NotInCombat.ToWireCode());
+
+		var timelineResult = TimelineTurnGateway.SubmitPlayerAction(
+			state,
+			TimelinePlayerAction.CastSkill(
+				command.SkillId,
+				command.TargetType,
+				command.TargetActorId,
+				command.TargetLimbId,
+				command.TargetItemId,
+				command.TargetX,
+				command.TargetY,
+				command.TargetZ));
+		return timelineResult.ActionConsumed
+			? ServerActionResult.Accept(events: timelineResult.Events)
+			: ServerActionResult.Reject("Use skill rejected.", ErrorCode.UseSkillRejected.ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteEndCombat(GameState state, EndCombatClientCommand command)
+	{
+		if (state.Room.SimulationMode != RoomSimulationMode.CombatTurnBased)
+			return ServerActionResult.Accept();
+
+		var factions = state.Actors.Values
+			.Where(actor => CombatModule.CheckVitalStatus(actor) != "death_instant")
+			.Select(actor => actor.Faction)
+			.Distinct(StringComparer.Ordinal)
+			.Count();
+		if (factions > 1)
+			return ServerActionResult.Reject("Combat is still active.", ErrorCode.EndCombatRejected.ToWireCode());
+
+		return ServerActionResult.Accept(logs: ["combat_mode_exited"]);
 	}
 
 	private static void GenerateLoot(GameState state, GameEvent e, List<string> logs)
@@ -610,7 +711,7 @@ public static class ServerActionGateway
 		if (!state.Room.IsActive)
 			return null;
 		if (string.IsNullOrWhiteSpace(playerSessionId))
-			return ServerActionResult.Reject("Missing player session id.", "missing_player_session");
+			return ServerActionResult.Reject("Missing player session id.", ErrorCode.MissingPlayerSession.ToWireCode());
 		if (RoomRuntimeModule.TryReserveInteraction(state, reservationKey, playerSessionId, now, out var conflictingReservation))
 			return null;
 
@@ -619,7 +720,7 @@ public static class ServerActionGateway
 				"log.server_action.reservation_busy",
 				"Another player is already using {reservationKey}.",
 				("reservationKey", reservationKey)),
-			errorCode: "reservation_busy",
+			errorCode: ErrorCode.ReservationBusy.ToWireCode(),
 			reservationKey: reservationKey,
 			busyByPlayerSessionId: conflictingReservation?.PlayerSessionId);
 	}

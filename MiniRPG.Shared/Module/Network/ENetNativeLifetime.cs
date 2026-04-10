@@ -16,7 +16,7 @@ internal static class ENetNativeLifetime
 		if (enet_initialize() != 0)
 		{
 			Interlocked.Decrement(ref _refCount);
-			return TransportError.Failed;
+			return TransportError.CantCreate;
 		}
 
 		return TransportError.Ok;

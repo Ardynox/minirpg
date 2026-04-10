@@ -11,6 +11,7 @@ public sealed class DedicatedGameServerHostOptions
 	public string ServerEndpoint { get; set; } = "enet://127.0.0.1:2455";
 	public TimeSpan ReconnectGracePeriod { get; set; } = MultiplayerDefaults.ReconnectGracePeriod;
 	public ILobbyService? LobbyService { get; set; }
+	public MultiplayerTelemetryStore Telemetry { get; set; } = new();
 }
 
 public sealed class GameServerConnectRequest
@@ -51,6 +52,8 @@ public sealed class DedicatedGameServerHost
 
 		var host = new RoomRuntimeHost(clonedState, Options);
 		_rooms[clonedState.Room.RoomId] = host;
+		Options.Telemetry.SetPlayerCount(clonedState.Room.RoomId, clonedState.Room.Players.Count);
+		host.AppendLifecycleAudit("create", result: "ok", code: null);
 		Options.LobbyService?.UpdateRoomState(clonedState.Room);
 		return host;
 	}
@@ -78,6 +81,7 @@ public sealed class RoomRuntimeHost
 {
 	private readonly object _gate = new();
 	private readonly DedicatedGameServerHostOptions _options;
+	private long _serverTick;
 
 	internal RoomRuntimeHost(GameState state, DedicatedGameServerHostOptions options)
 	{
@@ -86,6 +90,7 @@ public sealed class RoomRuntimeHost
 	}
 
 	public GameState State { get; }
+	public List<ServerAuditLogEntry> AuditLogs { get; } = [];
 
 	public void SynchronizeRoom(RoomRuntimeState room)
 	{
@@ -94,6 +99,8 @@ public sealed class RoomRuntimeHost
 		{
 			State.Room = room.Clone();
 			RoomRuntimeModule.RefreshControlledActorIds(State);
+			_options.Telemetry.SetPlayerCount(State.Room.RoomId, State.Room.Players.Count);
+			AppendLifecycleAudit("load", result: "ok", code: null);
 		}
 	}
 
@@ -141,6 +148,8 @@ public sealed class RoomRuntimeHost
 			RoomRuntimeModule.RefreshControlledActorIds(State);
 			if (request.IsReconnectClaim && !string.IsNullOrWhiteSpace(player.PrimaryActorId))
 				RoomRuntimeModule.ReclaimPrimaryActor(State, player.PrimaryActorId, player.PlayerSessionId);
+			_options.Telemetry.SetPlayerCount(State.Room.RoomId, State.Room.Players.Count);
+			AppendLifecycleAudit(request.IsReconnectClaim ? "reconnect" : "join", player.PlayerSessionId, player.PrimaryActorId, result: "ok", code: null);
 			SyncLobbyRoom();
 
 			var messages = new List<ServerMessage>
@@ -150,6 +159,7 @@ public sealed class RoomRuntimeHost
 					RoomId = State.Room.RoomId,
 					RoomCode = State.Room.RoomCode,
 					PlayerSessionId = player.PlayerSessionId,
+					ServerTick = _serverTick,
 				},
 			};
 			if (request.IsReconnectClaim && !string.IsNullOrWhiteSpace(player.PrimaryActorId))
@@ -158,12 +168,15 @@ public sealed class RoomRuntimeHost
 				{
 					PlayerSessionId = player.PlayerSessionId,
 					ActorId = player.PrimaryActorId,
+					ServerTick = _serverTick,
 				});
 			}
 			messages.Add(new RoomSnapshotMessage
 			{
 				Room = State.Room.Clone(),
 				Snapshot = SaveModule.BuildSnapshot(State),
+				ServerTick = _serverTick,
+				SnapshotSequence = State.Room.LastSnapshotSequence,
 			});
 
 			return new GameServerConnectResult
@@ -179,17 +192,36 @@ public sealed class RoomRuntimeHost
 		ArgumentNullException.ThrowIfNull(command);
 		lock (_gate)
 		{
+			_serverTick++;
+			_options.Telemetry.RecordRttSample(State.Room.RoomId, command.ClientTick, _serverTick);
+
 			if (!string.IsNullOrWhiteSpace(command.ActorId)
 				&& State.Room.IsActive
+				&& !IsActorAuthorizationBypass(command)
 				&& !RoomRuntimeModule.IsAuthorizedToControl(State, command.PlayerSessionId, command.ActorId))
 			{
+				_options.Telemetry.RecordCommand(State.Room.RoomId, accepted: false);
+				AppendAudit(new ServerAuditLogEntry
+				{
+					Category = ServerAuditCategory.Request,
+					Action = command.Kind.ToString(),
+					RoomId = State.Room.RoomId,
+					PlayerSessionId = command.PlayerSessionId,
+					ActorId = command.ActorId,
+					RequestId = command.RequestId,
+					Code = ErrorCode.UnauthorizedActor.ToWireCode(),
+					Result = "rejected",
+					ServerTick = _serverTick,
+				});
 				return
 				[
 					new CommandRejectedMessage
 					{
 						RequestId = command.RequestId,
 						Reason = "You are not authorized to control this actor.",
-						Code = "unauthorized_actor",
+						Code = ErrorCode.UnauthorizedActor.ToWireCode(),
+						ServerTick = _serverTick,
+						SnapshotSequence = State.Room.LastSnapshotSequence,
 					},
 				];
 			}
@@ -197,25 +229,59 @@ public sealed class RoomRuntimeHost
 			var timestamp = now ?? DateTimeOffset.UtcNow;
 			RoomRuntimeModule.CleanupExpiredReservations(State, timestamp);
 
+			var modeBefore = State.Room.SimulationMode;
 			var result = ServerActionGateway.Execute(State, command, timestamp);
 			if (!result.Ok)
 			{
+				_options.Telemetry.RecordCommand(State.Room.RoomId, accepted: false);
+				AppendAudit(new ServerAuditLogEntry
+				{
+					Category = result.Status == ServerActionStatus.Busy ? ServerAuditCategory.Request : ClassifyCategory(command.Kind),
+					Action = command.Kind.ToString(),
+					RoomId = State.Room.RoomId,
+					PlayerSessionId = command.PlayerSessionId,
+					ActorId = command.ActorId,
+					RequestId = command.RequestId,
+					Code = result.Status == ServerActionStatus.Busy ? ErrorCode.ReservationBusy.ToWireCode() : result.ErrorCode,
+					Result = result.Status == ServerActionStatus.Busy ? "busy" : "rejected",
+					EventCount = result.Events.Count,
+					ServerTick = _serverTick,
+				});
+
 				ServerMessage rejectedMessage = result.Status == ServerActionStatus.Busy
 					? new ReservationBusyMessage
 					{
 						RequestId = command.RequestId,
 						ReservationKey = result.ReservationKey ?? string.Empty,
 						BusyByPlayerSessionId = result.BusyByPlayerSessionId ?? string.Empty,
+						ServerTick = _serverTick,
+						SnapshotSequence = State.Room.LastSnapshotSequence,
 					}
 					: new CommandRejectedMessage
 					{
 						RequestId = command.RequestId,
 						Reason = result.Logs.FirstOrDefault() ?? "Command rejected.",
 						Code = result.ErrorCode,
+						ServerTick = _serverTick,
+						SnapshotSequence = State.Room.LastSnapshotSequence,
 					};
 				return [rejectedMessage];
 			}
 
+			_options.Telemetry.RecordCommand(State.Room.RoomId, accepted: true);
+			if (result.Events.Any(static evt => string.Equals(evt.Type, "Rollback", StringComparison.OrdinalIgnoreCase)))
+				_options.Telemetry.RecordRollback(State.Room.RoomId);
+			if (result.Events.Any(static evt => string.Equals(evt.Type, "Resync", StringComparison.OrdinalIgnoreCase)))
+				_options.Telemetry.RecordResync(State.Room.RoomId);
+			var transition = ResolveModeTransition(command, modeBefore, timestamp);
+			if (transition != null)
+			{
+				if (transition.ToMode == RoomSimulationMode.CombatTurnBased)
+					AppendLifecycleAudit("startCombat", command.PlayerSessionId, command.ActorId, command.RequestId, result: "ok", code: null);
+				if (transition.ToMode == RoomSimulationMode.ExploreRealtime)
+					AppendLifecycleAudit("endCombat", command.PlayerSessionId, command.ActorId, command.RequestId, result: "ok", code: null);
+			}
+			AppendLifecycleAudit("save", command.PlayerSessionId, command.ActorId, command.RequestId, result: "ok", code: null);
 			State.Room.LastSnapshotSequence++;
 			SyncLobbyRoom();
 
@@ -226,14 +292,44 @@ public sealed class RoomRuntimeHost
 					RequestId = command.RequestId,
 					Room = State.Room.Clone(),
 					Snapshot = SaveModule.BuildSnapshot(State),
+					ServerTick = _serverTick,
+					SnapshotSequence = State.Room.LastSnapshotSequence,
 				},
 			};
+			if (transition != null)
+			{
+				messages.Add(new ModeTransitionMessage
+				{
+					RequestId = command.RequestId,
+					FromMode = transition.FromMode,
+					ToMode = transition.ToMode,
+					Trigger = transition.Trigger,
+					TriggerActorId = transition.TriggerActorId,
+					TransitionSequence = transition.Sequence,
+					ServerTick = _serverTick,
+					SnapshotSequence = State.Room.LastSnapshotSequence,
+				});
+			}
+			AppendAudit(new ServerAuditLogEntry
+			{
+				Category = ClassifyCategory(command.Kind),
+				Action = command.Kind.ToString(),
+				RoomId = State.Room.RoomId,
+				PlayerSessionId = command.PlayerSessionId,
+				ActorId = command.ActorId,
+				RequestId = command.RequestId,
+				Result = "accepted",
+				EventCount = result.Events.Count,
+				ServerTick = _serverTick,
+			});
 			if (result.Events.Count > 0)
 			{
 				messages.Add(new EventBatchMessage
 				{
 					RequestId = command.RequestId,
 					Events = [.. result.Events],
+					ServerTick = _serverTick,
+					SnapshotSequence = State.Room.LastSnapshotSequence,
 				});
 			}
 
@@ -259,9 +355,93 @@ public sealed class RoomRuntimeHost
 			foreach (var reservationKey in reservationKeys)
 				State.Room.InteractionReservations.Remove(reservationKey);
 
+			_options.Telemetry.SetPlayerCount(State.Room.RoomId, State.Room.Players.Values.Count(static player => player.Connected));
+			AppendLifecycleAudit("leave", playerSessionId, null, result: "ok", code: null);
 			SyncLobbyRoom();
 		}
 	}
 
-	private void SyncLobbyRoom() => _options.LobbyService?.UpdateRoomState(State.Room);
+	internal void AppendLifecycleAudit(
+		string action,
+		string? playerSessionId = null,
+		string? actorId = null,
+		string? requestId = null,
+		string result = "ok",
+		string? code = null)
+	{
+		AppendAudit(new ServerAuditLogEntry
+		{
+			Category = ServerAuditCategory.Request,
+			Action = action,
+			RoomId = State.Room.RoomId,
+			PlayerSessionId = playerSessionId,
+			ActorId = actorId,
+			RequestId = requestId,
+			Result = result,
+			Code = code,
+			ServerTick = _serverTick,
+		});
+	}
+
+	private RoomModeTransitionRecord? ResolveModeTransition(ClientCommand command, RoomSimulationMode modeBefore, DateTimeOffset timestamp)
+	{
+		return command.Kind switch
+		{
+			ClientCommandKind.StartCombat when modeBefore != RoomSimulationMode.CombatTurnBased
+				=> RoomRuntimeModule.TryTransitionMode(
+					State,
+					RoomSimulationMode.CombatTurnBased,
+					command.RequestId,
+					"StartCombat",
+					command.ActorId,
+					timestamp),
+			ClientCommandKind.EndCombat when modeBefore != RoomSimulationMode.ExploreRealtime
+				=> RoomRuntimeModule.TryTransitionMode(
+					State,
+					RoomSimulationMode.ExploreRealtime,
+					command.RequestId,
+					"EndCombat",
+					command.ActorId,
+					timestamp),
+			_ => null,
+		};
+	}
+
+	private void SyncLobbyRoom()
+	{
+		_options.Telemetry.SetPlayerCount(State.Room.RoomId, State.Room.Players.Count);
+		_options.LobbyService?.UpdateRoomState(State.Room);
+	}
+
+	private void AppendAudit(ServerAuditLogEntry entry)
+	{
+		var metrics = _options.Telemetry.GetOrCreateRoom(entry.RoomId);
+		MultiplayerTelemetryStore.AttachMetricsMetadata(entry, metrics);
+		AuditLogs.Add(entry);
+		if (AuditLogs.Count > 1000)
+			AuditLogs.RemoveRange(0, AuditLogs.Count - 1000);
+	}
+
+	private static bool IsActorAuthorizationBypass(ClientCommand command) => command.Kind switch
+	{
+		ClientCommandKind.DelegateActor
+			or ClientCommandKind.ReclaimPrimaryActor
+			or ClientCommandKind.AssignPrimaryActor
+			or ClientCommandKind.KickPlayer
+			=> true,
+		_ => false,
+	};
+
+	private static ServerAuditCategory ClassifyCategory(ClientCommandKind kind) => kind switch
+	{
+		ClientCommandKind.Attack
+			or ClientCommandKind.CastSkill
+			or ClientCommandKind.StartCombat
+			or ClientCommandKind.EndTurn
+			or ClientCommandKind.UseSkill
+			or ClientCommandKind.EndCombat
+			=> ServerAuditCategory.Combat,
+		ClientCommandKind.TradeBuy or ClientCommandKind.TradeSell => ServerAuditCategory.Economy,
+		_ => ServerAuditCategory.Request,
+	};
 }

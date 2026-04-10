@@ -33,9 +33,29 @@ public sealed class HostedLobbyService : ILobbyService
 
 	public LobbyRoomResolution ResolveRoomCode(string roomCode) => _inner.ResolveRoomCode(roomCode);
 
-	public LobbyJoinTicket JoinRoom(LobbyJoinRoomRequest request) => _inner.JoinRoom(request);
+	public LobbyJoinTicket JoinRoom(LobbyJoinRoomRequest request)
+	{
+		var ticket = _inner.JoinRoom(request);
+		if (_gameHost.TryGetRoom(ticket.RoomId, out var roomHost))
+			roomHost.AppendLifecycleAudit("join", ticket.PlayerSessionId, ticket.PrimaryActorId, result: "ok", code: null);
+		return ticket;
+	}
 
-	public LobbyJoinTicket ReconnectClaim(LobbyReconnectClaimRequest request) => _inner.ReconnectClaim(request);
+	public LobbyJoinTicket ReconnectClaim(LobbyReconnectClaimRequest request)
+	{
+		var ticket = _inner.ReconnectClaim(request);
+		if (_gameHost.TryGetRoom(ticket.RoomId, out var roomHost))
+			roomHost.AppendLifecycleAudit("reconnect", ticket.PlayerSessionId, ticket.PrimaryActorId, result: "ok", code: null);
+		return ticket;
+	}
+
+	public LobbyLeaveRoomResult LeaveRoom(LobbyLeaveRoomRequest request)
+	{
+		var result = _inner.LeaveRoom(request);
+		if (result.Ok && _gameHost.TryGetRoom(result.RoomId, out var roomHost))
+			roomHost.AppendLifecycleAudit("leave", result.PlayerSessionId, result: "ok", code: null);
+		return result;
+	}
 
 	public RoomRuntimeState GetRoomState(string roomId) => _inner.GetRoomState(roomId);
 
@@ -70,6 +90,9 @@ public sealed class HostedLobbyService : ILobbyService
 			IsPublic = request.IsPublic,
 			TemplateId = request.TemplateId,
 			InitialSnapshot = resolvedSnapshot,
+			PvpEnabled = request.PvpEnabled,
+			TeamMode = request.TeamMode,
+			FriendlyFire = request.FriendlyFire,
 		};
 	}
 

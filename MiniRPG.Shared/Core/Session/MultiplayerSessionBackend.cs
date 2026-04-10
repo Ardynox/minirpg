@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using MiniRPG.Core.Multiplayer;
@@ -41,15 +43,18 @@ public sealed class MultiplayerSessionConnectResult
 public sealed class MultiplayerSessionBackend : IGameSessionBackend
 {
 	private readonly ENetGameClient _client;
+	private readonly Dictionary<string, DateTimeOffset> _pendingCommandSentAt = new(StringComparer.Ordinal);
 	private TaskCompletionSource<JoinAcceptedMessage>? _pendingJoinAccepted;
 	private TaskCompletionSource<RoomSnapshotMessage>? _pendingInitialSnapshot;
 	private TaskCompletionSource<string>? _pendingFailure;
+	private DateTimeOffset _lastSnapshotAtUtc;
 
 	public MultiplayerSessionBackend(ENetGameClient? client = null)
 	{
 		_client = client ?? new ENetGameClient();
 		_client.MessageReceived += HandleMessageReceived;
 		_client.Disconnected += HandleDisconnected;
+		_client.Trace += HandleClientTrace;
 	}
 
 	public string? PlayerSessionId => _client.PlayerSessionId;
@@ -62,6 +67,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 	public event Action<string>? CommandRejected;
 	public event Action<RoomRuntimeState>? RosterChanged;
 	public event Action<string, string>? ReconnectClaimed;
+	public event Action<string>? Trace;
 
 	public async ValueTask<MultiplayerSessionConnectResult> ConnectAsync(
 		MultiplayerSessionConnectRequest request,
@@ -92,6 +98,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 			return MultiplayerSessionConnectResult.Fail($"Failed to connect to room server: {connectError}.");
 		}
 
+		LogTrace($"ConnectAsync started. endpoint={request.ServerEndpoint}, roomId={request.RoomId}, reconnect={request.IsReconnectClaim}.");
 		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 		timeoutCts.CancelAfter(request.Timeout);
 		try
@@ -105,6 +112,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 					return MultiplayerSessionConnectResult.Fail(await _pendingFailure.Task.ConfigureAwait(false));
 				if (_pendingJoinAccepted.Task.IsCompleted && _pendingInitialSnapshot.Task.IsCompleted)
 				{
+					LogTrace("ConnectAsync completed with join accepted + initial snapshot.");
 					return MultiplayerSessionConnectResult.Ok(
 						await _pendingJoinAccepted.Task.ConfigureAwait(false),
 						await _pendingInitialSnapshot.Task.ConfigureAwait(false));
@@ -134,6 +142,8 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 			return ValueTask.FromResult(GameSessionCommandSubmitResult.Reject("Multiplayer room connection is not active."));
 
 		var accepted = _client.SendCommand(command);
+		if (accepted && !string.IsNullOrWhiteSpace(command.RequestId))
+			_pendingCommandSentAt[command.RequestId] = DateTimeOffset.UtcNow;
 		return ValueTask.FromResult(accepted
 			? GameSessionCommandSubmitResult.Ok()
 			: GameSessionCommandSubmitResult.Reject("Failed to send multiplayer command."));
@@ -145,6 +155,7 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 	{
 		_client.MessageReceived -= HandleMessageReceived;
 		_client.Disconnected -= HandleDisconnected;
+		_client.Trace -= HandleClientTrace;
 		_client.Dispose();
 		return ValueTask.CompletedTask;
 	}
@@ -159,11 +170,24 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 
 			case RoomSnapshotMessage snapshot:
 				LastRoom = snapshot.Room.Clone();
+				if (!string.IsNullOrWhiteSpace(snapshot.RequestId)
+					&& _pendingCommandSentAt.TryGetValue(snapshot.RequestId, out var sentAtUtc))
+				{
+					_pendingCommandSentAt.Remove(snapshot.RequestId);
+					var rttMs = (DateTimeOffset.UtcNow - sentAtUtc).TotalMilliseconds;
+					LogTrace($"telemetry roomId={snapshot.Room.RoomId} requestId={snapshot.RequestId} metric=RTT valueMs={rttMs:0.###}");
+				}
+
 				if (_pendingInitialSnapshot != null && !_pendingInitialSnapshot.Task.IsCompleted)
 				{
 					_pendingInitialSnapshot.TrySetResult(snapshot);
 					return;
 				}
+
+				var now = DateTimeOffset.UtcNow;
+				if (_lastSnapshotAtUtc != default && (now - _lastSnapshotAtUtc) > TimeSpan.FromMilliseconds(350))
+					LogTrace($"telemetry roomId={snapshot.Room.RoomId} requestId={snapshot.RequestId ?? "none"} metric=resync count=1");
+				_lastSnapshotAtUtc = now;
 
 				SnapshotReceived?.Invoke(new GameSessionSnapshotEnvelope
 				{
@@ -171,17 +195,37 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 					Room = snapshot.Room.Clone(),
 					PlayerSessionId = _client.PlayerSessionId,
 					RequestId = snapshot.RequestId,
+					ServerTick = snapshot.ServerTick,
+					SnapshotSequence = snapshot.SnapshotSequence,
 				});
 				break;
 
 			case EventBatchMessage batch:
+				if (batch.Events.Count > 0)
+				{
+					var rollbackCount = 0;
+					foreach (var evt in batch.Events)
+					{
+						if (string.Equals(evt.Type, "Rollback", StringComparison.OrdinalIgnoreCase))
+							rollbackCount++;
+					}
+					if (rollbackCount > 0)
+						LogTrace($"telemetry roomId={RoomId ?? "unknown"} requestId={batch.RequestId ?? "none"} metric=rollback count={rollbackCount}");
+				}
+
 				DeltaReceived?.Invoke(new GameSessionDeltaEnvelope
 				{
 					Events = batch.Events,
+					RequestId = batch.RequestId,
+					ServerTick = batch.ServerTick,
+					SnapshotSequence = batch.SnapshotSequence,
 				});
 				break;
 
 			case CommandRejectedMessage rejected:
+				if (!string.IsNullOrWhiteSpace(rejected.RequestId))
+					_pendingCommandSentAt.Remove(rejected.RequestId);
+				LogTrace($"command_rejected requestId={rejected.RequestId ?? "none"} code={rejected.Code ?? "none"} reason={rejected.Reason}");
 				if (_pendingFailure != null && !_pendingFailure.Task.IsCompleted)
 				{
 					_pendingFailure.TrySetResult(rejected.Reason);
@@ -217,11 +261,22 @@ public sealed class MultiplayerSessionBackend : IGameSessionBackend
 		Disconnected?.Invoke(reason);
 	}
 
+	private void HandleClientTrace(string message) => LogTrace(message);
+
+	private void LogTrace(string message)
+	{
+		var line = $"[MultiplayerSessionBackend] {message}";
+		Trace?.Invoke(line);
+		System.Diagnostics.Debug.WriteLine(line);
+	}
+
 	private void ResetPendingConnectState()
 	{
 		_pendingJoinAccepted = null;
 		_pendingInitialSnapshot = null;
 		_pendingFailure = null;
+		_pendingCommandSentAt.Clear();
+		_lastSnapshotAtUtc = default;
 	}
 
 	private static TaskCompletionSource<T> CreateTcs<T>() =>

@@ -339,6 +339,20 @@ public static class RoomRuntimeModule
 		return player.CurrentControllerActorIds.Contains(actorId, StringComparer.Ordinal);
 	}
 
+	public static bool IsPrimaryOwner(GameState state, string? playerSessionId, string? actorId)
+	{
+		if (string.IsNullOrWhiteSpace(playerSessionId) || string.IsNullOrWhiteSpace(actorId))
+			return false;
+		if (!state.Room.IsActive)
+			return true;
+
+		if (state.Room.ActorControlBindings.TryGetValue(actorId, out var binding))
+			return string.Equals(binding.PrimaryOwnerPlayerId, playerSessionId, StringComparison.Ordinal);
+
+		return state.Room.Players.TryGetValue(playerSessionId, out var player)
+			&& string.Equals(player.PrimaryActorId, actorId, StringComparison.Ordinal);
+	}
+
 	public static string? GetCurrentControllerPlayerId(GameState state, string actorId)
 	{
 		if (state.Room.ActorControlBindings.TryGetValue(actorId, out var binding))
@@ -376,6 +390,41 @@ public static class RoomRuntimeModule
 			foreach (var actorId in player.DelegatedActorIds)
 				AddDistinct(player.CurrentControllerActorIds, actorId);
 		}
+	}
+
+	public static RoomModeTransitionRecord? TryTransitionMode(
+		GameState state,
+		RoomSimulationMode toMode,
+		string requestId,
+		string trigger,
+		string? triggerActorId,
+		DateTimeOffset? now = null)
+	{
+		ArgumentNullException.ThrowIfNull(state);
+		ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+		ArgumentException.ThrowIfNullOrWhiteSpace(trigger);
+
+		var fromMode = state.Room.SimulationMode;
+		if (fromMode == toMode)
+			return null;
+
+		state.Room.LastModeTransitionSequence++;
+		var record = new RoomModeTransitionRecord
+		{
+			Sequence = state.Room.LastModeTransitionSequence,
+			RequestId = requestId,
+			TransitionUtc = now ?? DateTimeOffset.UtcNow,
+			FromMode = fromMode,
+			ToMode = toMode,
+			Trigger = trigger,
+			TriggerActorId = triggerActorId,
+		};
+
+		state.Room.SimulationMode = toMode;
+		state.Room.ModeTransitions.Add(record);
+		if (state.Room.ModeTransitions.Count > 512)
+			state.Room.ModeTransitions.RemoveRange(0, state.Room.ModeTransitions.Count - 512);
+		return record;
 	}
 
 	public static void SyncLegacyPlayerAlias(GameState state)

@@ -19,6 +19,9 @@ public sealed class SaveFile
 	[JsonPropertyName("version")]
 	public required int Version { get; set; }
 
+	[JsonPropertyName("saveVersion")]
+	public int SaveVersion { get; set; }
+
 	[JsonPropertyName("header")]
 	public required SaveHeader Header { get; set; }
 

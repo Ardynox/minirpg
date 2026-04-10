@@ -62,6 +62,10 @@ public static class ProtocolSerializer
 			ClientCommandKind.ReclaimPrimaryActor => JsonSerializer.Deserialize<ReclaimPrimaryActorClientCommand>(raw, Options),
 			ClientCommandKind.AssignPrimaryActor => JsonSerializer.Deserialize<AssignPrimaryActorClientCommand>(raw, Options),
 			ClientCommandKind.KickPlayer => JsonSerializer.Deserialize<KickPlayerClientCommand>(raw, Options),
+			ClientCommandKind.StartCombat => JsonSerializer.Deserialize<StartCombatClientCommand>(raw, Options),
+			ClientCommandKind.EndTurn => JsonSerializer.Deserialize<EndTurnClientCommand>(raw, Options),
+			ClientCommandKind.UseSkill => JsonSerializer.Deserialize<UseSkillClientCommand>(raw, Options),
+			ClientCommandKind.EndCombat => JsonSerializer.Deserialize<EndCombatClientCommand>(raw, Options),
 			_ => null,
 		};
 	}
@@ -91,6 +95,7 @@ public static class ProtocolSerializer
 			ServerMessageKind.RosterChanged => JsonSerializer.Deserialize<RosterChangedMessage>(raw, Options),
 			ServerMessageKind.ReservationBusy => JsonSerializer.Deserialize<ReservationBusyMessage>(raw, Options),
 			ServerMessageKind.ReconnectClaimed => JsonSerializer.Deserialize<ReconnectClaimedMessage>(raw, Options),
+			ServerMessageKind.ModeTransition => JsonSerializer.Deserialize<ModeTransitionMessage>(raw, Options),
 			_ => null,
 		};
 	}

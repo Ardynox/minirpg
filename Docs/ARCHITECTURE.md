@@ -193,7 +193,37 @@ App/Main.tscn / App/Main.cs
 - 新增世界或地图行为：优先改 `MapModule`、`WorldMap`、`ChunkData`、生成器体系。
 - 新增渲染表现：优先沿用 `TileMapRenderModule` 和现有 Tile 映射数据，不新开一套平行渲染管线。
 
-## 9. 当前不应再依赖的旧认知
+## 9. 联机分层（Client / Shared / Server）
+
+### 9.1 工程分层职责
+
+- `MiniRPG.csproj`（Godot 客户端）
+  - 负责：输入、UI、渲染、表现层流程、客户端预测与回滚。
+  - 不负责：权威结算与真状态裁决。
+- `MiniRPG.Shared/MiniRPG.Shared.csproj`（共享逻辑层）
+  - 负责：协议模型、房间/会话核心逻辑、可复用纯逻辑模块。
+  - 约束：不依赖 `Godot` 命名空间，供客户端与服务端共同引用。
+- `MiniRPG.Server/MiniRPG.Server.csproj`（独立专用服务器）
+  - 负责：权威命令校验、执行、广播、房间生命周期与联机入口。
+  - 入口：`MiniRPG.Server/Program.cs`。
+
+### 9.2 运行时权威边界
+
+- 服务端是房间真状态唯一 owner：命令校验与结果裁决由服务端完成。
+- 客户端可以做预测与回滚以优化手感，但最终状态以后端回包为准。
+- 常规链路：`ClientCommand -> DedicatedGameServerHost/RoomRuntimeHost -> ServerActionGateway -> ServerMessage(Snapshot/Event/Reject)`。
+
+### 9.3 LAN 打包与运行入口
+
+- 一键导出/打包脚本：`Tools/export_and_package_lan.ps1`
+  - 输出目录：`Build/Packages/LAN-Package-*/`
+  - 子目录：`Client/`、`Server/`、`README.txt`
+- 服务端发布命令（脚本内部同等逻辑）：
+  - `dotnet publish MiniRPG.Server/MiniRPG.Server.csproj -c Release -r win-x64`
+- 服务端启动参数示例：
+  - `MiniRPG.Server.exe --lobby-prefix http://127.0.0.1:5076/ --game-address 0.0.0.0 --game-port 2455 --max-clients 10`
+
+## 10. 当前不应再依赖的旧认知
 
 - 当前渲染主路径不是旧版 `RenderModule.cs` 文本渲染。
 - 当前 UI 也不是“一个 `RichTextLabel` + 一个 `LineEdit`”的极简原型。

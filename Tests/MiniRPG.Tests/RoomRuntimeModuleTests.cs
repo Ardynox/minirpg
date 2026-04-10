@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
+using MiniRPG.Module;
 using Xunit;
 
 namespace MiniRPG.Tests;
@@ -267,6 +269,83 @@ public sealed class RoomRuntimeModuleTests
 		Assert.True(reconnect.Ok);
 		Assert.True(roomHost.State.Room.Players[ticket.PlayerSessionId].Connected);
 		Assert.Null(roomHost.State.Room.Players[ticket.PlayerSessionId].ReconnectDeadlineUtc);
+	}
+
+	[Fact]
+	public void RoomRuntimeHost_StartCombatAndEndCombat_TransitionsModeAndBroadcastsTransitionMessage()
+	{
+		var state = CreateState();
+		var lobby = new InMemoryLobbyService();
+		var ticket = lobby.CreateRoom(new LobbyCreateRoomRequest
+		{
+			RoomDisplayName = "Combat",
+			OwnerDisplayName = "Owner",
+			ServerEndpoint = "enet://127.0.0.1:2455",
+			PrimaryActorId = "hero",
+		});
+		state.Room = lobby.GetRoomState(ticket.RoomId).Clone();
+		RoomRuntimeModule.AssignPrimaryActor(state, ticket.PlayerSessionId, "hero");
+		state.Room.Players[ticket.PlayerSessionId].Connected = true;
+
+		var host = new DedicatedGameServerHost();
+		var roomHost = host.RegisterRoom(state, state.Room);
+		roomHost.State.Actors["scout"].Faction = Factions.Hostile;
+
+		var startMessages = roomHost.Execute(new StartCombatClientCommand
+		{
+			RequestId = "req-start",
+			PlayerSessionId = ticket.PlayerSessionId,
+			ActorId = "hero",
+			TargetActorId = "scout",
+		});
+
+		var startTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(startMessages.Where(msg => msg is ModeTransitionMessage)));
+		Assert.Equal(RoomSimulationMode.ExploreRealtime, startTransition.FromMode);
+		Assert.Equal(RoomSimulationMode.CombatTurnBased, startTransition.ToMode);
+		Assert.Equal("StartCombat", startTransition.Trigger);
+		Assert.Equal(RoomSimulationMode.CombatTurnBased, roomHost.State.Room.SimulationMode);
+		Assert.Single(roomHost.State.Room.ModeTransitions);
+
+		roomHost.State.Actors.Remove("scout");
+		var endMessages = roomHost.Execute(new EndCombatClientCommand
+		{
+			RequestId = "req-end",
+			PlayerSessionId = ticket.PlayerSessionId,
+			ActorId = "hero",
+		});
+
+		var endTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(endMessages.Where(msg => msg is ModeTransitionMessage)));
+		Assert.Equal(RoomSimulationMode.CombatTurnBased, endTransition.FromMode);
+		Assert.Equal(RoomSimulationMode.ExploreRealtime, endTransition.ToMode);
+		Assert.Equal("EndCombat", endTransition.Trigger);
+		Assert.Equal(RoomSimulationMode.ExploreRealtime, roomHost.State.Room.SimulationMode);
+		Assert.Equal(2, roomHost.State.Room.ModeTransitions.Count);
+		Assert.Equal("req-end", roomHost.State.Room.ModeTransitions[^1].RequestId);
+	}
+
+	[Fact]
+	public void ServerActionGateway_CombatCommandsRequireCombatModeForTurnActions()
+	{
+		var state = CreateState();
+		state.Room.SimulationMode = RoomSimulationMode.ExploreRealtime;
+
+		var endTurnResult = ServerActionGateway.Execute(state, new EndTurnClientCommand
+		{
+			RequestId = "req-end-turn",
+			ActorId = "hero",
+		});
+		Assert.False(endTurnResult.Ok);
+		Assert.Equal(ErrorCode.NotInCombat.ToWireCode(), endTurnResult.ErrorCode);
+
+		var useSkillResult = ServerActionGateway.Execute(state, new UseSkillClientCommand
+		{
+			RequestId = "req-use-skill",
+			ActorId = "hero",
+			SkillId = "sword_parry",
+			TargetType = SkillTargetType.Self,
+		});
+		Assert.False(useSkillResult.Ok);
+		Assert.Equal(ErrorCode.NotInCombat.ToWireCode(), useSkillResult.ErrorCode);
 	}
 
 	private static GameState CreateState()

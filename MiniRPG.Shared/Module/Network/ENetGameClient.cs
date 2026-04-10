@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using enet;
 using MiniRPG.Core.Multiplayer;
 using static enet.ENet;
@@ -11,6 +12,7 @@ public sealed unsafe class ENetGameClient : IDisposable
 	private ENetPeer* _peer;
 	private GameServerConnectRequest? _pendingJoin;
 	private string? _disconnectReason;
+	private long _nextClientTick = 1;
 
 	public ENetClientState State { get; private set; } = ENetClientState.Disconnected;
 	public string? PlayerSessionId { get; private set; }
@@ -19,6 +21,7 @@ public sealed unsafe class ENetGameClient : IDisposable
 	public event Action<ServerMessage>? MessageReceived;
 	public event Action? Connected;
 	public event Action<string>? Disconnected;
+	public event Action<string>? Trace;
 
 	public TransportError Connect(string address, int port, GameServerConnectRequest joinRequest)
 	{
@@ -60,6 +63,7 @@ public sealed unsafe class ENetGameClient : IDisposable
 		_pendingJoin = joinRequest;
 		_disconnectReason = null;
 		State = ENetClientState.Connecting;
+		LogTrace($"Connecting to {address}:{port}, roomId={joinRequest.RoomId}, reconnect={joinRequest.IsReconnectClaim}.");
 		return TransportError.Ok;
 	}
 
@@ -69,11 +73,22 @@ public sealed unsafe class ENetGameClient : IDisposable
 		if (_peer == null || State != ENetClientState.InRoom)
 			return false;
 
-		var payload = ProtocolSerializer.SerializeCommand(command with
+		var normalized = command with
 		{
+			RequestId = string.IsNullOrWhiteSpace(command.RequestId)
+				? Guid.NewGuid().ToString("N")
+				: command.RequestId,
+			ClientTick = command.ClientTick > 0 ? command.ClientTick : _nextClientTick++,
 			PlayerSessionId = PlayerSessionId ?? command.PlayerSessionId,
-		});
-		return SendReliable(_peer, payload);
+		};
+		var payload = ProtocolSerializer.SerializeCommand(normalized);
+		var sent = SendReliable(_peer, payload);
+		if (sent)
+		{
+			LogTrace(
+				$"Sent command kind={normalized.Kind}, requestId={normalized.RequestId}, clientTick={normalized.ClientTick}, actorId={normalized.ActorId ?? ""}.");
+		}
+		return sent;
 	}
 
 	public void Poll()
@@ -111,7 +126,10 @@ public sealed unsafe class ENetGameClient : IDisposable
 		var wasConnected = State != ENetClientState.Disconnected;
 		State = ENetClientState.Disconnected;
 		if (wasConnected)
+		{
+			LogTrace($"Disconnected. reason={reason}");
 			Disconnected?.Invoke(reason);
+		}
 	}
 
 	public void Dispose() => Disconnect();
@@ -123,6 +141,7 @@ public sealed unsafe class ENetGameClient : IDisposable
 			case ENetEventType.ENET_EVENT_TYPE_CONNECT:
 				State = ENetClientState.Joining;
 				Connected?.Invoke();
+				LogTrace("Peer connected, sending join request.");
 				if (_pendingJoin != null)
 					SendReliable(netEvent->peer, ProtocolSerializer.SerializeConnectRequest(_pendingJoin));
 				break;
@@ -166,7 +185,16 @@ public sealed unsafe class ENetGameClient : IDisposable
 				break;
 		}
 
+		LogTrace(
+			$"Received message kind={message.Kind}, requestId={message.RequestId ?? ""}, serverTick={message.ServerTick}, snapshotSequence={message.SnapshotSequence}.");
 		MessageReceived?.Invoke(message);
+	}
+
+	private void LogTrace(string message)
+	{
+		var line = $"[ENetGameClient] {message}";
+		Trace?.Invoke(line);
+		Debug.WriteLine(line);
 	}
 
 	private static bool SendReliable(ENetPeer* peer, byte[] payload)

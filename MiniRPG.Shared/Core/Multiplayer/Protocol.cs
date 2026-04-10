@@ -30,6 +30,10 @@ public enum ClientCommandKind
 	ReclaimPrimaryActor,
 	AssignPrimaryActor,
 	KickPlayer,
+	StartCombat,
+	EndTurn,
+	UseSkill,
+	EndCombat,
 }
 
 public enum ServerMessageKind
@@ -41,6 +45,7 @@ public enum ServerMessageKind
 	RosterChanged,
 	ReservationBusy,
 	ReconnectClaimed,
+	ModeTransition,
 }
 
 public enum ContainerSourceKind
@@ -55,10 +60,66 @@ public enum TradeGoodSourceKind
 	Inventory,
 }
 
+public enum ErrorCode
+{
+	None,
+	UnsupportedCommand,
+	DeserializationError,
+	InvalidJoinRequest,
+	RoomNotFound,
+	ConnectFailed,
+	InvalidJoinToken,
+	InvalidReconnectToken,
+	ReconnectExpired,
+	UnauthorizedActor,
+	ReservationBusy,
+	MissingPlayerSession,
+	InvalidActor,
+	InvalidTarget,
+	InvalidInteraction,
+	InvalidContainer,
+	ItemNotFound,
+	InvalidInventoryIndex,
+	InventoryToggleRejected,
+	ItemEquipped,
+	InvalidTradeActor,
+	TradeGoodMissing,
+	TradeBuyRejected,
+	TradeSellRejected,
+	InvalidDialog,
+	InvalidModal,
+	InvalidAssignRequest,
+	AssignPrimaryActorFailed,
+	InvalidKickRequest,
+	KickPlayerFailed,
+	DelegateFailed,
+	ReclaimFailed,
+	InvalidModeTransition,
+	NotInCombat,
+	NotYourTurn,
+	EndTurnRejected,
+	StartCombatRejected,
+	EndCombatRejected,
+	UseSkillRejected,
+	PvpDisabled,
+	FriendlyFireDisabled,
+}
+
+public static class ProtocolDefaults
+{
+	public const int CurrentVersion = 1;
+}
+
 public abstract record ClientCommand(ClientCommandKind Kind)
 {
+	[JsonPropertyName("protocolVersion")]
+	public int ProtocolVersion { get; init; } = ProtocolDefaults.CurrentVersion;
+
 	[JsonPropertyName("requestId")]
 	public string RequestId { get; init; } = Guid.NewGuid().ToString("N");
+
+	[JsonPropertyName("clientTick")]
+	public long ClientTick { get; init; }
 
 	[JsonPropertyName("playerSessionId")]
 	public string? PlayerSessionId { get; init; }
@@ -220,10 +281,44 @@ public sealed record KickPlayerClientCommand() : ClientCommand(ClientCommandKind
 	public string TargetPlayerSessionId { get; init; } = string.Empty;
 }
 
+public sealed record StartCombatClientCommand() : ClientCommand(ClientCommandKind.StartCombat)
+{
+	public string TargetActorId { get; init; } = string.Empty;
+}
+
+public sealed record EndTurnClientCommand() : ClientCommand(ClientCommandKind.EndTurn)
+{
+}
+
+public sealed record UseSkillClientCommand() : ClientCommand(ClientCommandKind.UseSkill)
+{
+	public string SkillId { get; init; } = string.Empty;
+	public SkillTargetType TargetType { get; init; }
+	public string? TargetActorId { get; init; }
+	public string? TargetLimbId { get; init; }
+	public string? TargetItemId { get; init; }
+	public int TargetX { get; init; }
+	public int TargetY { get; init; }
+	public int TargetZ { get; init; }
+}
+
+public sealed record EndCombatClientCommand() : ClientCommand(ClientCommandKind.EndCombat)
+{
+}
+
 public abstract record ServerMessage(ServerMessageKind Kind)
 {
+	[JsonPropertyName("protocolVersion")]
+	public int ProtocolVersion { get; init; } = ProtocolDefaults.CurrentVersion;
+
 	[JsonPropertyName("requestId")]
 	public string? RequestId { get; init; }
+
+	[JsonPropertyName("serverTick")]
+	public long ServerTick { get; init; }
+
+	[JsonPropertyName("snapshotSequence")]
+	public long SnapshotSequence { get; init; }
 }
 
 public sealed record JoinAcceptedMessage() : ServerMessage(ServerMessageKind.JoinAccepted)
@@ -265,4 +360,13 @@ public sealed record ReconnectClaimedMessage() : ServerMessage(ServerMessageKind
 {
 	public string PlayerSessionId { get; init; } = string.Empty;
 	public string ActorId { get; init; } = string.Empty;
+}
+
+public sealed record ModeTransitionMessage() : ServerMessage(ServerMessageKind.ModeTransition)
+{
+	public RoomSimulationMode FromMode { get; init; }
+	public RoomSimulationMode ToMode { get; init; }
+	public string Trigger { get; init; } = string.Empty;
+	public string? TriggerActorId { get; init; }
+	public long TransitionSequence { get; init; }
 }

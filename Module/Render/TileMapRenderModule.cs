@@ -135,6 +135,9 @@ public class TileMapRenderModule
 	private int _viewCenterZ;
 	private Vector2I? _editorHoverWorld;
 	private Vector3I? _lastPlayerWorldPosition;
+	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
+	private float _playerVisualCorrectionRemaining;
+	private float _playerVisualCorrectionDuration;
 
 	// ── 等距体素渲染器 ──
 	private IsometricVoxelRenderer? _voxelRenderer;
@@ -558,6 +561,7 @@ public class TileMapRenderModule
 
 		_tileAnimationClockSeconds += delta;
 		UpdateWeatherScreenFxOverlay(delta);
+		AdvancePlayerCorrectionSmoothing((float)delta);
 		if (_animatedTiles.Count == 0)
 			return;
 
@@ -620,6 +624,13 @@ public class TileMapRenderModule
 		=> _playerAnim?.PlayOneShot(animName, "Idle");
 
 	public IAnimatable? PlayerAnimatable => _playerAnim;
+
+	public void ApplyPlayerCorrectionSmoothing(Vector2 worldCellOffset, float durationSeconds)
+	{
+		_playerVisualCorrectionOffset = worldCellOffset * _tilePixelSize;
+		_playerVisualCorrectionDuration = Math.Max(0.001f, durationSeconds);
+		_playerVisualCorrectionRemaining = _playerVisualCorrectionDuration;
+	}
 
 	private void FlushEditor()
 	{
@@ -781,8 +792,22 @@ public class TileMapRenderModule
 			_playerAnim.Play("Idle");
 		}
 
-		node.Position = localPos + PlayerSpriteOffset;
+		node.Position = localPos + PlayerSpriteOffset + _playerVisualCorrectionOffset;
 		_lastPlayerWorldPosition = new Vector3I(player.X, player.Y, player.Z);
+	}
+
+	private void AdvancePlayerCorrectionSmoothing(float deltaSeconds)
+	{
+		if (_playerVisualCorrectionRemaining <= 0f)
+			return;
+
+		_playerVisualCorrectionRemaining = Math.Max(0f, _playerVisualCorrectionRemaining - deltaSeconds);
+		var ratio = _playerVisualCorrectionDuration <= 0f
+			? 0f
+			: _playerVisualCorrectionRemaining / _playerVisualCorrectionDuration;
+		_playerVisualCorrectionOffset *= ratio;
+		if (_playerVisualCorrectionRemaining <= 0f)
+			_playerVisualCorrectionOffset = Vector2.Zero;
 	}
 
 	private void HidePlayerVisual()

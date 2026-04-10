@@ -15,6 +15,9 @@ public sealed class LobbyCreateRoomRequest
 	public bool IsPublic { get; set; }
 	public string? TemplateId { get; set; }
 	public SaveFile? InitialSnapshot { get; set; }
+	public bool PvpEnabled { get; set; }
+	public TeamMode TeamMode { get; set; } = TeamMode.Solo;
+	public bool FriendlyFire { get; set; }
 }
 
 public sealed class LobbyJoinRoomRequest
@@ -28,6 +31,23 @@ public sealed class LobbyReconnectClaimRequest
 {
 	public string RoomId { get; set; } = string.Empty;
 	public string ReconnectToken { get; set; } = string.Empty;
+}
+
+public sealed class LobbyLeaveRoomRequest
+{
+	public string RoomId { get; set; } = string.Empty;
+	public string PlayerSessionId { get; set; } = string.Empty;
+	public string Token { get; set; } = string.Empty;
+}
+
+public sealed class LobbyLeaveRoomResult
+{
+	public bool Ok { get; init; }
+	public string? ErrorCode { get; init; }
+	public string? ErrorReason { get; init; }
+	public string RoomId { get; init; } = string.Empty;
+	public string PlayerSessionId { get; init; } = string.Empty;
+	public bool RoomClosed { get; init; }
 }
 
 public sealed class LobbyRoomSummary
@@ -62,6 +82,7 @@ public sealed class LobbyJoinTicket
 	public string DisplayName { get; init; } = string.Empty;
 	public string JoinToken { get; init; } = string.Empty;
 	public string ReconnectToken { get; init; } = string.Empty;
+	public DateTimeOffset? ReconnectDeadlineUtc { get; init; }
 	public bool IsRoomOwner { get; init; }
 	public RoomRuntimeState Room { get; init; } = new();
 }
@@ -73,6 +94,7 @@ public interface ILobbyService
 	LobbyRoomResolution ResolveRoomCode(string roomCode);
 	LobbyJoinTicket JoinRoom(LobbyJoinRoomRequest request);
 	LobbyJoinTicket ReconnectClaim(LobbyReconnectClaimRequest request);
+	LobbyLeaveRoomResult LeaveRoom(LobbyLeaveRoomRequest request);
 	RoomRuntimeState GetRoomState(string roomId);
 	void UpdateRoomState(RoomRuntimeState room);
 }
@@ -101,6 +123,12 @@ public sealed class InMemoryLobbyService : ILobbyService
 			{
 				RoomId = roomId,
 				RoomCode = roomCode,
+				Rules = new RoomRules
+				{
+					PvpEnabled = request.PvpEnabled,
+					TeamMode = request.TeamMode,
+					FriendlyFire = request.FriendlyFire,
+				},
 			};
 
 			var owner = new RoomPlayerState
@@ -108,6 +136,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 				PlayerSessionId = playerSessionId,
 				DisplayName = string.IsNullOrWhiteSpace(request.OwnerDisplayName) ? "Host" : request.OwnerDisplayName,
 				PrimaryActorId = resolvedOwnerActorId,
+				TeamId = playerSessionId,
 				Connected = true,
 				IsRoomOwner = true,
 				JoinToken = Guid.NewGuid().ToString("N"),
@@ -188,6 +217,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 				PlayerSessionId = playerSessionId,
 				DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? $"Player {entry.Room.Players.Count + 1}" : request.DisplayName,
 				PrimaryActorId = primaryActorId,
+				TeamId = playerSessionId,
 				Connected = true,
 				IsRoomOwner = false,
 				JoinToken = Guid.NewGuid().ToString("N"),
@@ -224,6 +254,96 @@ public sealed class InMemoryLobbyService : ILobbyService
 			player.ReconnectDeadlineUtc = null;
 			RoomRuntimeModule.RefreshControlledActorIds(new GameState { Room = entry.Room });
 			return BuildTicket(entry, player);
+		}
+	}
+
+	public LobbyLeaveRoomResult LeaveRoom(LobbyLeaveRoomRequest request)
+	{
+		ArgumentNullException.ThrowIfNull(request);
+
+		lock (_gate)
+		{
+			if (!_rooms.TryGetValue(request.RoomId, out var entry))
+			{
+				return new LobbyLeaveRoomResult
+				{
+					ErrorCode = ErrorCode.RoomNotFound.ToWireCode(),
+					ErrorReason = "Room was not found.",
+					RoomId = request.RoomId,
+					PlayerSessionId = request.PlayerSessionId,
+				};
+			}
+
+			if (!entry.Room.Players.TryGetValue(request.PlayerSessionId, out var player))
+			{
+				return new LobbyLeaveRoomResult
+				{
+					ErrorCode = ErrorCode.InvalidJoinToken.ToWireCode(),
+					ErrorReason = "Player session is invalid for this room.",
+					RoomId = request.RoomId,
+					PlayerSessionId = request.PlayerSessionId,
+				};
+			}
+
+			var tokenMatches = string.Equals(player.JoinToken, request.Token, StringComparison.Ordinal)
+				|| string.Equals(player.ReconnectToken, request.Token, StringComparison.Ordinal);
+			if (!tokenMatches)
+			{
+				return new LobbyLeaveRoomResult
+				{
+					ErrorCode = "invalid_token",
+					ErrorReason = "Token does not match this player session.",
+					RoomId = request.RoomId,
+					PlayerSessionId = request.PlayerSessionId,
+				};
+			}
+
+			entry.Room.Players.Remove(request.PlayerSessionId);
+
+			foreach (var binding in entry.Room.ActorControlBindings.Values)
+			{
+				if (string.Equals(binding.PrimaryOwnerPlayerId, request.PlayerSessionId, StringComparison.Ordinal))
+					binding.PrimaryOwnerPlayerId = string.Empty;
+				if (string.Equals(binding.TemporaryControllerPlayerId, request.PlayerSessionId, StringComparison.Ordinal))
+					binding.TemporaryControllerPlayerId = null;
+			}
+
+			var reservationKeys = entry.Room.InteractionReservations
+				.Where(pair => string.Equals(pair.Value.PlayerSessionId, request.PlayerSessionId, StringComparison.Ordinal))
+				.Select(static pair => pair.Key)
+				.ToArray();
+			foreach (var reservationKey in reservationKeys)
+				entry.Room.InteractionReservations.Remove(reservationKey);
+
+			if (entry.Room.Players.Count == 0)
+			{
+				_rooms.Remove(entry.Room.RoomId);
+				_roomCodeIndex.Remove(entry.Room.RoomCode);
+				return new LobbyLeaveRoomResult
+				{
+					Ok = true,
+					RoomId = request.RoomId,
+					PlayerSessionId = request.PlayerSessionId,
+					RoomClosed = true,
+				};
+			}
+
+			if (player.IsRoomOwner)
+			{
+				var nextOwner = entry.Room.Players.Values
+					.OrderByDescending(static candidate => candidate.Connected)
+					.ThenBy(static candidate => candidate.PlayerSessionId, StringComparer.Ordinal)
+					.First();
+				nextOwner.IsRoomOwner = true;
+			}
+
+			RoomRuntimeModule.RefreshControlledActorIds(new GameState { Room = entry.Room });
+			return new LobbyLeaveRoomResult
+			{
+				Ok = true,
+				RoomId = request.RoomId,
+				PlayerSessionId = request.PlayerSessionId,
+			};
 		}
 	}
 
@@ -297,6 +417,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 		DisplayName = player.DisplayName,
 		JoinToken = player.JoinToken,
 		ReconnectToken = player.ReconnectToken,
+		ReconnectDeadlineUtc = player.ReconnectDeadlineUtc,
 		IsRoomOwner = player.IsRoomOwner,
 		Room = entry.Room.Clone(),
 	};

@@ -207,6 +207,73 @@ public sealed class MultiplayerRuntimeTests
 	}
 
 	[Fact]
+	public void DedicatedHost_TracksRequestLifecycleAndTelemetryMetrics()
+	{
+		var lobby = new InMemoryLobbyService();
+		var ownerTicket = lobby.CreateRoom(new LobbyCreateRoomRequest
+		{
+			RoomDisplayName = "Alpha",
+			OwnerDisplayName = "Owner",
+			ServerEndpoint = "enet://127.0.0.1:2455",
+			PrimaryActorId = "hero",
+		});
+		var state = CreateState();
+		var telemetry = new MultiplayerTelemetryStore();
+		var host = new DedicatedGameServerHost(new DedicatedGameServerHostOptions
+		{
+			ServerEndpoint = ownerTicket.ServerEndpoint,
+			LobbyService = lobby,
+			Telemetry = telemetry,
+		});
+		var roomHost = host.RegisterRoom(state, lobby.GetRoomState(ownerTicket.RoomId));
+
+		Assert.True(roomHost.Connect(new GameServerConnectRequest
+		{
+			RoomId = ownerTicket.RoomId,
+			Token = ownerTicket.JoinToken,
+		}).Ok);
+
+		roomHost.SynchronizeRoom(lobby.GetRoomState(ownerTicket.RoomId));
+		_ = roomHost.Execute(new OpenModalClientCommand
+		{
+			RequestId = "req-track-ok",
+			ClientTick = 6,
+			PlayerSessionId = ownerTicket.PlayerSessionId,
+			ModalId = "test_modal",
+		});
+		var commandMessages = roomHost.Execute(new InventoryToggleEquipClientCommand
+		{
+			RequestId = "req-track-1",
+			ClientTick = 7,
+			PlayerSessionId = ownerTicket.PlayerSessionId,
+			ActorId = "hero",
+			InventoryIndex = -1,
+		});
+		var rejected = Assert.IsType<CommandRejectedMessage>(Assert.Single(commandMessages));
+		Assert.Equal("req-track-1", rejected.RequestId);
+
+		var byRequest = roomHost.AuditLogs
+			.Where(entry => string.Equals(entry.RequestId, "req-track-1", StringComparison.Ordinal))
+			.ToArray();
+		Assert.NotEmpty(byRequest);
+		Assert.Contains(byRequest, entry => entry.Result is "rejected" or "busy");
+		Assert.All(byRequest, entry =>
+		{
+			Assert.Equal(ownerTicket.RoomId, entry.RoomId);
+			Assert.Equal(ownerTicket.PlayerSessionId, entry.PlayerSessionId);
+			Assert.Equal("hero", entry.ActorId);
+			Assert.True(entry.ServerTick > 0);
+			Assert.True(entry.Metadata.ContainsKey("metric.commandRejectRate"));
+			Assert.True(entry.Metadata.ContainsKey("metric.roomPlayerCount"));
+		});
+
+		Assert.Contains(roomHost.AuditLogs, entry => entry.Action == "create");
+		Assert.Contains(roomHost.AuditLogs, entry => entry.Action == "join");
+		Assert.Contains(roomHost.AuditLogs, entry => entry.Action == "save");
+		Assert.Contains(roomHost.AuditLogs, entry => entry.Action == "load");
+	}
+
+	[Fact]
 	public void DedicatedHost_BusyReservation_ReturnsActualOwnerPlayerSessionId()
 	{
 		var lobby = new InMemoryLobbyService();
@@ -263,6 +330,7 @@ public sealed class MultiplayerRuntimeTests
 		Assert.Equal(ownerTicket.PlayerSessionId, busy.BusyByPlayerSessionId);
 		Assert.Equal(reservationKey, busy.ReservationKey);
 	}
+
 
 	private static GameState CreateState()
 	{

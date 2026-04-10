@@ -171,6 +171,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _multiplayerRoomPanelBusy;
 	private bool _multiplayerRoomPanelStatusIsError;
 	private string _multiplayerRoomPanelStatusMessage = string.Empty;
+	private readonly ClientPredictionState _clientPrediction = new();
+	private PredictionConfig _predictionConfig = PredictionConfig.Default;
+	private float _predictionCorrectionSmoothingSeconds = 0.10f;
+	private double _nextPredictionMetricsLogAt;
 
 	private bool StatusOpen => _panels?.FocusedId == "status";
 	private bool InventoryOpen => _panels?.FocusedId == "inventory";
@@ -769,6 +773,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
 			_mapZoomMin = AppSettingsStore.LoadMapZoomMin();
 			_mapZoomMax = AppSettingsStore.LoadMapZoomMax();
+			_predictionConfig = LoadPredictionConfigFromEnvironment();
+			_predictionCorrectionSmoothingSeconds = LoadPredictionSmoothingSecondsFromEnvironment();
+			_clientPrediction.Configure(_predictionConfig);
 			if (_mapZoomMin > _mapZoomMax)
 				(_mapZoomMin, _mapZoomMax) = (_mapZoomMax, _mapZoomMin);
 			TerrainRegistry.Load("terrains.json");
@@ -1235,6 +1242,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessDirtyPanels();
 		_mapRender?.AdvanceAnimations(delta);
+		EmitPredictionMetricsIfDue();
 		if (snapshot.PausesGameplayLoop) return;
 
 		ProcessTimelineAutoAdvance(delta);
@@ -2568,6 +2576,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_multiplayerSessionBackend.CommandRejected += HandleMultiplayerCommandRejected;
 		_multiplayerSessionBackend.RosterChanged += HandleMultiplayerRosterChanged;
 		_multiplayerSessionBackend.ReconnectClaimed += HandleMultiplayerReconnectClaimed;
+		_multiplayerSessionBackend.Trace += HandleMultiplayerTrace;
+		_clientPrediction.Configure(_predictionConfig);
 
 		_mainAppFlowCoordinator.PrepareSessionTransition(clearLogs: true);
 		var status = _session.ApplyMultiplayerRoomSnapshot(
@@ -2608,16 +2618,72 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (string.IsNullOrWhiteSpace(playerSessionId))
 			return;
 
-		_session.ApplyMultiplayerRoomSnapshot(
-			envelope.Room,
+		DispatchAuthoritativeMultiplayerState(
+			envelope,
 			playerSessionId,
-			_multiplayerFlowCoordinator.CurrentSettings.DisplayName,
-			primaryActorId: null,
-			envelope.Snapshot);
-		RefreshVisiblePanels();
-		RefreshPlayerCharacterVisual();
+			hasSnapshot: true,
+			hasEvents: false);
+	}
+
+	private void DispatchAuthoritativeMultiplayerState(
+		GameSessionSnapshotEnvelope envelope,
+		string playerSessionId,
+		bool hasSnapshot,
+		bool hasEvents)
+	{
+		if (!IsMultiplayerSession)
+			return;
+
+		if (hasSnapshot)
+		{
+			_session.ApplyMultiplayerRoomSnapshot(
+				envelope.Room!,
+				playerSessionId,
+				_multiplayerFlowCoordinator.CurrentSettings.DisplayName,
+				primaryActorId: null,
+				envelope.Snapshot);
+			ApplyPredictionReconciliation(envelope.RequestId);
+			RefreshVisiblePanels();
+			RefreshPlayerCharacterVisual();
+			FlushMap();
+		}
+
+		if (hasEvents)
+		{
+			// no-op for snapshot envelope path
+		}
+
+		_log.Add($"[MP] inbound snapshot requestId={envelope.RequestId ?? ""} serverTick={envelope.ServerTick} seq={envelope.SnapshotSequence}");
 		MarkUIDirty();
-		FlushMap();
+	}
+
+	private void DispatchAuthoritativeMultiplayerState(
+		GameSessionDeltaEnvelope envelope,
+		string? playerSessionId,
+		bool hasSnapshot,
+		bool hasEvents)
+	{
+		if (!IsMultiplayerSession)
+			return;
+
+		if (hasSnapshot)
+		{
+			// no-op for delta envelope path
+		}
+
+		if (hasEvents && envelope.Events.Count > 0)
+			Dispatch([.. envelope.Events]);
+
+		_log.Add($"[MP] inbound events requestId={envelope.RequestId ?? ""} serverTick={envelope.ServerTick} seq={envelope.SnapshotSequence} count={envelope.Events.Count}");
+		MarkUIDirty();
+	}
+
+	private void HandleMultiplayerTrace(string trace)
+	{
+		if (string.IsNullOrWhiteSpace(trace))
+			return;
+
+		_log.Add(trace);
 	}
 
 	private void HandleMultiplayerRosterChanged(RoomRuntimeState room)
@@ -2638,8 +2704,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (envelope.Events.Count == 0)
 			return;
 
-		Dispatch([.. envelope.Events]);
-		MarkUIDirty();
+		DispatchAuthoritativeMultiplayerState(
+			envelope,
+			playerSessionId: null,
+			hasSnapshot: false,
+			hasEvents: true);
 	}
 
 	private void HandleMultiplayerCommandRejected(string reason)
@@ -2667,6 +2736,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_state.PlayerX = actor.X;
 		_state.PlayerY = actor.Y;
 		_state.PlayerZ = actor.Z;
+		_clientPrediction.Configure(_predictionConfig);
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
 		RefreshMultiplayerRoomPanelState();
 		RefreshPlayerCharacterVisual();
@@ -2709,6 +2779,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		backend.CommandRejected -= HandleMultiplayerCommandRejected;
 		backend.RosterChanged -= HandleMultiplayerRosterChanged;
 		backend.ReconnectClaimed -= HandleMultiplayerReconnectClaimed;
+		backend.Trace -= HandleMultiplayerTrace;
 		try
 		{
 			await backend.DisposeAsync();
@@ -4510,7 +4581,108 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 	/// </summary>
 	private void DoMove(int dx, int dy)
 	{
+		if (TrySubmitPredictedMove(dx, dy))
+			return;
+
 		SubmitPlayerAction(TimelinePlayerAction.Move(dx, dy));
+	}
+
+	private bool TrySubmitPredictedMove(int dx, int dy)
+	{
+		if (!IsMultiplayerSession || _multiplayerSessionBackend == null)
+			return false;
+
+		var actorId = ActorModule.GetPlayer(_state)?.Id;
+		if (string.IsNullOrWhiteSpace(actorId))
+			return false;
+
+		var command = new MoveClientCommand
+		{
+			ActorId = actorId,
+			Dx = dx,
+			Dy = dy,
+			ClientTick = _clientPrediction.NextClientTick,
+		};
+		ApplyPredictedMove(command.RequestId, dx, dy);
+		_ = SubmitMultiplayerCommandAsync(command);
+		return true;
+	}
+
+	private void ApplyPredictedMove(string requestId, int dx, int dy)
+	{
+		var predictedX = _state.PlayerX + dx;
+		var predictedY = _state.PlayerY + dy;
+		var predictedZ = _state.PlayerZ;
+		_clientPrediction.CreateMovePrediction(requestId, dx, dy, predictedX, predictedY, predictedZ);
+		_state.PlayerX = predictedX;
+		_state.PlayerY = predictedY;
+		MarkUIDirty();
+		FlushMap();
+	}
+
+	private void ApplyPredictionReconciliation(string? authoritativeRequestId)
+	{
+		var decision = _clientPrediction.Reconcile(
+			authoritativeRequestId,
+			_state.PlayerX,
+			_state.PlayerY,
+			_state.PlayerZ);
+		if (!decision.HasPending)
+			return;
+
+		if (!decision.RollbackNeeded)
+		{
+			_state.PlayerX = decision.ReplayedX;
+			_state.PlayerY = decision.ReplayedY;
+			_state.PlayerZ = decision.ReplayedZ;
+			return;
+		}
+
+		var correctionDx = decision.AuthoritativeX - decision.ReplayedX;
+		var correctionDy = decision.AuthoritativeY - decision.ReplayedY;
+		_state.PlayerX = decision.ReplayedX;
+		_state.PlayerY = decision.ReplayedY;
+		_state.PlayerZ = decision.ReplayedZ;
+		_mapRender?.ApplyPlayerCorrectionSmoothing(
+			new Vector2(correctionDx, correctionDy),
+			_predictionCorrectionSmoothingSeconds);
+
+		_log.Add($"[Prediction] rollback req={authoritativeRequestId ?? ""} distance={decision.ManhattanDistance} total={_clientPrediction.TotalRollbackCount}");
+	}
+
+	private void EmitPredictionMetricsIfDue()
+	{
+		var nowSec = Time.GetTicksMsec() / 1000.0;
+		if (nowSec < _nextPredictionMetricsLogAt)
+			return;
+
+		_nextPredictionMetricsLogAt = nowSec + 5.0;
+		var breakdown = _clientPrediction.GetRollbackBreakdown();
+		var movementRollback = breakdown.TryGetValue("movement", out var count) ? count : 0;
+		_log.Add($"[Prediction] metrics rollbackTotal={_clientPrediction.TotalRollbackCount} movement={movementRollback} lastDistance={_clientPrediction.LastRollbackDistanceManhattan}");
+	}
+
+	private static PredictionConfig LoadPredictionConfigFromEnvironment()
+	{
+		var threshold = ParseIntEnvironment("MINIRPG_PREDICTION_ROLLBACK_THRESHOLD", PredictionConfig.Default.RollbackThresholdManhattan, 0, 8);
+		var maxPending = ParseIntEnvironment("MINIRPG_PREDICTION_MAX_PENDING", PredictionConfig.Default.MaxPendingCommands, 8, 256);
+		return new PredictionConfig(threshold, maxPending);
+	}
+
+	private static float LoadPredictionSmoothingSecondsFromEnvironment()
+	{
+		var raw = System.Environment.GetEnvironmentVariable("MINIRPG_PREDICTION_SMOOTHING_SECONDS");
+		if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+			return 0.10f;
+		return Math.Clamp(parsed, 0.02f, 0.35f);
+	}
+
+	private static int ParseIntEnvironment(string name, int fallback, int min, int max)
+	{
+		var raw = System.Environment.GetEnvironmentVariable(name);
+		if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+			return fallback;
+		return Math.Clamp(parsed, min, max);
 	}
 
 	// ══════════════════════════════════════════════════════

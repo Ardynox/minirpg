@@ -1,0 +1,104 @@
+using System;
+
+namespace MiniRPG.Core.Multiplayer;
+
+public static class ProtocolErrorCodeExtensions
+{
+	public static string ToWireCode(this ErrorCode code) => code switch
+	{
+		ErrorCode.None => "none",
+		ErrorCode.UnsupportedCommand => "unsupported_command",
+		ErrorCode.DeserializationError => "deserialization_error",
+		ErrorCode.InvalidJoinRequest => "invalid_join_request",
+		ErrorCode.RoomNotFound => "room_not_found",
+		ErrorCode.ConnectFailed => "connect_failed",
+		ErrorCode.InvalidJoinToken => "invalid_join_token",
+		ErrorCode.InvalidReconnectToken => "invalid_reconnect_token",
+		ErrorCode.ReconnectExpired => "reconnect_expired",
+		ErrorCode.UnauthorizedActor => "unauthorized_actor",
+		ErrorCode.ReservationBusy => "reservation_busy",
+		ErrorCode.MissingPlayerSession => "missing_player_session",
+		ErrorCode.InvalidActor => "invalid_actor",
+		ErrorCode.InvalidTarget => "invalid_target",
+		ErrorCode.InvalidInteraction => "invalid_interaction",
+		ErrorCode.InvalidContainer => "invalid_container",
+		ErrorCode.ItemNotFound => "item_not_found",
+		ErrorCode.InvalidInventoryIndex => "invalid_inventory_index",
+		ErrorCode.InventoryToggleRejected => "inventory_toggle_rejected",
+		ErrorCode.ItemEquipped => "item_equipped",
+		ErrorCode.InvalidTradeActor => "invalid_trade_actor",
+		ErrorCode.TradeGoodMissing => "trade_good_missing",
+		ErrorCode.TradeBuyRejected => "trade_buy_rejected",
+		ErrorCode.TradeSellRejected => "trade_sell_rejected",
+		ErrorCode.InvalidDialog => "invalid_dialog",
+		ErrorCode.InvalidModal => "invalid_modal",
+		ErrorCode.InvalidAssignRequest => "invalid_assign_request",
+		ErrorCode.AssignPrimaryActorFailed => "assign_primary_actor_failed",
+		ErrorCode.InvalidKickRequest => "invalid_kick_request",
+		ErrorCode.KickPlayerFailed => "kick_player_failed",
+		ErrorCode.DelegateFailed => "delegate_failed",
+		ErrorCode.ReclaimFailed => "reclaim_failed",
+		ErrorCode.InvalidModeTransition => "invalid_mode_transition",
+		ErrorCode.NotInCombat => "not_in_combat",
+		ErrorCode.NotYourTurn => "not_your_turn",
+		ErrorCode.EndTurnRejected => "end_turn_rejected",
+		ErrorCode.StartCombatRejected => "start_combat_rejected",
+		ErrorCode.EndCombatRejected => "end_combat_rejected",
+		ErrorCode.UseSkillRejected => "use_skill_rejected",
+		ErrorCode.PvpDisabled => "pvp_disabled",
+		ErrorCode.FriendlyFireDisabled => "friendly_fire_disabled",
+		_ => "unknown_error",
+	};
+
+	public static ErrorCode ParseWireCode(string? code)
+	{
+		if (string.IsNullOrWhiteSpace(code))
+			return ErrorCode.None;
+
+		return code.Trim().ToLowerInvariant() switch
+		{
+			"none" => ErrorCode.None,
+			"unsupported_command" => ErrorCode.UnsupportedCommand,
+			"deserialization_error" => ErrorCode.DeserializationError,
+			"invalid_join_request" => ErrorCode.InvalidJoinRequest,
+			"room_not_found" => ErrorCode.RoomNotFound,
+			"connect_failed" => ErrorCode.ConnectFailed,
+			"invalid_join_token" => ErrorCode.InvalidJoinToken,
+			"invalid_reconnect_token" => ErrorCode.InvalidReconnectToken,
+			"reconnect_expired" => ErrorCode.ReconnectExpired,
+			"unauthorized_actor" => ErrorCode.UnauthorizedActor,
+			"reservation_busy" => ErrorCode.ReservationBusy,
+			"missing_player_session" => ErrorCode.MissingPlayerSession,
+			"invalid_actor" => ErrorCode.InvalidActor,
+			"invalid_target" => ErrorCode.InvalidTarget,
+			"invalid_interaction" => ErrorCode.InvalidInteraction,
+			"invalid_container" => ErrorCode.InvalidContainer,
+			"item_not_found" => ErrorCode.ItemNotFound,
+			"invalid_inventory_index" => ErrorCode.InvalidInventoryIndex,
+			"inventory_toggle_rejected" => ErrorCode.InventoryToggleRejected,
+			"item_equipped" => ErrorCode.ItemEquipped,
+			"invalid_trade_actor" => ErrorCode.InvalidTradeActor,
+			"trade_good_missing" => ErrorCode.TradeGoodMissing,
+			"trade_buy_rejected" => ErrorCode.TradeBuyRejected,
+			"trade_sell_rejected" => ErrorCode.TradeSellRejected,
+			"invalid_dialog" => ErrorCode.InvalidDialog,
+			"invalid_modal" => ErrorCode.InvalidModal,
+			"invalid_assign_request" => ErrorCode.InvalidAssignRequest,
+			"assign_primary_actor_failed" => ErrorCode.AssignPrimaryActorFailed,
+			"invalid_kick_request" => ErrorCode.InvalidKickRequest,
+			"kick_player_failed" => ErrorCode.KickPlayerFailed,
+			"delegate_failed" => ErrorCode.DelegateFailed,
+			"reclaim_failed" => ErrorCode.ReclaimFailed,
+			"invalid_mode_transition" => ErrorCode.InvalidModeTransition,
+			"not_in_combat" => ErrorCode.NotInCombat,
+			"not_your_turn" => ErrorCode.NotYourTurn,
+			"end_turn_rejected" => ErrorCode.EndTurnRejected,
+			"start_combat_rejected" => ErrorCode.StartCombatRejected,
+			"end_combat_rejected" => ErrorCode.EndCombatRejected,
+			"use_skill_rejected" => ErrorCode.UseSkillRejected,
+			"pvp_disabled" => ErrorCode.PvpDisabled,
+			"friendly_fire_disabled" => ErrorCode.FriendlyFireDisabled,
+			_ => ErrorCode.None,
+		};
+	}
+}
