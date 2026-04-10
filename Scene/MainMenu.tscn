@@ -60,6 +60,11 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.worlds"
 
+[node name="MultiplayerBtn" type="Button" parent="Content/Center/VBox"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.main_menu.multiplayer"
+
 [node name="MapEditorBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"

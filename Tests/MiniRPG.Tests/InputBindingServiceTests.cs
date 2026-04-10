@@ -145,7 +145,7 @@ public sealed class InputBindingServiceTests
 	}
 
 	private static BindingActionView GetAction(InputBindingContext context, string actionId, InputBindingService service) =>
-		Assert.Single(service.GetActions(context).Where(action => action.Id == actionId));
+		Assert.Single(service.GetActions(context), action => action.Id == actionId);
 
 	private static JsonElement GetPropertyIgnoreCase(JsonElement element, string propertyName)
 	{

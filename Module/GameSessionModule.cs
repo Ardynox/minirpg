@@ -10,6 +10,7 @@ using MiniRPG.Core.Data;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Event.Workers;
 using MiniRPG.Core.Map;
+using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module;
@@ -39,6 +40,7 @@ public class GameSessionModule
 		LegacySave,
 		PresetScenario,
 		BlankEditor,
+		MultiplayerRoom,
 	}
 
 	public static string QuickSavePath => Path.Combine(DefaultSaveDir, "quicksave.json");
@@ -56,6 +58,7 @@ public class GameSessionModule
 	public IViewMode ViewMode => _viewMode;
 	public bool RequiresSwitchConfirmation => GameStarted && _activeSessionKind != ActiveSessionKind.None;
 	public bool CanSaveAndSwitchCurrentSession => _activeSessionKind == ActiveSessionKind.WorldCharacter;
+	public bool IsMultiplayerRoomSession => _activeSessionKind == ActiveSessionKind.MultiplayerRoom;
 	public bool HasWorldStorageMigrationFailures => _worldStorageMigrationReport.FailureCount > 0;
 	public int WorldStorageMigrationFailureCount => _worldStorageMigrationReport.FailureCount;
 
@@ -421,6 +424,38 @@ public class GameSessionModule
 			preparedLoad.FallbackCharacterId);
 	}
 
+	public SaveLoadStatus ApplyMultiplayerRoomSnapshot(LobbyJoinTicket joinTicket, SaveFile snapshot)
+	{
+		ArgumentNullException.ThrowIfNull(joinTicket);
+		ArgumentNullException.ThrowIfNull(snapshot);
+
+		SaveModule.ApplySnapshot(_state, snapshot);
+		var status = FinalizeLoadedGame(
+			currentSavePath: null,
+			presetScenarioId: null,
+			header: snapshot.Header,
+			knownWorld: null,
+			fallbackCharacterId: null,
+			sessionKindOverride: ActiveSessionKind.MultiplayerRoom,
+			suppressLocalPersistence: true);
+		if (status != SaveLoadStatus.Success)
+			return status;
+
+		_state.Room = joinTicket.Room.Clone();
+		if (_state.Room.Players.TryGetValue(joinTicket.PlayerSessionId, out var player))
+		{
+			player.Connected = true;
+			player.DisplayName = joinTicket.DisplayName;
+		}
+
+		CurrentSavePath = null;
+		CurrentPresetScenarioId = null;
+		ClearWorldCharacterContext();
+		_activeSessionKind = ActiveSessionKind.MultiplayerRoom;
+		GameStarted = true;
+		return SaveLoadStatus.Success;
+	}
+
 	public bool TryContinue()
 	{
 		var target = ResolveContinueTarget();
@@ -491,6 +526,9 @@ public class GameSessionModule
 
 	public void SaveGame(string path)
 	{
+		if (_activeSessionKind == ActiveSessionKind.MultiplayerRoom)
+			throw new InvalidOperationException("Local save is disabled for multiplayer room sessions.");
+
 		var resolvedPath = ResolveSavePath(path);
 		SaveModule.SaveGame(_state, resolvedPath, BuildSaveHeaderContext());
 		CurrentSavePath = resolvedPath;
@@ -891,7 +929,9 @@ public class GameSessionModule
 		string? presetScenarioId,
 		SaveHeader? header,
 		WorldManifest? knownWorld = null,
-		string? fallbackCharacterId = null)
+		string? fallbackCharacterId = null,
+		ActiveSessionKind? sessionKindOverride = null,
+		bool suppressLocalPersistence = false)
 	{
 		_state.Weather ??= WeatherState.CreateDefault(_state.WorldSeed);
 		MapGenModule.InitializeWorld(_state);
@@ -912,7 +952,14 @@ public class GameSessionModule
 
 		CurrentSavePath = currentSavePath;
 		CurrentPresetScenarioId = presetScenarioId;
-		if (!string.IsNullOrWhiteSpace(presetScenarioId))
+		if (sessionKindOverride == ActiveSessionKind.MultiplayerRoom)
+		{
+			ClearWorldCharacterContext();
+			_activeSessionKind = ActiveSessionKind.MultiplayerRoom;
+			CurrentSavePath = null;
+			CurrentPresetScenarioId = null;
+		}
+		else if (!string.IsNullOrWhiteSpace(presetScenarioId))
 		{
 			ClearWorldCharacterContext();
 			_activeSessionKind = ActiveSessionKind.PresetScenario;
@@ -932,14 +979,18 @@ public class GameSessionModule
 			var resolvedPath = currentSavePath ?? _worldStore.GetCharacterSavePath(worldId, characterId);
 			SetWorldCharacterContext(worldId, worldName, characterId, characterName, resolvedPath);
 			_activeSessionKind = ActiveSessionKind.WorldCharacter;
-			_worldStore.UpdateWorldLastPlayed(worldId, DateTimeOffset.UtcNow, characterId);
-			SaveContinueStateForWorldCharacter();
+			if (!suppressLocalPersistence)
+			{
+				_worldStore.UpdateWorldLastPlayed(worldId, DateTimeOffset.UtcNow, characterId);
+				SaveContinueStateForWorldCharacter();
+			}
 		}
 		else if (!string.IsNullOrWhiteSpace(currentSavePath))
 		{
 			ClearWorldCharacterContext();
 			_activeSessionKind = ActiveSessionKind.LegacySave;
-			SaveLegacyContinuePath(currentSavePath);
+			if (!suppressLocalPersistence)
+				SaveLegacyContinuePath(currentSavePath);
 		}
 		else
 		{

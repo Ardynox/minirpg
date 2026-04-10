@@ -12,6 +12,8 @@ public sealed class LobbyCreateRoomRequest
 	public string ServerEndpoint { get; set; } = "enet://127.0.0.1:2455";
 	public string PrimaryActorId { get; set; } = GameState.DefaultPlayerId;
 	public string? RequestedRoomCode { get; set; }
+	public bool IsPublic { get; set; }
+	public string? TemplateId { get; set; }
 	public SaveFile? InitialSnapshot { get; set; }
 }
 
@@ -34,6 +36,7 @@ public sealed class LobbyRoomSummary
 	public string RoomCode { get; init; } = string.Empty;
 	public string RoomDisplayName { get; init; } = string.Empty;
 	public string ServerEndpoint { get; init; } = string.Empty;
+	public bool IsPublic { get; init; }
 	public int PlayerCount { get; init; }
 	public DateTimeOffset CreatedAtUtc { get; init; }
 }
@@ -44,6 +47,7 @@ public sealed class LobbyRoomResolution
 	public string RoomCode { get; init; } = string.Empty;
 	public string RoomDisplayName { get; init; } = string.Empty;
 	public string ServerEndpoint { get; init; } = string.Empty;
+	public bool IsPublic { get; init; }
 	public int PlayerCount { get; init; }
 }
 
@@ -113,6 +117,8 @@ public sealed class InMemoryLobbyService : ILobbyService
 			{
 				RoomDisplayName = string.IsNullOrWhiteSpace(request.RoomDisplayName) ? roomCode : request.RoomDisplayName,
 				ServerEndpoint = string.IsNullOrWhiteSpace(request.ServerEndpoint) ? "enet://127.0.0.1:2455" : request.ServerEndpoint,
+				IsPublic = request.IsPublic,
+				TemplateId = request.TemplateId,
 				CreatedAtUtc = DateTimeOffset.UtcNow,
 				Room = room,
 			};
@@ -127,6 +133,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 		lock (_gate)
 		{
 			return _rooms.Values
+				.Where(static entry => entry.IsPublic)
 				.OrderByDescending(static entry => entry.CreatedAtUtc)
 				.Select(static entry => new LobbyRoomSummary
 				{
@@ -134,6 +141,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 					RoomCode = entry.Room.RoomCode,
 					RoomDisplayName = entry.RoomDisplayName,
 					ServerEndpoint = entry.ServerEndpoint,
+					IsPublic = entry.IsPublic,
 					PlayerCount = entry.Room.Players.Count,
 					CreatedAtUtc = entry.CreatedAtUtc,
 				})
@@ -153,6 +161,7 @@ public sealed class InMemoryLobbyService : ILobbyService
 				RoomCode = entry.Room.RoomCode,
 				RoomDisplayName = entry.RoomDisplayName,
 				ServerEndpoint = entry.ServerEndpoint,
+				IsPublic = entry.IsPublic,
 				PlayerCount = entry.Room.Players.Count,
 			};
 		}
@@ -290,6 +299,8 @@ public sealed class InMemoryLobbyService : ILobbyService
 	{
 		public string RoomDisplayName { get; init; } = string.Empty;
 		public string ServerEndpoint { get; init; } = string.Empty;
+		public bool IsPublic { get; init; }
+		public string? TemplateId { get; init; }
 		public DateTimeOffset CreatedAtUtc { get; init; }
 		public RoomRuntimeState Room { get; set; } = new();
 	}
