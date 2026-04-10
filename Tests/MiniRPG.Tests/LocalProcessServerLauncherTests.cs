@@ -65,6 +65,41 @@ public sealed class LocalProcessServerLauncherTests
 	}
 
 	[Fact]
+	public void Constructor_WhenProjectRootPathEmpty_FallsBackToAppContextBaseDirectory()
+	{
+		var launcher = new LocalProcessServerLauncher(string.Empty);
+		var projectRootPath = Assert.IsType<string>(GetPrivateField(launcher, "_projectRootPath"));
+		Assert.Equal(Path.GetFullPath(AppContext.BaseDirectory), projectRootPath);
+	}
+
+	[Fact]
+	public void ResolveExecutablePath_FindsPackagedServerInLanPackageLayout()
+	{
+		var root = TestSupport.CreateTempDirectory("local-server-launcher-packaged");
+		try
+		{
+			var runtimeDirectory = Path.Combine(root, "Client", "Debug");
+			Directory.CreateDirectory(runtimeDirectory);
+
+			var packagedPath = Path.Combine(root, "Server", "MiniRPG.Server.exe");
+			Directory.CreateDirectory(Path.GetDirectoryName(packagedPath)!);
+			File.WriteAllText(packagedPath, "packaged");
+
+			var launcher = CreateLauncher(root, runtimeDirectory);
+			var resolved = (string?)InvokeNonPublic(
+				launcher,
+				"ResolveExecutablePath",
+				new object?[] { null });
+
+			Assert.Equal(Path.GetFullPath(packagedPath), resolved);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void BuildStartInfo_UsesDotnetForDllAndDirectExecForExe()
 	{
 		var options = new LocalServerLaunchOptions
@@ -94,6 +129,13 @@ public sealed class LocalProcessServerLauncherTests
 		Assert.Contains("--game-port 2455", exeStartInfo.Arguments, StringComparison.Ordinal);
 	}
 
+	private static object? GetPrivateField(object instance, string fieldName)
+	{
+		var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+		Assert.NotNull(field);
+		return field!.GetValue(instance);
+	}
+
 	private static object? InvokeNonPublic(object instance, string methodName, params object?[] arguments)
 	{
 		var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -106,5 +148,16 @@ public sealed class LocalProcessServerLauncherTests
 		var method = declaringType.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
 		Assert.NotNull(method);
 		return method!.Invoke(null, arguments);
+	}
+
+	private static LocalProcessServerLauncher CreateLauncher(string? projectRootPath, string? runtimeDirectory)
+	{
+		var constructor = typeof(LocalProcessServerLauncher).GetConstructor(
+			BindingFlags.Instance | BindingFlags.NonPublic,
+			binder: null,
+			new[] { typeof(string), typeof(string) },
+			modifiers: null);
+		Assert.NotNull(constructor);
+		return Assert.IsType<LocalProcessServerLauncher>(constructor!.Invoke(new object?[] { projectRootPath, runtimeDirectory }));
 	}
 }

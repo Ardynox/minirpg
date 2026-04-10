@@ -28,6 +28,7 @@ MiniRPG.Server/bin/
 MiniRPG.Server/obj/
 
 # Release/export artifacts and generated local outputs
+Build/
 MiniRPG.exe
 MiniRPG.pck
 data_MiniRPG_windows_x86_64/

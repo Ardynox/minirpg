@@ -10,13 +10,20 @@ namespace MiniRPG.Module.Network;
 public sealed class LocalProcessServerLauncher : ILocalServerLauncher
 {
 	private readonly string _projectRootPath;
+	private readonly string _runtimeDirectory;
 
 	private Process? _ownedProcess;
 	private string? _ownedExecutablePath;
 
-	public LocalProcessServerLauncher(string projectRootPath)
+	public LocalProcessServerLauncher(string? projectRootPath)
+		: this(projectRootPath, AppContext.BaseDirectory)
 	{
-		_projectRootPath = Path.GetFullPath(projectRootPath ?? throw new ArgumentNullException(nameof(projectRootPath)));
+	}
+
+	private LocalProcessServerLauncher(string? projectRootPath, string? runtimeDirectory)
+	{
+		_projectRootPath = ResolveDirectoryPath(projectRootPath, AppContext.BaseDirectory);
+		_runtimeDirectory = ResolveDirectoryPath(runtimeDirectory, AppContext.BaseDirectory);
 	}
 
 	public bool IsOwnedProcessRunning => _ownedProcess is { HasExited: false };
@@ -118,12 +125,7 @@ public sealed class LocalProcessServerLauncher : ILocalServerLauncher
 				return path;
 		}
 
-		var runtimeDirectory = AppContext.BaseDirectory;
-		var packagedCandidates = new[]
-		{
-			Path.Combine(runtimeDirectory, "MiniRPG.Server.exe"),
-			Path.Combine(runtimeDirectory, "MiniRPG.Server.dll"),
-		};
+		var packagedCandidates = BuildPackagedCandidates(_runtimeDirectory);
 		foreach (var candidate in packagedCandidates)
 		{
 			if (TryResolveExistingFile(candidate, out var path))
@@ -131,6 +133,38 @@ public sealed class LocalProcessServerLauncher : ILocalServerLauncher
 		}
 
 		return null;
+	}
+
+	private static string ResolveDirectoryPath(string? rawPath, string fallbackPath)
+	{
+		var path = string.IsNullOrWhiteSpace(rawPath)
+			? fallbackPath
+			: rawPath.Trim();
+		return Path.GetFullPath(path);
+	}
+
+	private static string[] BuildPackagedCandidates(string runtimeDirectory)
+	{
+		var resolvedRuntimeDirectory = ResolveDirectoryPath(runtimeDirectory, AppContext.BaseDirectory);
+		var candidateDirectories = new[]
+		{
+			resolvedRuntimeDirectory,
+			Path.Combine(resolvedRuntimeDirectory, ".."),
+			Path.Combine(resolvedRuntimeDirectory, "..", "Server"),
+			Path.Combine(resolvedRuntimeDirectory, "..", "..", "Server"),
+		};
+
+		var candidates = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var directory in candidateDirectories)
+		{
+			var fullDirectory = Path.GetFullPath(directory);
+			candidates.Add(Path.Combine(fullDirectory, "MiniRPG.Server.exe"));
+			candidates.Add(Path.Combine(fullDirectory, "MiniRPG.Server.dll"));
+		}
+
+		var results = new string[candidates.Count];
+		candidates.CopyTo(results);
+		return results;
 	}
 
 	private static bool TryResolveExistingFile(string? rawPath, out string fullPath)
