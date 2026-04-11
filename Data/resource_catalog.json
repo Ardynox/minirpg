@@ -1,4 +1,2121 @@
 {
   "version": 1,
-  "entries": []
+  "entries": [
+    {
+      "id": "fx_arrow_projectile",
+      "displayName": "箭矢飞行特效占位图",
+      "description": "箭矢飞行的特效占位图。",
+      "tags": [
+        "fx",
+        "projectile"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile/fx_arrow_projectile_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile/fx_arrow_projectile_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile/fx_arrow_projectile_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile/fx_arrow_projectile_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_arrow_projectile/fx_arrow_projectile_04.png",
+          "order": 4
+        }
+      ],
+      "fps": 18.0
+    },
+    {
+      "id": "fx_buff_flash",
+      "displayName": "增益闪光特效占位图",
+      "description": "增益闪光的特效占位图。",
+      "tags": [
+        "fx",
+        "buff"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_buff_flash",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_04.png",
+          "order": 4
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_buff_flash/fx_buff_flash_05.png",
+          "order": 5
+        }
+      ],
+      "fps": 14.0
+    },
+    {
+      "id": "fx_hit_blunt",
+      "displayName": "钝击命中特效占位图",
+      "description": "钝击命中的特效占位图。",
+      "tags": [
+        "fx",
+        "hit"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_04.png",
+          "order": 4
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_hit_blunt/fx_hit_blunt_05.png",
+          "order": 5
+        }
+      ],
+      "fps": 16.0
+    },
+    {
+      "id": "fx_pickup_glint",
+      "displayName": "拾取闪光特效占位图",
+      "description": "拾取闪光的特效占位图。",
+      "tags": [
+        "fx",
+        "pickup"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_04.png",
+          "order": 4
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_pickup_glint/fx_pickup_glint_05.png",
+          "order": 5
+        }
+      ],
+      "fps": 12.0
+    },
+    {
+      "id": "fx_poison_spit",
+      "displayName": "毒液喷射特效占位图",
+      "description": "毒液喷射的特效占位图。",
+      "tags": [
+        "fx",
+        "projectile",
+        "poison"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_poison_spit",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_04.png",
+          "order": 4
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_poison_spit/fx_poison_spit_05.png",
+          "order": 5
+        }
+      ],
+      "fps": 16.0
+    },
+    {
+      "id": "fx_slash_arc",
+      "displayName": "挥砍弧光特效占位图",
+      "description": "挥砍弧光的特效占位图。",
+      "tags": [
+        "fx",
+        "slash"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_slash_arc",
+      "frames": [
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_00.png",
+          "order": 0
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_01.png",
+          "order": 1
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_02.png",
+          "order": 2
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_03.png",
+          "order": 3
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_04.png",
+          "order": 4
+        },
+        {
+          "imagePath": "res://Assets/Art/Placeholders/effects/fx_slash_arc/fx_slash_arc_05.png",
+          "order": 5
+        }
+      ],
+      "fps": 18.0
+    },
+    {
+      "id": "item_ammo_revolver",
+      "displayName": "Ammo Revolver icon",
+      "description": "Placeholder icon for ammo revolver.",
+      "tags": [
+        "item",
+        "icon",
+        "ammo",
+        "revolver"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_ammo_revolver.png"
+    },
+    {
+      "id": "item_ammo_rifle",
+      "displayName": "Ammo Rifle icon",
+      "description": "Placeholder icon for ammo rifle.",
+      "tags": [
+        "item",
+        "icon",
+        "ammo",
+        "rifle"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_ammo_rifle.png"
+    },
+    {
+      "id": "item_ammo_shell",
+      "displayName": "Ammo Shell icon",
+      "description": "Placeholder icon for ammo shell.",
+      "tags": [
+        "item",
+        "icon",
+        "ammo",
+        "shell"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_ammo_shell.png"
+    },
+    {
+      "id": "item_antidote",
+      "displayName": "解毒剂图标占位图",
+      "description": "解毒剂的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "medicine"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_antidote.png"
+    },
+    {
+      "id": "item_backpack",
+      "displayName": "Backpack icon",
+      "description": "Placeholder icon for backpack.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "backpack"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_backpack.png"
+    },
+    {
+      "id": "item_bandage",
+      "displayName": "绷带图标占位图",
+      "description": "绷带的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "medicine"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bandage.png"
+    },
+    {
+      "id": "item_bedroll",
+      "displayName": "Bedroll icon",
+      "description": "Placeholder icon for bedroll.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "bedroll"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bedroll.png"
+    },
+    {
+      "id": "item_berries",
+      "displayName": "Berries icon",
+      "description": "Placeholder icon for berries.",
+      "tags": [
+        "item",
+        "icon",
+        "food",
+        "berries"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_berries.png"
+    },
+    {
+      "id": "item_bionic_arm",
+      "displayName": "Bionic arm icon",
+      "description": "Placeholder icon for an advanced bionic arm item.",
+      "tags": [
+        "item",
+        "icon",
+        "bionic",
+        "arm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bionic_arm.png"
+    },
+    {
+      "id": "item_bionic_eye",
+      "displayName": "Bionic eye icon",
+      "description": "Placeholder icon for an advanced bionic eye item.",
+      "tags": [
+        "item",
+        "icon",
+        "bionic",
+        "eye"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bionic_eye.png"
+    },
+    {
+      "id": "item_bionic_leg",
+      "displayName": "Bionic leg icon",
+      "description": "Placeholder icon for an advanced bionic leg item.",
+      "tags": [
+        "item",
+        "icon",
+        "bionic",
+        "leg"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bionic_leg.png"
+    },
+    {
+      "id": "item_bolt_rifle",
+      "displayName": "Bolt Rifle icon",
+      "description": "Placeholder icon for bolt rifle.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "bolt",
+        "rifle",
+        "firearm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bolt_rifle.png"
+    },
+    {
+      "id": "item_bow_great",
+      "displayName": "Bow Great icon",
+      "description": "Placeholder icon for bow great.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "bow",
+        "great"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bow_great.png"
+    },
+    {
+      "id": "item_bow_short",
+      "displayName": "短弓图标占位图",
+      "description": "短弓的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "bow"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_bow_short.png"
+    },
+    {
+      "id": "item_chainmail",
+      "displayName": "Chainmail icon",
+      "description": "Placeholder icon for chainmail.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "chainmail"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_chainmail.png"
+    },
+    {
+      "id": "item_chest_wooden",
+      "displayName": "Chest Wooden icon",
+      "description": "Placeholder icon for chest wooden.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "chest",
+        "wooden"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_chest_wooden.png"
+    },
+    {
+      "id": "item_cloth_pants",
+      "displayName": "Cloth Pants icon",
+      "description": "Placeholder icon for cloth pants.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "cloth",
+        "pants"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_cloth_pants.png"
+    },
+    {
+      "id": "item_cloth_shirt",
+      "displayName": "Cloth Shirt icon",
+      "description": "Placeholder icon for cloth shirt.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "cloth",
+        "shirt"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_cloth_shirt.png"
+    },
+    {
+      "id": "item_club_wood",
+      "displayName": "Club Wood icon",
+      "description": "Placeholder icon for club wood.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "club",
+        "wood"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_club_wood.png"
+    },
+    {
+      "id": "item_corpse_beast_large",
+      "displayName": "Corpse Beast Large icon",
+      "description": "Placeholder icon for corpse beast large.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "corpse",
+        "beast",
+        "large"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_corpse_beast_large.png"
+    },
+    {
+      "id": "item_corpse_beast_small",
+      "displayName": "Corpse Beast Small icon",
+      "description": "Placeholder icon for corpse beast small.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "corpse",
+        "beast",
+        "small"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_corpse_beast_small.png"
+    },
+    {
+      "id": "item_corpse_human",
+      "displayName": "Corpse Human icon",
+      "description": "Placeholder icon for corpse human.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "corpse",
+        "human",
+        "humanoid"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_corpse_human.png"
+    },
+    {
+      "id": "item_dagger",
+      "displayName": "Dagger icon",
+      "description": "Placeholder icon for dagger.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "dagger"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_dagger.png"
+    },
+    {
+      "id": "item_devilstrand_duster",
+      "displayName": "Devilstrand Duster icon",
+      "description": "Placeholder icon for devilstrand duster.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "devilstrand",
+        "duster"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_devilstrand_duster.png"
+    },
+    {
+      "id": "item_duster",
+      "displayName": "Duster icon",
+      "description": "Placeholder icon for duster.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "duster"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_duster.png"
+    },
+    {
+      "id": "item_flak_vest",
+      "displayName": "Flak Vest icon",
+      "description": "Placeholder icon for flak vest.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "flak",
+        "vest"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_flak_vest.png"
+    },
+    {
+      "id": "item_gauntlets_iron",
+      "displayName": "Gauntlets Iron icon",
+      "description": "Placeholder icon for gauntlets iron.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "gauntlets",
+        "iron"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_gauntlets_iron.png"
+    },
+    {
+      "id": "item_go_juice",
+      "displayName": "Go Juice icon",
+      "description": "Placeholder icon for go juice.",
+      "tags": [
+        "item",
+        "icon",
+        "consumable",
+        "go",
+        "juice"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_go_juice.png"
+    },
+    {
+      "id": "item_hammer_smith",
+      "displayName": "Hammer Smith icon",
+      "description": "Placeholder icon for hammer smith.",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "hammer",
+        "smith"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_hammer_smith.png"
+    },
+    {
+      "id": "item_herbal_medicine",
+      "displayName": "草药药剂图标占位图",
+      "description": "草药药剂的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "medicine"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_herbal_medicine.png"
+    },
+    {
+      "id": "item_industrial_medicine",
+      "displayName": "Industrial Medicine icon",
+      "description": "Placeholder icon for industrial medicine.",
+      "tags": [
+        "item",
+        "icon",
+        "consumable",
+        "industrial",
+        "medicine"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_industrial_medicine.png"
+    },
+    {
+      "id": "item_iron_helmet",
+      "displayName": "Iron Helmet icon",
+      "description": "Placeholder icon for iron helmet.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "iron",
+        "helmet"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_iron_helmet.png"
+    },
+    {
+      "id": "item_knife_butcher",
+      "displayName": "Knife Butcher icon",
+      "description": "Placeholder icon for knife butcher.",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "knife",
+        "butcher"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_knife_butcher.png"
+    },
+    {
+      "id": "item_lantern",
+      "displayName": "提灯图标占位图",
+      "description": "提灯的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "tool"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_lantern.png"
+    },
+    {
+      "id": "item_leather_boots",
+      "displayName": "Leather Boots icon",
+      "description": "Placeholder icon for leather boots.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "leather",
+        "boots"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_leather_boots.png"
+    },
+    {
+      "id": "item_leather_vest",
+      "displayName": "Leather Vest icon",
+      "description": "Placeholder icon for leather vest.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "leather",
+        "vest"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_leather_vest.png"
+    },
+    {
+      "id": "item_limb_arm",
+      "displayName": "Arm item icon",
+      "description": "Placeholder icon for a harvested arm item.",
+      "tags": [
+        "item",
+        "icon",
+        "limb",
+        "arm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_limb_arm.png"
+    },
+    {
+      "id": "item_limb_leg",
+      "displayName": "Leg item icon",
+      "description": "Placeholder icon for a harvested leg item.",
+      "tags": [
+        "item",
+        "icon",
+        "limb",
+        "leg"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_limb_leg.png"
+    },
+    {
+      "id": "item_mace_iron",
+      "displayName": "Mace Iron icon",
+      "description": "Placeholder icon for mace iron.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "mace",
+        "iron"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mace_iron.png"
+    },
+    {
+      "id": "item_mat_chitin",
+      "displayName": "Mat Chitin icon",
+      "description": "Placeholder icon for mat chitin.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "chitin"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_chitin.png"
+    },
+    {
+      "id": "item_mat_cloth",
+      "displayName": "Mat Cloth icon",
+      "description": "Placeholder icon for mat cloth.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "cloth"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_cloth.png"
+    },
+    {
+      "id": "item_mat_coal",
+      "displayName": "Mat Coal icon",
+      "description": "Placeholder icon for mat coal.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "coal"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_coal.png"
+    },
+    {
+      "id": "item_mat_copper",
+      "displayName": "Mat Copper icon",
+      "description": "Placeholder icon for mat copper.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "copper"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_copper.png"
+    },
+    {
+      "id": "item_mat_crystal",
+      "displayName": "Mat Crystal icon",
+      "description": "Placeholder icon for mat crystal.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "crystal"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_crystal.png"
+    },
+    {
+      "id": "item_mat_devilstrand",
+      "displayName": "Mat Devilstrand icon",
+      "description": "Placeholder icon for mat devilstrand.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "devilstrand"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_devilstrand.png"
+    },
+    {
+      "id": "item_mat_gold",
+      "displayName": "Mat Gold icon",
+      "description": "Placeholder icon for mat gold.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "gold"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_gold.png"
+    },
+    {
+      "id": "item_mat_herb",
+      "displayName": "草药材料图标占位图",
+      "description": "草药材料的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "material"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_herb.png"
+    },
+    {
+      "id": "item_mat_iron",
+      "displayName": "铁矿材料图标占位图",
+      "description": "铁矿材料的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "material"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_iron.png"
+    },
+    {
+      "id": "item_mat_jade",
+      "displayName": "Mat Jade icon",
+      "description": "Placeholder icon for mat jade.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "jade"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_jade.png"
+    },
+    {
+      "id": "item_mat_leather",
+      "displayName": "Mat Leather icon",
+      "description": "Placeholder icon for mat leather.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "leather"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_leather.png"
+    },
+    {
+      "id": "item_mat_plasteel",
+      "displayName": "Mat Plasteel icon",
+      "description": "Placeholder icon for mat plasteel.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "plasteel"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_plasteel.png"
+    },
+    {
+      "id": "item_mat_silk",
+      "displayName": "Mat Silk icon",
+      "description": "Placeholder icon for mat silk.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "silk"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_silk.png"
+    },
+    {
+      "id": "item_mat_silver",
+      "displayName": "Mat Silver icon",
+      "description": "Placeholder icon for mat silver.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "silver"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_silver.png"
+    },
+    {
+      "id": "item_mat_steel",
+      "displayName": "Mat Steel icon",
+      "description": "Placeholder icon for mat steel.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "steel"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_steel.png"
+    },
+    {
+      "id": "item_mat_stone",
+      "displayName": "Mat Stone icon",
+      "description": "Placeholder icon for mat stone.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "stone"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_stone.png"
+    },
+    {
+      "id": "item_mat_uranium",
+      "displayName": "Mat Uranium icon",
+      "description": "Placeholder icon for mat uranium.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "uranium"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_uranium.png"
+    },
+    {
+      "id": "item_mat_wood",
+      "displayName": "Mat Wood icon",
+      "description": "Placeholder icon for mat wood.",
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "wood"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_mat_wood.png"
+    },
+    {
+      "id": "item_meal_fine",
+      "displayName": "Meal Fine icon",
+      "description": "Placeholder icon for meal fine.",
+      "tags": [
+        "item",
+        "icon",
+        "food",
+        "meal",
+        "fine"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_meal_fine.png"
+    },
+    {
+      "id": "item_meal_lavish",
+      "displayName": "Meal Lavish icon",
+      "description": "Placeholder icon for meal lavish.",
+      "tags": [
+        "item",
+        "icon",
+        "food",
+        "meal",
+        "lavish"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_meal_lavish.png"
+    },
+    {
+      "id": "item_meal_simple",
+      "displayName": "简餐图标占位图",
+      "description": "简餐的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "food"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_meal_simple.png"
+    },
+    {
+      "id": "item_organ_eye",
+      "displayName": "Eye item icon",
+      "description": "Placeholder icon for a harvested eye item.",
+      "tags": [
+        "item",
+        "icon",
+        "organ",
+        "eye"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_organ_eye.png"
+    },
+    {
+      "id": "item_organ_heart",
+      "displayName": "Heart item icon",
+      "description": "Placeholder icon for a harvested heart item.",
+      "tags": [
+        "item",
+        "icon",
+        "organ",
+        "heart"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_organ_heart.png"
+    },
+    {
+      "id": "item_organ_lung",
+      "displayName": "Lung item icon",
+      "description": "Placeholder icon for a harvested lung item.",
+      "tags": [
+        "item",
+        "icon",
+        "organ",
+        "lung"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_organ_lung.png"
+    },
+    {
+      "id": "item_parka",
+      "displayName": "Parka icon",
+      "description": "Placeholder icon for parka.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "parka"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_parka.png"
+    },
+    {
+      "id": "item_pemmican",
+      "displayName": "Pemmican icon",
+      "description": "Placeholder icon for pemmican.",
+      "tags": [
+        "item",
+        "icon",
+        "food",
+        "pemmican"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_pemmican.png"
+    },
+    {
+      "id": "item_pickaxe",
+      "displayName": "Pickaxe icon",
+      "description": "Placeholder icon for pickaxe.",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "pickaxe"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_pickaxe.png"
+    },
+    {
+      "id": "item_pickaxe_steel",
+      "displayName": "钢镐图标占位图",
+      "description": "钢镐的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "pickaxe"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_pickaxe_steel.png"
+    },
+    {
+      "id": "item_plate_armor",
+      "displayName": "Plate Armor icon",
+      "description": "Placeholder icon for plate armor.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "plate"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_plate_armor.png"
+    },
+    {
+      "id": "item_potion_hp",
+      "displayName": "生命药水图标占位图",
+      "description": "生命药水的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "potion"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_potion_hp.png"
+    },
+    {
+      "id": "item_potion_str",
+      "displayName": "力量药水图标占位图",
+      "description": "力量药水的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "potion"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_potion_str.png"
+    },
+    {
+      "id": "item_prosthetic_arm",
+      "displayName": "Prosthetic arm icon",
+      "description": "Placeholder icon for a basic prosthetic arm item.",
+      "tags": [
+        "item",
+        "icon",
+        "prosthetic",
+        "arm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_prosthetic_arm.png"
+    },
+    {
+      "id": "item_prosthetic_eye",
+      "displayName": "Prosthetic eye icon",
+      "description": "Placeholder icon for a basic prosthetic eye item.",
+      "tags": [
+        "item",
+        "icon",
+        "prosthetic",
+        "eye"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_prosthetic_eye.png"
+    },
+    {
+      "id": "item_prosthetic_leg",
+      "displayName": "Prosthetic leg icon",
+      "description": "Placeholder icon for a basic prosthetic leg item.",
+      "tags": [
+        "item",
+        "icon",
+        "prosthetic",
+        "leg"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_prosthetic_leg.png"
+    },
+    {
+      "id": "item_pump_shotgun",
+      "displayName": "Pump Shotgun icon",
+      "description": "Placeholder icon for pump shotgun.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "pump",
+        "shotgun",
+        "firearm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_pump_shotgun.png"
+    },
+    {
+      "id": "item_raw_meat",
+      "displayName": "生肉图标占位图",
+      "description": "生肉的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "food"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_raw_meat.png"
+    },
+    {
+      "id": "item_rope",
+      "displayName": "Rope icon",
+      "description": "Placeholder icon for rope.",
+      "tags": [
+        "item",
+        "icon",
+        "misc",
+        "rope"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_rope.png"
+    },
+    {
+      "id": "item_shield_iron",
+      "displayName": "铁盾图标占位图",
+      "description": "铁盾的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "shield"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_shield_iron.png"
+    },
+    {
+      "id": "item_shield_steel",
+      "displayName": "Shield Steel icon",
+      "description": "Placeholder icon for shield steel.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "shield",
+        "steel"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_shield_steel.png"
+    },
+    {
+      "id": "item_shield_wood",
+      "displayName": "Shield Wood icon",
+      "description": "Placeholder icon for shield wood.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "shield",
+        "wood"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_shield_wood.png"
+    },
+    {
+      "id": "item_sidearm_revolver",
+      "displayName": "Sidearm Revolver icon",
+      "description": "Placeholder icon for sidearm revolver.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "sidearm",
+        "revolver",
+        "firearm"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_sidearm_revolver.png"
+    },
+    {
+      "id": "item_spear_steel",
+      "displayName": "Spear Steel icon",
+      "description": "Placeholder icon for spear steel.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "spear",
+        "steel"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_spear_steel.png"
+    },
+    {
+      "id": "item_spear_wood",
+      "displayName": "Spear Wood icon",
+      "description": "Placeholder icon for spear wood.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "spear",
+        "wood"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_spear_wood.png"
+    },
+    {
+      "id": "item_steel_greaves",
+      "displayName": "Steel Greaves icon",
+      "description": "Placeholder icon for steel greaves.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "steel",
+        "greaves"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_steel_greaves.png"
+    },
+    {
+      "id": "item_steel_helmet",
+      "displayName": "Steel Helmet icon",
+      "description": "Placeholder icon for steel helmet.",
+      "tags": [
+        "item",
+        "icon",
+        "armor",
+        "steel",
+        "helmet"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_steel_helmet.png"
+    },
+    {
+      "id": "item_surgery_kit",
+      "displayName": "Surgery Kit icon",
+      "description": "Placeholder icon for surgery kit.",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "surgery",
+        "kit",
+        "medical"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_surgery_kit.png"
+    },
+    {
+      "id": "item_sword_iron",
+      "displayName": "铁剑图标占位图",
+      "description": "铁剑的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "sword"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_sword_iron.png"
+    },
+    {
+      "id": "item_sword_plasteel",
+      "displayName": "Sword Plasteel icon",
+      "description": "Placeholder icon for sword plasteel.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "sword",
+        "plasteel"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_sword_plasteel.png"
+    },
+    {
+      "id": "item_sword_steel",
+      "displayName": "钢剑图标占位图",
+      "description": "钢剑的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "sword"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_sword_steel.png"
+    },
+    {
+      "id": "item_torch",
+      "displayName": "火把图标占位图",
+      "description": "火把的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "tool"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_torch.png"
+    },
+    {
+      "id": "item_tuque",
+      "displayName": "Tuque icon",
+      "description": "Placeholder icon for tuque.",
+      "tags": [
+        "item",
+        "icon",
+        "clothing",
+        "tuque"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_tuque.png"
+    },
+    {
+      "id": "item_war_hammer",
+      "displayName": "战锤图标占位图",
+      "description": "战锤的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "hammer"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_war_hammer.png"
+    },
+    {
+      "id": "item_war_hammer_uranium",
+      "displayName": "War Hammer Uranium icon",
+      "description": "Placeholder icon for war hammer uranium.",
+      "tags": [
+        "item",
+        "icon",
+        "weapon",
+        "war",
+        "hammer",
+        "uranium"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_war_hammer_uranium.png"
+    },
+    {
+      "id": "item_wood_axe",
+      "displayName": "木斧图标占位图",
+      "description": "木斧的道具图标占位图。",
+      "tags": [
+        "item",
+        "icon",
+        "tool",
+        "axe"
+      ],
+      "category": "item_icons",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/item_icons/item_wood_axe.png"
+    },
+    {
+      "id": "logo_main",
+      "displayName": "主 Logo占位图",
+      "description": "游戏主 Logo 的品牌占位图。",
+      "tags": [
+        "branding",
+        "logo"
+      ],
+      "category": "branding",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/branding/logo_main.png"
+    },
+    {
+      "id": "menu_background_1920x1080",
+      "displayName": "主菜单背景占位图",
+      "description": "主菜单 1920x1080 背景占位图。",
+      "tags": [
+        "branding",
+        "background"
+      ],
+      "category": "branding",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/branding/menu_background_1920x1080.png"
+    },
+    {
+      "id": "monster_bear",
+      "displayName": "熊地图占位图",
+      "description": "熊的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "bear"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_bear.png"
+    },
+    {
+      "id": "monster_goblin",
+      "displayName": "哥布林地图占位图",
+      "description": "哥布林的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "goblin"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_goblin.png"
+    },
+    {
+      "id": "monster_orc_warrior",
+      "displayName": "兽人战士地图占位图",
+      "description": "兽人战士的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "orc",
+        "warrior"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_orc_warrior.png"
+    },
+    {
+      "id": "monster_rat",
+      "displayName": "老鼠地图占位图",
+      "description": "老鼠的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "rat"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_rat.png"
+    },
+    {
+      "id": "monster_scorpion",
+      "displayName": "巨蝎地图占位图",
+      "description": "巨蝎的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "scorpion"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_scorpion.png"
+    },
+    {
+      "id": "monster_skeleton",
+      "displayName": "骷髅地图占位图",
+      "description": "骷髅的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "undead"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_skeleton.png"
+    },
+    {
+      "id": "monster_slime",
+      "displayName": "史莱姆地图占位图",
+      "description": "史莱姆的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "slime"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_slime.png"
+    },
+    {
+      "id": "monster_spider",
+      "displayName": "巨蜘蛛地图占位图",
+      "description": "巨蜘蛛的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "spider"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_spider.png"
+    },
+    {
+      "id": "monster_treant",
+      "displayName": "树人地图占位图",
+      "description": "树人的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "treant"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_treant.png"
+    },
+    {
+      "id": "monster_wolf",
+      "displayName": "狼地图占位图",
+      "description": "狼的地图像素占位图。",
+      "tags": [
+        "hostile",
+        "wolf"
+      ],
+      "category": "monster_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_wolf.png"
+    },
+    {
+      "id": "npc_blacksmith_npc",
+      "displayName": "铁匠地图占位图",
+      "description": "铁匠的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "blacksmith"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_blacksmith_npc.png"
+    },
+    {
+      "id": "npc_cook_npc",
+      "displayName": "厨师地图占位图",
+      "description": "厨师的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "cook"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_cook_npc.png"
+    },
+    {
+      "id": "npc_elder",
+      "displayName": "长者地图占位图",
+      "description": "长者的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "elder"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_elder.png"
+    },
+    {
+      "id": "npc_elf_trader",
+      "displayName": "精灵商人地图占位图",
+      "description": "精灵商人的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "elf",
+        "merchant",
+        "trader"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_elf_trader.png"
+    },
+    {
+      "id": "npc_guard_npc",
+      "displayName": "守卫地图占位图",
+      "description": "守卫的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "guard"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_guard_npc.png"
+    },
+    {
+      "id": "npc_herbalist_npc",
+      "displayName": "草药师地图占位图",
+      "description": "草药师的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "herbalist"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_herbalist_npc.png"
+    },
+    {
+      "id": "npc_merchant",
+      "displayName": "商人地图占位图",
+      "description": "商人的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "merchant"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_merchant.png"
+    },
+    {
+      "id": "npc_orc_merchant",
+      "displayName": "兽人商人地图占位图",
+      "description": "兽人商人的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "orc",
+        "merchant"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_orc_merchant.png"
+    },
+    {
+      "id": "npc_tailor_npc",
+      "displayName": "裁缝地图占位图",
+      "description": "裁缝的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "tailor"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_tailor_npc.png"
+    },
+    {
+      "id": "npc_villager",
+      "displayName": "村民地图占位图",
+      "description": "村民的地图像素占位图。",
+      "tags": [
+        "friendly",
+        "human",
+        "villager"
+      ],
+      "category": "npc_map",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/npc_map/npc_villager.png"
+    },
+    {
+      "id": "portrait_blacksmith_npc",
+      "displayName": "铁匠头像占位图",
+      "description": "铁匠的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "blacksmith"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_blacksmith_npc.png"
+    },
+    {
+      "id": "portrait_cook_npc",
+      "displayName": "厨师头像占位图",
+      "description": "厨师的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "cook"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_cook_npc.png"
+    },
+    {
+      "id": "portrait_elder",
+      "displayName": "长者头像占位图",
+      "description": "长者的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "elder"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_elder.png"
+    },
+    {
+      "id": "portrait_elf_trader",
+      "displayName": "精灵商人头像占位图",
+      "description": "精灵商人的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "elf"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_elf_trader.png"
+    },
+    {
+      "id": "portrait_guard_npc",
+      "displayName": "守卫头像占位图",
+      "description": "守卫的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "guard"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_guard_npc.png"
+    },
+    {
+      "id": "portrait_herbalist_npc",
+      "displayName": "草药师头像占位图",
+      "description": "草药师的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "herbalist"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_herbalist_npc.png"
+    },
+    {
+      "id": "portrait_merchant",
+      "displayName": "商人头像占位图",
+      "description": "商人的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "merchant"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_merchant.png"
+    },
+    {
+      "id": "portrait_orc_merchant",
+      "displayName": "兽人商人头像占位图",
+      "description": "兽人商人的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "orc"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_orc_merchant.png"
+    },
+    {
+      "id": "portrait_tailor_npc",
+      "displayName": "裁缝头像占位图",
+      "description": "裁缝的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "tailor"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_tailor_npc.png"
+    },
+    {
+      "id": "portrait_villager",
+      "displayName": "村民头像占位图",
+      "description": "村民的对话头像占位图。",
+      "tags": [
+        "friendly",
+        "portrait",
+        "villager"
+      ],
+      "category": "portraits",
+      "kind": "tile",
+      "sourceMode": "single",
+      "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_villager.png"
+    }
+  ]
 }

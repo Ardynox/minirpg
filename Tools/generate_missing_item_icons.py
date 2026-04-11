@@ -84,6 +84,9 @@ ORDER = [
     "hammer_smith",
     "knife_butcher",
     "mat_wood",
+    "mat_coal",
+    "mat_copper",
+    "mat_crystal",
     "mat_stone",
     "mat_steel",
     "mat_gold",
@@ -411,6 +414,17 @@ def material(kind):
         draw.ellipse((7, 13, 13, 21), fill=(174, 128, 82, 255), outline=OUTLINE)
     elif kind == "stone":
         draw.polygon(((10, 11), (20, 9), (24, 15), (22, 22), (12, 23), (8, 17)), fill=STONE, outline=OUTLINE)
+    elif kind == "coal":
+        draw.polygon(((10, 11), (19, 9), (24, 14), (21, 23), (11, 24), (8, 17)), fill=(66, 70, 81, 255), outline=OUTLINE)
+        draw.line((11, 12, 20, 21), fill=(112, 118, 132, 255), width=2)
+    elif kind == "copper":
+        draw.polygon(((10, 12), (22, 12), (24, 17), (12, 17)), fill=(201, 118, 72, 255), outline=OUTLINE)
+        draw.polygon(((12, 17), (24, 17), (21, 23), (9, 23)), fill=(181, 96, 61, 255), outline=OUTLINE)
+        draw.line((11, 14, 21, 14), fill=(231, 158, 98, 255), width=1)
+    elif kind == "crystal":
+        draw.polygon(((16, 8), (22, 12), (20, 23), (12, 24), (9, 14)), fill=(110, 208, 233, 255), outline=OUTLINE)
+        draw.polygon(((16, 10), (20, 13), (18, 20), (13, 21), (11, 14)), fill=(191, 247, 255, 180), outline=OUTLINE)
+        draw.line((16, 9, 16, 22), fill=(235, 255, 255, 255), width=1)
     elif kind in {"steel", "gold", "silver", "plasteel", "uranium"}:
         fills = {"steel": STEEL, "gold": GOLD, "silver": SILVER, "plasteel": PLASTEEL, "uranium": URANIUM}
         fill = fills[kind]

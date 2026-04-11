@@ -2528,6 +2528,72 @@
       ]
     },
     {
+      "id": "item_mat_coal",
+      "name": "Mat Coal icon",
+      "description": "Placeholder icon for mat coal.",
+      "category": "item_icons",
+      "status": "done",
+      "canvasPresetId": "icon_128",
+      "width": 128,
+      "height": 128,
+      "frames": [
+        {
+          "imagePath": "item_icons/item_mat_coal.png"
+        }
+      ],
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "coal"
+      ]
+    },
+    {
+      "id": "item_mat_copper",
+      "name": "Mat Copper icon",
+      "description": "Placeholder icon for mat copper.",
+      "category": "item_icons",
+      "status": "done",
+      "canvasPresetId": "icon_128",
+      "width": 128,
+      "height": 128,
+      "frames": [
+        {
+          "imagePath": "item_icons/item_mat_copper.png"
+        }
+      ],
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "copper"
+      ]
+    },
+    {
+      "id": "item_mat_crystal",
+      "name": "Mat Crystal icon",
+      "description": "Placeholder icon for mat crystal.",
+      "category": "item_icons",
+      "status": "done",
+      "canvasPresetId": "icon_128",
+      "width": 128,
+      "height": 128,
+      "frames": [
+        {
+          "imagePath": "item_icons/item_mat_crystal.png"
+        }
+      ],
+      "tags": [
+        "item",
+        "icon",
+        "material",
+        "mat",
+        "crystal"
+      ]
+    },
+    {
       "id": "fx_slash_arc",
       "name": "\u6325\u780D\u5F27\u5149\u7279\u6548\u5360\u4F4D\u56FE",
       "description": "\u6325\u780D\u5F27\u5149\u7684\u7279\u6548\u5360\u4F4D\u56FE\u3002",
