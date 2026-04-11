@@ -39,16 +39,18 @@ public static class FireSystem
 		foreach (var hazard in hazards)
 			events.AddRange(AdvanceHazard(state, hazard));
 
-		foreach (var actor in state.Actors.Values
-			.OrderBy(static actor => actor.Z)
-			.ThenBy(static actor => actor.Y)
-			.ThenBy(static actor => actor.X)
-			.ThenBy(static actor => actor.Id, StringComparer.Ordinal)
-			.ToList())
+		// Only sort/process actors that are actually on fire — avoids O(N log N) over all actors each turn
+		var burningActors = state.Actors.Values
+			.Where(static a => !CombatModule.IsDead(a) && GetOnFireCondition(a) != null)
+			.OrderBy(static a => a.Z)
+			.ThenBy(static a => a.Y)
+			.ThenBy(static a => a.X)
+			.ThenBy(static a => a.Id, StringComparer.Ordinal)
+			.ToList();
+		foreach (var actor in burningActors)
 		{
-			if (!state.Actors.ContainsKey(actor.Id) || CombatModule.IsDead(actor))
+			if (!state.Actors.ContainsKey(actor.Id))
 				continue;
-
 			events.AddRange(AdvanceActorBurning(state, actor));
 		}
 

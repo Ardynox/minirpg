@@ -45,6 +45,7 @@ public static class HealthSystem
 		RefreshDerivedState(actor, profile, currentTurn, exposure, events, state);
 		actor.HealthLastUpdatedTurn = currentTurn;
 		NeedSystem.Sync(actor, currentTurn, events, state);
+		actor.InvalidateCapacityCache();
 	}
 
 	public static float GetCapacityMultiplier(Actor actor, string capacityId)

@@ -210,8 +210,18 @@ public class Actor
 		return AccessibleDomainIds.Contains(domainId);
 	}
 
+	// ── 能力缓存（脏标记）──────────────────────────────
+	// 肢体耐久、健康/需求状态、Buff 变化时需调 InvalidateCapacityCache()。
+	[JsonIgnore] private Dictionary<string, float>? _capacitiesCache;
+	[JsonIgnore] private bool _capacitiesDirty = true;
+
+	public void InvalidateCapacityCache() => _capacitiesDirty = true;
+
 	public Dictionary<string, float> ComputeCapacities()
 	{
+		if (!_capacitiesDirty && _capacitiesCache != null)
+			return _capacitiesCache;
+
 		var baseValues = new Dictionary<string, float>();
 		foreach (var limb in Limbs)
 		{
@@ -233,6 +243,8 @@ public class Actor
 			multiplier *= HealthSystem.GetCapacityMultiplier(this, capId);
 			final[capId] = baseVal * multiplier;
 		}
+		_capacitiesCache = final;
+		_capacitiesDirty = false;
 		return final;
 	}
 
@@ -330,28 +342,33 @@ public class Actor
 
 	// ── 肢体操作 ─────────────────────────────────────────
 
-	public void AttachLimb(Limb limb) => Limbs.Add(limb);
+	public void AttachLimb(Limb limb) { Limbs.Add(limb); _capacitiesDirty = true; }
 
-	public void DetachLimb(Limb limb) => Limbs.Remove(limb);
+	public void DetachLimb(Limb limb) { Limbs.Remove(limb); _capacitiesDirty = true; }
 
-	public void DetachLimb(string limbId) => Limbs.RemoveAll(l => l.Id == limbId);
+	public void DetachLimb(string limbId) { Limbs.RemoveAll(l => l.Id == limbId); _capacitiesDirty = true; }
 
 	// ── Buff 操作 ────────────────────────────────────────
 
-	public void AddBuff(Buff buff) => Buffs.Add(buff);
+	public void AddBuff(Buff buff) { Buffs.Add(buff); _capacitiesDirty = true; }
 
-	public void RemoveBuff(string buffId) => Buffs.RemoveAll(b => b.Id == buffId);
+	public void RemoveBuff(string buffId) { Buffs.RemoveAll(b => b.Id == buffId); _capacitiesDirty = true; }
 
 	/// <summary>回合结束时调用：Buff 计时器 -1，到期自动移除。</summary>
 	public void TickBuffs()
 	{
+		var hadExpired = false;
 		for (var i = Buffs.Count - 1; i >= 0; i--)
 		{
 			if (Buffs[i].RemainingTurns < 0) continue;
 			Buffs[i].RemainingTurns--;
 			if (Buffs[i].RemainingTurns <= 0)
+			{
 				Buffs.RemoveAt(i);
+				hadExpired = true;
+			}
 		}
+		if (hadExpired) _capacitiesDirty = true;
 	}
 
 	private static bool CoversBodyPart(Item item, string bodyPart)

@@ -79,9 +79,9 @@ public partial class Main : IAutoTestHost
 			DisplayServerName = displayServerName,
 			HeadlessMode = AutoTestCli.IsHeadlessDisplayServer(displayServerName),
 			InvokedFromCli = IsAutoTestCliEnabled,
-			StartupState = _startupState.ToString().ToLowerInvariant(),
-			StartupSyncFallbackUsed = _startupSyncFallbackUsed,
-			StartupLoadPath = _startupLoadPath ?? _startupLastLoadPath,
+			StartupState = (_startupCoordinator?.State ?? StartupState.LoadingHeavyAssets).ToString().ToLowerInvariant(),
+			StartupSyncFallbackUsed = false,
+			StartupLoadPath = _startupCoordinator?.LastFailedPath,
 			Turn = _state.Turn,
 			PlayerId = player?.Id,
 			PlayerPos = player == null

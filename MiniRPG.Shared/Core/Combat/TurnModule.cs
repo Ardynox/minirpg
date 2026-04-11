@@ -13,9 +13,24 @@ namespace MiniRPG.Core.Combat;
 /// </summary>
 public static class TurnModule
 {
+	/// <summary>AdvanceWorldSystems 累计调用次数（调试/性能追踪用）。</summary>
+	public static int WorldSystemTickCount { get; private set; }
+
+	public static void ResetWorldSystemTickCount() => WorldSystemTickCount = 0;
+
 	public static List<GameEvent> AdvanceWorld(GameState state)
 	{
 		state.Turn++;
+		return AdvanceWorldSystems(state);
+	}
+
+	/// <summary>
+	/// 执行所有与回合推进相关的重型子系统（巢穴刷怪、天气、火灾、故事讲述者、农业）。
+	/// TimelineTurnManager 使用此方法实现 per-charge-cycle 调用，避免每步都执行。
+	/// </summary>
+	public static List<GameEvent> AdvanceWorldSystems(GameState state)
+	{
+		WorldSystemTickCount++;
 		var events = NestModule.Tick(state);
 		events.AddRange(WeatherAccumulationSimulator.Advance(state));
 		events.AddRange(FireSystem.Advance(state));

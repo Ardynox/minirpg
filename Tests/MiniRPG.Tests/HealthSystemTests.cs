@@ -140,7 +140,7 @@ public sealed class HealthSystemTests
 		state.Timeline.Actors.Add(new TimelineActorState { ActorId = player.Id, Charge = 50f });
 		state.Timeline.Actors.Add(new TimelineActorState { ActorId = enemy.Id, Charge = TimelineTurnManager.ActionThreshold });
 
-		var result = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false);
+		var result = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false, fastTurnModeEnabled: false);
 
 		Assert.True(result.ActionConsumed, $"acting={result.ActingActorId ?? "<null>"} events={string.Join(",", result.Events.Select(evt => evt.Type))} current={state.Timeline.CurrentActorId ?? "<null>"}");
 		Assert.Contains(result.Events, evt => evt.Type == "death_blood_loss" && evt.TargetId == enemy.Id);

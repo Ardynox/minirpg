@@ -257,8 +257,9 @@ public static class AIDispatcher
 		if (!_brains.TryGetValue(brainId, out var brain))
 			return new ActionExecutionResult();
 
-		var perception = PerceptionBuilder.Build(state, actor, SimDetail.Full);
-		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, AwarenessModule.CreateTurnContext(state));
+		var perception = ResolvePerception(state, actor);
+		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
+		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
 		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
 		if (behaviorExecution.Consumed)
 			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
@@ -280,8 +281,9 @@ public static class AIDispatcher
 		if (!_brains.TryGetValue(brainId, out var brain))
 			return new ActionExecutionResult();
 
-		var perception = PerceptionBuilder.Build(state, actor, SimDetail.Full);
-		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, AwarenessModule.CreateTurnContext(state));
+		var perception = ResolvePerception(state, actor);
+		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
+		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
 		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
 		if (behaviorExecution.Consumed)
 			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
@@ -289,6 +291,42 @@ public static class AIDispatcher
 		var rng = CreateActorRng(state, actor);
 		var decision = brain.Decide(perception, rng);
 		return ExecuteDecisionWithAwareness(state, actor, decision, tickBuffs, awarenessEvents, attackOnly: false);
+	}
+
+	private static Perception ResolvePerception(GameState state, Actor actor)
+	{
+		var cache = state.PerceptionCache;
+		if (cache == null)
+			return PerceptionBuilder.Build(state, actor, SimDetail.Full);
+
+		if (cache.TryGetValue(actor.Id, out var cached))
+			return cached;
+
+		// 首次 miss：批量构建所有 timeline 参与者的感知，填充缓存。
+		var requests = new List<AIVisionRequest>();
+		foreach (var entry in state.Timeline.Actors)
+		{
+			if (cache.ContainsKey(entry.ActorId))
+				continue;
+			if (!state.Actors.TryGetValue(entry.ActorId, out var a))
+				continue;
+			if (a.BrainId == null && !string.Equals(a.Id, actor.Id, StringComparison.Ordinal))
+				continue;
+			if (CombatModule.IsDead(a))
+				continue;
+			requests.Add(new AIVisionRequest(a, SimDetail.Full));
+		}
+
+		if (requests.Count == 0)
+			return PerceptionBuilder.Build(state, actor, SimDetail.Full);
+
+		var batch = PerceptionBuilder.BuildBatch(state, requests);
+		foreach (var kv in batch)
+			cache[kv.Key] = kv.Value;
+
+		return cache.TryGetValue(actor.Id, out var result)
+			? result
+			: PerceptionBuilder.Build(state, actor, SimDetail.Full);
 	}
 
 	private static Random CreateActorRng(GameState state, Actor actor)

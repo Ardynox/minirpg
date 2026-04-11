@@ -47,6 +47,7 @@ public static class CombatModule
 		var damage = CalcDamage(attacker, action, target, targetLimb);
 		var damageType = ResolveDamageType(attacker, action);
 		targetLimb.Durability = Math.Max(0, targetLimb.Durability - damage);
+		target.InvalidateCapacityCache();
 		ApplyHealthInjury(state, attacker, target, action, targetLimb, damage, damageType, events);
 
 		var attackEvent = new GameEvent("combat_attack")
@@ -75,6 +76,7 @@ public static class CombatModule
 				var rng = new Random(state.RngSeed + state.Turn + attacker.Id.GetHashCode());
 				var heal = selfLimbs[rng.Next(selfLimbs.Count)];
 				heal.Durability = Math.Min(heal.MaxDurability, heal.Durability + damage);
+				attacker.InvalidateCapacityCache();
 			}
 		}
 
@@ -93,6 +95,7 @@ public static class CombatModule
 			return [];
 
 		targetLimb.Durability = Math.Max(0, targetLimb.Durability - damage);
+		target.InvalidateCapacityCache();
 		var events = new List<GameEvent>();
 		NeedSystem.ApplyThought(target, "hurt_recently", state.Turn, NeedThoughtSources.Combat, events, state);
 		ApplyHealthInjury(

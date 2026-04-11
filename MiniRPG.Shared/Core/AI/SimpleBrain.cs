@@ -120,27 +120,55 @@ public class SimpleBrain : IBrainModule
 		return best;
 	}
 
+	[ThreadStatic] private static List<InteractionDef>? _skillsBuffer;
+	[ThreadStatic] private static List<Actor>? _orderedEnemiesBuffer;
+
 	private static Decision? BuildAttackDecision(Actor self, List<Actor> enemies, Perception perception)
 	{
 		if (enemies.Count == 0)
 			return null;
 
-		var skills = CombatModule.GetAttackActions(self)
-			.Where(skill => !self.IsSkillOnCooldown(skill.Id))
-			.OrderByDescending(skill => skill.EffectType == "ranged_attack")
-			.ThenByDescending(skill => skill.Range)
-			.ThenByDescending(skill => skill.Power)
-			.ToList();
+		var allSkills = CombatModule.GetAttackActions(self);
+		var skills = _skillsBuffer ??= new List<InteractionDef>();
+		skills.Clear();
+		foreach (var skill in allSkills)
+		{
+			if (!self.IsSkillOnCooldown(skill.Id))
+				skills.Add(skill);
+		}
 		if (skills.Count == 0)
 			return null;
 
-		var orderedEnemies = enemies
-			.Where(enemy => enemy.Limbs.Count > 0)
-			.OrderBy(enemy => Math.Abs(enemy.X - self.X) + Math.Abs(enemy.Y - self.Y))
-			.ThenBy(enemy => enemy.Id, StringComparer.Ordinal)
-			.ToList();
+		// 排序：远程优先 → 射程大优先 → 威力大优先
+		skills.Sort(static (a, b) =>
+		{
+			var rangedA = a.EffectType == "ranged_attack" ? 1 : 0;
+			var rangedB = b.EffectType == "ranged_attack" ? 1 : 0;
+			var cmp = rangedB.CompareTo(rangedA);
+			if (cmp != 0) return cmp;
+			cmp = b.Range.CompareTo(a.Range);
+			return cmp != 0 ? cmp : b.Power.CompareTo(a.Power);
+		});
+
+		var orderedEnemies = _orderedEnemiesBuffer ??= new List<Actor>();
+		orderedEnemies.Clear();
+		foreach (var enemy in enemies)
+		{
+			if (enemy.Limbs.Count > 0)
+				orderedEnemies.Add(enemy);
+		}
 		if (orderedEnemies.Count == 0)
 			return null;
+
+		var selfX = self.X;
+		var selfY = self.Y;
+		orderedEnemies.Sort((a, b) =>
+		{
+			var distA = Math.Abs(a.X - selfX) + Math.Abs(a.Y - selfY);
+			var distB = Math.Abs(b.X - selfX) + Math.Abs(b.Y - selfY);
+			var cmp = distA.CompareTo(distB);
+			return cmp != 0 ? cmp : string.CompareOrdinal(a.Id, b.Id);
+		});
 
 		if (perception.State != null)
 		{

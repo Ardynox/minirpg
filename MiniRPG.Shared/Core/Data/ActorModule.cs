@@ -15,6 +15,8 @@ public static class ActorModule
 			actor.SetHomePosition(actor.X, actor.Y, actor.Z);
 		state.Actors[actor.Id] = actor;
 		state.World?.RegisterActor(actor);
+		if (state.SnapshotCache != null)
+			state.SnapshotCache.IsDirty = true;
 	}
 
 	public static void Remove(GameState state, string id)
@@ -22,6 +24,8 @@ public static class ActorModule
 		if (state.Actors.TryGetValue(id, out var actor))
 			state.World?.UnregisterActor(actor);
 		state.Actors.Remove(id);
+		if (state.SnapshotCache != null)
+			state.SnapshotCache.IsDirty = true;
 	}
 
 	public static Actor? GetById(GameState state, string id) =>

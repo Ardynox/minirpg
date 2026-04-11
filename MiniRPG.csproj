@@ -17,6 +17,8 @@
     <Compile Remove="Tests\**\*.cs" />
     <Compile Remove="Tools\MonsterMapAssetGenerator.cs" />
     <Compile Remove="Tools\MonsterMapAssetGenerator\**\*.cs" />
+    <!-- TEMP: exclude while Main.cs refactor is in progress -->
+    <Compile Remove="App\Main.InspectAndSkill.cs" />
     <EmbeddedResource Remove="Tests\**\*" />
     <None Remove="Tests\**\*" />
   </ItemGroup>

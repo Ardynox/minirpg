@@ -17,6 +17,7 @@ public enum TimelinePlayerActionType
 	Rest,
 	FacilityDeliver,
 	FacilityConstruct,
+	Climb,
 }
 
 public sealed class TimelinePlayerAction
@@ -24,6 +25,7 @@ public sealed class TimelinePlayerAction
 	public TimelinePlayerActionType Type { get; }
 	public int Dx { get; }
 	public int Dy { get; }
+	public int Dz { get; }
 	public string? SkillId { get; }
 	public SkillTargetType TargetType { get; }
 	public string? TargetActorId { get; }
@@ -39,6 +41,7 @@ public sealed class TimelinePlayerAction
 		TimelinePlayerActionType type,
 		int dx = 0,
 		int dy = 0,
+		int dz = 0,
 		string? skillId = null,
 		SkillTargetType targetType = SkillTargetType.Self,
 		string? targetActorId = null,
@@ -53,6 +56,7 @@ public sealed class TimelinePlayerAction
 		Type = type;
 		Dx = dx;
 		Dy = dy;
+		Dz = dz;
 		SkillId = skillId;
 		TargetType = targetType;
 		TargetActorId = targetActorId;
@@ -108,6 +112,9 @@ public sealed class TimelinePlayerAction
 
 	public static TimelinePlayerAction FacilityConstruct(string facilityId) =>
 		new(TimelinePlayerActionType.FacilityConstruct, facilityId: facilityId);
+
+	public static TimelinePlayerAction Climb(int dz) =>
+		new(TimelinePlayerActionType.Climb, dz: dz);
 }
 
 public sealed class TimelineActorState
@@ -190,6 +197,11 @@ public static class TimelineTurnManager
 	{
 		public Dictionary<string, Actor?> ActorsById { get; } = new(StringComparer.Ordinal);
 		public Dictionary<string, float> SpeedByActorId { get; } = new(StringComparer.Ordinal);
+		public bool ActorsSynced { get; set; }
+		/// <summary>
+		/// 当 AdvanceCharges 推进时间时收集的世界事件。为 null 表示不执行世界系统（查询场景）。
+		/// </summary>
+		public List<GameEvent>? PendingWorldEvents { get; set; }
 	}
 
 	public static void Reset(GameState state, bool playerStarts = true)
@@ -209,9 +221,13 @@ public static class TimelineTurnManager
 		state.Timeline.LastActorId = null;
 	}
 
+	[ThreadStatic] private static HashSet<string>? _syncLiveIds;
+	[ThreadStatic] private static HashSet<string>? _syncExistingIds;
+
 	public static void SyncActors(GameState state)
 	{
-		var liveActorIds = new HashSet<string>(StringComparer.Ordinal);
+		var liveActorIds = _syncLiveIds ??= new HashSet<string>(StringComparer.Ordinal);
+		liveActorIds.Clear();
 		foreach (var actor in state.Actors.Values)
 		{
 			if (CanParticipateInTimeline(actor))
@@ -220,7 +236,8 @@ public static class TimelineTurnManager
 
 		state.Timeline.Actors.RemoveAll(entry => !liveActorIds.Contains(entry.ActorId));
 
-		var existingActorIds = new HashSet<string>(StringComparer.Ordinal);
+		var existingActorIds = _syncExistingIds ??= new HashSet<string>(StringComparer.Ordinal);
+		existingActorIds.Clear();
 		foreach (var entry in state.Timeline.Actors)
 			existingActorIds.Add(entry.ActorId);
 
@@ -278,10 +295,15 @@ public static class TimelineTurnManager
 		return raw > 0f ? MathF.Max(raw, MinimumActiveSpeed) : MinimumActiveSpeed;
 	}
 
-	public static TimelineDebugSnapshot CreateDebugSnapshot(GameState state, bool playerDead, bool? watchModeEnabled = null)
+	public static TimelineDebugSnapshot CreateDebugSnapshot(
+		GameState state,
+		bool playerDead,
+		bool? watchModeEnabled = null,
+		bool includeEntries = true)
 	{
 		var context = new TimelineEvalContext();
 		SyncActors(state);
+		context.ActorsSynced = true;
 		var resolvedWatchMode = watchModeEnabled ?? false;
 
 		var currentActor = playerDead
@@ -305,15 +327,26 @@ public static class TimelineTurnManager
 			HasPendingAutoAdvance = hasPendingAutoAdvance,
 			InputLockedReason = ResolveInputLockReason(playerDead, resolvedWatchMode, currentActor, isPlayerTurn),
 			WorldTurn = state.Turn,
-			Entries = BuildDebugEntries(state, currentActor, context),
+			Entries = includeEntries
+				? BuildDebugEntries(state, currentActor, context)
+				: [],
 		};
 	}
 
 	public static TimelineStepResult SubmitPlayerAction(GameState state, TimelinePlayerAction action)
 	{
 		var context = new TimelineEvalContext();
+		context.PendingWorldEvents = new List<GameEvent>();
 		var result = new TimelineStepResult();
 		var actor = EnsureCurrentActor(state, context);
+
+		// 排出 AdvanceCharges 产生的世界事件
+		if (context.PendingWorldEvents is { Count: > 0 })
+		{
+			result.Events.AddRange(context.PendingWorldEvents);
+			context.PendingWorldEvents.Clear();
+		}
+
 		if (actor == null
 			|| !string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal)
 			|| !IsPlayerControllable(actor))
@@ -344,8 +377,18 @@ public static class TimelineTurnManager
 	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled, bool fastTurnModeEnabled)
 	{
 		var context = new TimelineEvalContext();
+		context.PendingWorldEvents = new List<GameEvent>();
 		var aggregate = new TimelineStepResult();
 		var remainingSteps = fastTurnModeEnabled && !watchModeEnabled ? 64 : 1;
+
+		// 快照缓存跨 AdvanceAuto 调用复用，避免每步重建 O(N) 快照。
+		// IsDirty 标记由 ActorModule.Add/Remove 设置，RefreshFromActors 负责位置/死亡更新。
+		state.SnapshotCache ??= new TimelineSnapshotCache();
+
+		// 感知缓存：首次 AI 步骤批量构建所有敌人感知，后续步骤直接复用。
+		// 每步之间只有一个 actor 移动，感知最多陈旧 1 步，对游戏 AI 可接受。
+		state.PerceptionCache ??= new Dictionary<string, Perception>(StringComparer.Ordinal);
+		state.AwarenessContextCache ??= AwarenessModule.CreateTurnContext(state);
 
 		while (remainingSteps-- > 0)
 		{
@@ -366,6 +409,14 @@ public static class TimelineTurnManager
 	{
 		var result = new TimelineStepResult();
 		var actor = EnsureCurrentActor(state, context);
+
+		// 排出 AdvanceCharges 产生的世界事件（天气、刷怪等）
+		if (context.PendingWorldEvents is { Count: > 0 })
+		{
+			result.Events.AddRange(context.PendingWorldEvents);
+			context.PendingWorldEvents.Clear();
+		}
+
 		if (actor == null)
 		{
 			result.PlayerTurnReady = false;
@@ -575,15 +626,15 @@ public static class TimelineTurnManager
 	{
 		result.ActionConsumed = true;
 		ResolveActor(state, actorId, context)?.TickSkillCooldowns();
-		result.Events.AddRange(TurnModule.AdvanceWorld(state));
-		ConsumeTurn(state, actorId);
+		state.Turn++;
+		ConsumeTurn(state, actorId, context);
 		context.ActorsById.Clear();
 		context.SpeedByActorId.Clear();
 		result.PlayerTurnReady = IsPlayerTurn(state, context);
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
 	}
 
-	private static void ConsumeTurn(GameState state, string actorId)
+	private static void ConsumeTurn(GameState state, string actorId, TimelineEvalContext context)
 	{
 		var entry = FindEntry(state, actorId);
 		if (entry != null)
@@ -592,11 +643,15 @@ public static class TimelineTurnManager
 		state.Timeline.CurrentActorId = null;
 		state.Timeline.LastActorId = actorId;
 		SyncActors(state);
+		context.ActorsSynced = true;
 	}
 
 	private static Actor? EnsureCurrentActor(GameState state, TimelineEvalContext context)
 	{
-		SyncActors(state);
+		if (!context.ActorsSynced)
+			SyncActors(state);
+		context.ActorsSynced = false;
+
 		if (state.Timeline.CurrentActorId != null)
 		{
 			var current = ResolveActor(state, state.Timeline.CurrentActorId, context);
@@ -612,8 +667,10 @@ public static class TimelineTurnManager
 		}
 
 		var ready = PickReadyActor(state, context);
+		string? firstReadyId = null;
 		if (ready != null)
 		{
+			firstReadyId = ready.Id;
 			HealthSystem.Sync(ready, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, ready));
 			context.SpeedByActorId.Remove(ready.Id);
 			if (IsActorActive(ready) || HealthSystem.GetFatalCause(ready) != null)
@@ -627,8 +684,11 @@ public static class TimelineTurnManager
 		ready = PickReadyActor(state, context);
 		if (ready != null)
 		{
-			HealthSystem.Sync(ready, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, ready));
-			context.SpeedByActorId.Remove(ready.Id);
+			if (!string.Equals(ready.Id, firstReadyId, StringComparison.Ordinal))
+			{
+				HealthSystem.Sync(ready, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, ready));
+				context.SpeedByActorId.Remove(ready.Id);
+			}
 			if (!(IsActorActive(ready) || HealthSystem.GetFatalCause(ready) != null))
 				ready = null;
 		}
@@ -673,9 +733,12 @@ public static class TimelineTurnManager
 		return bestActor;
 	}
 
+	[ThreadStatic] private static List<(TimelineActorState Entry, float Speed)>? _chargeCandidates;
+
 	private static void AdvanceCharges(GameState state, TimelineEvalContext context)
 	{
-		var candidates = new List<(TimelineActorState Entry, float Speed)>();
+		var candidates = _chargeCandidates ??= new List<(TimelineActorState Entry, float Speed)>();
+		candidates.Clear();
 		float minDelta = float.MaxValue;
 
 		foreach (var entry in state.Timeline.Actors)
@@ -702,6 +765,11 @@ public static class TimelineTurnManager
 
 		foreach (var candidate in candidates)
 			candidate.Entry.Charge += candidate.Speed * minDelta;
+
+		// 时间实际流逝：推进世界系统（巢穴刷怪、天气、火灾、故事、农业）。
+		// 仅在执行上下文（PendingWorldEvents != null）中触发，查询场景跳过。
+		if (context.PendingWorldEvents != null)
+			context.PendingWorldEvents.AddRange(TurnModule.AdvanceWorldSystems(state));
 	}
 
 	private static TimelineActorState? FindEntry(GameState state, string actorId) =>
@@ -877,8 +945,11 @@ public static class TimelineTurnManager
 		state.Timeline.CurrentActorId = null;
 		state.Timeline.LastActorId = actorId;
 		SyncActors(state);
+		context.ActorsSynced = true;
 		context.ActorsById.Clear();
 		context.SpeedByActorId.Clear();
+		// Actor 死亡移除后，缓存的感知可能引用已移除的 actor，需要清空重建。
+		state.PerceptionCache?.Clear();
 		result.PlayerTurnReady = IsPlayerTurn(state, context);
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
 	}

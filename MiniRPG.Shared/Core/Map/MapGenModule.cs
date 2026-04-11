@@ -82,6 +82,8 @@ public static class MapGenModule
 		if (state.World == null) return;
 
 		var searchRadius = 20;
+		var zSearchAbove = 6;
+		var zSearchBelow = 10;
 		for (var r = 0; r < searchRadius; r++)
 		for (var dy = -r; dy <= r; dy++)
 		for (var dx = -r; dx <= r; dx++)
@@ -89,13 +91,48 @@ public static class MapGenModule
 			if (Math.Abs(dx) + Math.Abs(dy) != r) continue;
 			var x = state.PlayerX + dx;
 			var y = state.PlayerY + dy;
-			if (state.World.IsWalkable(x, y, state.PlayerZ))
+
+			if (TryFindSpawnZ(state.World, x, y, state.PlayerZ, zSearchAbove, zSearchBelow, out var z))
 			{
 				state.PlayerX = x;
 				state.PlayerY = y;
+				state.PlayerZ = z;
 				return;
 			}
 		}
+	}
+
+	private static bool TryFindSpawnZ(WorldMap world, int x, int y, int centerZ, int searchAbove, int searchBelow, out int z)
+	{
+		z = centerZ;
+
+		if (world.IsWalkable(x, y, centerZ))
+			return true;
+
+		for (var step = 1; step <= Math.Max(searchAbove, searchBelow); step++)
+		{
+			if (step <= searchAbove)
+			{
+				var candidateAbove = centerZ - step;
+				if (world.IsWalkable(x, y, candidateAbove))
+				{
+					z = candidateAbove;
+					return true;
+				}
+			}
+
+			if (step <= searchBelow)
+			{
+				var candidateBelow = centerZ + step;
+				if (world.IsWalkable(x, y, candidateBelow))
+				{
+					z = candidateBelow;
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	private static void ApplyPlayerCreationOptions(GameState state, Actor player, PlayerCreationOptions? options)

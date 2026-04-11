@@ -131,6 +131,7 @@ public sealed class SettingsFlowModalInputAdapterTests
 				"en",
 				RenderReady: true,
 				WatchModeEnabled: false,
+				FastTurnModeEnabled: false,
 				MapEditorActive: false,
 				CanOpenSessionTab: true,
 				EnableKeyboardTargeting: false,
@@ -208,6 +209,11 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? WatchModeToggleRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? FastTurnModeToggleRequested
 		{
 			add { }
 			remove { }

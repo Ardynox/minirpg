@@ -291,7 +291,7 @@ public sealed class TimelineTurnManagerTests
 		Assert.True(castResult.ActionConsumed);
 		Assert.Equal(1, player.GetSkillCooldown("sword_parry"));
 
-		var autoResult = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false);
+		var autoResult = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false, fastTurnModeEnabled: false);
 		Assert.True(autoResult.ActionConsumed);
 		Assert.Equal(1, player.GetSkillCooldown("sword_parry"));
 

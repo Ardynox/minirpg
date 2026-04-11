@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using MiniRPG.Core.AI;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
@@ -52,6 +53,26 @@ public class GameState
 			_world?.AttachFacilityState(Facilities);
 		}
 	}
+
+	/// <summary>
+	/// AI 过回合快照缓存：由 TimelineTurnManager.AdvanceAuto 在调用期间临时设置，
+	/// 供 AIVisionBatch 复用 actor snapshot，避免每步重建。仅运行时字段，不序列化。
+	/// </summary>
+	[JsonIgnore]
+	public TimelineSnapshotCache? SnapshotCache { get; set; }
+
+	/// <summary>
+	/// 回合级感知缓存：在一轮 AI 行动中批量构建所有敌人感知并缓存，
+	/// 后续步骤直接复用，避免每步重建 O(N) 视觉扫描。仅运行时字段，不序列化。
+	/// </summary>
+	[JsonIgnore]
+	public Dictionary<string, Perception>? PerceptionCache { get; set; }
+
+	/// <summary>
+	/// 回合级警觉上下文缓存：避免每步重新创建 AwarenessTurnContext。
+	/// </summary>
+	[JsonIgnore]
+	public AwarenessTurnContext? AwarenessContextCache { get; set; }
 
 	// ── 玩家三维坐标 ──
 	public int PlayerX { get; set; }

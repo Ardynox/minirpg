@@ -86,6 +86,7 @@ public static class ServerActionGateway
 			FacilityConstructClientCommand construct => ExecuteTimelineAction(
 				state,
 				TimelinePlayerAction.FacilityConstruct(construct.FacilityId)),
+			ClimbClientCommand climb => ExecuteTimelineAction(state, TimelinePlayerAction.Climb(climb.Dz)),
 			InteractClientCommand interact => ExecuteInteraction(state, interact, timestamp),
 			PickupClientCommand pickup => ExecutePickup(state, pickup),
 			InventoryToggleEquipClientCommand toggleEquip => ExecuteInventoryToggleEquip(state, toggleEquip),

@@ -2,6 +2,7 @@ using System;
 using MiniRPG.Module;
 using MiniRPG.Module.Panel;
 using MiniRPG.Module.Render;
+using MiniRPG.Module.Network;
 using MiniRPG.Core.Multiplayer;
 
 namespace MiniRPG;

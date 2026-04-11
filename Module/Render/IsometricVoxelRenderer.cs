@@ -19,23 +19,23 @@ public partial class IsometricVoxelRenderer
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
-	private const float WallTopEdgeStrength = 0.58f;
+	private const float WallTopEdgeStrength = 0.30f;
 	private static readonly IsometricLightingSettings DefaultLighting = new(
-		Ambient: 0.84f,
-		TopLight: 1.12f,
-		LeftLight: 0.76f,
-		RightLight: 0.90f,
-		DepthFalloff: 0.06f,
-		Contrast: 1.06f,
-		ShadowStrength: 0.58f,
-		OcclusionStep: 0.085f);
+		Ambient: 1.0f,
+		TopLight: 1.0f,
+		LeftLight: 0.72f,
+		RightLight: 0.86f,
+		DepthFalloff: 0.0f,
+		Contrast: 1.0f,
+		ShadowStrength: 0.0f,
+		OcclusionStep: 0.0f);
 	private const float MinLight = 0.12f;
 	private const float MaxLight = 1.65f;
-	private const float SolidTopEdgeStrength = 0.40f;
-	private const float NonSolidTopEdgeStrength = 0.22f;
-	private const float WallSideEdgeStrength = 0.38f;
-	private const float SolidSideEdgeStrength = 0.24f;
-	private const float NonSolidSideEdgeStrength = 0.12f;
+	private const float SolidTopEdgeStrength = 0.22f;
+	private const float NonSolidTopEdgeStrength = 0.12f;
+	private const float WallSideEdgeStrength = 0.20f;
+	private const float SolidSideEdgeStrength = 0.12f;
+	private const float NonSolidSideEdgeStrength = 0.06f;
 	private const int SideTextureWidth = 64;
 	private const int SideTextureHeight = 176;
 	private const int SideFaceHeight = 84;
@@ -232,7 +232,7 @@ public partial class IsometricVoxelRenderer
 		if (textures.Left == null) return;
 		_faceCommands.Add(new FaceSpriteCommand(
 			textures.Left,
-			cmd.ScreenPos + new Vector2(-IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f),
+			ResolveLeftFacePosition(cmd.ScreenPos),
 			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Left),
 			cmd.SortKey));
 	}
@@ -243,9 +243,23 @@ public partial class IsometricVoxelRenderer
 		if (textures.Right == null) return;
 		_faceCommands.Add(new FaceSpriteCommand(
 			textures.Right,
-			cmd.ScreenPos + new Vector2(IsoCoordUtil.TileHalfW / 2f, IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f),
+			ResolveRightFacePosition(cmd.ScreenPos),
 			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Right),
 			cmd.SortKey));
+	}
+
+	private static Vector2 ResolveLeftFacePosition(Vector2 topCenter)
+	{
+		var x = topCenter.X - IsoCoordUtil.TileHalfW / 2f;
+		var y = topCenter.Y + IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f;
+		return new Vector2(x, y);
+	}
+
+	private static Vector2 ResolveRightFacePosition(Vector2 topCenter)
+	{
+		var x = topCenter.X + IsoCoordUtil.TileHalfW / 2f;
+		var y = topCenter.Y + IsoCoordUtil.TileHalfH + (SideTextureHeight - 64) / 2f;
+		return new Vector2(x, y);
 	}
 
 	private Color GetVisionTint(int wx, int wy, int wz)
@@ -254,8 +268,8 @@ public partial class IsometricVoxelRenderer
 		return band switch
 		{
 			PlayerVisionBand.Focused => Colors.White,
-			PlayerVisionBand.Peripheral => new Color(0.50f, 0.50f, 0.56f),
-			PlayerVisionBand.Memory => new Color(0.22f, 0.22f, 0.28f),
+			PlayerVisionBand.Peripheral => new Color(0.78f, 0.78f, 0.82f, 1.0f),
+			PlayerVisionBand.Memory => new Color(0.42f, 0.42f, 0.48f, 0.88f),
 			_ => new Color(0f, 0f, 0f, 0f),
 		};
 	}
@@ -291,6 +305,8 @@ public partial class IsometricVoxelRenderer
 
 	private float ComputeDirectionalShadow(int wx, int wy, int wz, VoxelFace face)
 	{
+		if (_lighting.ShadowStrength <= 0f || _lighting.OcclusionStep <= 0f)
+			return 0f;
 		if (_state.World == null)
 			return 0f;
 

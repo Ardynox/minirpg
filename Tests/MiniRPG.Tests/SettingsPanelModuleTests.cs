@@ -163,6 +163,7 @@ public sealed class SettingsPanelModuleTests
 			"en",
 			renderReady,
 			watchModeEnabled,
+			false,
 			mapEditorActive,
 			canOpenSessionTab,
 			enableKeyboardTargeting,

@@ -9,5 +9,7 @@ global using MiniRPG.Core.Weather;
 global using MiniRPG.Core.Debug;
 global using MiniRPG.Core.Dialog;
 global using MiniRPG.Core.Multiplayer;
+global using MiniRPG.Core.Session;
+global using MiniRPG.Module;
 global using MiniRPG.Module.Panel;
 global using MiniRPG.Module.Render;

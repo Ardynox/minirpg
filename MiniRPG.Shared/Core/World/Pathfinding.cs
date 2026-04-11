@@ -16,6 +16,14 @@ public static class Pathfinding
 
 	private static readonly (int Dx, int Dy)[] Dirs = { (0, -1), (0, 1), (-1, 0), (1, 0) };
 
+	// 池化 A* 数据结构，避免每次调用分配
+	[ThreadStatic] private static PriorityQueue<(int X, int Y), int>? _astarOpen;
+	[ThreadStatic] private static Dictionary<(int, int), (int, int)>? _astarCameFrom;
+	[ThreadStatic] private static Dictionary<(int, int), int>? _astarGScore;
+	[ThreadStatic] private static PriorityQueue<(int X, int Y), int>? _jpsOpen;
+	[ThreadStatic] private static Dictionary<(int, int), (int, int)>? _jpsCameFrom;
+	[ThreadStatic] private static Dictionary<(int, int), int>? _jpsGScore;
+
 	/// <summary>
 	/// 寻路：返回从 (sx,sy) 到 (tx,ty) 的路径（不含起点，含终点）。
 	/// 找不到路径返回 null。
@@ -45,9 +53,12 @@ public static class Pathfinding
 
 	private static List<(int, int)>? AStar(int sx, int sy, int tx, int ty, IsWalkableFunc isWalkable)
 	{
-		var open = new PriorityQueue<(int X, int Y), int>();
-		var cameFrom = new Dictionary<(int, int), (int, int)>();
-		var gScore = new Dictionary<(int, int), int>();
+		var open = _astarOpen ??= new PriorityQueue<(int X, int Y), int>();
+		var cameFrom = _astarCameFrom ??= new Dictionary<(int, int), (int, int)>();
+		var gScore = _astarGScore ??= new Dictionary<(int, int), int>();
+		open.Clear();
+		cameFrom.Clear();
+		gScore.Clear();
 
 		var start = (sx, sy);
 		var goal = (tx, ty);
@@ -95,9 +106,12 @@ public static class Pathfinding
 
 	private static List<(int, int)>? JPS(int sx, int sy, int tx, int ty, IsWalkableFunc isWalkable)
 	{
-		var open = new PriorityQueue<(int X, int Y), int>();
-		var cameFrom = new Dictionary<(int, int), (int, int)>();
-		var gScore = new Dictionary<(int, int), int>();
+		var open = _jpsOpen ??= new PriorityQueue<(int X, int Y), int>();
+		var cameFrom = _jpsCameFrom ??= new Dictionary<(int, int), (int, int)>();
+		var gScore = _jpsGScore ??= new Dictionary<(int, int), int>();
+		open.Clear();
+		cameFrom.Clear();
+		gScore.Clear();
 
 		var start = (sx, sy);
 		var goal = (tx, ty);

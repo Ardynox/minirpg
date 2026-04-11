@@ -16,15 +16,19 @@ public static class AwarenessModule
 
 	public static AwarenessTurnContext CreateTurnContext(GameState state)
 	{
-		var targets = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false)
-			.Where(static actor => !CombatModule.IsDead(actor))
-			.DistinctBy(static actor => actor.Id)
-			.ToArray();
-		if (targets.Length == 0)
+		var visionActors = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false);
+		var seen = new HashSet<string>(StringComparer.Ordinal);
+		var targets = new List<Actor>();
+		foreach (var actor in visionActors)
+		{
+			if (!CombatModule.IsDead(actor) && seen.Add(actor.Id))
+				targets.Add(actor);
+		}
+		if (targets.Count == 0)
 		{
 			var player = ActorModule.GetPlayer(state);
 			if (player != null && !CombatModule.IsDead(player))
-				targets = [player];
+				targets.Add(player);
 		}
 
 		return new AwarenessTurnContext(targets);
@@ -40,24 +44,53 @@ public static class AwarenessModule
 		AwarenessTurnContext context)
 	{
 		var events = new List<GameEvent>();
-		var playerTargets = context.PlayerTargets
-			.Where(target =>
-				!string.Equals(target.Id, actor.Id, StringComparison.Ordinal)
-				&& !CombatModule.IsDead(target)
-				&& FactionRelation.IsHostile(actor.Faction, target.Faction))
-			.ToArray();
-		if (playerTargets.Length == 0)
+
+		// 找到对该 actor 敌对的 player targets（替代 LINQ 减少分配）
+		Actor? firstHostileTarget = null;
+		var hostileCount = 0;
+		foreach (var target in context.PlayerTargets)
+		{
+			if (string.Equals(target.Id, actor.Id, StringComparison.Ordinal))
+				continue;
+			if (CombatModule.IsDead(target))
+				continue;
+			if (!FactionRelation.IsHostile(actor.Faction, target.Faction))
+				continue;
+			firstHostileTarget ??= target;
+			hostileCount++;
+		}
+		if (hostileCount == 0)
 		{
 			Reset(actor);
 			return events;
 		}
 
-		var visibleTarget = perception.NearbyActors
-			.Where(other => playerTargets.Any(target => string.Equals(target.Id, other.Id, StringComparison.Ordinal)))
-			.OrderBy(other => Distance(actor, other))
-			.FirstOrDefault();
-		var trackedTarget = ResolveTrackedTarget(actor, playerTargets);
-		var currentTarget = visibleTarget ?? trackedTarget;
+		// 找到可见的最近目标
+		Actor? visibleTarget = null;
+		var bestVisDist = int.MaxValue;
+		foreach (var other in perception.NearbyActors)
+		{
+			var isPlayerTarget = false;
+			foreach (var target in context.PlayerTargets)
+			{
+				if (string.Equals(target.Id, other.Id, StringComparison.Ordinal)
+					&& !CombatModule.IsDead(target)
+					&& FactionRelation.IsHostile(actor.Faction, target.Faction))
+				{
+					isPlayerTarget = true;
+					break;
+				}
+			}
+			if (!isPlayerTarget) continue;
+			var dist = Distance(actor, other);
+			if (dist < bestVisDist)
+			{
+				bestVisDist = dist;
+				visibleTarget = other;
+			}
+		}
+		var trackedTarget = ResolveTrackedTarget(actor, context.PlayerTargets);
+		var currentTarget = visibleTarget ?? trackedTarget ?? firstHostileTarget!;
 		if (currentTarget == null)
 		{
 			Reset(actor);
@@ -177,15 +210,22 @@ public static class AwarenessModule
 
 	private static Actor? ResolveTrackedTarget(Actor actor, IReadOnlyList<Actor> playerTargets)
 	{
-		var remembered = playerTargets.FirstOrDefault(target =>
-			string.Equals(target.Id, actor.AlertTargetActorId, StringComparison.Ordinal));
-		if (remembered != null)
-			return remembered;
+		Actor? bestFallback = null;
+		var bestDist = int.MaxValue;
+		foreach (var target in playerTargets)
+		{
+			if (string.Equals(target.Id, actor.AlertTargetActorId, StringComparison.Ordinal))
+				return target;
 
-		return playerTargets
-			.OrderBy(target => Distance(actor, target))
-			.ThenBy(target => target.Id, StringComparer.Ordinal)
-			.FirstOrDefault();
+			var dist = Distance(actor, target);
+			if (dist < bestDist || (dist == bestDist && (bestFallback == null || string.CompareOrdinal(target.Id, bestFallback.Id) < 0)))
+			{
+				bestDist = dist;
+				bestFallback = target;
+			}
+		}
+
+		return bestFallback;
 	}
 
 	private static int Distance(Actor actor, Actor target) =>

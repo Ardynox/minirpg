@@ -40,7 +40,7 @@ public partial class Main
 		if (!IsAutoTestCliEnabled
 			|| _autoTestCliStarted
 			|| _autoTestCliExitRequested
-			|| _startupState != StartupState.Ready
+			|| !ResourcesReady
 			|| _mapRender == null)
 		{
 			return;

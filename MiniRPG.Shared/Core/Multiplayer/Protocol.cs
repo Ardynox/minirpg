@@ -34,6 +34,7 @@ public enum ClientCommandKind
 	EndTurn,
 	UseSkill,
 	EndCombat,
+	Climb,
 }
 
 public enum ServerMessageKind
@@ -177,6 +178,12 @@ public sealed record FacilityDeliverClientCommand() : ClientCommand(ClientComman
 public sealed record FacilityConstructClientCommand() : ClientCommand(ClientCommandKind.FacilityConstruct)
 {
 	public string FacilityId { get; init; } = string.Empty;
+}
+
+public sealed record ClimbClientCommand() : ClientCommand(ClientCommandKind.Climb)
+{
+	/// <summary>Logical Z direction: -1 = up, +1 = down.</summary>
+	public int Dz { get; init; }
 }
 
 public sealed record InteractClientCommand() : ClientCommand(ClientCommandKind.Interact)

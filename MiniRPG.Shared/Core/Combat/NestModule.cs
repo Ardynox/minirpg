@@ -51,7 +51,7 @@ public static class NestModule
 				nest.TurnsSinceSpawn++;
 				if (nest.TurnsSinceSpawn < nest.SpawnInterval) continue;
 
-				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, coord.Cz, nearbyRadius);
+				var nearby = CountNearbyMonsters(state, nest.X, nest.Y, coord.Cz, nearbyRadius, nest.MaxSpawned);
 				if (nearby >= nest.MaxSpawned) continue;
 
 				var slot = FindSpawnSlot(state, nest, coord.Cz, rng);
@@ -87,7 +87,7 @@ public static class NestModule
 		return candidates.Count == 0 ? null : candidates[rng.Next(candidates.Count)];
 	}
 
-	private static int CountNearbyMonsters(GameState state, int cx, int cy, int z, int radius)
+	private static int CountNearbyMonsters(GameState state, int cx, int cy, int z, int radius, int cap)
 	{
 		var count = 0;
 		foreach (var actor in state.Actors.Values)
@@ -97,7 +97,10 @@ public static class NestModule
 			var adx = actor.X - cx;
 			var ady = actor.Y - cy;
 			if (adx >= -radius && adx <= radius && ady >= -radius && ady <= radius)
-				count++;
+			{
+				if (++count >= cap)
+					return count;
+			}
 		}
 		return count;
 	}

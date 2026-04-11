@@ -1,3 +1,4 @@
+global using MiniRPG.Core.AI;
 global using MiniRPG.Core.Combat;
 global using MiniRPG.Core.Config;
 global using MiniRPG.Core.Data;
