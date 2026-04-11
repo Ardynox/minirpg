@@ -154,6 +154,7 @@ public class TileMapRenderModule
 	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
 	public Vector3I? InspectWorldCell { get; set; }
+	public Vector3I? HoverWorldCell { get; set; }
 	public float Zoom => _zoom;
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot;
 	public bool IsIsometricMode => _isometricMode;

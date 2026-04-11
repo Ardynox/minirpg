@@ -59,6 +59,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	];
 
 	private readonly GameState _state = new();
+	private MainRuntimeComposition? _runtime;
 	private Godot.Collections.Array? _startupThreadProgress;
 	private readonly Queue<Action> _postStartupTasks = new();
 
@@ -408,6 +409,52 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			closeAction));
 	}
 
+	private MainRuntimeComposition BuildRuntimeComposition()
+	{
+		var services = new RuntimeServices
+		{
+			State = _state,
+			Session = _session,
+			Log = _log,
+			Input = _inputModule,
+			SessionBackend = _sessionBackend,
+			LocalServerLauncher = _localServerLauncher,
+			FogTracker = _fogTracker,
+			Menu = _menu,
+			Panels = _panels,
+		};
+
+		var uiRefs = new RuntimeUiRefs
+		{
+			MapRender = _mapRender,
+			WorldManager = _worldManager,
+			SettingsPanel = _settingsPanelModule,
+			MultiplayerHub = _multiplayerHub,
+			MultiplayerRoomPanel = _multiplayerRoomPanel,
+			StatusPanel = _statusPanelModule,
+			SkillBar = _skillBar,
+			SkillManager = _skillMgr,
+			Inventory = _inventoryPanel,
+			Ground = _groundPanel,
+			TurnPanel = _turnPanelModule,
+			ChestPanel = _chestPanel,
+			DialogPanel = _dialogPanel,
+			TradePanel = _tradePanel,
+			QuestPanel = _questPanel,
+			ActorInspectPanel = _actorInspectPanel,
+			LimbTargetPanel = _limbTargetPanel,
+		};
+
+		var hooks = new RuntimeHooks
+		{
+			Quit = () => GetTree().Quit(),
+			ShowMainMenuWithCurrentContinue = ShowMainMenuWithCurrentContinue,
+			SetInputHandled = () => GetViewport().SetInputAsHandled(),
+		};
+
+		return MainRuntimeComposition.Create(services, uiRefs, hooks);
+	}
+
 	// ══════════════════════════════════════════════════════
 	//  IGameUI 接口实现
 
@@ -467,8 +514,9 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		if (PlayerDead || ActorModule.GetPlayer(_state) == null || (!_watchModeEnabled && !_timelineAutoAdvancePending))
 			return;
 
+		var autoAdvanceIntervalSeconds = (!_watchModeEnabled && _fastTurnModeEnabled) ? 0.0 : 0.2;
 		_watchTimer += delta;
-		if (_watchTimer < 0.2)
+		if (_watchTimer < autoAdvanceIntervalSeconds)
 			return;
 
 		_watchTimer = 0;
@@ -1205,6 +1253,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_multiplayerHubTemplates = BuildMultiplayerHubTemplates();
 			_settingsFlow.RefreshTexts();
 			SyncSettingsUiState();
+			_runtime = BuildRuntimeComposition();
 			ShowMainMenuWithCurrentContinue();
 			RefreshStartupUi();
 			BeginHeavyStartupLoad();
@@ -5134,6 +5183,7 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 		SyncViewToActiveActor();
 		_mapRender.InspectWorldCell = _inspectModeActive ? _inspectWorldCell : null;
+		_mapRender.HoverWorldCell = _hoverWorldCell;
 		_mapRender.SetEditorView(
 			MapEditorActive,
 			MapEditorActive ? _mapEditor.CameraX : _state.PlayerX,
@@ -5486,6 +5536,8 @@ private static List<InteractionDef> GetNonCombatInteractions(Actor player, Actor
 
 		_hoverWorldCell = cell;
 		RefreshWorldHoverOverlay();
+		if (_session.GameStarted && !_menu.InMenu && RenderReady)
+			FlushMap();
 	}
 
 	private void RefreshWorldHoverOverlay()

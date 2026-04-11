@@ -159,6 +159,7 @@ public enum TimelineInputLockReason
 
 public sealed class TimelineDebugEntry
 {
+	public string ActorId { get; set; } = "";
 	public string ActorName { get; set; } = "";
 	public bool IsPlayer { get; set; }
 	public bool IsCurrent { get; set; }
@@ -185,6 +186,12 @@ public static class TimelineTurnManager
 	public const float ActionThreshold = 100f;
 	private const float MinimumActiveSpeed = 0.05f;
 
+	private sealed class TimelineEvalContext
+	{
+		public Dictionary<string, Actor?> ActorsById { get; } = new(StringComparer.Ordinal);
+		public Dictionary<string, float> SpeedByActorId { get; } = new(StringComparer.Ordinal);
+	}
+
 	public static void Reset(GameState state, bool playerStarts = true)
 	{
 		state.Timeline.Reset();
@@ -204,16 +211,22 @@ public static class TimelineTurnManager
 
 	public static void SyncActors(GameState state)
 	{
-		var liveActorIds = new HashSet<string>(
-			state.Actors.Values
-				.Where(CanParticipateInTimeline)
-				.Select(static actor => actor.Id),
-			StringComparer.Ordinal);
+		var liveActorIds = new HashSet<string>(StringComparer.Ordinal);
+		foreach (var actor in state.Actors.Values)
+		{
+			if (CanParticipateInTimeline(actor))
+				liveActorIds.Add(actor.Id);
+		}
 
 		state.Timeline.Actors.RemoveAll(entry => !liveActorIds.Contains(entry.ActorId));
+
+		var existingActorIds = new HashSet<string>(StringComparer.Ordinal);
+		foreach (var entry in state.Timeline.Actors)
+			existingActorIds.Add(entry.ActorId);
+
 		foreach (var actorId in liveActorIds)
 		{
-			if (FindEntry(state, actorId) == null)
+			if (!existingActorIds.Contains(actorId))
 				state.Timeline.Actors.Add(new TimelineActorState { ActorId = actorId });
 		}
 
@@ -225,7 +238,13 @@ public static class TimelineTurnManager
 
 	public static bool IsPlayerTurn(GameState state)
 	{
-		var actor = EnsureCurrentActor(state);
+		var context = new TimelineEvalContext();
+		return IsPlayerTurn(state, context);
+	}
+
+	private static bool IsPlayerTurn(GameState state, TimelineEvalContext context)
+	{
+		var actor = EnsureCurrentActor(state, context);
 		if (actor == null || !IsPlayerControllable(actor))
 			return false;
 
@@ -261,13 +280,14 @@ public static class TimelineTurnManager
 
 	public static TimelineDebugSnapshot CreateDebugSnapshot(GameState state, bool playerDead, bool? watchModeEnabled = null)
 	{
+		var context = new TimelineEvalContext();
 		SyncActors(state);
 		var resolvedWatchMode = watchModeEnabled ?? false;
 
 		var currentActor = playerDead
-			? TryGetActiveActor(state, state.Timeline.CurrentActorId)
-			: EnsureCurrentActor(state);
-		var lastActor = TryGetActiveActor(state, state.Timeline.LastActorId);
+			? TryGetActiveActor(state, state.Timeline.CurrentActorId, context)
+			: EnsureCurrentActor(state, context);
+		var lastActor = TryGetActiveActor(state, state.Timeline.LastActorId, context);
 		var isPlayerTurn = !playerDead
 			&& currentActor != null
 			&& string.Equals(currentActor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal)
@@ -285,14 +305,15 @@ public static class TimelineTurnManager
 			HasPendingAutoAdvance = hasPendingAutoAdvance,
 			InputLockedReason = ResolveInputLockReason(playerDead, resolvedWatchMode, currentActor, isPlayerTurn),
 			WorldTurn = state.Turn,
-			Entries = BuildDebugEntries(state, currentActor),
+			Entries = BuildDebugEntries(state, currentActor, context),
 		};
 	}
 
 	public static TimelineStepResult SubmitPlayerAction(GameState state, TimelinePlayerAction action)
 	{
+		var context = new TimelineEvalContext();
 		var result = new TimelineStepResult();
-		var actor = EnsureCurrentActor(state);
+		var actor = EnsureCurrentActor(state, context);
 		if (actor == null
 			|| !string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal)
 			|| !IsPlayerControllable(actor))
@@ -305,7 +326,7 @@ public static class TimelineTurnManager
 		if (TryHandleHealthDeath(state, actor, result.Events))
 		{
 			result.ActingActorId = actor.Id;
-			FinalizeActorRemoval(state, actor.Id, watchModeEnabled: false, result);
+			FinalizeActorRemoval(state, actor.Id, watchModeEnabled: false, result, context);
 			return result;
 		}
 
@@ -316,18 +337,19 @@ public static class TimelineTurnManager
 			return result;
 		}
 
-		FinalizeConsumedAction(state, actor.Id, watchModeEnabled: false, result);
+		FinalizeConsumedAction(state, actor.Id, watchModeEnabled: false, result, context);
 		return result;
 	}
 
 	public static TimelineStepResult AdvanceAuto(GameState state, bool watchModeEnabled, bool fastTurnModeEnabled)
 	{
+		var context = new TimelineEvalContext();
 		var aggregate = new TimelineStepResult();
 		var remainingSteps = fastTurnModeEnabled && !watchModeEnabled ? 64 : 1;
 
 		while (remainingSteps-- > 0)
 		{
-			var step = AdvanceAutoSingleStep(state, watchModeEnabled);
+			var step = AdvanceAutoSingleStep(state, watchModeEnabled, context);
 			aggregate.Events.AddRange(step.Events);
 			aggregate.ActingActorId = step.ActingActorId;
 			aggregate.ActionConsumed |= step.ActionConsumed;
@@ -340,10 +362,10 @@ public static class TimelineTurnManager
 		return aggregate;
 	}
 
-	private static TimelineStepResult AdvanceAutoSingleStep(GameState state, bool watchModeEnabled)
+	private static TimelineStepResult AdvanceAutoSingleStep(GameState state, bool watchModeEnabled, TimelineEvalContext context)
 	{
 		var result = new TimelineStepResult();
-		var actor = EnsureCurrentActor(state);
+		var actor = EnsureCurrentActor(state, context);
 		if (actor == null)
 		{
 			result.PlayerTurnReady = false;
@@ -354,7 +376,7 @@ public static class TimelineTurnManager
 		if (TryHandleHealthDeath(state, actor, result.Events))
 		{
 			result.ActingActorId = actor.Id;
-			FinalizeActorRemoval(state, actor.Id, watchModeEnabled, result);
+			FinalizeActorRemoval(state, actor.Id, watchModeEnabled, result, context);
 			return result;
 		}
 
@@ -380,7 +402,7 @@ public static class TimelineTurnManager
 			return result;
 		}
 
-		FinalizeConsumedAction(state, actor.Id, watchModeEnabled, result);
+		FinalizeConsumedAction(state, actor.Id, watchModeEnabled, result, context);
 		return result;
 	}
 
@@ -544,13 +566,20 @@ public static class TimelineTurnManager
 		return result.Consumed;
 	}
 
-	private static void FinalizeConsumedAction(GameState state, string actorId, bool watchModeEnabled, TimelineStepResult result)
+	private static void FinalizeConsumedAction(
+		GameState state,
+		string actorId,
+		bool watchModeEnabled,
+		TimelineStepResult result,
+		TimelineEvalContext context)
 	{
 		result.ActionConsumed = true;
-		ActorModule.GetById(state, actorId)?.TickSkillCooldowns();
+		ResolveActor(state, actorId, context)?.TickSkillCooldowns();
 		result.Events.AddRange(TurnModule.AdvanceWorld(state));
 		ConsumeTurn(state, actorId);
-		result.PlayerTurnReady = IsPlayerTurn(state);
+		context.ActorsById.Clear();
+		context.SpeedByActorId.Clear();
+		result.PlayerTurnReady = IsPlayerTurn(state, context);
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
 	}
 
@@ -565,15 +594,16 @@ public static class TimelineTurnManager
 		SyncActors(state);
 	}
 
-	private static Actor? EnsureCurrentActor(GameState state)
+	private static Actor? EnsureCurrentActor(GameState state, TimelineEvalContext context)
 	{
 		SyncActors(state);
 		if (state.Timeline.CurrentActorId != null)
 		{
-			var current = ActorModule.GetById(state, state.Timeline.CurrentActorId);
+			var current = ResolveActor(state, state.Timeline.CurrentActorId, context);
 			if (current != null && CanParticipateInTimeline(current))
 			{
 				HealthSystem.Sync(current, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, current));
+				context.SpeedByActorId.Remove(current.Id);
 				if (CanParticipateInTimeline(current))
 					return current;
 			}
@@ -581,10 +611,11 @@ public static class TimelineTurnManager
 			state.Timeline.CurrentActorId = null;
 		}
 
-		var ready = PickReadyActor(state);
+		var ready = PickReadyActor(state, context);
 		if (ready != null)
 		{
 			HealthSystem.Sync(ready, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, ready));
+			context.SpeedByActorId.Remove(ready.Id);
 			if (IsActorActive(ready) || HealthSystem.GetFatalCause(ready) != null)
 			{
 				state.Timeline.CurrentActorId = ready.Id;
@@ -592,11 +623,12 @@ public static class TimelineTurnManager
 			}
 		}
 
-		AdvanceCharges(state);
-		ready = PickReadyActor(state);
+		AdvanceCharges(state, context);
+		ready = PickReadyActor(state, context);
 		if (ready != null)
 		{
 			HealthSystem.Sync(ready, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, ready));
+			context.SpeedByActorId.Remove(ready.Id);
 			if (!(IsActorActive(ready) || HealthSystem.GetFatalCause(ready) != null))
 				ready = null;
 		}
@@ -604,52 +636,67 @@ public static class TimelineTurnManager
 		return ready;
 	}
 
-	private static Actor? PickReadyActor(GameState state)
+	private static Actor? PickReadyActor(GameState state, TimelineEvalContext context)
 	{
-		return state.Timeline.Actors
-			.Select(entry => new
+		Actor? bestActor = null;
+		float bestCharge = float.MinValue;
+		float bestSpeed = float.MinValue;
+		var bestWasLast = 1;
+		string? bestId = null;
+
+		foreach (var entry in state.Timeline.Actors)
+		{
+			if (entry.Charge < ActionThreshold)
+				continue;
+
+			var actor = ResolveActor(state, entry.ActorId, context);
+			if (actor == null || !CanParticipateInTimeline(actor))
+				continue;
+
+			var speed = ResolveSpeed(state, actor, context);
+			var wasLast = string.Equals(entry.ActorId, state.Timeline.LastActorId, StringComparison.Ordinal) ? 1 : 0;
+
+			if (bestActor == null
+				|| entry.Charge > bestCharge
+				|| (entry.Charge == bestCharge && speed > bestSpeed)
+				|| (entry.Charge == bestCharge && speed == bestSpeed && wasLast < bestWasLast)
+				|| (entry.Charge == bestCharge && speed == bestSpeed && wasLast == bestWasLast && string.CompareOrdinal(entry.ActorId, bestId) < 0))
 			{
-				Entry = entry,
-				Actor = ActorModule.GetById(state, entry.ActorId),
-			})
-			.Where(item => item.Actor != null && CanParticipateInTimeline(item.Actor) && item.Entry.Charge >= ActionThreshold)
-			.OrderByDescending(item => item.Entry.Charge)
-			.ThenByDescending(item => CalculateSpeed(state, item.Actor!))
-			.ThenBy(item => string.Equals(item.Entry.ActorId, state.Timeline.LastActorId, StringComparison.Ordinal) ? 1 : 0)
-			.ThenBy(item => item.Entry.ActorId, StringComparer.Ordinal)
-			.Select(item => item.Actor)
-			.FirstOrDefault();
+				bestActor = actor;
+				bestCharge = entry.Charge;
+				bestSpeed = speed;
+				bestWasLast = wasLast;
+				bestId = entry.ActorId;
+			}
+		}
+
+		return bestActor;
 	}
 
-	private static void AdvanceCharges(GameState state)
+	private static void AdvanceCharges(GameState state, TimelineEvalContext context)
 	{
-		var candidates = state.Timeline.Actors
-			.Select(entry => new
-			{
-				Entry = entry,
-				Actor = ActorModule.GetById(state, entry.ActorId),
-			})
-			.Where(item => item.Actor != null && CanParticipateInTimeline(item.Actor))
-			.Select(item => new
-			{
-				item.Entry,
-				Speed = CalculateSpeed(state, item.Actor!),
-			})
-			.Where(item => item.Speed > 0f)
-			.ToList();
-
-		if (candidates.Count == 0)
-			return;
-
+		var candidates = new List<(TimelineActorState Entry, float Speed)>();
 		float minDelta = float.MaxValue;
-		foreach (var candidate in candidates)
+
+		foreach (var entry in state.Timeline.Actors)
 		{
-			var remaining = Math.Max(0f, ActionThreshold - candidate.Entry.Charge);
-			var delta = remaining / candidate.Speed;
+			var actor = ResolveActor(state, entry.ActorId, context);
+			if (actor == null || !CanParticipateInTimeline(actor))
+				continue;
+
+			var speed = ResolveSpeed(state, actor, context);
+			if (speed <= 0f)
+				continue;
+
+			candidates.Add((entry, speed));
+			var remaining = Math.Max(0f, ActionThreshold - entry.Charge);
+			var delta = remaining / speed;
 			if (delta < minDelta)
 				minDelta = delta;
 		}
 
+		if (candidates.Count == 0)
+			return;
 		if (!float.IsFinite(minDelta) || minDelta <= 0f)
 			return;
 
@@ -660,47 +707,72 @@ public static class TimelineTurnManager
 	private static TimelineActorState? FindEntry(GameState state, string actorId) =>
 		state.Timeline.Actors.FirstOrDefault(entry => string.Equals(entry.ActorId, actorId, StringComparison.Ordinal));
 
-	private static List<TimelineDebugEntry> BuildDebugEntries(GameState state, Actor? currentActor)
+	private static List<TimelineDebugEntry> BuildDebugEntries(GameState state, Actor? currentActor, TimelineEvalContext context)
 	{
-		return state.Timeline.Actors
-			.Select(entry => new
+		var entries = new List<TimelineDebugEntry>(capacity: Math.Min(4, state.Timeline.Actors.Count));
+		foreach (var entry in state.Timeline.Actors)
+		{
+			var actor = ResolveActor(state, entry.ActorId, context);
+			if (actor == null || !CanParticipateInTimeline(actor))
+				continue;
+
+			var isCurrent = currentActor != null && string.Equals(actor.Id, currentActor.Id, StringComparison.Ordinal);
+			var speed = ResolveSpeed(state, actor, context);
+			var eta = isCurrent ? 0f : CalculateEtaToAct(entry.Charge, speed);
+			entries.Add(new TimelineDebugEntry
 			{
-				Entry = entry,
-				Actor = ActorModule.GetById(state, entry.ActorId),
-			})
-			.Where(item => item.Actor != null && CanParticipateInTimeline(item.Actor))
-			.Select(item =>
-			{
-				var actor = item.Actor!;
-				var isCurrent = currentActor != null && string.Equals(actor.Id, currentActor.Id, StringComparison.Ordinal);
-				var speed = CalculateSpeed(state, actor);
-				var eta = isCurrent ? 0f : CalculateEtaToAct(item.Entry.Charge, speed);
-				return new
-				{
-					Actor = actor,
-					IsCurrent = isCurrent,
-					IsLast = string.Equals(actor.Id, state.Timeline.LastActorId, StringComparison.Ordinal),
-					Charge = item.Entry.Charge,
-					Speed = speed,
-					Eta = eta,
-				};
-			})
-			.OrderByDescending(item => item.IsCurrent)
-			.ThenBy(item => item.Eta)
-			.ThenByDescending(item => item.Speed)
-			.ThenBy(item => item.Actor.Id, StringComparer.Ordinal)
-			.Take(4)
-			.Select(item => new TimelineDebugEntry
-			{
-				ActorName = GetActorDisplayName(item.Actor),
-				IsPlayer = PartyModule.IsPartyMember(state, item.Actor.Id),
-				IsCurrent = item.IsCurrent,
-				IsLast = item.IsLast,
-				Charge = item.Charge,
-				Speed = item.Speed,
-				EtaToAct = item.Eta,
-			})
-			.ToList();
+				ActorId = actor.Id,
+				ActorName = GetActorDisplayName(actor),
+				IsPlayer = PartyModule.IsPartyMember(state, actor.Id),
+				IsCurrent = isCurrent,
+				IsLast = string.Equals(actor.Id, state.Timeline.LastActorId, StringComparison.Ordinal),
+				Charge = entry.Charge,
+				Speed = speed,
+				EtaToAct = eta,
+			});
+		}
+
+		entries.Sort(static (left, right) => CompareDebugEntries(left, right));
+		if (entries.Count > 4)
+			entries.RemoveRange(4, entries.Count - 4);
+		return entries;
+	}
+
+	private static int CompareDebugEntries(TimelineDebugEntry left, TimelineDebugEntry right)
+	{
+		var currentCompare = right.IsCurrent.CompareTo(left.IsCurrent);
+		if (currentCompare != 0)
+			return currentCompare;
+
+		var etaCompare = left.EtaToAct.CompareTo(right.EtaToAct);
+		if (etaCompare != 0)
+			return etaCompare;
+
+		var speedCompare = right.Speed.CompareTo(left.Speed);
+		if (speedCompare != 0)
+			return speedCompare;
+
+		return string.CompareOrdinal(left.ActorId, right.ActorId);
+	}
+
+	private static Actor? ResolveActor(GameState state, string actorId, TimelineEvalContext context)
+	{
+		if (context.ActorsById.TryGetValue(actorId, out var cachedActor))
+			return cachedActor;
+
+		var actor = ActorModule.GetById(state, actorId);
+		context.ActorsById[actorId] = actor;
+		return actor;
+	}
+
+	private static float ResolveSpeed(GameState state, Actor actor, TimelineEvalContext context)
+	{
+		if (context.SpeedByActorId.TryGetValue(actor.Id, out var cachedSpeed))
+			return cachedSpeed;
+
+		var speed = CalculateSpeed(state, actor);
+		context.SpeedByActorId[actor.Id] = speed;
+		return speed;
 	}
 
 	private static float CalculateEtaToAct(float charge, float speed)
@@ -745,12 +817,12 @@ public static class TimelineTurnManager
 			: TimelineInputLockReason.OtherActorsActing;
 	}
 
-	private static Actor? TryGetActiveActor(GameState state, string? actorId)
+	private static Actor? TryGetActiveActor(GameState state, string? actorId, TimelineEvalContext context)
 	{
 		if (string.IsNullOrEmpty(actorId))
 			return null;
 
-		var actor = ActorModule.GetById(state, actorId);
+		var actor = ResolveActor(state, actorId, context);
 		return actor != null && CanParticipateInTimeline(actor) ? actor : null;
 	}
 
@@ -794,13 +866,20 @@ public static class TimelineTurnManager
 		return true;
 	}
 
-	private static void FinalizeActorRemoval(GameState state, string actorId, bool watchModeEnabled, TimelineStepResult result)
+	private static void FinalizeActorRemoval(
+		GameState state,
+		string actorId,
+		bool watchModeEnabled,
+		TimelineStepResult result,
+		TimelineEvalContext context)
 	{
 		result.ActionConsumed = true;
 		state.Timeline.CurrentActorId = null;
 		state.Timeline.LastActorId = actorId;
 		SyncActors(state);
-		result.PlayerTurnReady = IsPlayerTurn(state);
+		context.ActorsById.Clear();
+		context.SpeedByActorId.Clear();
+		result.PlayerTurnReady = IsPlayerTurn(state, context);
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
 	}
 

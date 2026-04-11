@@ -19,6 +19,9 @@ public sealed class TurnPanelModule
 	private readonly RichTextLabel _turnLabel;
 	private readonly RichTextLabel _renderModeLabel;
 	private readonly HBoxContainer _queueFlow;
+	private readonly List<PanelContainer> _queueChipPool = [];
+	private readonly List<RichTextLabel> _queueChipLabels = [];
+	private readonly List<ProgressBar> _queueChipBars = [];
 
 	/// <summary>队列中最多显示的角色数（避免溢出）。</summary>
 	private const int MaxQueueSlots = 8;
@@ -101,73 +104,122 @@ public sealed class TurnPanelModule
 
 	private void RenderQueue(TimelineDebugSnapshot snapshot)
 	{
-		// 清除旧的队列子节点
-		foreach (var child in _queueFlow.GetChildren())
-		{
-			child.QueueFree();
-		}
-
+		var visibleCount = 0;
 		if (snapshot.Entries.Count == 0)
 		{
-			var empty = CreateQueueChip(
+			ConfigureChip(
+				EnsureQueueChip(visibleCount),
 				LocalizationService.T("ui.turn_panel.queue.empty"),
-				UIColors.HexDim, isCurrent: false);
-			_queueFlow.AddChild(empty);
-			return;
+				UIColors.HexDim,
+				isCurrent: false,
+				chargePct: 0f,
+				showBar: false);
+			visibleCount++;
+		}
+		else
+		{
+			var count = Math.Min(snapshot.Entries.Count, MaxQueueSlots);
+			for (var i = 0; i < count; i++)
+			{
+				var entry = snapshot.Entries[i];
+				var hex = entry.IsCurrent ? UIColors.HexSelected
+					: entry.IsLast ? UIColors.HexDim
+					: UIColors.HexNormal;
+				var charge = (int)MathF.Round(entry.Charge);
+				var pct = MathF.Min(charge / TimelineTurnManager.ActionThreshold, 1f);
+				var label = entry.IsPlayer ? $"{entry.ActorName}★" : entry.ActorName;
+				var showBar = pct > 0.01f;
+
+				ConfigureChip(
+					EnsureQueueChip(visibleCount),
+					label,
+					hex,
+					entry.IsCurrent,
+					pct,
+					showBar);
+				visibleCount++;
+			}
+
+			if (snapshot.Entries.Count > MaxQueueSlots)
+			{
+				ConfigureChip(
+					EnsureQueueChip(visibleCount),
+					$"+{snapshot.Entries.Count - MaxQueueSlots}",
+					UIColors.HexDim,
+					isCurrent: false,
+					chargePct: 0f,
+					showBar: false);
+				visibleCount++;
+			}
 		}
 
-		var count = Math.Min(snapshot.Entries.Count, MaxQueueSlots);
-		for (int i = 0; i < count; i++)
+		HideUnusedQueueChips(visibleCount);
+	}
+
+	private PanelContainer EnsureQueueChip(int index)
+	{
+		while (_queueChipPool.Count <= index)
 		{
-			var entry = snapshot.Entries[i];
-			var hex = entry.IsCurrent ? UIColors.HexSelected
-				: entry.IsLast ? UIColors.HexDim
-				: UIColors.HexNormal;
-
-			var charge = (int)MathF.Round(entry.Charge);
-			var pct = MathF.Min(charge / TimelineTurnManager.ActionThreshold, 1f);
-			var label = entry.IsPlayer
-				? $"{entry.ActorName}★"
-				: entry.ActorName;
-
-			var chip = CreateQueueChip(label, hex, entry.IsCurrent, pct);
+			var (chip, label, bar) = CreateQueueChip();
+			_queueChipPool.Add(chip);
+			_queueChipLabels.Add(label);
+			_queueChipBars.Add(bar);
 			_queueFlow.AddChild(chip);
 		}
 
-		// 溢出指示
-		if (snapshot.Entries.Count > MaxQueueSlots)
-		{
-			var more = CreateQueueChip(
-				$"+{snapshot.Entries.Count - MaxQueueSlots}",
-				UIColors.HexDim, isCurrent: false);
-			_queueFlow.AddChild(more);
-		}
+		var target = _queueChipPool[index];
+		target.Visible = true;
+		if (target.GetParent() != _queueFlow)
+			_queueFlow.AddChild(target);
+		_queueFlow.MoveChild(target, index);
+		return target;
 	}
 
-	/// <summary>
-	/// 创建一个队列名片：小型 PanelContainer 内含 RichTextLabel。
-	/// 当前行动者用金色边框高亮。底部有充能进度条。
-	/// </summary>
-	private static PanelContainer CreateQueueChip(
-		string text, string colorHex, bool isCurrent, float chargePct = 0f)
+	private void HideUnusedQueueChips(int visibleCount)
 	{
-		var chip = new PanelContainer();
-		chip.CustomMinimumSize = new Vector2(0, 24);
+		for (var i = visibleCount; i < _queueChipPool.Count; i++)
+			_queueChipPool[i].Visible = false;
+	}
 
-		// 背景样式
-		var style = new StyleBoxFlat();
-		style.BgColor = isCurrent
-			? new Color(0.18f, 0.15f, 0.08f, 0.9f)   // 金色底
-			: new Color(0.1f, 0.1f, 0.16f, 0.7f);     // 暗底
-		style.CornerRadiusBottomLeft = 3;
-		style.CornerRadiusBottomRight = 3;
-		style.CornerRadiusTopLeft = 3;
-		style.CornerRadiusTopRight = 3;
-		style.ContentMarginLeft = 6;
-		style.ContentMarginRight = 6;
-		style.ContentMarginTop = 1;
-		style.ContentMarginBottom = 1;
+	private void ConfigureChip(
+		PanelContainer chip,
+		string text,
+		string colorHex,
+		bool isCurrent,
+		float chargePct,
+		bool showBar)
+	{
+		var index = _queueChipPool.IndexOf(chip);
+		if (index < 0)
+			return;
 
+		ApplyChipStyle(chip, isCurrent);
+		var label = _queueChipLabels[index];
+		label.Clear();
+		label.AppendText($"[color={colorHex}]{text}[/color]");
+
+		var bar = _queueChipBars[index];
+		bar.Visible = showBar;
+		if (showBar)
+			bar.Value = Math.Clamp(chargePct, 0f, 1f);
+	}
+
+	private static void ApplyChipStyle(PanelContainer chip, bool isCurrent)
+	{
+		var style = new StyleBoxFlat
+		{
+			BgColor = isCurrent
+				? new Color(0.18f, 0.15f, 0.08f, 0.9f)
+				: new Color(0.1f, 0.1f, 0.16f, 0.7f),
+			CornerRadiusBottomLeft = 3,
+			CornerRadiusBottomRight = 3,
+			CornerRadiusTopLeft = 3,
+			CornerRadiusTopRight = 3,
+			ContentMarginLeft = 6,
+			ContentMarginRight = 6,
+			ContentMarginTop = 1,
+			ContentMarginBottom = 1,
+		};
 		if (isCurrent)
 		{
 			style.BorderWidthBottom = 2;
@@ -175,53 +227,59 @@ public sealed class TurnPanelModule
 		}
 
 		chip.AddThemeStyleboxOverride("panel", style);
+	}
 
-		// 内容布局
+	private static (PanelContainer Chip, RichTextLabel Label, ProgressBar Bar) CreateQueueChip()
+	{
+		var chip = new PanelContainer
+		{
+			CustomMinimumSize = new Vector2(0, 24),
+			Visible = false,
+		};
+		ApplyChipStyle(chip, isCurrent: false);
+
 		var vbox = new VBoxContainer();
 		vbox.AddThemeConstantOverride("separation", 0);
 		chip.AddChild(vbox);
 
-		// 名称标签
-		var label = new RichTextLabel();
-		label.BbcodeEnabled = true;
-		label.FitContent = true;
-		label.ScrollActive = false;
-		label.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
-		label.AppendText($"[color={colorHex}]{text}[/color]");
+		var label = new RichTextLabel
+		{
+			BbcodeEnabled = true,
+			FitContent = true,
+			ScrollActive = false,
+			SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+		};
 		vbox.AddChild(label);
 
-		// 充能进度条（仅在有数据时显示）
-		if (chargePct > 0.01f)
+		var bar = new ProgressBar
 		{
-			var bar = new ProgressBar();
-			bar.CustomMinimumSize = new Vector2(0, 2);
-			bar.MaxValue = 1.0;
-			bar.Value = chargePct;
-			bar.ShowPercentage = false;
-			bar.SizeFlagsHorizontal = Control.SizeFlags.Fill;
+			CustomMinimumSize = new Vector2(0, 2),
+			MaxValue = 1.0,
+			Value = 0.0,
+			ShowPercentage = false,
+			SizeFlagsHorizontal = Control.SizeFlags.Fill,
+			Visible = false,
+		};
+		var barBg = new StyleBoxFlat
+		{
+			BgColor = new Color(0.15f, 0.15f, 0.2f),
+			CornerRadiusBottomLeft = 1,
+			CornerRadiusBottomRight = 1,
+			CornerRadiusTopLeft = 1,
+			CornerRadiusTopRight = 1,
+		};
+		bar.AddThemeStyleboxOverride("background", barBg);
+		var barFill = new StyleBoxFlat
+		{
+			BgColor = new Color(0.4f, 0.4f, 0.5f),
+			CornerRadiusBottomLeft = 1,
+			CornerRadiusBottomRight = 1,
+			CornerRadiusTopLeft = 1,
+			CornerRadiusTopRight = 1,
+		};
+		bar.AddThemeStyleboxOverride("fill", barFill);
+		vbox.AddChild(bar);
 
-			// 进度条样式
-			var barBg = new StyleBoxFlat();
-			barBg.BgColor = new Color(0.15f, 0.15f, 0.2f);
-			barBg.CornerRadiusBottomLeft = 1;
-			barBg.CornerRadiusBottomRight = 1;
-			barBg.CornerRadiusTopLeft = 1;
-			barBg.CornerRadiusTopRight = 1;
-			bar.AddThemeStyleboxOverride("background", barBg);
-
-			var barFill = new StyleBoxFlat();
-			barFill.BgColor = isCurrent
-				? UIColors.FocusBorder
-				: new Color(0.4f, 0.4f, 0.5f);
-			barFill.CornerRadiusBottomLeft = 1;
-			barFill.CornerRadiusBottomRight = 1;
-			barFill.CornerRadiusTopLeft = 1;
-			barFill.CornerRadiusTopRight = 1;
-			bar.AddThemeStyleboxOverride("fill", barFill);
-
-			vbox.AddChild(bar);
-		}
-
-		return chip;
+		return (chip, label, bar);
 	}
 }
