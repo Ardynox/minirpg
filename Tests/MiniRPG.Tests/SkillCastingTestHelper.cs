@@ -97,9 +97,12 @@ internal static class SkillCastingTestHelper
 
 		public void GenerateChunk(ChunkData chunk, int worldSeed)
 		{
-			chunk.Fill(chunk.Coord.Cz == 0
+			var id = chunk.Coord.Cz == 0
 				? TerrainRegistry.GetId(Terrains.Floor)
-				: TerrainRegistry.GetId(Terrains.WallStone));
+				: chunk.Coord.Cz > 0
+					? TerrainRegistry.GetId(Terrains.WallStone)
+					: TerrainRegistry.GetId(Terrains.Air);
+			chunk.Fill(id);
 		}
 
 		public void PopulateChunk(ChunkData chunk, int worldSeed)

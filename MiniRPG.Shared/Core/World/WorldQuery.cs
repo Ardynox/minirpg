@@ -48,8 +48,25 @@ public class WorldQuery
 	public bool IsWalkable(int x, int y, int z) =>
 		!IsSolid(x, y, z) && _facilities.IsPassable(x, y, z);
 
-	public bool IsWeatherExposed(int x, int y, int z) =>
-		z == 0 && !BlocksSight(x, y, z);
+	/// <summary>
+	/// 该格是否暴露在天空下：自身非实心，且向上（z-1 方向）无实心方块遮挡。
+	/// </summary>
+	public bool IsWeatherExposed(int x, int y, int z)
+	{
+		if (BlocksSight(x, y, z))
+			return false;
+
+		const int maxScanLayers = 16;
+		for (var checkZ = z - 1; checkZ >= z - maxScanLayers; checkZ--)
+		{
+			var id = _terrain.GetTerrainId(x, y, checkZ);
+			if (id == 0) return true; // void = world boundary = sky
+			if (TerrainRegistry.Get(id).Solid)
+				return false;
+		}
+
+		return true;
+	}
 
 	public bool CanTraverseVertical(int x, int y, int z, bool goDown)
 	{

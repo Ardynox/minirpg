@@ -96,7 +96,7 @@ public class FogOfWarTracker
 		{
 			var sight = Math.Max(0f, actor.GetCapacity(Caps.Sight));
 			var baseRadius = BaseVisionRadius;
-			if (actor.Z == 0 && world.IsWeatherExposed(actor.X, actor.Y, actor.Z))
+			if (world.IsWeatherExposed(actor.X, actor.Y, actor.Z))
 			{
 				var weather = WeatherRules.GetLocalWeather(state, actor.X, actor.Y, actor.Z);
 				baseRadius = Math.Max(1, (int)MathF.Round(baseRadius * WeatherRules.GetVisionMultiplier(weather)));
