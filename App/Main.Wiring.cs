@@ -95,25 +95,18 @@ public partial class Main
 			}
 			_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
 		};
-		_mapEditorBar.CategorySelected += category =>
-		{
-			_mapEditor.SelectCategory(category);
-			RefreshMapEditorBar();
-			FlushMap();
-		};
-		_mapEditorBar.BrushSelected += index =>
-		{
-			_mapEditor.SelectBrush(index);
-			RefreshMapEditorBar();
-			FlushMap();
-		};
+		_mapEditorBar.CategorySelected += category => _mapEditorCoordinator.SelectCategory(category);
+		_mapEditorBar.BrushSelected += index => _mapEditorCoordinator.SelectBrush(index);
+		_mapEditorBar.UndoRequested += () => _mapEditorCoordinator.HandleUndo();
+		_mapEditorBar.RedoRequested += () => _mapEditorCoordinator.HandleRedo();
+		_mapEditorBar.TimeOfDayChanged += turn => _mapEditorCoordinator.HandleTimeOfDayChanged(turn);
+		_mapEditorBar.WeatherTypeChanged += index => _mapEditorCoordinator.HandleWeatherTypeChanged(index);
+		_mapEditorBar.WeatherIntensityChanged += index => _mapEditorCoordinator.HandleWeatherIntensityChanged(index);
+		_mapEditorBar.LightingProfileChanged += index => _mapEditorCoordinator.HandleLightingProfileChanged(index);
 		_mapEditorBar.SaveRequested += HandleMapEditorSaveRequested;
 		_mapEditorBar.ExitRequested += () => ExitMapEditor();
-		_mapEditorBar.CenterRequested += () =>
-		{
-			_mapEditor.CenterOnPlayer();
-			FlushMap();
-		};
+		_mapEditorBar.CenterRequested += () => _mapEditorCoordinator.CenterOnPlayer();
+		_mapEditorBar.HeightChanged += delta => _mapEditorCoordinator.HandleHeightChanged(delta);
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;

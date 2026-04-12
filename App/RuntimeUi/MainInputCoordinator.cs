@@ -131,8 +131,11 @@ internal sealed class MainInputCoordinator(
 		if (snapshot.MapEditorActive)
 		{
 			if (_handleMapEditorInput(inputEvent))
+			{
 				_markInputHandled();
-			return true;
+				return true;
+			}
+			return isKeyEvent;
 		}
 
 		if (_handleGameplayMouseInput(inputEvent, snapshot))

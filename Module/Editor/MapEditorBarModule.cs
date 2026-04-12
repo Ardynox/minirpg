@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using MiniRPG.Core.Config;
+using MiniRPG.Core.Weather;
 
 namespace MiniRPG.Module.Editor;
 
@@ -11,15 +12,63 @@ public sealed class MapEditorBarModule
 	private readonly Label _titleLabel;
 	private readonly Button _terrainButton;
 	private readonly Button _fixtureButton;
-	private readonly OptionButton _brushSelect;
+	private readonly Button _environmentButton;
+	private readonly ScrollContainer _brushScroll;
+	private readonly GridContainer _brushGrid;
 	private readonly Label _currentBrushLabel;
+	private readonly VBoxContainer _environmentControls;
+	private readonly HSlider _timeSlider;
+	private readonly OptionButton _weatherSelect;
+	private readonly OptionButton _intensitySelect;
+	private readonly OptionButton _lightingSelect;
+	private readonly Label _infoBar;
+	private readonly Button _undoButton;
+	private readonly Button _redoButton;
+	private readonly Label _historyCountLabel;
+	private readonly Button _heightDownButton;
+	private readonly Label _heightLabel;
+	private readonly Button _heightUpButton;
 	private readonly Label _hintLabel;
 	private readonly Button _centerButton;
 	private readonly Button _saveButton;
 	private readonly Button _exitButton;
-	private bool _suppressBrushChange;
+
 	private IReadOnlyList<MapEditorBrush> _lastBrushes = Array.Empty<MapEditorBrush>();
 	private int _lastSelectedIndex = -1;
+	private bool _suppressEvents;
+
+	// ── Terrain color swatches (matches IsometricVoxelRenderer.TerrainColors) ──
+	private static readonly Dictionary<string, Color> TerrainSwatchColors = new()
+	{
+		["grass_block"] = new Color(0.3f, 0.7f, 0.2f),
+		["grass"] = new Color(0.3f, 0.7f, 0.2f),
+		["dirt"] = new Color(0.55f, 0.35f, 0.15f),
+		["stone"] = new Color(0.5f, 0.5f, 0.5f),
+		["sand"] = new Color(0.9f, 0.85f, 0.6f),
+		["water"] = new Color(0.2f, 0.4f, 0.8f),
+		["mountain"] = new Color(0.4f, 0.4f, 0.45f),
+		["wall_stone"] = new Color(0.45f, 0.45f, 0.45f),
+		["wall_soil"] = new Color(0.5f, 0.3f, 0.15f),
+		["wall_granite"] = new Color(0.35f, 0.35f, 0.38f),
+		["wall_obsidian"] = new Color(0.15f, 0.12f, 0.18f),
+		["wall_iron"] = new Color(0.55f, 0.55f, 0.6f),
+		["tree"] = new Color(0.15f, 0.45f, 0.1f),
+		["lava"] = new Color(1.0f, 0.3f, 0.0f),
+		["snow"] = new Color(0.95f, 0.95f, 1.0f),
+		["ice"] = new Color(0.7f, 0.85f, 1.0f),
+		["floor"] = new Color(0.6f, 0.55f, 0.45f),
+		["rubble"] = new Color(0.5f, 0.45f, 0.35f),
+		["swamp"] = new Color(0.3f, 0.45f, 0.2f),
+		["marsh"] = new Color(0.35f, 0.5f, 0.3f),
+		["gravel"] = new Color(0.6f, 0.58f, 0.55f),
+		["fungus"] = new Color(0.5f, 0.3f, 0.5f),
+		["crystal_vein"] = new Color(0.6f, 0.4f, 0.8f),
+		["ore_coal"] = new Color(0.2f, 0.2f, 0.2f),
+		["ore_iron"] = new Color(0.55f, 0.45f, 0.35f),
+		["ore_copper"] = new Color(0.7f, 0.45f, 0.2f),
+	};
+
+	private static readonly Color DefaultSwatchColor = new(0.5f, 0.5f, 0.5f);
 
 	public MapEditorBarModule(PanelContainer panel)
 	{
@@ -29,8 +78,24 @@ public sealed class MapEditorBarModule
 		var categoryRow = root.GetNode<HBoxContainer>("CategoryRow");
 		_terrainButton = categoryRow.GetNode<Button>("TerrainBtn");
 		_fixtureButton = categoryRow.GetNode<Button>("FixtureBtn");
-		_brushSelect = root.GetNode<OptionButton>("BrushSelect");
+		_environmentButton = categoryRow.GetNode<Button>("EnvironmentBtn");
+		_brushScroll = root.GetNode<ScrollContainer>("BrushScroll");
+		_brushGrid = root.GetNode<GridContainer>("BrushScroll/BrushGrid");
 		_currentBrushLabel = root.GetNode<Label>("CurrentBrush");
+		_environmentControls = root.GetNode<VBoxContainer>("EnvironmentControls");
+		_timeSlider = _environmentControls.GetNode<HSlider>("TimeSlider");
+		_weatherSelect = _environmentControls.GetNode<OptionButton>("WeatherSelect");
+		_intensitySelect = _environmentControls.GetNode<OptionButton>("IntensitySelect");
+		_lightingSelect = _environmentControls.GetNode<OptionButton>("LightingSelect");
+		_infoBar = root.GetNode<Label>("InfoBar");
+		var undoRedoRow = root.GetNode<HBoxContainer>("UndoRedoRow");
+		_undoButton = undoRedoRow.GetNode<Button>("UndoBtn");
+		_redoButton = undoRedoRow.GetNode<Button>("RedoBtn");
+		_historyCountLabel = undoRedoRow.GetNode<Label>("HistoryCount");
+		var heightRow = root.GetNode<HBoxContainer>("HeightRow");
+		_heightDownButton = heightRow.GetNode<Button>("HeightDownBtn");
+		_heightLabel = heightRow.GetNode<Label>("HeightLabel");
+		_heightUpButton = heightRow.GetNode<Button>("HeightUpBtn");
 		_hintLabel = root.GetNode<Label>("Hint");
 		var actions = root.GetNode<HBoxContainer>("Actions");
 		_centerButton = actions.GetNode<Button>("CenterBtn");
@@ -39,18 +104,38 @@ public sealed class MapEditorBarModule
 
 		_terrainButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Terrain);
 		_fixtureButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Fixture);
-		_brushSelect.ItemSelected += index =>
-		{
-			if (_suppressBrushChange)
-				return;
-
-			BrushSelected?.Invoke((int)index);
-		};
+		_environmentButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Environment);
+		_undoButton.Pressed += () => UndoRequested?.Invoke();
+		_redoButton.Pressed += () => RedoRequested?.Invoke();
+		_heightDownButton.Pressed += () => HeightChanged?.Invoke(1);
+		_heightUpButton.Pressed += () => HeightChanged?.Invoke(-1);
 		_centerButton.Pressed += () => CenterRequested?.Invoke();
 		_saveButton.Pressed += () => SaveRequested?.Invoke();
 		_exitButton.Pressed += () => ExitRequested?.Invoke();
+
+		_timeSlider.ValueChanged += value =>
+		{
+			if (!_suppressEvents) TimeOfDayChanged?.Invoke((int)value);
+		};
+		_weatherSelect.ItemSelected += index =>
+		{
+			if (!_suppressEvents) WeatherTypeChanged?.Invoke((int)index);
+		};
+		_intensitySelect.ItemSelected += index =>
+		{
+			if (!_suppressEvents) WeatherIntensityChanged?.Invoke((int)index);
+		};
+		_lightingSelect.ItemSelected += index =>
+		{
+			if (!_suppressEvents) LightingProfileChanged?.Invoke((int)index);
+		};
+
+		InitializeEnvironmentDropdowns();
 		RefreshTexts();
 	}
+
+	public bool IsPointerOver(Vector2 globalPos)
+		=> _panel.Visible && _panel.GetGlobalRect().HasPoint(globalPos);
 
 	public bool Visible
 	{
@@ -58,11 +143,19 @@ public sealed class MapEditorBarModule
 		set => _panel.Visible = value;
 	}
 
+	// ── Events ──
 	public event Action<MapEditorBrushCategory>? CategorySelected;
 	public event Action<int>? BrushSelected;
+	public event Action? UndoRequested;
+	public event Action? RedoRequested;
 	public event Action? SaveRequested;
 	public event Action? ExitRequested;
 	public event Action? CenterRequested;
+	public event Action<int>? HeightChanged;
+	public event Action<int>? TimeOfDayChanged;
+	public event Action<int>? WeatherTypeChanged;
+	public event Action<int>? WeatherIntensityChanged;
+	public event Action<int>? LightingProfileChanged;
 
 	public void Open(bool showCenterButton)
 	{
@@ -80,10 +173,14 @@ public sealed class MapEditorBarModule
 		_titleLabel.Text = LocalizationService.T("ui.map_editor.title");
 		_terrainButton.Text = LocalizationService.T("ui.map_editor.category.terrain");
 		_fixtureButton.Text = LocalizationService.T("ui.map_editor.category.fixture");
-		_hintLabel.Text = LocalizationService.T("ui.map_editor.hint");
+		_environmentButton.Text = LocalizationService.TOrFallback("ui.map_editor.category.environment", "Environment");
+		_hintLabel.Text = LocalizationService.TOrFallback("ui.map_editor.hint.v2",
+			"LMB: Place  RMB: Erase  Scroll: Cycle\nTab: Category  Ctrl+Z/Y: Undo/Redo");
 		_centerButton.Text = LocalizationService.T("ui.map_editor.center");
 		_saveButton.Text = LocalizationService.T("ui.map_editor.save");
 		_exitButton.Text = LocalizationService.T("ui.map_editor.exit");
+		_undoButton.Text = LocalizationService.TOrFallback("ui.map_editor.undo", "Undo");
+		_redoButton.Text = LocalizationService.TOrFallback("ui.map_editor.redo", "Redo");
 		UpdateCurrentBrushLabel();
 	}
 
@@ -96,34 +193,124 @@ public sealed class MapEditorBarModule
 		_lastSelectedIndex = selectedIndex;
 		_terrainButton.ButtonPressed = category == MapEditorBrushCategory.Terrain;
 		_fixtureButton.ButtonPressed = category == MapEditorBrushCategory.Fixture;
+		_environmentButton.ButtonPressed = category == MapEditorBrushCategory.Environment;
 
-		_suppressBrushChange = true;
-		_brushSelect.Clear();
+		var isBrushCategory = category is MapEditorBrushCategory.Terrain or MapEditorBrushCategory.Fixture;
+		_brushScroll.Visible = isBrushCategory;
+		_environmentControls.Visible = category == MapEditorBrushCategory.Environment;
+
+		if (isBrushCategory)
+			RebuildBrushGrid(brushes, selectedIndex, category);
+
+		UpdateCurrentBrushLabel();
+	}
+
+	public void UpdateInfo(int cameraX, int cameraY, int cameraZ, bool canUndo, bool canRedo, int undoCount)
+	{
+		_infoBar.Text = $"X: {cameraX}  Y: {cameraY}  Z: {cameraZ}";
+		_undoButton.Disabled = !canUndo;
+		_redoButton.Disabled = !canRedo;
+		_historyCountLabel.Text = undoCount.ToString();
+	}
+
+	public void UpdateHeight(int z)
+	{
+		_heightLabel.Text = $"Z: {z}";
+	}
+
+	public void SetEnvironmentState(int timeOfDay, int weatherTypeIndex, int intensityIndex, int lightingIndex)
+	{
+		_suppressEvents = true;
+		_timeSlider.Value = timeOfDay;
+		if (weatherTypeIndex >= 0 && weatherTypeIndex < _weatherSelect.ItemCount)
+			_weatherSelect.Select(weatherTypeIndex);
+		if (intensityIndex >= 0 && intensityIndex < _intensitySelect.ItemCount)
+			_intensitySelect.Select(intensityIndex);
+		if (lightingIndex >= 0 && lightingIndex < _lightingSelect.ItemCount)
+			_lightingSelect.Select(lightingIndex);
+		_suppressEvents = false;
+	}
+
+	// ── Private ──
+
+	private void RebuildBrushGrid(IReadOnlyList<MapEditorBrush> brushes, int selectedIndex, MapEditorBrushCategory category)
+	{
+		// Clear existing buttons
+		foreach (var child in _brushGrid.GetChildren())
+			child.QueueFree();
+
+		var clampedIndex = brushes.Count > 0 ? Math.Clamp(selectedIndex, 0, brushes.Count - 1) : -1;
+
 		for (var i = 0; i < brushes.Count; i++)
-			_brushSelect.AddItem(brushes[i].Label);
+		{
+			var brush = brushes[i];
+			var btn = new Button
+			{
+				CustomMinimumSize = new Vector2(48, 48),
+				ToggleMode = true,
+				ButtonPressed = i == clampedIndex,
+				TooltipText = brush.Label,
+				ClipText = true,
+			};
 
-		if (brushes.Count > 0)
-		{
-			var clampedIndex = Math.Clamp(selectedIndex, 0, brushes.Count - 1);
-			_brushSelect.Select(clampedIndex);
-			_currentBrushLabel.Text = LocalizationService.T("ui.map_editor.current_brush", ("brush", brushes[clampedIndex].Label));
+			if (category == MapEditorBrushCategory.Terrain)
+			{
+				// Color swatch for terrain
+				var color = TerrainSwatchColors.GetValueOrDefault(brush.Id, DefaultSwatchColor);
+				var styleNormal = new StyleBoxFlat { BgColor = color, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4 };
+				var stylePressed = new StyleBoxFlat { BgColor = color, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, BorderColor = new Color(1f, 0.85f, 0.3f), BorderWidthBottom = 3, BorderWidthTop = 3, BorderWidthLeft = 3, BorderWidthRight = 3 };
+				btn.AddThemeStyleboxOverride("normal", styleNormal);
+				btn.AddThemeStyleboxOverride("hover", styleNormal);
+				btn.AddThemeStyleboxOverride("pressed", stylePressed);
+				btn.AddThemeStyleboxOverride("focus", stylePressed);
+			}
+			else
+			{
+				// Glyph label for fixture
+				btn.Text = brush.Glyph ?? brush.Id[..Math.Min(2, brush.Id.Length)];
+			}
+
+			var index = i;
+			btn.Pressed += () => BrushSelected?.Invoke(index);
+			_brushGrid.AddChild(btn);
 		}
-		else
-		{
-			_currentBrushLabel.Text = LocalizationService.T("ui.map_editor.current_brush.none");
-		}
-		_suppressBrushChange = false;
 	}
 
 	private void UpdateCurrentBrushLabel()
 	{
 		if (_lastBrushes.Count == 0 || _lastSelectedIndex < 0)
 		{
-			_currentBrushLabel.Text = LocalizationService.T("ui.map_editor.current_brush.none");
+			_currentBrushLabel.Text = LocalizationService.TOrFallback("ui.map_editor.current_brush.none", "No brush selected");
 			return;
 		}
 
 		var clampedIndex = Math.Clamp(_lastSelectedIndex, 0, _lastBrushes.Count - 1);
-		_currentBrushLabel.Text = LocalizationService.T("ui.map_editor.current_brush", ("brush", _lastBrushes[clampedIndex].Label));
+		var brush = _lastBrushes[clampedIndex];
+		_currentBrushLabel.Text = $"[{brush.Id}] {brush.Label}";
+	}
+
+	private void InitializeEnvironmentDropdowns()
+	{
+		// Weather types
+		_weatherSelect.Clear();
+		_weatherSelect.AddItem("Clear", 0);
+		_weatherSelect.AddItem("Rain", 1);
+		_weatherSelect.AddItem("Fog", 2);
+		_weatherSelect.AddItem("Snow", 3);
+		_weatherSelect.AddItem("Storm", 4);
+		_weatherSelect.AddItem("Thunderstorm", 5);
+		_weatherSelect.AddItem("Sandstorm", 6);
+
+		// Intensity
+		_intensitySelect.Clear();
+		_intensitySelect.AddItem("Light", 0);
+		_intensitySelect.AddItem("Normal", 1);
+		_intensitySelect.AddItem("Heavy", 2);
+
+		// Lighting profiles
+		_lightingSelect.Clear();
+		_lightingSelect.AddItem("Default", 0);
+		_lightingSelect.AddItem("Cinematic", 1);
+		_lightingSelect.AddItem("Soft", 2);
 	}
 }

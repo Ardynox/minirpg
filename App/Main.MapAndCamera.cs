@@ -138,6 +138,7 @@ public partial class Main
 			MapEditorActive,
 			_mapEditor.CameraX,
 			_mapEditor.CameraY,
+			_mapEditor.CameraZ,
 			_mapEditor.HoverWorld,
 			SyncViewToActiveActor,
 			MarkUIDirty);

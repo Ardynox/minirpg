@@ -533,6 +533,24 @@ public partial class Main
 			() => _predictionConfig,
 			() => _predictionCorrectionSmoothingSeconds);
 		_runtimeViewCoordinator = new RuntimeViewCoordinator(_state, _runtime!.UiRefs, _runtime.Services);
+		_mapEditorCoordinator = new MapEditorCoordinator(
+			_state,
+			_mapEditor,
+			_mapEditorBar,
+			() => _mapRender,
+			_session,
+			_log,
+			FlushMap,
+			DoSave,
+			OpenSaveNameDialog,
+			CloseSaveNameDialog,
+			_modalStateController,
+			_inputModule,
+			_panels,
+			_weatherLabPanelController,
+			() => SyncSettingsUiState(),
+			ShowMainMenuWithCurrentContinue,
+			CloseAllInGamePanels);
 		_mainInputCoordinator = new MainInputCoordinator(
 			_modalInputLayers,
 			() => GetViewport().SetInputAsHandled(),

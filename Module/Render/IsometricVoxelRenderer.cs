@@ -53,6 +53,12 @@ public partial class IsometricVoxelRenderer
 	private static readonly Vector2 HoverCellFillScale = new(1.96f, 0.98f);
 	private static readonly Vector2 HoverCellOutlineScale = new(2.04f, 1.02f);
 
+	// ── Editor X-Ray transparency ──
+	private const int XRayRadius = 2;
+	private const float XRayAlpha = 0.25f;
+	private static readonly Color XRayOutlineTint = new(0.6f, 0.75f, 0.9f, 0.30f);
+	private static readonly Vector2 XRayOutlineScale = new(2.04f, 1.02f);
+
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
 	private readonly int _viewW;
@@ -73,12 +79,15 @@ public partial class IsometricVoxelRenderer
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
 	private readonly List<EntityDrawCommand> _entityCommands = [];
 	private readonly List<HoverHighlightCommand> _highlightCommands = [];
+	private readonly List<(Vector2 ScreenPos, long SortKey)> _xrayCells = [];
 	private int _lastDrawCommandCount;
 	private int _highlightCommandCount;
 
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
 	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
 	private IsometricLightingSettings _lighting = DefaultLighting;
+	private DayNightSnapshot _dayNight = DayNightSnapshot.FullDay;
+	private readonly LightMap _lightMap = new();
 	private readonly TerrainAtlas _terrainAtlas = new();
 
 	// ── Orchestration state (formerly TileMapRenderModule) ──
@@ -154,6 +163,7 @@ public partial class IsometricVoxelRenderer
 	public int LastDrawCommandCount => _lastDrawCommandCount;
 	public IsometricLightingSettings LightingSettings => _lighting;
 	public Vector3I? HoverWorldCell { get; set; }
+	public bool XRayEnabled { get; set; }
 	public Vector3I? InspectWorldCell { get; set; }
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
 	public bool IsIsometricMode => true;
@@ -271,10 +281,12 @@ public partial class IsometricVoxelRenderer
 
 		if (_editorViewActive)
 		{
+			_fogTracker.RevealAll = true;
 			_weatherFxController?.ClearScreenFxTarget();
 		}
 		else
 		{
+			_fogTracker.RevealAll = false;
 			_fogTracker.Update(_state);
 			_weatherFxController?.RefreshWeatherScreenFxTarget(editorViewActive: false);
 			_viewCenterX = _state.PlayerX;
@@ -335,7 +347,7 @@ public partial class IsometricVoxelRenderer
 		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
 		var zMin = cz - 4;
 		var zMax = cz + 2;
-		for (var z = zMin; z <= zMax; z++)
+		for (var z = zMax; z >= zMin; z--)
 		{
 			var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, z);
 			var terrain = _state.World.GetTerrain(wx, wy, z);
@@ -345,6 +357,15 @@ public partial class IsometricVoxelRenderer
 				return true;
 			}
 		}
+
+		// Editor mode: allow targeting empty cells at camera Z for block placement
+		if (_editorViewActive)
+		{
+			var (fallbackX, fallbackY) = IsoCoordUtil.ScreenToWorldCell(screenPos, cz);
+			worldCell = new Vector3I(fallbackX, fallbackY, cz);
+			return true;
+		}
+
 		return false;
 	}
 
@@ -442,13 +463,15 @@ public partial class IsometricVoxelRenderer
 			("profile", LocalizationService.TOrFallback(profileKey, profileKey)));
 	}
 
-	private void ApplyLightingProfile(int profileIndex)
+	public void SetLightingProfile(int profileIndex)
 	{
 		if (LightingProfiles.Length == 0) return;
 		var clamped = Math.Clamp(profileIndex, 0, LightingProfiles.Length - 1);
 		_lightingProfileIndex = clamped;
 		ConfigureLighting(LightingProfiles[clamped].Lighting);
 	}
+
+	private void ApplyLightingProfile(int profileIndex) => SetLightingProfile(profileIndex);
 
 	public string ToggleMinimap()
 	{
@@ -534,11 +557,12 @@ public partial class IsometricVoxelRenderer
 	{
 		if (_state.World == null || _root == null) return;
 
+		_dayNight = DayNightCycle.Compute(_state.Turn);
 		BeginFrame();
 
-		var cx = _state.PlayerX;
-		var cy = _state.PlayerY;
-		var cz = _state.PlayerZ;
+		var cx = _viewCenterX;
+		var cy = _viewCenterY;
+		var cz = _viewCenterZ;
 		var halfW = _viewW / 2;
 		var halfH = _viewH / 2;
 		var zMin = cz - DefaultViewDepthAbove;
@@ -584,6 +608,7 @@ public partial class IsometricVoxelRenderer
 		}
 
 		_drawCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+		_lightMap.Rebuild(_state.World, cx, cy, cz, halfW, halfH, zMin, zMax);
 		CollectEntityCommands(cx, cy, cz, halfW, halfH, zMin, zMax);
 		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax);
 		_lastDrawCommandCount = _drawCommands.Count + _entityCommands.Count + _highlightCommandCount;
@@ -611,6 +636,12 @@ public partial class IsometricVoxelRenderer
 		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
 		if (cmd.ShadowTop)
 			tint = new Color(tint.R * ShadowTopDarken, tint.G * ShadowTopDarken, tint.B * ShadowTopDarken, tint.A);
+		var xray = ComputeXRayAlpha(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		if (xray < 1f)
+		{
+			tint = new Color(tint.R, tint.G, tint.B, tint.A * xray);
+			_xrayCells.Add((cmd.ScreenPos, cmd.SortKey));
+		}
 		_faceCommands.Add(new FaceSpriteCommand(
 			regions.Top,
 			cmd.ScreenPos,
@@ -622,10 +653,14 @@ public partial class IsometricVoxelRenderer
 	{
 		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
 			return;
+		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Left);
+		var xray = ComputeXRayAlpha(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		if (xray < 1f)
+			tint = new Color(tint.R, tint.G, tint.B, tint.A * xray);
 		_faceCommands.Add(new FaceSpriteCommand(
 			regions.Left,
 			ResolveLeftFacePosition(cmd.ScreenPos),
-			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Left),
+			tint,
 			cmd.SortKey));
 	}
 
@@ -633,10 +668,14 @@ public partial class IsometricVoxelRenderer
 	{
 		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
 			return;
+		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Right);
+		var xray = ComputeXRayAlpha(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		if (xray < 1f)
+			tint = new Color(tint.R, tint.G, tint.B, tint.A * xray);
 		_faceCommands.Add(new FaceSpriteCommand(
 			regions.Right,
 			ResolveRightFacePosition(cmd.ScreenPos),
-			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Right),
+			tint,
 			cmd.SortKey));
 	}
 
@@ -682,20 +721,54 @@ public partial class IsometricVoxelRenderer
 
 		var depth = wz - _state.PlayerZ;
 		var depthAttenuation = Math.Max(0.35f, 1f - depth * _lighting.DepthFalloff);
-		var brightness = Math.Clamp(_lighting.Ambient * faceLight * depthAttenuation, MinLight, MaxLight);
+		var brightness = Math.Clamp(_lighting.Ambient * _dayNight.AmbientMultiplier * faceLight * depthAttenuation, MinLight, MaxLight);
 		brightness = MathF.Pow(brightness, _lighting.Contrast);
 
-		var shadow = ComputeDirectionalShadow(wx, wy, wz, face);
-		var shadedBrightness = Math.Clamp(brightness * (1f - shadow), MinLight, MaxLight);
+		var ao = ComputeAmbientOcclusion(wx, wy, wz, face);
+		var sunShadow = ComputeSunShadow(wx, wy, wz, face);
+		var shadedBrightness = Math.Clamp(brightness * (1f - ao) * (1f - sunShadow), MinLight, MaxLight);
+
+		// Point light contribution (additive)
+		var tintR = _dayNight.SunTintR;
+		var tintG = _dayNight.SunTintG;
+		var tintB = _dayNight.SunTintB;
+
+		if (_lightMap.TryGetLight(wx, wy, wz, out var cellLight))
+		{
+			var pointBrightness = cellLight.Intensity * 0.5f;
+			shadedBrightness = Math.Clamp(shadedBrightness + pointBrightness, MinLight, MaxLight);
+
+			// Blend point light color into tint (stronger when point light dominates)
+			var blend = Math.Clamp(pointBrightness / (shadedBrightness + 0.001f) * 0.6f, 0f, 0.8f);
+			tintR = tintR + (cellLight.R - tintR) * blend;
+			tintG = tintG + (cellLight.G - tintG) * blend;
+			tintB = tintB + (cellLight.B - tintB) * blend;
+		}
 
 		return new Color(
-			Math.Clamp(visionTint.R * shadedBrightness, 0f, 1f),
-			Math.Clamp(visionTint.G * shadedBrightness, 0f, 1f),
-			Math.Clamp(visionTint.B * shadedBrightness, 0f, 1f),
+			Math.Clamp(visionTint.R * shadedBrightness * tintR, 0f, 1f),
+			Math.Clamp(visionTint.G * shadedBrightness * tintG, 0f, 1f),
+			Math.Clamp(visionTint.B * shadedBrightness * tintB, 0f, 1f),
 			visionTint.A);
 	}
 
-	private float ComputeDirectionalShadow(int wx, int wy, int wz, VoxelFace face)
+	private float ComputeXRayAlpha(int wx, int wy, int wz)
+	{
+		if (!XRayEnabled || HoverWorldCell is not { } hover)
+			return 1f;
+		var dx = wx - hover.X;
+		var dy = wy - hover.Y;
+		if (Math.Abs(dx) > XRayRadius || Math.Abs(dy) > XRayRadius)
+			return 1f;
+		if (wx == hover.X && wy == hover.Y && wz == hover.Z)
+			return 1f;
+		var diagDiff = dx + dy;
+		if (diagDiff >= 0 && wz < hover.Z)
+			return XRayAlpha;
+		return 1f;
+	}
+
+	private float ComputeAmbientOcclusion(int wx, int wy, int wz, VoxelFace face)
 	{
 		if (_lighting.ShadowStrength <= 0f || _lighting.OcclusionStep <= 0f)
 			return 0f;
@@ -703,21 +776,105 @@ public partial class IsometricVoxelRenderer
 			return 0f;
 
 		var world = _state.World;
-		var occluders = 0;
-		var maxSample = face == VoxelFace.Top ? 4 : 3;
-		for (var step = 1; step <= maxSample; step++)
+		var ao = 0f;
+
+		switch (face)
 		{
-			var sampleX = wx + step;
-			var sampleY = wy + step;
-			var sampleZ = wz - step;
-			if (world.GetTerrain(sampleX, sampleY, sampleZ).IsOpaque)
-				occluders++;
+			case VoxelFace.Top:
+			{
+				// 8 horizontal neighbors — direct adjacency occlusion
+				const float neighborWeight = 0.06f;
+				if (world.GetTerrain(wx - 1, wy, wz).IsOpaque) ao += neighborWeight;
+				if (world.GetTerrain(wx + 1, wy, wz).IsOpaque) ao += neighborWeight;
+				if (world.GetTerrain(wx, wy - 1, wz).IsOpaque) ao += neighborWeight;
+				if (world.GetTerrain(wx, wy + 1, wz).IsOpaque) ao += neighborWeight;
+				if (world.GetTerrain(wx - 1, wy - 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
+				if (world.GetTerrain(wx + 1, wy - 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
+				if (world.GetTerrain(wx - 1, wy + 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
+				if (world.GetTerrain(wx + 1, wy + 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
+
+				// Diagonal-above checks (blocks casting overhead shadow)
+				const float aboveWeight = 0.04f;
+				if (world.GetTerrain(wx + 1, wy + 1, wz - 1).IsOpaque) ao += aboveWeight;
+				if (world.GetTerrain(wx - 1, wy + 1, wz - 1).IsOpaque) ao += aboveWeight;
+				if (world.GetTerrain(wx + 1, wy - 1, wz - 1).IsOpaque) ao += aboveWeight;
+				if (world.GetTerrain(wx - 1, wy - 1, wz - 1).IsOpaque) ao += aboveWeight;
+
+				// Concave corner bonus: two adjacent cardinal neighbors both opaque
+				const float cornerBonus = 0.08f;
+				var n = world.GetTerrain(wx, wy - 1, wz).IsOpaque;
+				var s = world.GetTerrain(wx, wy + 1, wz).IsOpaque;
+				var w = world.GetTerrain(wx - 1, wy, wz).IsOpaque;
+				var e = world.GetTerrain(wx + 1, wy, wz).IsOpaque;
+				if (n && w) ao += cornerBonus;
+				if (n && e) ao += cornerBonus;
+				if (s && w) ao += cornerBonus;
+				if (s && e) ao += cornerBonus;
+				break;
+			}
+			case VoxelFace.Left:
+			{
+				// Left face is visible from -Y direction; occluded by +Y neighbors
+				const float sideWeight = 0.10f;
+				const float aboveSideWeight = 0.06f;
+				if (world.GetTerrain(wx, wy + 1, wz).IsOpaque) ao += sideWeight;
+				if (world.GetTerrain(wx, wy + 1, wz - 1).IsOpaque) ao += aboveSideWeight;
+				if (world.GetTerrain(wx - 1, wy + 1, wz).IsOpaque) ao += sideWeight * 0.5f;
+				// Block directly above darkens side face
+				if (world.GetTerrain(wx, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
+				break;
+			}
+			case VoxelFace.Right:
+			{
+				// Right face is visible from -X direction; occluded by +X neighbors
+				const float sideWeight = 0.10f;
+				const float aboveSideWeight = 0.06f;
+				if (world.GetTerrain(wx + 1, wy, wz).IsOpaque) ao += sideWeight;
+				if (world.GetTerrain(wx + 1, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
+				if (world.GetTerrain(wx + 1, wy - 1, wz).IsOpaque) ao += sideWeight * 0.5f;
+				// Block directly above darkens side face
+				if (world.GetTerrain(wx, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
+				break;
+			}
 		}
 
-		if (face != VoxelFace.Top && world.GetTerrain(wx, wy, wz - 1).IsOpaque)
-			occluders++;
+		return Math.Clamp(ao * _lighting.ShadowStrength, 0f, 0.65f);
+	}
 
-		var baseShadow = occluders * _lighting.OcclusionStep;
+	private float ComputeSunShadow(int wx, int wy, int wz, VoxelFace face)
+	{
+		if (_dayNight.SunAltitude <= 0.01f)
+			return 0f; // no sun → no sun shadow
+		if (_lighting.ShadowStrength <= 0f)
+			return 0f;
+		if (_state.World == null)
+			return 0f;
+
+		var world = _state.World;
+
+		// Shadow length inversely proportional to sun altitude (longer at dawn/dusk)
+		var maxSteps = (int)Math.Clamp(3f / Math.Max(0.3f, _dayNight.SunAltitude), 2, 8);
+
+		// Sun direction: where the sun IS. Shadow is cast opposite.
+		// We ray-march FROM the cell TOWARD the sun to find occluders above.
+		var dirX = _dayNight.SunDirectionX;
+		var dirY = _dayNight.SunDirectionY;
+
+		var shadow = 0f;
+		for (var step = 1; step <= maxSteps; step++)
+		{
+			var sampleX = wx + (int)MathF.Round(dirX * step);
+			var sampleY = wy + (int)MathF.Round(dirY * step);
+			var sampleZ = wz - step; // check cells above
+
+			if (world.GetTerrain(sampleX, sampleY, sampleZ).IsOpaque)
+			{
+				// Closer occluders cast stronger shadows (inverse-distance falloff)
+				var contribution = _lighting.OcclusionStep * (1f - (step - 1) / (float)(maxSteps + 1));
+				shadow += contribution;
+			}
+		}
+
 		var faceScale = face switch
 		{
 			VoxelFace.Top => 0.78f,
@@ -725,7 +882,8 @@ public partial class IsometricVoxelRenderer
 			VoxelFace.Right => 0.92f,
 			_ => 1f,
 		};
-		return Math.Clamp(baseShadow * _lighting.ShadowStrength * faceScale, 0f, 0.82f);
+
+		return Math.Clamp(shadow * _lighting.ShadowStrength * faceScale, 0f, 0.72f);
 	}
 
 	// ── Texture Generation ──
@@ -1083,6 +1241,7 @@ public partial class IsometricVoxelRenderer
 	private void RenderScene()
 	{
 		_faceCommands.Clear();
+		_xrayCells.Clear();
 
 		for (var i = 0; i < _drawCommands.Count; i++)
 		{
@@ -1104,6 +1263,7 @@ public partial class IsometricVoxelRenderer
 		}
 
 		RenderHoverHighlights();
+		RenderXRayOutlines();
 	}
 
 	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
@@ -1134,6 +1294,15 @@ public partial class IsometricVoxelRenderer
 			DrawHoverDiamond(command.ScreenPos, HoverCellOutlineTint, HoverCellOutlineScale, zIndex: 2, textureKey: "hover_diamond_outline");
 			DrawHoverDiamond(command.ScreenPos, fillTint, HoverCellFillScale, zIndex: 3, textureKey: "hover_diamond_fill");
 			DrawHoverLightWalls(command.ScreenPos, pulse);
+		}
+	}
+
+	private void RenderXRayOutlines()
+	{
+		for (var i = 0; i < _xrayCells.Count; i++)
+		{
+			var (pos, _) = _xrayCells[i];
+			DrawHoverDiamond(pos, XRayOutlineTint, XRayOutlineScale, zIndex: 1, textureKey: "hover_diamond_outline");
 		}
 	}
 

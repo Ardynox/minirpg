@@ -10,7 +10,10 @@ public sealed class BlankFloorGenerator : IMapGenerator
 
 	public void GenerateChunk(ChunkData chunk, int worldSeed)
 	{
-		chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+		if (chunk.Coord.Cz == 0)
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+		else
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
 		chunk.Entities.Clear();
 		chunk.Nests.Clear();
 		chunk.ActorIds.Clear();

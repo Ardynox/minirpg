@@ -23,6 +23,7 @@ internal sealed class RuntimeViewCoordinator
 		bool mapEditorActive,
 		int mapEditorCameraX,
 		int mapEditorCameraY,
+		int mapEditorCameraZ,
 		Vector2I? mapEditorHoverWorld,
 		Action syncViewToActiveActor,
 		Action markUiDirty)
@@ -31,13 +32,17 @@ internal sealed class RuntimeViewCoordinator
 			return;
 
 		syncViewToActiveActor();
+		_ui.MapRender.XRayEnabled = mapEditorActive;
 		_ui.MapRender.InspectWorldCell = inspectModeActive ? inspectWorldCell : null;
-		_ui.MapRender.HoverWorldCell = hoverWorldCell;
+		var editorZ = mapEditorActive ? mapEditorCameraZ : _state.PlayerZ;
+		_ui.MapRender.HoverWorldCell = mapEditorActive && mapEditorHoverWorld.HasValue
+			? new Vector3I(mapEditorHoverWorld.Value.X, mapEditorHoverWorld.Value.Y, editorZ)
+			: hoverWorldCell;
 		_ui.MapRender.SetEditorView(
 			mapEditorActive,
 			mapEditorActive ? mapEditorCameraX : _state.PlayerX,
 			mapEditorActive ? mapEditorCameraY : _state.PlayerY,
-			_state.PlayerZ,
+			editorZ,
 			mapEditorActive ? mapEditorHoverWorld : null);
 		_ui.MapRender.Flush();
 		markUiDirty();

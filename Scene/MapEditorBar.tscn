@@ -5,22 +5,22 @@ visible = false
 layout_mode = 3
 anchors_preset = 1
 anchor_right = 1.0
-offset_left = -332.0
+offset_left = -396.0
 offset_top = 20.0
 offset_right = -20.0
-offset_bottom = 208.0
+offset_bottom = 460.0
 grow_horizontal = 0
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
+theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_bottom = 10
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
@@ -30,7 +30,7 @@ horizontal_alignment = 1
 
 [node name="CategoryRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
 
 [node name="TerrainBtn" type="Button" parent="Margin/VBox/CategoryRow"]
 layout_mode = 2
@@ -46,12 +46,113 @@ toggle_mode = true
 theme_type_variation = "TabButton"
 text = "ui.map_editor.category.fixture"
 
-[node name="BrushSelect" type="OptionButton" parent="Margin/VBox"]
+[node name="EnvironmentBtn" type="Button" parent="Margin/VBox/CategoryRow"]
 layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+theme_type_variation = "TabButton"
+text = "ui.map_editor.category.environment"
+
+[node name="BrushScroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 120)
+horizontal_scroll_mode = 0
+
+[node name="BrushGrid" type="GridContainer" parent="Margin/VBox/BrushScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 6
 
 [node name="CurrentBrush" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 text = "ui.map_editor.current_brush.none"
+
+[node name="EnvironmentControls" type="VBoxContainer" parent="Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TimeLabel" type="Label" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+text = "ui.map_editor.time_of_day"
+
+[node name="TimeSlider" type="HSlider" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+min_value = 0.0
+max_value = 119.0
+step = 1.0
+value = 36.0
+
+[node name="WeatherLabel" type="Label" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+text = "ui.map_editor.weather"
+
+[node name="WeatherSelect" type="OptionButton" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+
+[node name="IntensitySelect" type="OptionButton" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+
+[node name="LightingLabel" type="Label" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+text = "ui.map_editor.lighting_profile"
+
+[node name="LightingSelect" type="OptionButton" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+
+[node name="InfoBar" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+text = "X: 0  Y: 0  Z: 0"
+horizontal_alignment = 1
+
+[node name="HeightRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HeightDownBtn" type="Button" parent="Margin/VBox/HeightRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(36, 0)
+theme_type_variation = "ActionButton"
+text = "▼"
+
+[node name="HeightLabel" type="Label" parent="Margin/VBox/HeightRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "Z: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeightUpBtn" type="Button" parent="Margin/VBox/HeightRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(36, 0)
+theme_type_variation = "ActionButton"
+text = "▲"
+
+[node name="UndoRedoRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UndoBtn" type="Button" parent="Margin/VBox/UndoRedoRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
+text = "ui.map_editor.undo"
+
+[node name="RedoBtn" type="Button" parent="Margin/VBox/UndoRedoRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
+text = "ui.map_editor.redo"
+
+[node name="HistoryCount" type="Label" parent="Margin/VBox/UndoRedoRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(40, 0)
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="Hint" type="Label" parent="Margin/VBox"]
 layout_mode = 2

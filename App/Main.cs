@@ -50,6 +50,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private IsometricVoxelRenderer? _mapRender;
 	private MapEditorSession _mapEditor = null!;
 	private MapEditorBarModule _mapEditorBar = null!;
+	private MapEditorCoordinator _mapEditorCoordinator = null!;
 	private SaveNameDialogModule _saveNameDialog = null!;
 	private CharacterCreationModule _characterCreation = null!;
 	private ConfirmDialogModule _confirmDialog = null!;
