@@ -5,9 +5,9 @@ using Xunit;
 
 namespace MiniRPG.Tests;
 
-public sealed class MapModuleTests
+public sealed class WorldMapTests
 {
-	public MapModuleTests()
+	public WorldMapTests()
 	{
 		TestSupport.EnsureGameplayDataLoaded();
 	}

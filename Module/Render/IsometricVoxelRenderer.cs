@@ -38,10 +38,10 @@ public partial class IsometricVoxelRenderer
 	private const float WallSideEdgeStrength = 0.20f;
 	private const float SolidSideEdgeStrength = 0.12f;
 	private const float NonSolidSideEdgeStrength = 0.06f;
-	private const int SideTextureWidth = 64;
-	private const int SideTextureHeight = 176;
-	private const int SideFaceHeight = (int)IsoCoordUtil.ZStep;
-	private const int WallSideFaceHeight = SideFaceHeight;
+	private const int SideTextureWidth = VoxelFaceImageUtil.SideTextureWidth;
+	private const int SideTextureHeight = VoxelFaceImageUtil.SideTextureHeight;
+	private const int SideFaceHeight = VoxelFaceImageUtil.SideFaceHeight;
+	private const int WallSideFaceHeight = VoxelFaceImageUtil.WallSideFaceHeight;
 	private const float DefaultLeftSideDarken = LeftDarken;
 	private const float DefaultRightSideDarken = RightDarken;
 	private const float WallLeftSideDarken = 0.52f;
@@ -212,8 +212,6 @@ public partial class IsometricVoxelRenderer
 		_root.AddChild(_faceBatchCanvas);
 
 		_weatherFxController = new WeatherFxController(_state);
-		var dummyGroundLayer = new TileMapLayer { Name = "_WeatherGroundLayer", TileSet = tileSet, Visible = false };
-		mapRoot.AddChild(dummyGroundLayer);
 		var weatherOverlayRoot = new Node2D { Name = "WeatherOverlayRoot", ZIndex = 1, Visible = false };
 		mapRoot.AddChild(weatherOverlayRoot);
 		var peripheralWeatherOverlayRoot = new Node2D { Name = "PeripheralWeatherOverlayRoot", ZIndex = 1, Visible = false };
@@ -225,7 +223,7 @@ public partial class IsometricVoxelRenderer
 		var peripheralWeatherFxRoot = new Node2D { Name = "PeripheralWeatherFxRoot", ZIndex = 2, Visible = false };
 		mapRoot.AddChild(peripheralWeatherFxRoot);
 		_weatherFxController.Init(
-			mapRoot, dummyGroundLayer, new Vector2(64f, 64f), viewportContainer,
+			mapRoot, static _ => Vector2.Zero, new Vector2(64f, 64f), viewportContainer,
 			weatherOverlayRoot, peripheralWeatherOverlayRoot, memoryWeatherOverlayRoot,
 			weatherFxRoot, peripheralWeatherFxRoot);
 
@@ -775,8 +773,8 @@ public partial class IsometricVoxelRenderer
 		if (topSourceImage == null)
 			return false;
 
-		var topDiamondImage = BuildTopDiamondFromTile(topSourceImage);
-		topDiamondImage = EnhanceTopFaceEdges(topDiamondImage, GetTopEdgeStrength(terrain));
+		var topDiamondImage = VoxelFaceImageUtil.BuildTopDiamond(topSourceImage);
+		topDiamondImage = VoxelFaceImageUtil.EnhanceTopFaceEdges(topDiamondImage, GetTopEdgeStrength(terrain));
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
@@ -791,10 +789,10 @@ public partial class IsometricVoxelRenderer
 		var leftDarken = wallLike ? WallLeftSideDarken : DefaultLeftSideDarken;
 		var rightDarken = wallLike ? WallRightSideDarken : DefaultRightSideDarken;
 		var faceHeight = wallLike ? WallSideFaceHeight : SideFaceHeight;
-		var leftImage = GenerateSideFaceFromTile(sideSourceImage, isRight: false, leftDarken, faceHeight);
-		var rightImage = GenerateSideFaceFromTile(sideSourceImage, isRight: true, rightDarken, faceHeight);
-		EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: GetSideEdgeStrength(terrain));
-		EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: GetSideEdgeStrength(terrain));
+		var leftImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: false, leftDarken, faceHeight);
+		var rightImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: true, rightDarken, faceHeight);
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: GetSideEdgeStrength(terrain));
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: GetSideEdgeStrength(terrain));
 
 		textures = new CachedBlockTextures(
 			topTexture,
@@ -905,112 +903,12 @@ public partial class IsometricVoxelRenderer
 		return inferred;
 	}
 
-	private static Image BuildTopDiamondFromTile(Image tileImage)
-	{
-		const int targetW = 128;
-		const int targetH = 64;
-		var result = Image.CreateEmpty(targetW, targetH, false, Image.Format.Rgba8);
-		var srcW = tileImage.GetWidth();
-		var srcH = tileImage.GetHeight();
-		var halfW = targetW / 2f;
-		var halfH = targetH / 2f;
-
-		for (var y = 0; y < targetH; y++)
-		{
-			for (var x = 0; x < targetW; x++)
-			{
-				var nx = (x - halfW) / halfW;
-				var ny = (y - halfH) / halfH;
-				if (Math.Abs(nx) + Math.Abs(ny) > 1f)
-				{
-					result.SetPixel(x, y, Colors.Transparent);
-					continue;
-				}
-
-				var u = (nx - ny + 1f) * 0.5f;
-				var v = (nx + ny + 1f) * 0.5f;
-				var sx = Math.Clamp((int)Math.Round(u * (srcW - 1)), 0, srcW - 1);
-				var sy = Math.Clamp((int)Math.Round(v * (srcH - 1)), 0, srcH - 1);
-				result.SetPixel(x, y, tileImage.GetPixel(sx, sy));
-			}
-		}
-
-		return result;
-	}
-
-	private static Image EnhanceTopFaceEdges(Image diamond, float outlineStrength)
-	{
-		var width = diamond.GetWidth();
-		var height = diamond.GetHeight();
-		var outlined = (Image)diamond.Duplicate();
-		outlineStrength = Math.Clamp(outlineStrength, 0f, 0.75f);
-
-		for (var y = 1; y < height - 1; y++)
-		for (var x = 1; x < width - 1; x++)
-		{
-			var c = diamond.GetPixel(x, y);
-			if (c.A <= 0.01f)
-				continue;
-
-			var isEdge = diamond.GetPixel(x - 1, y).A <= 0.01f
-				|| diamond.GetPixel(x + 1, y).A <= 0.01f
-				|| diamond.GetPixel(x, y - 1).A <= 0.01f
-				|| diamond.GetPixel(x, y + 1).A <= 0.01f;
-			if (!isEdge)
-				continue;
-
-			var factor = 1f - outlineStrength;
-			outlined.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
-		}
-
-		return outlined;
-	}
-
-	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken, int faceHeight)
-	{
-		var iw = SideTextureWidth;
-		var ih = SideTextureHeight;
-		var faceH = Math.Clamp(faceHeight, 24, ih - 8);
-		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
-		var tw = tileImage.GetWidth();
-		var th = tileImage.GetHeight();
-		var gradientDepth = IsWallFaceHeight(faceH) ? 0.22f : 0.17f;
-
-		for (var px = 0; px < iw; px++)
-		{
-			var t = px / (float)(iw - 1);
-			var sampleX = isRight
-				? (tw - 1) - (int)Math.Round(t * (tw - 1))
-				: (int)Math.Round(t * (tw - 1));
-			var pyStart = isRight
-				? (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1))
-				: (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
-
-			for (var dy = 0; dy < faceH; dy++)
-			{
-				var py = pyStart + dy;
-				if (py >= ih) break;
-
-				var sampleY = Math.Clamp((int)Math.Round(((dy + (th - faceH)) / (float)(th - 1)) * (th - 1)), 0, th - 1);
-				var color = SampleArea(tileImage, sampleX, sampleY, tw, th);
-				var gradient = 1.0f - (dy / (float)faceH) * gradientDepth;
-				var c = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
-				c.A = color.A;
-				img.SetPixel(px, py, c);
-			}
-		}
-
-		return img;
-	}
-
 	private static float GetTopEdgeStrength(TerrainDef terrain)
 	{
 		if (IsWallTerrain(terrain))
 			return WallTopEdgeStrength;
 		return terrain.Solid ? SolidTopEdgeStrength : NonSolidTopEdgeStrength;
 	}
-
-	private static bool IsWallFaceHeight(int faceHeight) => faceHeight >= WallSideFaceHeight - 6;
 
 	private static float GetSideEdgeStrength(TerrainDef terrain)
 	{
@@ -1025,41 +923,6 @@ public partial class IsometricVoxelRenderer
 			|| terrain.StringId.Equals(Terrains.Stone, StringComparison.OrdinalIgnoreCase)
 			|| terrain.StringId.Equals(Terrains.Dirt, StringComparison.OrdinalIgnoreCase)
 			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
-	}
-
-	private static void EnhanceSideFaceEdge(Image sideFace, bool isRight, float edgeStrength)
-	{
-		edgeStrength = Math.Clamp(edgeStrength, 0f, 0.75f);
-		if (edgeStrength <= 0f)
-			return;
-
-		var width = sideFace.GetWidth();
-		var height = sideFace.GetHeight();
-		for (var y = 0; y < height; y++)
-		{
-			var x = isRight ? width - 1 : 0;
-			while (x >= 0 && x < width)
-			{
-				var c = sideFace.GetPixel(x, y);
-				if (c.A > 0.01f)
-				{
-					var factor = 1f - edgeStrength;
-					sideFace.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
-					var nextX = isRight ? x - 1 : x + 1;
-					if (nextX >= 0 && nextX < width)
-					{
-						var c2 = sideFace.GetPixel(nextX, y);
-						if (c2.A > 0.01f)
-						{
-							var factor2 = 1f - edgeStrength * 0.5f;
-							sideFace.SetPixel(nextX, y, new Color(c2.R * factor2, c2.G * factor2, c2.B * factor2, c2.A));
-						}
-					}
-					break;
-				}
-				x += isRight ? -1 : 1;
-			}
-		}
 	}
 
 	/// <summary>
@@ -1103,7 +966,7 @@ public partial class IsometricVoxelRenderer
 			var sampleY = halfH + (int)(t * (halfH - 1));
 			sampleX = Math.Clamp(sampleX, 0, tw - 1);
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
-			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
+			var color = VoxelFaceImageUtil.SampleArea(topImage, sampleX, sampleY, tw, th);
 
 			var pyStart = (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
 			for (var dy = 0; dy < faceH; dy++)
@@ -1143,7 +1006,7 @@ public partial class IsometricVoxelRenderer
 			var sampleY = (th - 1) - (int)(t * (halfH - 1));
 			sampleX = Math.Clamp(sampleX, 0, tw - 1);
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
-			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
+			var color = VoxelFaceImageUtil.SampleArea(topImage, sampleX, sampleY, tw, th);
 
 			var pyStart = (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1));
 			for (var dy = 0; dy < faceH; dy++)
@@ -1157,25 +1020,6 @@ public partial class IsometricVoxelRenderer
 			}
 		}
 		return img;
-	}
-
-	/// <summary>Sample a 3x3 area around (cx,cy) and return the average color.</summary>
-	private static Color SampleArea(Image img, int cx, int cy, int w, int h)
-	{
-		float r = 0, g = 0, b = 0, a = 0;
-		var count = 0;
-		for (var dy = -1; dy <= 1; dy++)
-		for (var dx = -1; dx <= 1; dx++)
-		{
-			var sx = Math.Clamp(cx + dx, 0, w - 1);
-			var sy = Math.Clamp(cy + dy, 0, h - 1);
-			var c = img.GetPixel(sx, sy);
-			if (c.A < 0.01f) continue; // skip transparent pixels
-			r += c.R; g += c.G; b += c.B; a += c.A;
-			count++;
-		}
-		if (count == 0) return new Color(0.5f, 0.5f, 0.5f);
-		return new Color(r / count, g / count, b / count, a / count);
 	}
 
 	/// <summary>Create a solid-color diamond image (fallback when no atlas tile available).</summary>

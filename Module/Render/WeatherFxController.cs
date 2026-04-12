@@ -67,7 +67,7 @@ internal sealed class WeatherFxController
 	private Node2D _peripheralWeatherFxRoot = null!;
 
 	// ── references into the parent renderer ─────────────────────────────
-	private TileMapLayer _groundLayer = null!;
+	private Func<Vector2I, Vector2> _cellToLocal = null!;
 	private SubViewportContainer? _viewportContainer;
 	private Vector2 _tilePixelSize;
 
@@ -91,7 +91,7 @@ internal sealed class WeatherFxController
 
 	public void Init(
 		Node2D mapRoot,
-		TileMapLayer groundLayer,
+		Func<Vector2I, Vector2> cellToLocal,
 		Vector2 tilePixelSize,
 		SubViewportContainer? viewportContainer,
 		Node2D weatherOverlayRoot,
@@ -100,7 +100,7 @@ internal sealed class WeatherFxController
 		Node2D weatherFxRoot,
 		Node2D peripheralWeatherFxRoot)
 	{
-		_groundLayer = groundLayer;
+		_cellToLocal = cellToLocal;
 		_tilePixelSize = tilePixelSize;
 		_viewportContainer = viewportContainer;
 
@@ -326,7 +326,7 @@ internal sealed class WeatherFxController
 		sprite.RegionEnabled = false;
 		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
 		sprite.Scale = ResolveWeatherTextureScale(texture, footprintTiles);
-		sprite.Position = _groundLayer.MapToLocal(cell);
+		sprite.Position = _cellToLocal(cell);
 		sprite.Modulate = modulate;
 		sprite.Visible = true;
 	}
@@ -344,7 +344,7 @@ internal sealed class WeatherFxController
 		sprite.RegionEnabled = false;
 		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
 		sprite.Scale = _tilePixelSize * visual.FootprintTiles;
-		sprite.Position = _groundLayer.MapToLocal(cell);
+		sprite.Position = _cellToLocal(cell);
 		sprite.Modulate = Colors.White;
 		sprite.Visible = true;
 

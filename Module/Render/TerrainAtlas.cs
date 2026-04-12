@@ -66,10 +66,10 @@ public sealed class TerrainAtlas
 		// Row 1: left faces (64×176 each)
 		// Row 2: right faces (64×176 each)
 
-		var topW = TopFaceWidth;
-		var topH = TopFaceHeight;
-		var sideW = SideTextureWidth;
-		var sideH = SideTextureHeight;
+		var topW = VoxelFaceImageUtil.TopFaceWidth;
+		var topH = VoxelFaceImageUtil.TopFaceHeight;
+		var sideW = VoxelFaceImageUtil.SideTextureWidth;
+		var sideH = VoxelFaceImageUtil.SideTextureHeight;
 		var count = faceEntries.Count;
 
 		// top row: N faces × 128 wide
@@ -119,17 +119,10 @@ public sealed class TerrainAtlas
 	//  面生成 — 从 IsometricVoxelRenderer 提取的核心算法
 	// ══════════════════════════════════════════════════════
 
-	private const int TopFaceWidth = 128;
-	private const int TopFaceHeight = 64;
-	private const int SideTextureWidth = 64;
-	private const int SideTextureHeight = 176;
-	private const int SideFaceHeight = (int)IsoCoordUtil.ZStep; // 84
-
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
 	private const float WallLeftSideDarken = 0.52f;
 	private const float WallRightSideDarken = 0.68f;
-	private const int WallSideFaceHeight = SideFaceHeight;
 
 	private const float WallTopEdgeStrength = 0.30f;
 	private const float SolidTopEdgeStrength = 0.22f;
@@ -222,15 +215,15 @@ public sealed class TerrainAtlas
 				var sourceImage = ExtractImage(sourceTexture);
 				if (sourceImage != null)
 				{
-					var diamond = BuildTopDiamondFromTile(sourceImage);
-					return EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
+					var diamond = VoxelFaceImageUtil.BuildTopDiamond(sourceImage);
+					return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
 				}
 			}
 		}
 
 		// Fallback: solid-color diamond
 		var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
-		return CreateDiamondImage(TopFaceWidth, TopFaceHeight, color);
+		return CreateDiamondImage(VoxelFaceImageUtil.TopFaceWidth, VoxelFaceImageUtil.TopFaceHeight, color);
 	}
 
 	// ── Side face generation ──
@@ -264,152 +257,18 @@ public sealed class TerrainAtlas
 		if (sideSourceImage == null)
 		{
 			var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
-			sideSourceImage = CreateSolidImage(SideTextureWidth, SideTextureHeight, color);
+			sideSourceImage = CreateSolidImage(VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureHeight, color);
 		}
 
 		var wallLike = IsWallTerrain(terrain);
 		var darken = isRight
 			? (wallLike ? WallRightSideDarken : RightDarken)
 			: (wallLike ? WallLeftSideDarken : LeftDarken);
-		var faceHeight = wallLike ? WallSideFaceHeight : SideFaceHeight;
+		var faceHeight = wallLike ? VoxelFaceImageUtil.WallSideFaceHeight : VoxelFaceImageUtil.SideFaceHeight;
 
-		var image = GenerateSideFaceFromTile(sideSourceImage, isRight, darken, faceHeight);
-		EnhanceSideFaceEdge(image, isRight, GetSideEdgeStrength(terrain));
+		var image = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight, darken, faceHeight);
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, GetSideEdgeStrength(terrain));
 		return image;
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  核心图像算法（从 IsometricVoxelRenderer 原样提取）
-	// ══════════════════════════════════════════════════════
-
-	private static Image BuildTopDiamondFromTile(Image tileImage)
-	{
-		const int targetW = TopFaceWidth;  // 128
-		const int targetH = TopFaceHeight; // 64
-		var result = Image.CreateEmpty(targetW, targetH, false, Image.Format.Rgba8);
-		var srcW = tileImage.GetWidth();
-		var srcH = tileImage.GetHeight();
-		var halfW = targetW / 2f;
-		var halfH = targetH / 2f;
-
-		for (var y = 0; y < targetH; y++)
-		{
-			for (var x = 0; x < targetW; x++)
-			{
-				var nx = (x - halfW) / halfW;
-				var ny = (y - halfH) / halfH;
-				if (Math.Abs(nx) + Math.Abs(ny) > 1f)
-				{
-					result.SetPixel(x, y, Colors.Transparent);
-					continue;
-				}
-
-				var u = (nx - ny + 1f) * 0.5f;
-				var v = (nx + ny + 1f) * 0.5f;
-				var sx = Math.Clamp((int)Math.Round(u * (srcW - 1)), 0, srcW - 1);
-				var sy = Math.Clamp((int)Math.Round(v * (srcH - 1)), 0, srcH - 1);
-				result.SetPixel(x, y, tileImage.GetPixel(sx, sy));
-			}
-		}
-
-		return result;
-	}
-
-	private static Image EnhanceTopFaceEdges(Image diamond, float outlineStrength)
-	{
-		var width = diamond.GetWidth();
-		var height = diamond.GetHeight();
-		var outlined = (Image)diamond.Duplicate();
-		outlineStrength = Math.Clamp(outlineStrength, 0f, 0.75f);
-
-		for (var y = 1; y < height - 1; y++)
-		for (var x = 1; x < width - 1; x++)
-		{
-			var c = diamond.GetPixel(x, y);
-			if (c.A <= 0.01f) continue;
-
-			var isEdge = diamond.GetPixel(x - 1, y).A <= 0.01f
-				|| diamond.GetPixel(x + 1, y).A <= 0.01f
-				|| diamond.GetPixel(x, y - 1).A <= 0.01f
-				|| diamond.GetPixel(x, y + 1).A <= 0.01f;
-			if (!isEdge) continue;
-
-			var factor = 1f - outlineStrength;
-			outlined.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
-		}
-
-		return outlined;
-	}
-
-	private static Image GenerateSideFaceFromTile(Image tileImage, bool isRight, float darken, int faceHeight)
-	{
-		var iw = SideTextureWidth;
-		var ih = SideTextureHeight;
-		var faceH = Math.Clamp(faceHeight, 24, ih - 8);
-		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
-		var tw = tileImage.GetWidth();
-		var th = tileImage.GetHeight();
-		var gradientDepth = faceH >= WallSideFaceHeight - 6 ? 0.22f : 0.17f;
-
-		for (var px = 0; px < iw; px++)
-		{
-			var t = px / (float)(iw - 1);
-			var sampleX = isRight
-				? (tw - 1) - (int)Math.Round(t * (tw - 1))
-				: (int)Math.Round(t * (tw - 1));
-			var pyStart = isRight
-				? (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1))
-				: (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
-
-			for (var dy = 0; dy < faceH; dy++)
-			{
-				var py = pyStart + dy;
-				if (py >= ih) break;
-
-				var sampleY = Math.Clamp((int)Math.Round(((dy + (th - faceH)) / (float)(th - 1)) * (th - 1)), 0, th - 1);
-				var color = SampleArea(tileImage, sampleX, sampleY, tw, th);
-				var gradient = 1.0f - (dy / (float)faceH) * gradientDepth;
-				var c = color * new Color(darken * gradient, darken * gradient, darken * gradient, 1f);
-				c.A = color.A;
-				img.SetPixel(px, py, c);
-			}
-		}
-
-		return img;
-	}
-
-	private static void EnhanceSideFaceEdge(Image sideFace, bool isRight, float edgeStrength)
-	{
-		edgeStrength = Math.Clamp(edgeStrength, 0f, 0.75f);
-		if (edgeStrength <= 0f) return;
-
-		var width = sideFace.GetWidth();
-		var height = sideFace.GetHeight();
-		for (var y = 0; y < height; y++)
-		{
-			var x = isRight ? width - 1 : 0;
-			while (x >= 0 && x < width)
-			{
-				var c = sideFace.GetPixel(x, y);
-				if (c.A > 0.01f)
-				{
-					var factor = 1f - edgeStrength;
-					sideFace.SetPixel(x, y, new Color(c.R * factor, c.G * factor, c.B * factor, c.A));
-					var nextX = isRight ? x - 1 : x + 1;
-					if (nextX >= 0 && nextX < width)
-					{
-						var c2 = sideFace.GetPixel(nextX, y);
-						if (c2.A > 0.01f)
-						{
-							var factor2 = 1f - edgeStrength * 0.5f;
-							sideFace.SetPixel(nextX, y, new Color(c2.R * factor2, c2.G * factor2, c2.B * factor2, c2.A));
-						}
-					}
-					break;
-				}
-				x += isRight ? -1 : 1;
-			}
-		}
 	}
 
 	// ══════════════════════════════════════════════════════
@@ -525,24 +384,6 @@ public sealed class TerrainAtlas
 		var image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
 		image.Fill(color);
 		return image;
-	}
-
-	private static Color SampleArea(Image img, int cx, int cy, int w, int h)
-	{
-		float r = 0, g = 0, b = 0, a = 0;
-		var count = 0;
-		for (var dy = -1; dy <= 1; dy++)
-		for (var dx = -1; dx <= 1; dx++)
-		{
-			var sx = Math.Clamp(cx + dx, 0, w - 1);
-			var sy = Math.Clamp(cy + dy, 0, h - 1);
-			var c = img.GetPixel(sx, sy);
-			if (c.A < 0.01f) continue;
-			r += c.R; g += c.G; b += c.B; a += c.A;
-			count++;
-		}
-		if (count == 0) return new Color(0.5f, 0.5f, 0.5f);
-		return new Color(r / count, g / count, b / count, a / count);
 	}
 
 	/// <summary>将 src 图像复制到 dest 的 (destX, destY) 位置。</summary>
