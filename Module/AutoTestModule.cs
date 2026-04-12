@@ -366,7 +366,7 @@ public class AutoTestModule
 			ProbeResourceLoad(context, $"resource_smoke.load.{SanitizeId(Path.GetFileName(path))}", path);
 
 		ProbeResourceLoad(context, "resource_smoke.load.heavy_tileset", HeavyTileSetPath);
-		foreach (var path in TileMapRenderModule.EnumerateWeatherAssetPaths())
+		foreach (var path in IsometricVoxelRenderer.EnumerateWeatherAssetPaths())
 			ProbeResourceLoad(context, $"resource_smoke.load.{SanitizeId(Path.GetFileNameWithoutExtension(path))}", path);
 
 		try
@@ -761,7 +761,7 @@ public class AutoTestModule
 				context.Host.FlushMap();
 				await context.StepAsync();
 
-				var dropped = MapModule.PeekGroundItems(state, player.X, player.Y)
+				var dropped = state.World!.PeekGroundItems(player.X, player.Y, state.PlayerZ)
 					.Any(item => item.Id == pickupCandidate.Item.Id);
 				context.Check(dropped,
 					"qa_interaction_hub.drop.restore_ground_item",
@@ -1438,7 +1438,7 @@ public class AutoTestModule
 		{
 			var x = state.PlayerX + dx;
 			var y = state.PlayerY + dy;
-			var items = MapModule.PeekGroundItems(state, x, y);
+			var items = state.World!.PeekGroundItems(x, y, state.PlayerZ);
 			var item = items.FirstOrDefault(found => predicate(found));
 			if (item != null)
 				return new GroundItemLocation(x, y, state.PlayerZ, item);

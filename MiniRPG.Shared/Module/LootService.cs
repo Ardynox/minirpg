@@ -35,7 +35,7 @@ internal static class LootService
 
 		var itemId = pool[rng.Next(pool.Count)];
 		var item = PresetDB.CloneItem(itemId);
-		MapModule.PlaceItem(state, e.TargetX, e.TargetY, e.TargetZ, item);
+		state.World!.PlaceItem(e.TargetX, e.TargetY, e.TargetZ, item);
 		logs.Add(LocalizationService.T(
 			"combat.loot_drop",
 			("target", e.TargetActorName),

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
-using MiniRPG.Core.Map;
-
 namespace MiniRPG.Core.Health;
 
 public static class SurgeryModule
@@ -89,7 +87,7 @@ public static class SurgeryModule
 		if (corpseItem == null)
 			return false;
 
-		MapModule.PlaceItem(state, actor.X, actor.Y, actor.Z, corpseItem);
+		state.World!.PlaceItem(actor.X, actor.Y, actor.Z, corpseItem);
 		var corpseEvent = new GameEvent(CorpseSpawnedEventType)
 		{
 			ActionName = deathEventType,
@@ -164,12 +162,12 @@ public static class SurgeryModule
 		foreach (var item in corpse.Contents)
 		{
 			item.Equipped = false;
-			MapModule.PlaceItem(state, x, y, z, item);
+			state.World!.PlaceItem(x, y, z, item);
 		}
 
 		corpse.Contents.Clear();
 		corpse.Corpse.Stripped = true;
-		MapModule.UpdateGroundItem(state, x, y, z, corpse);
+		state.World!.UpdateGroundItem(x, y, z, corpse);
 
 		var result = new ActionExecutionResult { Consumed = true };
 		var evt = new GameEvent(CorpseStrippedEventType)
@@ -210,7 +208,7 @@ public static class SurgeryModule
 			PlaceYield(state, x, y, z, yield.ItemId, yield.Count);
 
 		corpse.Corpse.Butchered = true;
-		MapModule.PickupItem(state, x, y, z, corpse.InstanceId);
+		state.World!.PickupItem(x, y, z, corpse.InstanceId);
 
 		var result = new ActionExecutionResult { Consumed = true };
 		var evt = new GameEvent(CorpseButcheredEventType)
@@ -262,7 +260,7 @@ public static class SurgeryModule
 		}
 
 		InventoryModule.Add(surgeon, harvested);
-		MapModule.UpdateGroundItem(state, x, y, z, corpse);
+		state.World!.UpdateGroundItem(x, y, z, corpse);
 
 		var result = new ActionExecutionResult { Consumed = true };
 		var evt = new GameEvent(CorpseHarvestedEventType)
@@ -432,7 +430,7 @@ public static class SurgeryModule
 		var droppedItems = InventoryModule.OnLimbDestroyed(target, targetLimb);
 		foreach (var dropped in droppedItems)
 		{
-			MapModule.PlaceItem(state, target.X, target.Y, target.Z, dropped);
+			state.World!.PlaceItem(target.X, target.Y, target.Z, dropped);
 			if (events == null)
 				continue;
 
@@ -451,7 +449,7 @@ public static class SurgeryModule
 
 		var severed = CreateSeveredLimbItem(targetLimb.Id);
 		if (severed != null)
-			MapModule.PlaceItem(state, target.X, target.Y, target.Z, severed);
+			state.World!.PlaceItem(target.X, target.Y, target.Z, severed);
 
 		HealthSystem.Sync(target, state.Turn, DefaultEnvironmentExposureProvider.Instance.Capture(state, target), events, state);
 
@@ -571,14 +569,14 @@ public static class SurgeryModule
 		if (template.IsStackable)
 		{
 			template.StackCount = Math.Min(template.MaxStack, Math.Max(1, count));
-			MapModule.PlaceItem(state, x, y, z, template);
+			state.World!.PlaceItem(x, y, z, template);
 
 			var remaining = count - template.StackCount;
 			while (remaining > 0)
 			{
 				var extra = PresetDB.CloneItem(itemId);
 				extra.StackCount = Math.Min(extra.MaxStack, remaining);
-				MapModule.PlaceItem(state, x, y, z, extra);
+				state.World!.PlaceItem(x, y, z, extra);
 				remaining -= extra.StackCount;
 			}
 
@@ -586,7 +584,7 @@ public static class SurgeryModule
 		}
 
 		for (var i = 0; i < count; i++)
-			MapModule.PlaceItem(state, x, y, z, PresetDB.CloneItem(itemId));
+			state.World!.PlaceItem(x, y, z, PresetDB.CloneItem(itemId));
 	}
 
 	private static void DropCorpseContentsToGround(GameState state, Item corpse, int x, int y, int z)
@@ -597,7 +595,7 @@ public static class SurgeryModule
 		foreach (var item in corpse.Contents)
 		{
 			item.Equipped = false;
-			MapModule.PlaceItem(state, x, y, z, item);
+			state.World!.PlaceItem(x, y, z, item);
 		}
 
 		corpse.Contents.Clear();

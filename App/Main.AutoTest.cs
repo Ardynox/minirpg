@@ -18,7 +18,7 @@ public partial class Main : IAutoTestHost
 
 	Task IAutoTestHost.StartDefaultNewGameAsync()
 	{
-		DoStartNewGame(PlayerCreationOptions.CreateDefault());
+		_mainAppFlowCoordinator.DoStartNewGame(PlayerCreationOptions.CreateDefault());
 		return Task.CompletedTask;
 	}
 
@@ -32,9 +32,31 @@ public partial class Main : IAutoTestHost
 	AutoTestRuntimeSnapshot IAutoTestHost.CaptureSnapshot() => CaptureAutoTestSnapshot();
 	Task IAutoTestHost.WaitStepAsync(float? delaySeconds) => WaitForAutoTestStepAsync(delaySeconds);
 
+	/// <summary>供 AutoTestModule 转发命令到 OnCommand。</summary>
+	public void RunTestCommand(string cmd) => OnCommand(cmd);
+
+	private void HandleMenuMapEditor()
+	{
+		if (IsMultiplayerSession)
+		{
+			_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.map_editor", "Map editor is disabled in multiplayer sessions."));
+			return;
+		}
+		_mainAppFlowCoordinator.HandleMenuMapEditor();
+	}
+
+	private void HandleAutoTest()
+	{
+		if (!ResourcesReady || _mapRender == null)
+			return;
+
+		var test = new AutoTestModule();
+		test.RunAll(this);
+	}
+
 	private SaveLoadStatus LoadPresetScenarioForAutoTest(string scenarioId)
 	{
-		PrepareSessionTransition(clearLogs: true);
+		_mainAppFlowCoordinator.PrepareSessionTransition(clearLogs: true);
 		var status = _session.LoadPresetScenario(scenarioId);
 		if (status != SaveLoadStatus.Success)
 			return status;
@@ -59,7 +81,7 @@ public partial class Main : IAutoTestHost
 		var player = ActorModule.GetPlayer(_state);
 		var groundItemCount = _state.World == null
 			? 0
-			: MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY).Count;
+			: _state.World.PeekGroundItems(_state.PlayerX, _state.PlayerY, _state.PlayerZ).Count;
 		var viewport = IsInsideTree() ? GetViewport() : null;
 		var viewportSize = viewport?.GetVisibleRect().Size ?? Vector2.Zero;
 		var mapViewportSize = _mapRender?.MapViewportSize ?? Vector2I.Zero;

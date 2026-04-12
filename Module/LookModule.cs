@@ -71,11 +71,11 @@ public static class LookModule
 			sb.Append(string.Join(" ", parts));
 		}
 
-		var standingOn = MapModule.GetFixtureId(state, state.PlayerX, state.PlayerY);
+		var standingOn = state.World!.GetFixtureId(state.PlayerX, state.PlayerY, state.PlayerZ);
 		if (!string.IsNullOrEmpty(standingOn))
 			sb.Append(LocalizationService.T("look.underfoot", ("fixture", FixtureLabel(standingOn))));
 
-		var groundItems = MapModule.PeekGroundItems(state, state.PlayerX, state.PlayerY);
+		var groundItems = (state.World?.PeekGroundItems(state.PlayerX, state.PlayerY, state.PlayerZ) ?? []);
 		if (groundItems.Count > 0)
 		{
 			var names = groundItems.ConvertAll(item => FormatLookItem(state, item));
@@ -180,7 +180,7 @@ public static class LookModule
 		if (!string.IsNullOrEmpty(accumulation))
 			parts.Add(LocalizationService.TOrFallback("look.inspect.accumulation", "Surface: {value}", ("value", accumulation)));
 
-		var fixtureId = MapModule.GetFixtureId(state, x, y, z);
+		var fixtureId = state.World!.GetFixtureId(x, y, z);
 		if (!string.IsNullOrEmpty(fixtureId))
 			parts.Add(LocalizationService.T("look.inspect.fixture", ("fixture", FixtureLabel(fixtureId))));
 
@@ -197,7 +197,7 @@ public static class LookModule
 		if (actors.Count > 0)
 			parts.Add(LocalizationService.T("look.inspect.actors", ("actors", string.Join(", ", actors.ConvertAll(actor => IdentificationModule.GetActorDisplayName(state, actor))))));
 
-		var items = MapModule.PeekGroundItems(state, x, y);
+		var items = state.World!.PeekGroundItems(x, y, state.PlayerZ);
 		if (z == state.PlayerZ && items.Count > 0)
 			parts.Add(LocalizationService.T("look.inspect.items", ("items", string.Join(", ", items.ConvertAll(item => FormatLookItem(state, item))))));
 		else if (state.World != null)
@@ -260,13 +260,11 @@ public static class LookModule
 		if (fireIntensity > 0)
 			return GameLocalizer.LocalizeFixtureName(Entities.Fire);
 
-		var items = z == state.PlayerZ
-			? MapModule.PeekGroundItems(state, x, y)
-			: state.World!.PeekGroundItems(x, y, z);
+		var items = state.World!.PeekGroundItems(x, y, z);
 		if (items.Count > 0)
 			return LocalizationService.T("look.cell.items", ("count", items.Count));
 
-		var fixtureId = MapModule.GetFixtureId(state, x, y, z);
+		var fixtureId = state.World!.GetFixtureId(x, y, z);
 		if (!string.IsNullOrEmpty(fixtureId))
 			return FixtureLabel(fixtureId);
 
@@ -295,14 +293,12 @@ public static class LookModule
 			return LocalizationService.T("look.cell.moving_shape");
 		}
 
-		var groundItems = z == state.PlayerZ
-			? MapModule.PeekGroundItems(state, x, y)
-			: state.World!.PeekGroundItems(x, y, z);
+		var groundItems = state.World!.PeekGroundItems(x, y, z);
 		if (groundItems.Count > 0)
 			return LocalizationService.T("look.cell.something");
 		if (FireSystem.GetFireIntensityAt(state, x, y, z) > 0)
 			return GameLocalizer.LocalizeFixtureName(Entities.Fire);
-		if (!string.IsNullOrEmpty(MapModule.GetFixtureId(state, x, y, z)))
+		if (!string.IsNullOrEmpty(state.World!.GetFixtureId(x, y, z)))
 			return LocalizationService.T("look.cell.something");
 		var accumulation = DescribeAccumulation(surface);
 		return string.IsNullOrEmpty(accumulation)

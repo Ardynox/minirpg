@@ -92,7 +92,7 @@ public class GroundPanelModule : ListPanelBase
 		var py = _host.State.PlayerY;
 		if (_dirty || px != _cachedX || py != _cachedY)
 		{
-			_groundItems = MapModule.PeekGroundItems(_host.State, px, py);
+			_groundItems = (_host.State.World?.PeekGroundItems(px, py, _host.State.PlayerZ) ?? []);
 			_cachedX = px;
 			_cachedY = py;
 			_dirty = false;

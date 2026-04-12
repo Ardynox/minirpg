@@ -374,7 +374,7 @@ public sealed class ActionModuleTests
 			RemainingLimbIds = ["human_heart"],
 		};
 		corpse.Contents = [];
-		MiniRPG.Core.Map.MapModule.PlaceItem(state, player.X, player.Y + 1, player.Z, corpse);
+		state.World!.PlaceItem(player.X, player.Y + 1, player.Z, corpse);
 
 		var result = ActionModule.TryCastSkill(
 			state,

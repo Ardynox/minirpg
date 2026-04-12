@@ -269,7 +269,7 @@ public static class CombatModule
 
 		foreach (var dropped in droppedItems)
 		{
-			MapModule.PlaceItem(state, target.X, target.Y, target.Z, dropped);
+			state.World!.PlaceItem(target.X, target.Y, target.Z, dropped);
 			var droppedEvent = new GameEvent("item_dropped")
 			{
 				TargetX = target.X,
@@ -283,7 +283,7 @@ public static class CombatModule
 
 		if (SurgeryModule.CreateSeveredLimbItem(targetLimb.Id) is { } severedLimb)
 		{
-			MapModule.PlaceItem(state, target.X, target.Y, target.Z, severedLimb);
+			state.World!.PlaceItem(target.X, target.Y, target.Z, severedLimb);
 			var severedEvent = new GameEvent("item_dropped")
 			{
 				TargetX = target.X,

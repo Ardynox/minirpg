@@ -81,7 +81,7 @@ public static class NestModule
 		{
 			var nx = nest.X + dx;
 			var ny = nest.Y + dy;
-			if (MapModule.IsWalkable(state, nx, ny, z) && ActorModule.GetAllAt(state, nx, ny, z).Count == 0)
+			if (state.World!.IsWalkable(nx, ny, z) && ActorModule.GetAllAt(state, nx, ny, z).Count == 0)
 				candidates.Add((nx, ny));
 		}
 		return candidates.Count == 0 ? null : candidates[rng.Next(candidates.Count)];

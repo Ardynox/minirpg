@@ -426,7 +426,7 @@ public static class AIVisionBatch
 		{
 			var x = observer.X + dx;
 			var y = observer.Y + dy;
-			var fixtureId = MapModule.GetFixtureId(state, x, y, observer.Z);
+			var fixtureId = state.World!.GetFixtureId(x, y, observer.Z);
 			if (!string.IsNullOrEmpty(fixtureId))
 				nearbyFixtures[(x, y)] = fixtureId;
 		}

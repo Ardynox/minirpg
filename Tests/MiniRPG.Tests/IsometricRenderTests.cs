@@ -100,37 +100,6 @@ public sealed class IsometricRenderTests
 		}
 	}
 
-	[Fact]
-	public void IsometricVoxelRenderer_TryResolvePackedTileTopCap_DetectsPackedIsoTile()
-	{
-		var rowWidths = new int[256];
-		const int minY = 176;
-		const int seamY = 208;
-		const int maxY = 255;
-		const int fullWidth = 128;
-
-		for (var y = minY; y <= seamY; y++)
-		{
-			var progress = (y - minY) / (float)(seamY - minY);
-			rowWidths[y] = Mathf.RoundToInt(Mathf.Lerp(4f, fullWidth, progress));
-		}
-
-		for (var y = seamY + 1; y <= 220; y++)
-			rowWidths[y] = fullWidth;
-		for (var y = 221; y <= maxY; y++)
-			rowWidths[y] = Math.Max(12, fullWidth - ((y - 220) * 4));
-
-		var method = typeof(IsometricVoxelRenderer).GetMethod("TryResolvePackedTileTopCap", BindingFlags.NonPublic | BindingFlags.Static);
-		Assert.NotNull(method);
-		object[] args = [rowWidths, minY, maxY, 0, 0, 0];
-		var detected = (bool)method!.Invoke(null, args)!;
-
-		Assert.True(detected);
-		Assert.Equal(fullWidth, (int)args[3]);
-		Assert.Equal(seamY, (int)args[4]);
-		Assert.True((int)args[5] >= 4);
-	}
-
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)
 	{
 		var method = typeof(IsometricVoxelRenderer).GetMethod("GetVisionTint", BindingFlags.NonPublic | BindingFlags.Instance);

@@ -181,7 +181,7 @@ internal sealed class GameplayCommandCoordinator
 			return;
 		}
 
-		var groundItems = MapModule.PeekGroundItems(_state, _state.PlayerX, _state.PlayerY);
+		var groundItems = (_state.World?.PeekGroundItems(_state.PlayerX, _state.PlayerY, _state.PlayerZ) ?? []);
 		if (groundItems.Count > 0)
 		{
 			_refreshGround();

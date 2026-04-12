@@ -13,7 +13,7 @@ public sealed class CombatFxPlayer
 	private const string EffectsPath = "res://Assets/Art/Placeholders/effects";
 	private const string DefaultAnimationName = "default";
 
-	private readonly TileMapRenderModule _mapRender;
+	private readonly IsometricVoxelRenderer _mapRender;
 	private readonly Node2D _worldRoot;
 	private readonly Control _textRoot;
 	private readonly Queue<Node> _worldEffects = new();
@@ -21,7 +21,7 @@ public sealed class CombatFxPlayer
 	private readonly Dictionary<string, ResourceCatalogEntry> _catalogEntries;
 	private readonly Dictionary<string, CombatFxVisualAsset> _assetCache = new(StringComparer.OrdinalIgnoreCase);
 
-	public CombatFxPlayer(TileMapRenderModule mapRender, Node2D worldRoot, Control textRoot)
+	public CombatFxPlayer(IsometricVoxelRenderer mapRender, Node2D worldRoot, Control textRoot)
 	{
 		_mapRender = mapRender;
 		_worldRoot = worldRoot;

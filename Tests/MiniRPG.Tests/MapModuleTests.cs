@@ -28,8 +28,8 @@ public sealed class MapModuleTests
 	public void SetTerrain_Wall_GetTerrain_ReturnsWallGlyph()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, "#");
-		var glyph = MapModule.GetTerrain(s, 5, 5);
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.WallStone);
+		var glyph = s.World!.GetTerrain(5, 5, s.PlayerZ).Glyph;
 		Assert.Equal("#", glyph);
 	}
 
@@ -37,24 +37,24 @@ public sealed class MapModuleTests
 	public void SetTerrain_Floor_GetTerrain_ReturnsFloorGlyph()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, ".");
-		Assert.Equal(".", MapModule.GetTerrain(s, 5, 5));
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.Floor);
+		Assert.Equal(".", s.World!.GetTerrain(5, 5, s.PlayerZ).Glyph);
 	}
 
 	[Fact]
 	public void SetTerrain_Water_GetTerrain_ReturnsWaterGlyph()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, "~");
-		Assert.Equal("~", MapModule.GetTerrain(s, 5, 5));
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.Water);
+		Assert.Equal("~", s.World!.GetTerrain(5, 5, s.PlayerZ).Glyph);
 	}
 
 	[Fact]
 	public void SetTerrain_UnknownGlyph_DefaultsToFloor()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, "?");
-		Assert.Equal(".", MapModule.GetTerrain(s, 5, 5));
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.Floor);
+		Assert.Equal(".", s.World!.GetTerrain(5, 5, s.PlayerZ).Glyph);
 	}
 
 	// ── SetFixture / HasFixture ──────────────────────────
@@ -63,24 +63,24 @@ public sealed class MapModuleTests
 	public void SetFixture_StairDown_HasFixture()
 	{
 		var s = CreateState();
-		MapModule.SetFixture(s, 3, 3, ">");
-		Assert.True(MapModule.HasFixture(s, 3, 3, Entities.StairDown));
+		s.World!.SetFixture(3, 3, s.PlayerZ, ">", Entities.StairDown);
+		Assert.True(s.World!.HasFixture(3, 3, s.PlayerZ, Entities.StairDown));
 	}
 
 	[Fact]
 	public void SetFixture_Empty_RemovesFixture()
 	{
 		var s = CreateState();
-		MapModule.SetFixture(s, 3, 3, ">");
-		MapModule.SetFixture(s, 3, 3, "");
-		Assert.False(MapModule.HasFixture(s, 3, 3, Entities.StairDown));
+		s.World!.SetFixture(3, 3, s.PlayerZ, ">", Entities.StairDown);
+		s.World!.SetFixture(3, 3, s.PlayerZ, "", "");
+		Assert.False(s.World!.HasFixture(3, 3, s.PlayerZ, Entities.StairDown));
 	}
 
 	[Fact]
 	public void GetFixture_NoFixture_ReturnsEmpty()
 	{
 		var s = CreateState();
-		Assert.Equal("", MapModule.GetFixture(s, 10, 10));
+		Assert.Equal("", (s.World!.GetFirstEntity(10, 10, s.PlayerZ, CellEntityType.Fixture)?.Glyph ?? ""));
 	}
 
 	// ── IsWall / IsWalkable ──────────────────────────────
@@ -89,30 +89,30 @@ public sealed class MapModuleTests
 	public void IsWall_WallTerrain_ReturnsTrue()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, "#");
-		Assert.True(MapModule.IsWall(s, 5, 5));
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.WallStone);
+		Assert.True(!s.World!.IsWalkable(5, 5, s.PlayerZ));
 	}
 
 	[Fact]
 	public void IsWall_FloorTerrain_ReturnsFalse()
 	{
 		var s = CreateState();
-		Assert.False(MapModule.IsWall(s, 5, 5));
+		Assert.False(!s.World!.IsWalkable(5, 5, s.PlayerZ));
 	}
 
 	[Fact]
 	public void IsWalkable_Floor_ReturnsTrue()
 	{
 		var s = CreateState();
-		Assert.True(MapModule.IsWalkable(s, 5, 5));
+		Assert.True(s.World!.IsWalkable(5, 5, s.PlayerZ));
 	}
 
 	[Fact]
 	public void IsWalkable_Wall_ReturnsFalse()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, "#");
-		Assert.False(MapModule.IsWalkable(s, 5, 5));
+		s.World!.SetTerrain(5, 5, s.PlayerZ, Terrains.WallStone);
+		Assert.False(s.World!.IsWalkable(5, 5, s.PlayerZ));
 	}
 
 	// ── PlaceItem / PickupItem / PeekGroundItems ─────────
@@ -123,9 +123,9 @@ public sealed class MapModuleTests
 		var s = CreateState();
 		var item = new Item { Id = "coin", Name = "Coin", Price = 1 };
 		item.EnsureRuntimeState();
-		MapModule.PlaceItem(s, 5, 5, item);
+		s.World!.PlaceItem(5, 5, s.PlayerZ, item);
 
-		var items = MapModule.PeekGroundItems(s, 5, 5);
+		var items = s.World!.PeekGroundItems(5, 5, s.PlayerZ);
 		Assert.NotEmpty(items);
 		Assert.Contains(items, i => i.Id == "coin");
 	}
@@ -136,14 +136,14 @@ public sealed class MapModuleTests
 		var s = CreateState();
 		var item = new Item { Id = "gem", Name = "Gem", Price = 50 };
 		item.EnsureRuntimeState();
-		MapModule.PlaceItem(s, 5, 5, item);
+		s.World!.PlaceItem(5, 5, s.PlayerZ, item);
 
 		// Get the entity ID from ground items
-		var groundItems = MapModule.PeekGroundItems(s, 5, 5);
+		var groundItems = s.World!.PeekGroundItems(5, 5, s.PlayerZ);
 		Assert.NotEmpty(groundItems);
 		var entityId = groundItems[0].InstanceId;
 
-		var picked = MapModule.PickupItem(s, 5, 5, entityId);
+		var picked = s.World!.PickupItem(5, 5, s.PlayerZ, entityId);
 		Assert.NotNull(picked);
 	}
 
@@ -151,7 +151,7 @@ public sealed class MapModuleTests
 	public void PickupItem_NonExistent_ReturnsNull()
 	{
 		var s = CreateState();
-		Assert.Null(MapModule.PickupItem(s, 5, 5, "nonexistent"));
+		Assert.Null(s.World!.PickupItem(5, 5, s.PlayerZ, "nonexistent"));
 	}
 
 	// ── 3D overloads ─────────────────────────────────────
@@ -160,8 +160,8 @@ public sealed class MapModuleTests
 	public void SetTerrain_3D_Works()
 	{
 		var s = CreateState();
-		MapModule.SetTerrain(s, 5, 5, 1, "#");
-		Assert.Equal("#", MapModule.GetTerrain(s, 5, 5, 1));
+		s.World!.SetTerrain(5, 5, 1, Terrains.WallStone);
+		Assert.Equal("#", s.World!.GetTerrain(5, 5, 1).Glyph);
 	}
 
 	// ── Helper ───────────────────────────────────────────

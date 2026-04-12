@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Health;
-using MiniRPG.Core.Map;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Combat;
@@ -24,7 +23,7 @@ public static class ActionModule
 		var nx = actor.X + dx;
 		var ny = actor.Y + dy;
 
-		if (!MapModule.InBounds(state, nx, ny) || MapModule.IsWall(state, nx, ny, actor.Z))
+		if (!state.World!.IsWalkable(nx, ny, actor.Z))
 		{
 			events.Add(new GameEvent("hit_wall") { InitiatorId = actor.Id });
 			return events;
@@ -186,7 +185,7 @@ public static class ActionModule
 		var resolvedTargetY = targetY ?? caster.Y;
 		var resolvedTargetZ = targetZ ?? caster.Z;
 		var targetItem = !string.IsNullOrWhiteSpace(targetItemId)
-			? MapModule.FindGroundItem(state, resolvedTargetX, resolvedTargetY, resolvedTargetZ, targetItemId)
+			? state.World?.PeekGroundItems(resolvedTargetX, resolvedTargetY, resolvedTargetZ).Find(i => string.Equals(i.InstanceId, targetItemId, StringComparison.Ordinal))
 			: null;
 		return TryCastSkill(
 			state,

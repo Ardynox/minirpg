@@ -34,4 +34,10 @@ public partial class Main
 			LocalizationService.T("ui.main_menu.weather_lab"),
 			() => _session.PrepareLoadPresetScenario(WeatherLabPresetScenarioId));
 	}
+
+	private void RefreshWeatherLabSessionStateForCoordinator(bool autoOpen) =>
+		_weatherLabPanelController.RefreshSessionState(autoOpen);
+
+	private void CloseWeatherLabPanelForCoordinator(bool resetRuntime) =>
+		_weatherLabPanelController.Close(resetRuntime);
 }

@@ -1,0 +1,149 @@
+using MiniRPG.Core.World;
+
+namespace MiniRPG;
+
+public partial class Main
+{
+	private void WireEventHandlers()
+	{
+		_settingsFlow.RenderToggleRequested += ToggleRender;
+		_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
+		_settingsFlow.FastTurnModeToggleRequested += ToggleFastTurnMode;
+		_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
+		_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
+		_settingsFlow.MapZoomMinDecreaseRequested += DecreaseMapZoomMin;
+		_settingsFlow.MapZoomMinIncreaseRequested += IncreaseMapZoomMin;
+		_settingsFlow.MapZoomMaxDecreaseRequested += DecreaseMapZoomMax;
+		_settingsFlow.MapZoomMaxIncreaseRequested += IncreaseMapZoomMax;
+		_settingsFlow.MapEditorToggleRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.map_editor", "Map editor is disabled in multiplayer sessions."));
+				return;
+			}
+			_mainAppFlowCoordinator.ToggleMapEditor();
+		};
+		_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
+		_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
+		_settingsFlow.SaveRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
+				return;
+			}
+			DoSaveCurrent();
+		};
+		_settingsFlow.LoadRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
+				return;
+			}
+			_mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
+		};
+		_settingsFlow.LanguageChangedRequested += HandleLanguageChanged;
+		_settingsFlow.QuickSaveRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
+				return;
+			}
+			var path = _session.GetQuickSavePath();
+			DoSave(path, _session.DescribeSavePath(path));
+		};
+		_settingsFlow.QuickLoadRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
+				return;
+			}
+			_mainAppFlowCoordinator.HandleQuickLoadRequested();
+		};
+		_settingsFlow.ReturnToMenuRequested += () =>
+		{
+			if (IsMultiplayerSession)
+			{
+				HandleMultiplayerReturnToMenu();
+				return;
+			}
+
+			_mainAppFlowCoordinator.HandleBackToMenu();
+		};
+		_settingsFlow.MultiplayerRoomRequested += HandleMultiplayerRoomRequested;
+		_settingsFlow.MainMenuRestoreRequested += ShowMainMenuWithCurrentContinue;
+		_layoutEditBar.ApplyRequested += ApplyLayoutEditMode;
+		_layoutEditBar.CancelRequested += CancelLayoutEditMode;
+		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
+		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
+		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
+		_worldManager.DeleteSaveDataRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested;
+		_worldManager.CleanAssetsRequested += _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested;
+		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;
+		_worldManager.ContinueCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerContinueCharacterRequested;
+		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
+		_worldManager.LegacySaveRequested += slot =>
+		{
+			if (IsMultiplayerSession)
+			{
+				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
+				return;
+			}
+			_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
+		};
+		_mapEditorBar.CategorySelected += category =>
+		{
+			_mapEditor.SelectCategory(category);
+			RefreshMapEditorBar();
+			FlushMap();
+		};
+		_mapEditorBar.BrushSelected += index =>
+		{
+			_mapEditor.SelectBrush(index);
+			RefreshMapEditorBar();
+			FlushMap();
+		};
+		_mapEditorBar.SaveRequested += HandleMapEditorSaveRequested;
+		_mapEditorBar.ExitRequested += () => ExitMapEditor();
+		_mapEditorBar.CenterRequested += () =>
+		{
+			_mapEditor.CenterOnPlayer();
+			FlushMap();
+		};
+		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
+		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
+		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
+		_characterCreation.CancelRequested += _mainAppFlowCoordinator.HandleCharacterCreationCanceled;
+		_worldSettingsDialog.ConfirmRequested += _mainAppFlowCoordinator.HandleWorldSettingsConfirmed;
+		_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
+		_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;
+		_confirmDialog.CancelRequested += _mainAppFlowCoordinator.CloseConfirmDialog;
+		_loadRecoveryDialog.RecoveryConfirmed += _mainAppFlowCoordinator.HandleLoadRecoveryConfirmed;
+		_loadRecoveryDialog.CancelRequested += _mainAppFlowCoordinator.CloseLoadRecoveryDialog;
+
+		_menu.OnContinue += _mainAppFlowCoordinator.HandleMenuContinue;
+		_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
+		_menu.OnMapEditor += HandleMenuMapEditor;
+		_menu.OnMultiplayer += HandleMenuMultiplayer;
+		_menu.OnWeatherLab += HandleMenuWeatherLab;
+		_menu.OnAutoTest += HandleAutoTest;
+		_menu.OnQuit += () => GetTree().Quit();
+		_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;
+		_multiplayerHub.BackRequested += HandleMultiplayerHubBackRequested;
+		_multiplayerHub.SaveSettingsRequested += HandleMultiplayerHubSaveSettingsRequested;
+		_multiplayerHub.RefreshRoomsRequested += HandleMultiplayerHubRefreshRequested;
+		_multiplayerHub.JoinRoomRequested += HandleMultiplayerHubJoinRoomRequested;
+		_multiplayerHub.JoinByCodeRequested += HandleMultiplayerHubJoinByCodeRequested;
+		_multiplayerHub.CreateRoomRequested += HandleMultiplayerHubCreateRequested;
+		_multiplayerHub.ReconnectRequested += HandleMultiplayerHubReconnectRequested;
+		_multiplayerRoomPanel.CloseRequested += CloseMultiplayerRoomPanel;
+		_multiplayerRoomPanel.HostCurrentSessionRequested += HandleMultiplayerRoomHostCurrentSessionRequested;
+		_multiplayerRoomPanel.AssignPrimaryActorRequested += HandleMultiplayerRoomAssignPrimaryActorRequested;
+		_multiplayerRoomPanel.KickPlayerRequested += HandleMultiplayerRoomKickPlayerRequested;
+		_multiplayerRoomPanel.ReclaimPrimaryActorRequested += HandleMultiplayerRoomReclaimPrimaryActorRequested;
+	}
+}

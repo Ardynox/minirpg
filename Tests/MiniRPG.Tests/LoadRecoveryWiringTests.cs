@@ -18,11 +18,12 @@ public sealed class LoadRecoveryWiringTests
 	public void MainCode_WiresLoadRecoveryDialogIntoModalAndCoordinatorFlow()
 	{
 		var mainText = File.ReadAllText(GetRepoPath("App", "Main.cs"));
+		var startupText = File.ReadAllText(GetRepoPath("App", "Main.Startup.cs"));
 		var coordinatorText = File.ReadAllText(GetRepoPath("App", "RuntimeUi", "MainAppFlowCoordinator.cs"));
 
-		Assert.Contains("_loadRecoveryDialog = new LoadRecoveryDialogModule", mainText, StringComparison.Ordinal);
-		Assert.Contains("_loadRecoveryDialog,", mainText, StringComparison.Ordinal);
-		Assert.Contains("CloseLoadRecoveryDialog", mainText, StringComparison.Ordinal);
+		Assert.Contains("_loadRecoveryDialog = new LoadRecoveryDialogModule", startupText, StringComparison.Ordinal);
+		Assert.Contains("_loadRecoveryDialog,", startupText, StringComparison.Ordinal);
+		Assert.Contains("CloseLoadRecoveryDialog", startupText, StringComparison.Ordinal);
 		Assert.Contains("HandleLoadRecoveryConfirmed", coordinatorText, StringComparison.Ordinal);
 		Assert.Contains("_loadRecoveryDialog.Open", coordinatorText, StringComparison.Ordinal);
 	}

@@ -60,7 +60,7 @@ public partial class Main
 				return;
 			}
 
-			ToggleSettingsPanel();
+			_mainAppFlowCoordinator.ToggleSettingsPanel();
 			return;
 		}
 
@@ -157,7 +157,7 @@ public partial class Main
 				if (IsMultiplayerSession)
 					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
 				else
-					OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
+					_mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
 				break;
 			case "newmap":
 				_session.NewGame(PlayerCreationOptions.CreateDefault());
@@ -193,4 +193,30 @@ public partial class Main
 	}
 
 	private void DoLook() => _log.Add(LookModule.BuildLookText(_state, _fogTracker));
+
+	// ══════════════════════════════════════════════════════
+	//  存档 / 读档
+	// ══════════════════════════════════════════════════════
+
+	private void DoSave(string path, string label)
+	{
+		_session.SaveGame(path);
+		_log.Add(LocalizationService.T("log.save.saved", ("label", label)));
+	}
+
+	private void DoSaveCurrent()
+	{
+		var path = _session.GetPreferredSavePath();
+		DoSave(path, _session.DescribeSavePath(path));
+	}
+
+	/// <summary>
+	/// Core 层事件到 UI 层副作用的唯一入口。
+	/// 日志翻译委托给 LogModule.DispatchEvent，
+	/// 流程触发路由到对应的 UI Module。
+	/// </summary>
+	private void Dispatch(List<GameEvent> events)
+	{
+		_gameEventPresentationRouter.Dispatch(events);
+	}
 }

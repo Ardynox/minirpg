@@ -557,14 +557,14 @@ public class GameSessionModule : IDebugSessionActions
 
 		foreach (var (dx, dy) in dirs)
 		{
-			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairDown))
+			if (_state.World!.HasFixture(px + dx, py + dy, _state.PlayerZ, Entities.StairDown))
 			{
 				ChangeFloor(goDown: true);
 				logMessage = LocalizationService.T("log.floor.enter_down", ("floor", _state.PlayerZ));
 				return true;
 			}
 
-			if (MapModule.HasFixture(_state, px + dx, py + dy, Entities.StairUp))
+			if (_state.World!.HasFixture(px + dx, py + dy, _state.PlayerZ, Entities.StairUp))
 			{
 				ChangeFloor(goDown: false);
 				logMessage = LocalizationService.T("log.floor.enter_up", ("floor", _state.PlayerZ));
@@ -577,8 +577,8 @@ public class GameSessionModule : IDebugSessionActions
 
 	public void ChangeFloor(bool goDown)
 	{
-		if (goDown) MapModule.GoDown(_state);
-		else MapModule.GoUp(_state);
+		if (goDown) { _state.PlayerZ++; var player = ActorModule.GetPlayer(_state); if (player != null) player.Z = _state.PlayerZ; }
+		else { _state.PlayerZ--; var player = ActorModule.GetPlayer(_state); if (player != null) player.Z = _state.PlayerZ; }
 
 		var center = new WorldCoord(_state.PlayerX, _state.PlayerY, _state.PlayerZ);
 		_state.World?.Chunks.UpdateLoadedChunks(center, _state.Turn);
@@ -953,7 +953,7 @@ public class GameSessionModule : IDebugSessionActions
 	{
 		var normalized = generatorId?.Trim();
 		if (string.IsNullOrWhiteSpace(normalized) || string.Equals(normalized, "blank_floor", StringComparison.Ordinal))
-			return "room_corridor";
+			return "dwarf_fortress";
 
 		return normalized;
 	}

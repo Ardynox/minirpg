@@ -23,7 +23,7 @@ public partial class Main
 		_inventoryLauncherBtn.Pressed += ToggleInventory;
 		_questLauncherBtn.Pressed += ToggleQuestPanel;
 		_debugLauncherBtn.Pressed += ToggleDebugPanel;
-		_settingsLauncherBtn.Pressed += ToggleSettingsPanel;
+		_settingsLauncherBtn.Pressed += () => _mainAppFlowCoordinator.ToggleSettingsPanel();
 
 		ApplyPanelLauncherTooltips();
 		RefreshPanelLauncherState();

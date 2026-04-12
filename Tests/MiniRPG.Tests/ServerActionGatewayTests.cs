@@ -23,7 +23,7 @@ public sealed class ServerActionGatewayTests
 	{
 		var state = CreateState();
 		var item = CreateItem("ground_berry", "Ground Berry");
-		MapModule.PlaceItem(state, 1, 1, 0, item);
+		state.World!.PlaceItem(1, 1, 0, item);
 
 		var result = ServerActionGateway.Execute(state, new PickupClientCommand
 		{
@@ -37,7 +37,7 @@ public sealed class ServerActionGatewayTests
 		var evt = Assert.Single(result.Events);
 		Assert.Equal("item_picked_up", evt.Type);
 		Assert.Contains(state.Actors["hero"].Inventory, entry => entry.InstanceId == item.InstanceId);
-		Assert.Null(MapModule.FindGroundItem(state, 1, 1, 0, item.InstanceId));
+		Assert.Null(state.World!.PeekGroundItems(1, 1, 0).Find(i => string.Equals(i.InstanceId, item.InstanceId, StringComparison.Ordinal)));
 	}
 
 	[Fact]
@@ -96,7 +96,7 @@ public sealed class ServerActionGatewayTests
 		var evt = Assert.Single(result.Events);
 		Assert.Equal("item_dropped", evt.Type);
 		Assert.Empty(state.Actors["hero"].Inventory);
-		Assert.NotNull(MapModule.FindGroundItem(state, 1, 1, 0, item.InstanceId));
+		Assert.NotNull(state.World!.PeekGroundItems(1, 1, 0).Find(i => string.Equals(i.InstanceId, item.InstanceId, StringComparison.Ordinal)));
 	}
 
 	[Fact]
@@ -122,7 +122,7 @@ public sealed class ServerActionGatewayTests
 		var state = CreateState();
 		var item = CreateItem("chest_apple", "Chest Apple");
 		var chest = CreateContainer("ground_chest", "Ground Chest", item);
-		MapModule.PlaceItem(state, 1, 1, 0, chest);
+		state.World!.PlaceItem(1, 1, 0, chest);
 
 		var result = ServerActionGateway.Execute(state, new ChestTakeClientCommand
 		{
@@ -140,7 +140,7 @@ public sealed class ServerActionGatewayTests
 		Assert.Empty(result.Events);
 		Assert.Single(result.Logs);
 		Assert.Contains(state.Actors["hero"].Inventory, entry => entry.InstanceId == item.InstanceId);
-		var remainingChest = MapModule.FindGroundItem(state, 1, 1, 0, chest.InstanceId);
+		var remainingChest = state.World!.PeekGroundItems(1, 1, 0).Find(i => string.Equals(i.InstanceId, chest.InstanceId, StringComparison.Ordinal));
 		Assert.NotNull(remainingChest);
 		Assert.Empty(remainingChest!.Contents!);
 	}
@@ -179,7 +179,7 @@ public sealed class ServerActionGatewayTests
 			"Stash",
 			CreateItem("stash_a", "Stash A"),
 			CreateItem("stash_b", "Stash B"));
-		MapModule.PlaceItem(state, 1, 1, 0, chest);
+		state.World!.PlaceItem(1, 1, 0, chest);
 
 		var result = ServerActionGateway.Execute(state, new ChestTakeAllClientCommand
 		{
@@ -196,7 +196,7 @@ public sealed class ServerActionGatewayTests
 		Assert.Empty(result.Events);
 		Assert.Single(result.Logs);
 		Assert.Equal(2, state.Actors["hero"].Inventory.Count(entry => entry.Id.StartsWith("stash_", StringComparison.Ordinal)));
-		var emptiedChest = MapModule.FindGroundItem(state, 1, 1, 0, chest.InstanceId);
+		var emptiedChest = state.World!.PeekGroundItems(1, 1, 0).Find(i => string.Equals(i.InstanceId, chest.InstanceId, StringComparison.Ordinal));
 		Assert.NotNull(emptiedChest);
 		Assert.Empty(emptiedChest!.Contents!);
 	}
@@ -229,7 +229,7 @@ public sealed class ServerActionGatewayTests
 		equipped.Equipped = true;
 		state.Actors["hero"].Inventory.Add(equipped);
 		var chest = CreateContainer("put_chest", "Put Chest");
-		MapModule.PlaceItem(state, 1, 1, 0, chest);
+		state.World!.PlaceItem(1, 1, 0, chest);
 
 		var result = ServerActionGateway.Execute(state, new ChestPutClientCommand
 		{
@@ -256,7 +256,7 @@ public sealed class ServerActionGatewayTests
 		var apple = CreateItem("pack_apple", "Pack Apple");
 		state.Actors["hero"].Inventory.Add(apple);
 		var chest = CreateContainer("put_chest_ok", "Put Chest");
-		MapModule.PlaceItem(state, 1, 1, 0, chest);
+		state.World!.PlaceItem(1, 1, 0, chest);
 
 		var result = ServerActionGateway.Execute(state, new ChestPutClientCommand
 		{
@@ -274,7 +274,7 @@ public sealed class ServerActionGatewayTests
 		Assert.Empty(result.Events);
 		Assert.Single(result.Logs);
 		Assert.Empty(state.Actors["hero"].Inventory);
-		var updatedChest = MapModule.FindGroundItem(state, 1, 1, 0, chest.InstanceId);
+		var updatedChest = state.World!.PeekGroundItems(1, 1, 0).Find(i => string.Equals(i.InstanceId, chest.InstanceId, StringComparison.Ordinal));
 		Assert.NotNull(updatedChest);
 		Assert.Contains(updatedChest!.Contents!, item => item.InstanceId == apple.InstanceId);
 	}
@@ -436,7 +436,7 @@ public sealed class ServerActionGatewayTests
 	{
 		var state = CreateState();
 		var chest = CreateContainer("put_chest", "Put Chest");
-		MapModule.PlaceItem(state, 1, 1, 0, chest);
+		state.World!.PlaceItem(1, 1, 0, chest);
 
 		var result = ServerActionGateway.Execute(state, new ChestPutClientCommand
 		{

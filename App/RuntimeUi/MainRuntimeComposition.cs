@@ -39,7 +39,7 @@ internal sealed class RuntimeServices
 
 internal sealed class RuntimeUiRefs
 {
-	public TileMapRenderModule? MapRender { get; set; }
+	public IsometricVoxelRenderer? MapRender { get; set; }
 	public WorldManagerModule? WorldManager { get; set; }
 	public SettingsPanelModule? SettingsPanel { get; set; }
 	public MultiplayerHubModule? MultiplayerHub { get; set; }

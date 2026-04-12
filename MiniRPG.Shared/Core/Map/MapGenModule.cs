@@ -18,6 +18,7 @@ public static class MapGenModule
 
 	static MapGenModule()
 	{
+		RegisterGenerator(new DwarfFortressGenerator());
 		RegisterGenerator(new RoomCorridorGenerator());
 		RegisterGenerator(new PerlinGenerator());
 		RegisterGenerator(new CellularAutomataGenerator());
@@ -32,7 +33,7 @@ public static class MapGenModule
 	public static IReadOnlyDictionary<string, IMapGenerator> AllGenerators => Generators;
 
 	public static IMapGenerator GetGenerator(string id) =>
-		Generators.GetValueOrDefault(id) ?? Generators["room_corridor"];
+		Generators.GetValueOrDefault(id) ?? Generators["dwarf_fortress"];
 
 	/// <summary>
 	/// 初始化世界：创建 WorldMap，设置 chunk 回调，加载玩家周围的 chunk。

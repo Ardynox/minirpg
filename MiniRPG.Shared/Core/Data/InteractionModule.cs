@@ -109,7 +109,7 @@ public static class InteractionModule
 		}
 
 		actor.Inventory.RemoveAt(inventoryIndex);
-		MapModule.PlaceItem(state, actor.X, actor.Y, item);
+		state.World!.PlaceItem(actor.X, actor.Y, state.PlayerZ, item);
 
 		var droppedEvent = new GameEvent("item_dropped")
 		{
@@ -130,7 +130,7 @@ public static class InteractionModule
 	/// </summary>
 	public static List<GameEvent> PickupItem(GameState state, Actor actor, string itemEntityId)
 	{
-		var picked = MapModule.PickupItem(state, actor.X, actor.Y, itemEntityId);
+		var picked = state.World!.PickupItem(actor.X, actor.Y, state.PlayerZ, itemEntityId);
 		if (picked == null)
 		{
 			var failedEvent = new GameEvent("pickup_failed");

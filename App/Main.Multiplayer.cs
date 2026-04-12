@@ -9,6 +9,14 @@ namespace MiniRPG;
 
 public partial class Main
 {
+	private void DoMove(int dx, int dy) => _gameplayCommandCoordinator.DoMove(dx, dy, TrySubmitPredictedMove);
+
+	private bool TrySubmitPredictedMove(int dx, int dy) =>
+		_multiplayerRuntimeCoordinator != null
+		&& _multiplayerRuntimeCoordinator.TrySubmitPredictedMove(dx, dy, IsMultiplayerSession);
+
+	private void EmitPredictionMetricsIfDue() => _multiplayerRuntimeCoordinator?.EmitPredictionMetricsIfDue();
+
 	private async void HandleMenuMultiplayer()
 	{
 		await OpenMultiplayerHubAsync(refreshRooms: true);

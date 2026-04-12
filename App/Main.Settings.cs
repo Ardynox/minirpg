@@ -1,10 +1,47 @@
 using System;
+using System.Globalization;
 using Godot;
 
 namespace MiniRPG;
 
 public partial class Main
 {
+	private void HideSettingsPanels()
+	{
+		_panelChrome.CloseActiveSettings();
+		while (_settingsFlow.HasVisibleOverlay)
+			_settingsFlow.CloseActiveOverlay();
+	}
+
+	private void CloseSettingsOverlayIfVisible()
+	{
+		if (_settingsFlow.SettingsVisible)
+			_settingsFlow.CloseActiveOverlay();
+	}
+
+	private static PredictionConfig LoadPredictionConfigFromEnvironment()
+	{
+		var threshold = ParseIntEnvironment("MINIRPG_PREDICTION_ROLLBACK_THRESHOLD", PredictionConfig.Default.RollbackThresholdManhattan, 0, 8);
+		var maxPending = ParseIntEnvironment("MINIRPG_PREDICTION_MAX_PENDING", PredictionConfig.Default.MaxPendingCommands, 8, 256);
+		return new PredictionConfig(threshold, maxPending);
+	}
+
+	private static float LoadPredictionSmoothingSecondsFromEnvironment()
+	{
+		var raw = System.Environment.GetEnvironmentVariable("MINIRPG_PREDICTION_SMOOTHING_SECONDS");
+		if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+			return 0.10f;
+		return Math.Clamp(parsed, 0.02f, 0.35f);
+	}
+
+	private static int ParseIntEnvironment(string name, int fallback, int min, int max)
+	{
+		var raw = System.Environment.GetEnvironmentVariable(name);
+		if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+			return fallback;
+		return Math.Clamp(parsed, min, max);
+	}
+
 	private SettingsUiState BuildSettingsUiState(SettingsEntryContext? context = null)
 	{
 		var resolvedContext = context ?? (_menu.InMenu
@@ -169,7 +206,7 @@ public partial class Main
 
 		RefreshVisiblePanels();
 		if (IsWorldManagerOpen)
-			RefreshWorldManagerContents();
+			_mainAppFlowCoordinator.RefreshWorldManagerContents();
 
 		if (clearLogs)
 		{

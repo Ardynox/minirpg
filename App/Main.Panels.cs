@@ -5,6 +5,20 @@ namespace MiniRPG;
 
 public partial class Main
 {
+	private void RefreshVisiblePanels()
+	{
+		_runtimeViewCoordinator.RefreshVisiblePanels(
+			_debugPanelController,
+			RefreshActorInspectPanel,
+			() => _mainAppFlowCoordinator.RefreshWorldManagerContents(),
+			RefreshMultiplayerRoomPanelState);
+
+		if (_tradeUI?.InTrade == true)
+			_tradeUI.Refresh();
+		if (_dialogUI?.InDialog == true)
+			_dialogUI.RefreshCurrentEntry();
+	}
+
 	// ── 懒加载低频面板 ──────────────────────────────────
 
 	private ChestPanelModule EnsureChestPanel()

@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using MiniRPG.Core.Data;
-using MiniRPG.Core.Map;
 
 namespace MiniRPG.Core.Needs;
 
@@ -54,7 +53,7 @@ public static class NeedActionModule
 		if (string.IsNullOrWhiteSpace(worldFoodEntityId))
 			return result;
 
-		var item = MapModule.PickupItem(state, actor.X, actor.Y, worldFoodEntityId);
+		var item = state.World!.PickupItem(actor.X, actor.Y, state.PlayerZ, worldFoodEntityId);
 		if (item == null || !IsFood(item))
 			return result;
 

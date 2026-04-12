@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Module.Render;
@@ -58,7 +60,11 @@ public partial class IsometricVoxelRenderer
 
 	private Node2D? _root;
 	private Camera2D? _camera;
-	private TileMapRenderModule? _parentModule;
+	private SubViewportContainer? _viewportContainer;
+	private SubViewport? _subViewport;
+	private WeatherFxController? _weatherFxController;
+	private Node2D? _combatFxWorldRoot;
+	private IAnimatable? _playerAnim;
 
 	private readonly List<Sprite2D> _spritePool = [];
 	private int _spriteCount;
@@ -73,6 +79,33 @@ public partial class IsometricVoxelRenderer
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
 	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
 	private IsometricLightingSettings _lighting = DefaultLighting;
+	private readonly TerrainAtlas _terrainAtlas = new();
+
+	// ── Orchestration state (formerly TileMapRenderModule) ──
+	private float _zoom = 1.0f;
+	private float _minCameraZoom = 0.6f;
+	private float _maxCameraZoom = 2.4f;
+	private const float CameraZoomStep = 0.1f;
+	private bool _editorViewActive;
+	private int _viewCenterX;
+	private int _viewCenterY;
+	private int _viewCenterZ;
+	private double _tileAnimationClockSeconds;
+	private int _lightingProfileIndex;
+	private int _tileDrawCommandCount;
+	private RenderPerfSnapshot _lastPerfSnapshot = RenderPerfSnapshot.Empty;
+	private double _frameTimeEwmaMs;
+	private bool _hasFrameTimeEwma;
+	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
+	private float _playerVisualCorrectionRemaining;
+	private float _playerVisualCorrectionDuration;
+
+	private static readonly (string Key, IsometricLightingSettings Lighting)[] LightingProfiles =
+	[
+		("render.lighting.profile.default", new IsometricLightingSettings(0.84f, 1.12f, 0.76f, 0.90f, 0.06f, 1.06f, 0.58f, 0.085f)),
+		("render.lighting.profile.cinematic", new IsometricLightingSettings(0.72f, 1.24f, 0.62f, 0.95f, 0.09f, 1.18f, 0.76f, 0.11f)),
+		("render.lighting.profile.soft", new IsometricLightingSettings(0.94f, 1.04f, 0.86f, 0.92f, 0.03f, 0.92f, 0.42f, 0.06f)),
+	];
 
 	private static readonly Dictionary<string, Color> TerrainColors = new()
 	{
@@ -120,14 +153,54 @@ public partial class IsometricVoxelRenderer
 	public int LastSpriteCount => _spriteCount;
 	public int LastDrawCommandCount => _lastDrawCommandCount;
 	public IsometricLightingSettings LightingSettings => _lighting;
+	public Vector3I? HoverWorldCell { get; set; }
+	public Vector3I? InspectWorldCell { get; set; }
+	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
+	public bool IsIsometricMode => true;
+	public int LightingProfileIndex => _lightingProfileIndex;
+	public RenderPerfSnapshot LastPerfSnapshot => _lastPerfSnapshot;
+	public float Zoom => _zoom;
+	public bool FogMapVisible { get; set; }
+	public bool MinimapVisible { get; set; }
+	public Vector2I MapViewportSize => _subViewport?.Size ?? Vector2I.Zero;
+	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
+	public bool IsRevealAll => _fogTracker.RevealAll;
+	public IAnimatable? PlayerAnimatable => _playerAnim;
 
-	public void Init(Node2D root, TileSet tileSet, Camera2D? camera, TileMapRenderModule parentModule)
+	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>
+		WeatherFxController.EnumerateWeatherAssetPaths();
+
+	public void Init(
+		Node2D mapRoot,
+		TileSet tileSet,
+		SubViewportContainer? viewportContainer,
+		SubViewport? subViewport,
+		Node2D? playerVisual,
+		Camera2D? camera)
 	{
-		_root = root;
+		_viewportContainer = viewportContainer;
+		_subViewport = subViewport;
 		_camera = camera;
-		_parentModule = parentModule;
+
+		if (playerVisual != null)
+		{
+			playerVisual.Visible = false;
+			_playerAnim = playerVisual as IAnimatable ?? new TileAnimatable(playerVisual);
+			ResAccess.RegisterAnimatable("player", _playerAnim);
+			if (!string.IsNullOrWhiteSpace(_state.PlayerId))
+				ResAccess.RegisterAnimatable(_state.PlayerId, _playerAnim);
+		}
+
+		var voxelRoot = new Node2D { Name = "VoxelRoot", Visible = true };
+		mapRoot.AddChild(voxelRoot);
+		_root = voxelRoot;
+
+		_combatFxWorldRoot = new Node2D { Name = "CombatFxWorldRoot", ZIndex = 6 };
+		mapRoot.AddChild(_combatFxWorldRoot);
+
 		_textureCache.Clear();
 		_voxelFaceTextureCache.Clear();
+		_terrainAtlas.Build();
 
 		_faceBatchCanvas?.QueueFree();
 		_faceBatchCanvas = new VoxelFaceBatchCanvas
@@ -135,7 +208,29 @@ public partial class IsometricVoxelRenderer
 			Name = "VoxelFaceBatchCanvas",
 			ZIndex = 0,
 		};
+		_faceBatchCanvas.SetAtlasTexture(_terrainAtlas.AtlasTexture);
 		_root.AddChild(_faceBatchCanvas);
+
+		_weatherFxController = new WeatherFxController(_state);
+		var dummyGroundLayer = new TileMapLayer { Name = "_WeatherGroundLayer", TileSet = tileSet, Visible = false };
+		mapRoot.AddChild(dummyGroundLayer);
+		var weatherOverlayRoot = new Node2D { Name = "WeatherOverlayRoot", ZIndex = 1, Visible = false };
+		mapRoot.AddChild(weatherOverlayRoot);
+		var peripheralWeatherOverlayRoot = new Node2D { Name = "PeripheralWeatherOverlayRoot", ZIndex = 1, Visible = false };
+		mapRoot.AddChild(peripheralWeatherOverlayRoot);
+		var memoryWeatherOverlayRoot = new Node2D { Name = "MemoryWeatherOverlayRoot", ZIndex = 1, Visible = false };
+		mapRoot.AddChild(memoryWeatherOverlayRoot);
+		var weatherFxRoot = new Node2D { Name = "WeatherFxRoot", ZIndex = 2, Visible = false };
+		mapRoot.AddChild(weatherFxRoot);
+		var peripheralWeatherFxRoot = new Node2D { Name = "PeripheralWeatherFxRoot", ZIndex = 2, Visible = false };
+		mapRoot.AddChild(peripheralWeatherFxRoot);
+		_weatherFxController.Init(
+			mapRoot, dummyGroundLayer, new Vector2(64f, 64f), viewportContainer,
+			weatherOverlayRoot, peripheralWeatherOverlayRoot, memoryWeatherOverlayRoot,
+			weatherFxRoot, peripheralWeatherFxRoot);
+
+		ApplyLightingProfile(_lightingProfileIndex);
+		UpdateCameraZoom();
 	}
 
 	public void ConfigureLighting(IsometricLightingSettings? settings = null)
@@ -146,6 +241,293 @@ public partial class IsometricVoxelRenderer
 
 		_lighting = resolved.Clamp(MinLight, MaxLight);
 		_textureCache.Clear();
+	}
+
+	// ── Orchestration (Flush / Advance / Coordinate Picking / Zoom) ──
+
+	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
+	{
+		_editorViewActive = active;
+		_viewCenterX = centerX;
+		_viewCenterY = centerY;
+		_viewCenterZ = centerZ;
+	}
+
+	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
+		=> _weatherFxController?.SetTuning(tuning, _editorViewActive);
+
+	public void Flush()
+	{
+		var frameStartUsec = Time.GetTicksUsec();
+		_tileDrawCommandCount = 0;
+		_weatherFxController?.BeginFrame();
+
+		if (_state.World == null)
+		{
+			_weatherFxController?.ClearScreenFxTarget();
+			_weatherFxController?.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
+			_weatherFxController?.EndFrame();
+			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
+			return;
+		}
+
+		if (_editorViewActive)
+		{
+			_weatherFxController?.ClearScreenFxTarget();
+		}
+		else
+		{
+			_fogTracker.Update(_state);
+			_weatherFxController?.RefreshWeatherScreenFxTarget(editorViewActive: false);
+			_viewCenterX = _state.PlayerX;
+			_viewCenterY = _state.PlayerY;
+			_viewCenterZ = _state.PlayerZ;
+		}
+
+		Render();
+		_tileDrawCommandCount = _lastDrawCommandCount;
+		_weatherFxController?.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
+		_weatherFxController?.EndFrame();
+		CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
+	}
+
+	public void AdvanceAnimations(double delta)
+	{
+		if (delta <= 0d) return;
+		_tileAnimationClockSeconds += delta;
+		_weatherFxController?.UpdateWeatherScreenFxOverlay(delta, _tileAnimationClockSeconds);
+		AdvancePlayerCorrectionSmoothing((float)delta);
+	}
+
+	public bool IsWorldCellVisible(int wx, int wy, int wz)
+	{
+		if (_state.World == null) return false;
+		var band = _fogTracker.GetVisionBand(wx, wy, wz);
+		return band is PlayerVisionBand.Focused or PlayerVisionBand.Peripheral;
+	}
+
+	public bool TryGetWorldCellFromGlobalPosition(Vector2 globalPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (_viewportContainer == null || _subViewport == null || _camera == null)
+			return false;
+
+		var rect = _viewportContainer.GetGlobalRect();
+		if (!rect.HasPoint(globalPos) || rect.Size.X <= 0 || rect.Size.Y <= 0)
+			return false;
+
+		var localInContainer = globalPos - rect.Position;
+		var viewportPos = new Vector2(
+			localInContainer.X * _subViewport.Size.X / rect.Size.X,
+			localInContainer.Y * _subViewport.Size.Y / rect.Size.Y);
+		var viewportSize = new Vector2(_subViewport.Size.X, _subViewport.Size.Y);
+		var screenOffset = viewportPos - viewportSize / 2f;
+		var mapLocal = _camera.Position + new Vector2(
+			screenOffset.X / _camera.Zoom.X,
+			screenOffset.Y / _camera.Zoom.Y);
+
+		return TryPickIsometricCell(mapLocal, out worldCell);
+	}
+
+	private bool TryPickIsometricCell(Vector2 screenPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (_state.World == null) return false;
+
+		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
+		var zMin = cz - 4;
+		var zMax = cz + 2;
+		for (var z = zMin; z <= zMax; z++)
+		{
+			var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, z);
+			var terrain = _state.World.GetTerrain(wx, wy, z);
+			if (terrain.StringId != Terrains.Air && terrain.StringId != Terrains.Void)
+			{
+				worldCell = new Vector3I(wx, wy, z);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public bool TryGetWorldEffectPosition(int wx, int wy, int wz, out Vector2 position)
+	{
+		position = IsoCoordUtil.WorldToScreen(wx, wy, wz);
+		return true;
+	}
+
+	public bool TryGetWorldOverlayPosition(int wx, int wy, int wz, out Vector2 position)
+	{
+		position = Vector2.Zero;
+		var mapPos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
+		return TryMapToOverlayPosition(mapPos, out position);
+	}
+
+	private bool TryMapToOverlayPosition(Vector2 mapPosition, out Vector2 overlayPosition)
+	{
+		overlayPosition = Vector2.Zero;
+		if (_camera == null || _subViewport == null || _viewportContainer == null)
+			return false;
+
+		var viewportSize = new Vector2(_subViewport.Size.X, _subViewport.Size.Y);
+		if (viewportSize.X <= 0f || viewportSize.Y <= 0f)
+			return false;
+
+		var zoom = _camera.Zoom;
+		var viewportPosition = viewportSize / 2f + new Vector2(
+			(mapPosition.X - _camera.Position.X) * zoom.X,
+			(mapPosition.Y - _camera.Position.Y) * zoom.Y);
+		var containerSize = _viewportContainer.Size;
+		if (containerSize.X <= 0f || containerSize.Y <= 0f)
+			return false;
+
+		overlayPosition = new Vector2(
+			viewportPosition.X * containerSize.X / viewportSize.X,
+			viewportPosition.Y * containerSize.Y / viewportSize.Y);
+		return true;
+	}
+
+	public bool StepZoom(int direction)
+	{
+		if (_camera == null || direction == 0)
+			return false;
+		var requestedZoom = Mathf.Clamp(_zoom + direction * CameraZoomStep, _minCameraZoom, _maxCameraZoom);
+		if (Mathf.IsEqualApprox(requestedZoom, _zoom))
+			return false;
+		_zoom = requestedZoom;
+		UpdateCameraZoom();
+		return true;
+	}
+
+	public void SetZoomRange(float minZoom, float maxZoom)
+	{
+		var normalizedMin = Mathf.Clamp(minZoom, 0.2f, 4.0f);
+		var normalizedMax = Mathf.Clamp(maxZoom, 0.2f, 4.0f);
+		if (normalizedMin > normalizedMax)
+			(normalizedMin, normalizedMax) = (normalizedMax, normalizedMin);
+		_minCameraZoom = normalizedMin;
+		_maxCameraZoom = normalizedMax;
+		_zoom = Mathf.Clamp(_zoom, _minCameraZoom, _maxCameraZoom);
+		UpdateCameraZoom();
+	}
+
+	public bool SetZoomTo(float zoom)
+	{
+		if (_camera == null) return false;
+		var clamped = Mathf.Clamp(zoom, _minCameraZoom, _maxCameraZoom);
+		if (Mathf.IsEqualApprox(clamped, _zoom)) return false;
+		_zoom = clamped;
+		UpdateCameraZoom();
+		return true;
+	}
+
+	private void UpdateCameraZoom()
+	{
+		if (_camera != null)
+			_camera.Zoom = Vector2.One * _zoom;
+	}
+
+	public string? ToggleRenderMode()
+		=> LocalizationService.T("render.view_mode.iso_only");
+
+	public string CycleIsometricLightingProfile()
+	{
+		if (LightingProfiles.Length == 0)
+			return LocalizationService.TOrFallback("render.lighting.unavailable", "Lighting profile is unavailable.");
+
+		_lightingProfileIndex = (_lightingProfileIndex + 1) % LightingProfiles.Length;
+		ApplyLightingProfile(_lightingProfileIndex);
+		var profileKey = LightingProfiles[_lightingProfileIndex].Key;
+		return LocalizationService.TOrFallback(
+			"render.lighting.profile_changed",
+			"Lighting profile switched: {profile}",
+			("profile", LocalizationService.TOrFallback(profileKey, profileKey)));
+	}
+
+	private void ApplyLightingProfile(int profileIndex)
+	{
+		if (LightingProfiles.Length == 0) return;
+		var clamped = Math.Clamp(profileIndex, 0, LightingProfiles.Length - 1);
+		_lightingProfileIndex = clamped;
+		ConfigureLighting(LightingProfiles[clamped].Lighting);
+	}
+
+	public string ToggleMinimap()
+	{
+		MinimapVisible = !MinimapVisible;
+		return MinimapVisible
+			? LocalizationService.T("render.minimap.unimplemented")
+			: LocalizationService.T("render.minimap.closed");
+	}
+
+	public string ToggleFogMap()
+	{
+		FogMapVisible = !FogMapVisible;
+		return FogMapVisible
+			? LocalizationService.T("render.fog_map.unimplemented")
+			: LocalizationService.T("render.fog_map.closed");
+	}
+
+	public bool ToggleRevealAll()
+	{
+		_fogTracker.RevealAll = !_fogTracker.RevealAll;
+		return _fogTracker.RevealAll;
+	}
+
+	public void CenterFogMap() { }
+	public void ScrollFogMap(int dx, int dy) { }
+	public void ResetOverlays() { FogMapVisible = false; MinimapVisible = false; }
+
+	public void PlaySpineAnim(string animName, bool loop, int track = 0)
+		=> _playerAnim?.Play(animName, loop);
+
+	public void QueueSpineAnim(string animName, bool loop, float delay = 0f, int track = 0) { }
+
+	public void PlayOneShotThenIdle(string animName)
+		=> _playerAnim?.PlayOneShot(animName, "Idle");
+
+	public void ApplyPlayerCorrectionSmoothing(Vector2 worldCellOffset, float durationSeconds)
+	{
+		_playerVisualCorrectionOffset = worldCellOffset * new Vector2(64f, 64f);
+		_playerVisualCorrectionDuration = Math.Max(0.001f, durationSeconds);
+		_playerVisualCorrectionRemaining = _playerVisualCorrectionDuration;
+	}
+
+	private void AdvancePlayerCorrectionSmoothing(float deltaSeconds)
+	{
+		if (_playerVisualCorrectionRemaining <= 0f) return;
+		_playerVisualCorrectionRemaining = Math.Max(0f, _playerVisualCorrectionRemaining - deltaSeconds);
+		var ratio = _playerVisualCorrectionDuration <= 0f
+			? 0f : _playerVisualCorrectionRemaining / _playerVisualCorrectionDuration;
+		_playerVisualCorrectionOffset *= ratio;
+		if (_playerVisualCorrectionRemaining <= 0f)
+			_playerVisualCorrectionOffset = Vector2.Zero;
+	}
+
+	private void CommitPerfFrame(double frameTimeMs)
+	{
+		if (!_hasFrameTimeEwma)
+		{
+			_frameTimeEwmaMs = frameTimeMs;
+			_hasFrameTimeEwma = true;
+		}
+		else
+		{
+			const double alpha = 0.10;
+			_frameTimeEwmaMs = (_frameTimeEwmaMs * (1.0 - alpha)) + (frameTimeMs * alpha);
+		}
+		_lastPerfSnapshot = new RenderPerfSnapshot(
+			(_weatherFxController?.ActiveSpriteCount ?? 0) + _spriteCount,
+			_tileDrawCommandCount,
+			_frameTimeEwmaMs);
+	}
+
+	public readonly record struct RenderPerfSnapshot(
+		int ActiveSpriteCount,
+		int DrawCommandCount,
+		double FrameTimeAvgMs)
+	{
+		public static RenderPerfSnapshot Empty => new(0, 0, 0d);
 	}
 
 	// ── Main Render Pass ──
@@ -226,13 +608,13 @@ public partial class IsometricVoxelRenderer
 
 	private void DrawBlockTop(VoxelDrawCommand cmd)
 	{
-		var textures = GetOrCreateTextures(cmd.Terrain);
-		if (textures.Top == null) return;
+		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
+			return;
 		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
 		if (cmd.ShadowTop)
 			tint = new Color(tint.R * ShadowTopDarken, tint.G * ShadowTopDarken, tint.B * ShadowTopDarken, tint.A);
 		_faceCommands.Add(new FaceSpriteCommand(
-			textures.Top,
+			regions.Top,
 			cmd.ScreenPos,
 			tint,
 			cmd.SortKey));
@@ -240,10 +622,10 @@ public partial class IsometricVoxelRenderer
 
 	private void DrawLeftSide(VoxelDrawCommand cmd)
 	{
-		var textures = GetOrCreateTextures(cmd.Terrain);
-		if (textures.Left == null) return;
+		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
+			return;
 		_faceCommands.Add(new FaceSpriteCommand(
-			textures.Left,
+			regions.Left,
 			ResolveLeftFacePosition(cmd.ScreenPos),
 			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Left),
 			cmd.SortKey));
@@ -251,10 +633,10 @@ public partial class IsometricVoxelRenderer
 
 	private void DrawRightSide(VoxelDrawCommand cmd)
 	{
-		var textures = GetOrCreateTextures(cmd.Terrain);
-		if (textures.Right == null) return;
+		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
+			return;
 		_faceCommands.Add(new FaceSpriteCommand(
-			textures.Right,
+			regions.Right,
 			ResolveRightFacePosition(cmd.ScreenPos),
 			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Right),
 			cmd.SortKey));
@@ -361,30 +743,10 @@ public partial class IsometricVoxelRenderer
 			return voxelTextures;
 		}
 
-		// Fallback: use existing tileset extraction + procedural side generation
-		Image? topImage = null;
-		Texture2D? topTexture = null;
-
-		if (_parentModule != null)
-		{
-			var atlasTexture = _parentModule.BuildTerrainTexture(terrain.StringId);
-			if (atlasTexture != null)
-			{
-				topImage = ExtractImage(atlasTexture);
-				if (topImage != null)
-				{
-					topImage = NormalizeTopImage(topImage);
-					topTexture = ImageTexture.CreateFromImage(topImage);
-				}
-			}
-		}
-
-		if (topImage == null)
-		{
-			var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
-			topImage = CreateDiamondImage(128, 64, color);
-			topTexture = ImageTexture.CreateFromImage(topImage);
-		}
+		// Fallback: procedural color-based diamond
+		var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
+		var topImage = CreateDiamondImage(128, 64, color);
+		var topTexture = ImageTexture.CreateFromImage(topImage);
 
 		var leftImage = GenerateLeftSideImage(topImage);
 		var rightImage = GenerateRightSideImage(topImage);
@@ -718,114 +1080,6 @@ public partial class IsometricVoxelRenderer
 	}
 
 	/// <summary>
-	/// Terrain atlas entries are packed isometric blocks, not pure top-face diamonds.
-	/// Extract the visible top cap and mirror it into a standalone 128x64 diamond so
-	/// procedural side generation does not sample the baked wall pixels.
-	/// </summary>
-	private static Image NormalizeTopImage(Image sourceImage)
-	{
-		if (!TryExtractTopDiamondFromPackedTile(sourceImage, out var normalized) || normalized == null)
-			return sourceImage;
-		return normalized;
-	}
-
-	private static bool TryExtractTopDiamondFromPackedTile(Image sourceImage, out Image? normalized)
-	{
-		normalized = null;
-		var width = sourceImage.GetWidth();
-		var height = sourceImage.GetHeight();
-		var minX = width;
-		var minY = height;
-		var maxX = -1;
-		var maxY = -1;
-		var rowWidths = new int[height];
-
-		for (var y = 0; y < height; y++)
-		{
-			var rowMinX = width;
-			var rowMaxX = -1;
-			for (var x = 0; x < width; x++)
-			{
-				if (sourceImage.GetPixel(x, y).A <= 0.01f)
-					continue;
-
-				rowMinX = Math.Min(rowMinX, x);
-				rowMaxX = Math.Max(rowMaxX, x);
-			}
-
-			if (rowMaxX < 0)
-				continue;
-
-			rowWidths[y] = rowMaxX - rowMinX + 1;
-			minX = Math.Min(minX, rowMinX);
-			minY = Math.Min(minY, y);
-			maxX = Math.Max(maxX, rowMaxX);
-			maxY = Math.Max(maxY, y);
-		}
-
-		if (maxX < minX || maxY < minY)
-			return false;
-
-		if (!TryResolvePackedTileTopCap(rowWidths, minY, maxY, out var maxRowWidth, out var seamY, out _))
-			return false;
-
-		var targetWidth = (int)(IsoCoordUtil.TileHalfW * 2f);
-		var targetHalfHeight = (int)IsoCoordUtil.TileHalfH;
-		if (targetWidth <= 0 || targetHalfHeight <= 0)
-			return false;
-
-		var capHeight = seamY - minY + 1;
-		var cap = sourceImage.GetRegion(new Rect2I(minX, minY, maxRowWidth, capHeight));
-		cap.Resize(targetWidth, targetHalfHeight);
-
-		var diamond = Image.CreateEmpty(targetWidth, targetHalfHeight * 2, false, Image.Format.Rgba8);
-		for (var y = 0; y < targetHalfHeight; y++)
-		{
-			for (var x = 0; x < targetWidth; x++)
-			{
-				var pixel = cap.GetPixel(x, y);
-				diamond.SetPixel(x, y, pixel);
-				diamond.SetPixel(x, (targetHalfHeight * 2) - 1 - y, pixel);
-			}
-		}
-
-		normalized = diamond;
-		return true;
-	}
-
-	private static bool TryResolvePackedTileTopCap(int[] rowWidths, int minY, int maxY, out int maxRowWidth, out int seamY, out int plateauRows)
-	{
-		maxRowWidth = 0;
-		seamY = -1;
-		plateauRows = 0;
-		if (rowWidths.Length == 0 || minY < 0 || maxY >= rowWidths.Length || minY >= maxY)
-			return false;
-
-		for (var y = minY; y <= maxY; y++)
-			maxRowWidth = Math.Max(maxRowWidth, rowWidths[y]);
-
-		if (maxRowWidth < 16)
-			return false;
-
-		for (var y = minY; y <= maxY; y++)
-		{
-			if (rowWidths[y] < maxRowWidth - 1)
-			{
-				if (seamY >= 0)
-					break;
-				continue;
-			}
-
-			if (seamY < 0)
-				seamY = y;
-			plateauRows++;
-		}
-
-		var capHeight = seamY - minY + 1;
-		return seamY > minY && plateauRows >= 4 && capHeight >= 8;
-	}
-
-	/// <summary>
 	/// Generate left side face as a 64x64 parallelogram image.
 	/// The parallelogram covers the area below the diamond's bottom-left edge:
 	///   TL=(0,0) TR=(63,31) BR=(63,63) BL=(0,32)  (in image coords)
@@ -1012,7 +1266,7 @@ public partial class IsometricVoxelRenderer
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
-		if (_parentModule?.HoverWorldCell is not { } hover)
+		if (HoverWorldCell is not { } hover)
 			return;
 		if (Math.Abs(hover.X - cx) > halfW || Math.Abs(hover.Y - cy) > halfH)
 			return;
@@ -1472,7 +1726,7 @@ public partial class IsometricVoxelRenderer
 	}
 
 	private readonly record struct FaceSpriteCommand(
-		Texture2D Texture,
+		Rect2 SourceRegion,
 		Vector2 Position,
 		Color Tint,
 		long SortKey);
@@ -1480,6 +1734,9 @@ public partial class IsometricVoxelRenderer
 	private sealed partial class VoxelFaceBatchCanvas : Node2D
 	{
 		private FaceSpriteCommand[] _commands = Array.Empty<FaceSpriteCommand>();
+		private Texture2D? _atlasTexture;
+
+		public void SetAtlasTexture(Texture2D? atlas) => _atlasTexture = atlas;
 
 		public void SetCommands(IReadOnlyList<FaceSpriteCommand> commands)
 		{
@@ -1501,17 +1758,18 @@ public partial class IsometricVoxelRenderer
 
 		public override void _Draw()
 		{
+			if (_atlasTexture == null)
+				return;
+
 			for (var i = 0; i < _commands.Length; i++)
 			{
 				var cmd = _commands[i];
-				if (cmd.Texture == null)
+				var size = cmd.SourceRegion.Size;
+				if (size.X <= 0 || size.Y <= 0)
 					continue;
 
-				var size = cmd.Texture.GetSize();
-				var rect = new Rect2(
-					cmd.Position - size / 2f,
-					size);
-				DrawTextureRect(cmd.Texture, rect, false, cmd.Tint);
+				var destRect = new Rect2(cmd.Position - size / 2f, size);
+				DrawTextureRectRegion(_atlasTexture, destRect, cmd.SourceRegion, cmd.Tint);
 			}
 		}
 	}

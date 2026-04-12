@@ -612,7 +612,7 @@ public static class ServerActionGateway
 		return source switch
 		{
 			ContainerSourceKind.Inventory => ResolveInventoryContainer(state, containerInstanceId, ownerActorId),
-			_ => MapModule.FindGroundItem(state, x, y, z, containerInstanceId),
+			_ => (string.IsNullOrWhiteSpace(containerInstanceId) ? null : state.World?.PeekGroundItems(x, y, z).Find(i => string.Equals(i.InstanceId, containerInstanceId, System.StringComparison.Ordinal))),
 		};
 	}
 
@@ -633,7 +633,7 @@ public static class ServerActionGateway
 		int z)
 	{
 		if (source == ContainerSourceKind.Ground)
-			MapModule.UpdateGroundItem(state, x, y, z, chest);
+			state.World!.UpdateGroundItem(x, y, z, chest);
 	}
 
 	private static TradeGood.Source ToTradeGoodSource(TradeGoodSourceKind source) => source switch

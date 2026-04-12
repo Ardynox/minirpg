@@ -123,8 +123,8 @@ public class GameState
 	public HashSet<string> IdentifiedActorTypes { get; set; } = new(StringComparer.Ordinal);
 	public HashSet<string> IdentifiedItemTypes { get; set; } = new(StringComparer.Ordinal);
 
-	/// <summary>当前地图生成器 ID（"room_corridor" / "perlin" / "cellular_automata" / "drunkard_walk" / "bsp" / "voxel_block_iso"）。</summary>
-	public string GeneratorId { get; set; } = "voxel_block_iso";
+	/// <summary>当前地图生成器 ID（"dwarf_fortress" / "room_corridor" / "perlin" / "cellular_automata" / "drunkard_walk" / "bsp" / "voxel_block_iso"）。</summary>
+	public string GeneratorId { get; set; } = "dwarf_fortress";
 
 	/// <summary>当前视图模式 ID（"single_layer" / "multi_layer"）。</summary>
 	public string ViewModeId { get; set; } = "single_layer";
@@ -161,7 +161,7 @@ public class GameState
 		WatchMode = false;
 		IdentifiedActorTypes.Clear();
 		IdentifiedItemTypes.Clear();
-		GeneratorId = "voxel_block_iso";
+		GeneratorId = "dwarf_fortress";
 		ViewModeId = "single_layer";
 		World = null;
 		EnsureDefaultEconomicDomains();

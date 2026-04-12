@@ -14,7 +14,7 @@ public sealed class WorldSettings
 	public int Seed { get; set; } = Environment.TickCount;
 
 	[JsonPropertyName("generatorId")]
-	public string GeneratorId { get; set; } = "room_corridor";
+	public string GeneratorId { get; set; } = "dwarf_fortress";
 
 	[JsonPropertyName("climateId")]
 	public string ClimateId { get; set; } = "temperate";

@@ -1,0 +1,125 @@
+using Godot;
+
+namespace MiniRPG;
+
+public partial class Main
+{
+	private bool _zoomHintShown;
+	private ulong _lastZoomLimitLogAtMsec;
+
+	private bool HandleLayoutEditKeyInput(InputEventKey key)
+	{
+		if (key.Pressed && key.Keycode == Key.Escape)
+			CancelLayoutEditMode();
+
+		return false;
+	}
+
+	private static bool HandleLayoutEditInput(InputEvent @event) =>
+		@event is InputEventMouseButton editMouse
+		&& editMouse.Pressed
+		&& editMouse.ButtonIndex == MouseButton.Right;
+
+	private bool HandleGameplayMouseInput(InputEvent @event, RuntimeUiModeSnapshot snapshot)
+	{
+		if (HandleWorldHoverInput(@event, snapshot))
+			return true;
+
+		if (@event is not InputEventMouseButton mb || !mb.Pressed)
+			return false;
+		if (!snapshot.AllowGameplayInput)
+			return false;
+
+		if (HandleGameplayMouseWheelInput(mb, snapshot))
+			return true;
+
+		if (snapshot.AllowPanelChrome && _panelChrome.IsPointerOverInteractiveChrome(mb.GlobalPosition))
+			return false;
+
+		if (mb.ButtonIndex == MouseButton.Right)
+		{
+			if (GetArmedSkill() != null)
+			{
+				if (TryCastArmedSkillAtMouse(mb.GlobalPosition))
+					return true;
+				return false;
+			}
+
+			if (TryOpenActorInspectPanelAtMouse(mb.GlobalPosition))
+				return true;
+
+			if (_panels.CloseFocused())
+			{
+				FlushMap();
+				return true;
+			}
+
+			return false;
+		}
+
+		if (mb.ButtonIndex != MouseButton.Left)
+			return false;
+
+		var hit = _panels.HitTest(mb.GlobalPosition);
+		if (hit == null)
+			return false;
+
+		var clearFocusStack = hit.PanelId == "map";
+		if (hit == _panels.Focused && !clearFocusStack)
+			return false;
+
+		if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
+		{
+			_inventoryPanel.Visible = true;
+			FlushMap();
+		}
+
+		_panels.FocusFromPointer(hit, clearFocusStack);
+		return false;
+	}
+
+	private bool HandleGameplayMouseWheelInput(InputEventMouseButton mb, RuntimeUiModeSnapshot snapshot)
+	{
+		if (!snapshot.AllowGameplayInput
+			|| mb.ButtonIndex is not MouseButton.WheelUp and not MouseButton.WheelDown)
+		{
+			return false;
+		}
+
+		if (MapPanelFocused)
+		{
+			if (mb.AltPressed && !mb.CtrlPressed && !mb.ShiftPressed)
+			{
+				OnCommand(mb.ButtonIndex == MouseButton.WheelUp ? ":skill_prev" : ":skill_next");
+				return true;
+			}
+
+			if (_mapRender != null)
+			{
+				if (!_zoomHintShown)
+				{
+					_log.Add(LocalizationService.T("ui.zoom.hint"));
+					_zoomHintShown = true;
+				}
+
+				var zoomed = _mapRender.StepZoom(mb.ButtonIndex == MouseButton.WheelUp ? 1 : -1);
+				if (zoomed)
+				{
+					FlushMap();
+				}
+				else
+				{
+					var now = Time.GetTicksMsec();
+					if (now - _lastZoomLimitLogAtMsec > 1000)
+					{
+						_log.Add(LocalizationService.T("ui.zoom.limit_reached"));
+						_lastZoomLimitLogAtMsec = now;
+					}
+				}
+				return true;
+			}
+		}
+
+		return _inputModule.HandleMouseButtonInput(mb);
+	}
+}
