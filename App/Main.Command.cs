@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using MiniRPG.Core.World;
 
 namespace MiniRPG;
 
@@ -144,11 +143,10 @@ public partial class Main
 			case "a": DoMove(-1, 0); break;
 			case "d": DoMove(1, 0); break;
 			case "look": DoLook(); break;
-			case "enter": DoEnterStairs(); break;
 			case ":climb_down":
-			case "climb_down": DoClimb(true); break;
+			case "climb_down": SubmitPlayerAction(TimelinePlayerAction.Climb(+1)); break;
 			case ":climb_up":
-			case "climb_up": DoClimb(false); break;
+			case "climb_up": SubmitPlayerAction(TimelinePlayerAction.Climb(-1)); break;
 			case "save":
 				if (IsMultiplayerSession)
 					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
@@ -189,15 +187,7 @@ public partial class Main
 			ActorId = player.Id,
 			ItemInstanceId = itemInfo.InstanceId,
 		};
-		if (TrySubmitClientCommand(command))
-		{
-			_groundPanel.Invalidate();
-			_groundPanel.Refresh();
-			return;
-		}
-
-		var result = ServerActionGateway.Execute(_state, command);
-		ApplyServerActionResult(result);
+		SubmitClientCommand(command);
 		_groundPanel.Invalidate();
 		_groundPanel.Refresh();
 	}

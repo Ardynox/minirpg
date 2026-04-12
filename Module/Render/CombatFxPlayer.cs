@@ -222,7 +222,8 @@ public sealed class CombatFxPlayer
 			return null;
 
 		var frames = new SpriteFrames();
-		frames.AddAnimation(DefaultAnimationName);
+		if (!frames.HasAnimation(DefaultAnimationName))
+			frames.AddAnimation(DefaultAnimationName);
 		frames.SetAnimationLoop(DefaultAnimationName, false);
 		frames.SetAnimationSpeed(DefaultAnimationName, Math.Max(entry.Fps ?? 12f, 0.1f));
 

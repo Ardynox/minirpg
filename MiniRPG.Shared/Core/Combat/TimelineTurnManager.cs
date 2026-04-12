@@ -4,6 +4,8 @@ using System.Linq;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
+using MiniRPG.Core.Needs;
+using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Combat;
 
@@ -193,6 +195,44 @@ public static class TimelineTurnManager
 	public const float ActionThreshold = 100f;
 	private const float MinimumActiveSpeed = 0.05f;
 
+	/// <summary>
+	/// 单步性能剖析计数器。由 <see cref="EnableStepProfiling"/> 启用，
+	/// <see cref="AdvanceAutoSingleStep"/> 中各阶段累加 tick 数。
+	/// 仅用于性能测试，生产路径零开销（通过字段判零跳过）。
+	/// </summary>
+	public struct StepProfilingStats
+	{
+		public int Steps;
+		public long EnsureCurrentTicks;
+		public long HealthDeathTicks;
+		public long AiDispatchTicks;
+		public long FinalizeTicks;
+		public long FinalizeCooldownTicks;
+		public long FinalizeGravityTicks;
+		public long FinalizeConsumeTurnTicks;
+		public long FinalizeProbeTicks;
+	}
+
+	private static bool _stepProfilingEnabled;
+	private static StepProfilingStats _stepProfilingStats;
+
+	public static void EnableStepProfiling()
+	{
+		_stepProfilingEnabled = true;
+		_stepProfilingStats = default;
+	}
+
+	public static StepProfilingStats DisableStepProfilingAndRead()
+	{
+		_stepProfilingEnabled = false;
+		var snapshot = _stepProfilingStats;
+		_stepProfilingStats = default;
+		return snapshot;
+	}
+
+	public static double TicksToMs(long ticks) =>
+		ticks * 1000d / System.Diagnostics.Stopwatch.Frequency;
+
 	private sealed class TimelineEvalContext
 	{
 		public Dictionary<string, Actor?> ActorsById { get; } = new(StringComparer.Ordinal);
@@ -267,6 +307,44 @@ public static class TimelineTurnManager
 
 		// 激活角色的回合 = 玩家回合
 		return string.Equals(actor.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// 轻量级玩家回合探测：仅查 Timeline 数据判断下一个 ready actor 是否为玩家，
+	/// 不执行 HealthSync，避免 FinalizeConsumedAction 中的重复开销。
+	/// 当无 actor 达到阈值时，调用 AdvanceCharges 推进时间。
+	/// 同时设置 CurrentActorId，使下次 EnsureCurrentActor 直接命中。
+	/// </summary>
+	private static bool ProbeIsPlayerTurnNext(GameState state, TimelineEvalContext context)
+	{
+		// 如果 CurrentActorId 已设置（由 EnsureCurrentActor 设定），直接查
+		if (state.Timeline.CurrentActorId != null)
+		{
+			var current = ResolveActor(state, state.Timeline.CurrentActorId, context);
+			if (current != null && CanParticipateInTimeline(current) && IsPlayerControllable(current))
+				return string.Equals(current.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal);
+			return false;
+		}
+
+		// CurrentActorId 被清除（ConsumeTurn 后）：用 PickReadyActor 轻量查找
+		var ready = PickReadyActor(state, context);
+		if (ready == null)
+		{
+			// 无 actor 达到阈值 — 推进 charge 直到有人 ready。
+			// 世界事件会写入 context.PendingWorldEvents，由 FinalizeConsumedAction 排出。
+			AdvanceCharges(state, context);
+			ready = PickReadyActor(state, context);
+		}
+		if (ready == null)
+			return false;
+
+		// 预设 CurrentActorId，省去下一次 EnsureCurrentActor 的重复 PickReady + AdvanceCharges。
+		state.Timeline.CurrentActorId = ready.Id;
+
+		if (!IsPlayerControllable(ready))
+			return false;
+
+		return string.Equals(ready.Id, PartyModule.GetActiveId(state), StringComparison.Ordinal);
 	}
 
 	public static float CalculateSpeed(Actor actor)
@@ -389,6 +467,7 @@ public static class TimelineTurnManager
 		// 每步之间只有一个 actor 移动，感知最多陈旧 1 步，对游戏 AI 可接受。
 		state.PerceptionCache ??= new Dictionary<string, Perception>(StringComparer.Ordinal);
 		state.AwarenessContextCache ??= AwarenessModule.CreateTurnContext(state);
+		state.BehaviorContextCache ??= new AIBehaviorContext(state);
 
 		while (remainingSteps-- > 0)
 		{
@@ -407,8 +486,18 @@ public static class TimelineTurnManager
 
 	private static TimelineStepResult AdvanceAutoSingleStep(GameState state, bool watchModeEnabled, TimelineEvalContext context)
 	{
+		var profile = _stepProfilingEnabled;
+		var stageStart = profile ? System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
+
 		var result = new TimelineStepResult();
 		var actor = EnsureCurrentActor(state, context);
+
+		if (profile)
+		{
+			var now = System.Diagnostics.Stopwatch.GetTimestamp();
+			_stepProfilingStats.EnsureCurrentTicks += now - stageStart;
+			stageStart = now;
+		}
 
 		// 排出 AdvanceCharges 产生的世界事件（天气、刷怪等）
 		if (context.PendingWorldEvents is { Count: > 0 })
@@ -428,6 +517,8 @@ public static class TimelineTurnManager
 		{
 			result.ActingActorId = actor.Id;
 			FinalizeActorRemoval(state, actor.Id, watchModeEnabled, result, context);
+			if (profile)
+				_stepProfilingStats.HealthDeathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - stageStart;
 			return result;
 		}
 
@@ -444,8 +535,23 @@ public static class TimelineTurnManager
 			actor.BrainId ??= "simple";
 		}
 
+		if (profile)
+		{
+			var now = System.Diagnostics.Stopwatch.GetTimestamp();
+			_stepProfilingStats.HealthDeathTicks += now - stageStart;
+			stageStart = now;
+		}
+
 		var execution = AIDispatcher.DecideAndExecuteAnyResult(state, actor, tickBuffs: false);
 		result.Events.AddRange(execution.Events);
+
+		if (profile)
+		{
+			var now = System.Diagnostics.Stopwatch.GetTimestamp();
+			_stepProfilingStats.AiDispatchTicks += now - stageStart;
+			stageStart = now;
+		}
+
 		if (!execution.Consumed)
 		{
 			result.PlayerTurnReady = isActivePartyMember && !watchModeEnabled;
@@ -454,6 +560,13 @@ public static class TimelineTurnManager
 		}
 
 		FinalizeConsumedAction(state, actor.Id, watchModeEnabled, result, context);
+
+		if (profile)
+		{
+			_stepProfilingStats.FinalizeTicks += System.Diagnostics.Stopwatch.GetTimestamp() - stageStart;
+			_stepProfilingStats.Steps++;
+		}
+
 		return result;
 	}
 
@@ -481,6 +594,8 @@ public static class TimelineTurnManager
 				return TryExecuteFacilityDeliver(state, player, action, events);
 			case TimelinePlayerActionType.FacilityConstruct:
 				return TryExecuteFacilityConstruct(state, player, action, events);
+			case TimelinePlayerActionType.Climb:
+				return TryExecuteClimb(state, player, action, events);
 			default:
 				return false;
 		}
@@ -583,6 +698,12 @@ public static class TimelineTurnManager
 		Actor player,
 		List<GameEvent> events)
 	{
+		if (NeedBehaviorModule.HasNearbyThreat(state, player))
+		{
+			NeedSystem.ApplyThought(player, "sleep_interrupted", state.Turn, NeedThoughtSources.Sleep, events, state);
+			return true;
+		}
+
 		var result = NeedActionModule.TryRest(
 			state,
 			player,
@@ -617,6 +738,58 @@ public static class TimelineTurnManager
 		return result.Consumed;
 	}
 
+	private static bool TryExecuteClimb(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action,
+		List<GameEvent> events)
+	{
+		if (state.World == null || action.Dz == 0)
+			return false;
+
+		var world = state.World;
+		var x = player.X;
+		var y = player.Y;
+		var z = player.Z;
+
+		if (ClimbingService.CanAutoClimb(world, x, y, z, action.Dz))
+		{
+			player.TickBuffs();
+			ClimbingService.MoveActorVertical(state, player, action.Dz);
+			events.Add(new GameEvent("actor_climbed")
+			{
+				InitiatorId = player.Id,
+				Damage = action.Dz,
+			});
+			return true;
+		}
+
+		if (ClimbingService.CanAttemptClimb(world, x, y, z, action.Dz))
+		{
+			player.TickBuffs();
+			var difficulty = ClimbingService.GetClimbDifficulty(world, x, y, z);
+			if (ClimbingService.RollClimbCheck(player, difficulty))
+			{
+				ClimbingService.MoveActorVertical(state, player, action.Dz);
+				events.Add(new GameEvent("actor_climbed")
+				{
+					InitiatorId = player.Id,
+					Damage = action.Dz,
+				});
+			}
+			else
+			{
+				events.Add(new GameEvent("climb_failed")
+				{
+					InitiatorId = player.Id,
+				});
+			}
+			return true;
+		}
+
+		return false;
+	}
+
 	private static void FinalizeConsumedAction(
 		GameState state,
 		string actorId,
@@ -624,14 +797,44 @@ public static class TimelineTurnManager
 		TimelineStepResult result,
 		TimelineEvalContext context)
 	{
+		var profile = _stepProfilingEnabled;
+		var t = profile ? System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
+
 		result.ActionConsumed = true;
 		ResolveActor(state, actorId, context)?.TickSkillCooldowns();
+		ClimbingService.ApplyPlayerGravityAndDamage(state, result.Events);
+
+		if (profile)
+		{
+			var now = System.Diagnostics.Stopwatch.GetTimestamp();
+			_stepProfilingStats.FinalizeCooldownTicks += now - t;
+			t = now;
+		}
+
 		state.Turn++;
 		ConsumeTurn(state, actorId, context);
 		context.ActorsById.Clear();
 		context.SpeedByActorId.Clear();
-		result.PlayerTurnReady = IsPlayerTurn(state, context);
+
+		if (profile)
+		{
+			var now = System.Diagnostics.Stopwatch.GetTimestamp();
+			_stepProfilingStats.FinalizeConsumeTurnTicks += now - t;
+			t = now;
+		}
+
+		// 用轻量探测代替完整 EnsureCurrentActor，避免重复 HealthSync + PickReady
+		result.PlayerTurnReady = ProbeIsPlayerTurnNext(state, context);
+		// 排出探测中 AdvanceCharges 产生的世界事件
+		if (context.PendingWorldEvents is { Count: > 0 })
+		{
+			result.Events.AddRange(context.PendingWorldEvents);
+			context.PendingWorldEvents.Clear();
+		}
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
+
+		if (profile)
+			_stepProfilingStats.FinalizeProbeTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t;
 	}
 
 	private static void ConsumeTurn(GameState state, string actorId, TimelineEvalContext context)
@@ -950,7 +1153,7 @@ public static class TimelineTurnManager
 		context.SpeedByActorId.Clear();
 		// Actor 死亡移除后，缓存的感知可能引用已移除的 actor，需要清空重建。
 		state.PerceptionCache?.Clear();
-		result.PlayerTurnReady = IsPlayerTurn(state, context);
+		result.PlayerTurnReady = ProbeIsPlayerTurnNext(state, context);
 		result.HasPendingAutoStep = watchModeEnabled || !result.PlayerTurnReady;
 	}
 

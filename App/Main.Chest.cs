@@ -87,12 +87,11 @@ public partial class Main
 				_panels.SetFocus(chest);
 				return;
 			}
-			var result = ExecuteOpenChestCommand(new ChestPutClientCommand
+			ExecuteOpenChestCommand(new ChestPutClientCommand
 			{
 				ActorId = player.Id,
 				InventoryIndex = invIdx,
 			});
-			ApplyServerActionResult(result);
 			_panels.SetFocus(chest);
 			chest.Refresh();
 			FlushMap();
@@ -119,12 +118,11 @@ public partial class Main
 		if (player == null)
 			return;
 
-		var result = ExecuteOpenChestCommand(new ChestTakeClientCommand
+		ExecuteOpenChestCommand(new ChestTakeClientCommand
 		{
 			ActorId = player.Id,
 			ItemInstanceId = chestItem.Contents[itemIndex].InstanceId,
 		});
-		ApplyServerActionResult(result);
 	}
 
 	private void TakeAllChestItems(Item chestItem)
@@ -133,20 +131,18 @@ public partial class Main
 		if (player == null)
 			return;
 
-		var result = ExecuteOpenChestCommand(new ChestTakeAllClientCommand
+		ExecuteOpenChestCommand(new ChestTakeAllClientCommand
 		{
 			ActorId = player.Id,
 		});
-		ApplyServerActionResult(result);
 	}
 
-	private ServerActionResult ExecuteOpenChestCommand(ClientCommand command)
+	private void ExecuteOpenChestCommand(ClientCommand command)
 	{
 		if (_openChestContext == null)
 		{
-			return ServerActionResult.Reject(
-				LocalizationService.TOrFallback("ui.chest.closed", "Container is no longer available."),
-				"missing_open_container");
+			_log.Add(LocalizationService.TOrFallback("ui.chest.closed", "Container is no longer available."));
+			return;
 		}
 
 		var context = _openChestContext.Value;
@@ -181,18 +177,7 @@ public partial class Main
 			},
 			_ => command,
 		};
-		if (TrySubmitClientCommand(resolvedCommand))
-			return ServerActionResult.Accept();
-
-		return ServerActionGateway.Execute(_state, resolvedCommand);
+		SubmitClientCommand(resolvedCommand);
 	}
 
-	private void ApplyServerActionResult(ServerActionResult result)
-	{
-		foreach (var log in result.Logs)
-			_log.Add(log);
-
-		if (result.Events.Count > 0)
-			Dispatch(result.Events);
-	}
 }

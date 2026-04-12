@@ -74,6 +74,14 @@ public class GameState
 	[JsonIgnore]
 	public AwarenessTurnContext? AwarenessContextCache { get; set; }
 
+	/// <summary>
+	/// 回合级 AI 行为上下文缓存：避免每步重新分配 AIBehaviorContext 及其内部
+	/// nearbyThreat / exposure 缓存字典。状态会跨步骤累积，但基于 (actorId, 坐标)
+	/// 的缓存键保证正确性。
+	/// </summary>
+	[JsonIgnore]
+	public AIBehaviorContext? BehaviorContextCache { get; set; }
+
 	// ── 玩家三维坐标 ──
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }

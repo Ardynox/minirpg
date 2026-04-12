@@ -51,6 +51,9 @@ public class FogOfWarTracker
 	/// <summary>高度差每增加 1 层时，前向半径衰减值。</summary>
 	public int VerticalRadiusFalloffPerLevel { get; set; } = 2;
 
+	/// <summary>调试：全图视野模式，所有格子视为 Focused。</summary>
+	public bool RevealAll { get; set; }
+
 	private static long Pack(int x, int y) => ((long)x << 32) | (uint)y;
 
 	public FogOfWarTracker()
@@ -151,6 +154,7 @@ public class FogOfWarTracker
 
 	public PlayerVisionBand GetVisionBand(int x, int y, int z)
 	{
+		if (RevealAll) return PlayerVisionBand.Focused;
 		if (_directionalVisible.Contains((x, y, z))) return PlayerVisionBand.Focused;
 		if (_fullVisible.Contains((x, y, z))) return PlayerVisionBand.Peripheral;
 		if (HasSeen(x, y, z)) return PlayerVisionBand.Memory;

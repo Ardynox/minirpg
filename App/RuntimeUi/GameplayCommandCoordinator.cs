@@ -10,9 +10,7 @@ internal sealed class GameplayCommandCoordinator
 	private readonly InputModule _input;
 	private readonly LogModule _log;
 	private readonly Func<bool> _isMultiplayerSession;
-	private readonly Func<ClientCommand, bool> _trySubmitClientCommand;
-	private readonly Func<ClientCommand, ServerActionResult> _executeServerAction;
-	private readonly Action<ServerActionResult> _applyServerActionResult;
+	private readonly Action<ClientCommand> _submitClientCommand;
 	private readonly Action<TimelinePlayerAction> _submitPlayerAction;
 	private readonly Action<List<GameEvent>> _dispatch;
 	private readonly Action _flushMap;
@@ -25,9 +23,7 @@ internal sealed class GameplayCommandCoordinator
 		InputModule input,
 		LogModule log,
 		Func<bool> isMultiplayerSession,
-		Func<ClientCommand, bool> trySubmitClientCommand,
-		Func<ClientCommand, ServerActionResult> executeServerAction,
-		Action<ServerActionResult> applyServerActionResult,
+		Action<ClientCommand> submitClientCommand,
 		Action<TimelinePlayerAction> submitPlayerAction,
 		Action<List<GameEvent>> dispatch,
 		Action flushMap,
@@ -39,9 +35,7 @@ internal sealed class GameplayCommandCoordinator
 		_input = input;
 		_log = log;
 		_isMultiplayerSession = isMultiplayerSession;
-		_trySubmitClientCommand = trySubmitClientCommand;
-		_executeServerAction = executeServerAction;
-		_applyServerActionResult = applyServerActionResult;
+		_submitClientCommand = submitClientCommand;
 		_submitPlayerAction = submitPlayerAction;
 		_dispatch = dispatch;
 		_flushMap = flushMap;
@@ -219,14 +213,7 @@ internal sealed class GameplayCommandCoordinator
 					TargetActorId = target.Id,
 					InteractionDefId = d.Id,
 				};
-				if (_trySubmitClientCommand(command))
-				{
-					_flushMap();
-					return;
-				}
-
-				var events = InteractionModule.Execute(_state, player, target, d);
-				_dispatch(events);
+				_submitClientCommand(command);
 				_flushMap();
 			}));
 		}

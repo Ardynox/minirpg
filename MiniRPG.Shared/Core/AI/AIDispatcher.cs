@@ -368,7 +368,7 @@ public static class AIDispatcher
 
 	private static ActionExecutionResult TryExecuteBehaviorChain(GameState state, Actor actor, Perception perception, bool tickBuffs)
 	{
-		var behaviorContext = new AIBehaviorContext(state);
+		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
 		var healthExecution = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
 		if (healthExecution.Consumed)
 			return healthExecution;
@@ -486,13 +486,14 @@ public static class AIDispatcher
 	private static ActionExecutionResult ExecuteVerticalMove(GameState state, Actor actor, int? targetZ)
 	{
 		var result = new ActionExecutionResult();
-		if (targetZ == null || targetZ.Value == actor.Z)
+		if (targetZ == null || targetZ.Value == actor.Z || state.World == null)
 			return result;
 
-		var goDown = targetZ.Value > actor.Z;
-		if (!VerticalTraversalService.TryMoveActorVertical(state, actor, goDown))
+		var dz = targetZ.Value > actor.Z ? 1 : -1;
+		if (!ClimbingService.CanAutoClimb(state.World, actor.X, actor.Y, actor.Z, dz))
 			return result;
 
+		ClimbingService.MoveActorVertical(state, actor, dz);
 		result.Consumed = true;
 		return result;
 	}

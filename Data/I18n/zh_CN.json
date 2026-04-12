@@ -1599,6 +1599,7 @@
     "ui.debug_panel.quick.god.disable":  "关闭无敌",
     "ui.debug_panel.quick.down":  "下一层",
     "ui.debug_panel.quick.npcs":  "生成对话 NPC",
+    "ui.debug_panel.quick.reveal_all":  "全图视野",
     "ui.debug_panel.spawn.filter":  "阵营",
     "ui.debug_panel.spawn.filter.all":  "全部",
     "ui.debug_panel.spawn.filter.hostile":  "敌对",
@@ -1722,7 +1723,8 @@
     , "ui.multiplayer.room_panel.flag.online":  "\u5728\u7ebf"
     , "ui.multiplayer.room_panel.flag.offline":  "\u79bb\u7ebf"
     , "ui.multiplayer.room_panel.actor_row":  "{actor} | \u5f52\u5c5e\uff1a{owner} | \u63a7\u5236\uff1a{controller}"
-    , "ui.world_hover.cell":  "\u683c\u5b50 ({x}, {y}, {z})  \u5730\u5f62: {terrain}  \u53ef\u901a\u884c: {walkable}  \u89d2\u8272: {actor}"
+    , "ui.world_hover.label.walkable":  "\u53ef\u901a\u884c"
+    , "ui.world_hover.label.actor":  "\u89d2\u8272"
     , "ui.world_hover.walkable.yes":  "\u662f"
     , "ui.world_hover.walkable.no":  "\u5426"
     , "ui.ground.context.butcher":  "\u80a2\u89e3"

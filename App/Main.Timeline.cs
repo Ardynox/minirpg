@@ -43,9 +43,6 @@ public partial class Main
 		if (NeedBehaviorModule.HasNearbyThreat(_state, player))
 		{
 			_playerRestModeActive = false;
-			var interrupted = new List<GameEvent>();
-			NeedSystem.ApplyThought(player, "sleep_interrupted", _state.Turn, NeedThoughtSources.Sleep, interrupted, _state);
-			Dispatch(interrupted);
 			return;
 		}
 
@@ -113,6 +110,20 @@ public partial class Main
 		if (_multiplayerRuntimeCoordinator != null)
 			return _multiplayerRuntimeCoordinator.TrySubmitClientCommand(command, IsMultiplayerSession);
 		return false;
+	}
+
+	/// <summary>
+	/// Unified command submission: multiplayer routes via backend transport,
+	/// single-player routes through <see cref="IGameSessionBackend.SubmitCommandAsync"/>.
+	/// </summary>
+	private void SubmitClientCommand(ClientCommand command)
+	{
+		if (TrySubmitClientCommand(command))
+			return;
+
+		var result = _sessionBackend.SubmitCommandAsync(command).GetAwaiter().GetResult();
+		if (!result.Accepted && !string.IsNullOrEmpty(result.FailureReason))
+			_log.Add(result.FailureReason);
 	}
 
 	private bool TrySubmitMultiplayerTimelineAction(TimelinePlayerAction action)
@@ -199,6 +210,11 @@ public partial class Main
 				ActorId = actorId,
 				FacilityId = action.FacilityId ?? string.Empty,
 			},
+			TimelinePlayerActionType.Climb => new ClimbClientCommand
+			{
+				ActorId = actorId,
+				Dz = action.Dz,
+			},
 			_ => null!,
 		};
 
@@ -245,7 +261,6 @@ public partial class Main
 
 	private void FinalizeTimelineStepUi()
 	{
-		ApplyPlayerGravityIfUnsupported();
 		var anchors = RoomRuntimeModule.GetWorldAnchors(_state).Select(static anchor => anchor.Position).ToArray();
 		_state.World?.Chunks.UpdateLoadedChunks(anchors, _state.Turn);
 		FlushMap();
@@ -297,7 +312,7 @@ public partial class Main
 		_watchTimer = 0;
 
 		var player = ActorModule.GetPlayer(_state);
-		if (player != null)
+		if (player != null && !IsMultiplayerSession)
 			player.BrainId = enabled ? "simple" : null;
 
 		SyncSettingsUiState();

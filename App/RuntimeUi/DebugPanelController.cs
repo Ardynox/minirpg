@@ -23,6 +23,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	private readonly Func<bool> _menuInMenu;
 	private readonly Func<bool> _enabled;
 	private readonly Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> _renderPerfSnapshot;
+	private readonly Func<bool>? _toggleRevealAll;
 
 	private DebugPanelModule? _panel;
 
@@ -38,7 +39,8 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		Func<bool> sessionStarted,
 		Func<bool> menuInMenu,
 		Func<bool> enabled,
-		Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> renderPerfSnapshot)
+		Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> renderPerfSnapshot,
+		Func<bool>? toggleRevealAll = null)
 	{
 		_state = state;
 		_session = session;
@@ -52,6 +54,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		_menuInMenu = menuInMenu;
 		_enabled = enabled;
 		_renderPerfSnapshot = renderPerfSnapshot;
+		_toggleRevealAll = toggleRevealAll;
 	}
 
 	public void Toggle()
@@ -121,6 +124,20 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	DebugModule.Result DebugPanelModule.IHost.ExecuteFacilityBuild() => ApplyResult(ExecuteFacilityBuildDebugAction());
 	DebugModule.Result DebugPanelModule.IHost.ExecuteExportPreset(string scenarioId) => ApplyResult(DebugModule.ExportPreset(_session, scenarioId));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteQueryRenderPerfStatus() => BuildRenderPerfStatus();
+	DebugModule.Result DebugPanelModule.IHost.ExecuteToggleRevealAll() => ApplyResult(ExecuteToggleRevealAll());
+
+	private DebugModule.Result ExecuteToggleRevealAll()
+	{
+		if (_toggleRevealAll == null)
+			return new DebugModule.Result { Logs = ["Reveal all not available"] };
+
+		var nowRevealed = _toggleRevealAll();
+		return new DebugModule.Result
+		{
+			Logs = [nowRevealed ? "Full map vision: ON" : "Full map vision: OFF"],
+			NeedsFlush = true,
+		};
+	}
 
 	private DebugPanelModule EnsurePanel() => _panel ??= _createPanel(this, Close);
 

@@ -215,7 +215,29 @@ public class Actor
 	[JsonIgnore] private Dictionary<string, float>? _capacitiesCache;
 	[JsonIgnore] private bool _capacitiesDirty = true;
 
-	public void InvalidateCapacityCache() => _capacitiesDirty = true;
+	// 生命状态缓存：与能力缓存共用脏标记。由 CombatModule.CheckVitalStatus 填充，
+	// 消除 PickReadyActor 热路径中每格重复计算 vital status 的成本。
+	[JsonIgnore] private string? _vitalStatusCache;
+	[JsonIgnore] private bool _vitalStatusCacheSet;
+
+	public void InvalidateCapacityCache()
+	{
+		_capacitiesDirty = true;
+		_vitalStatusCacheSet = false;
+	}
+
+	/// <summary>获取缓存的 vital status（若已被 CheckVitalStatus 填充且未失效），否则返回 null 标记未命中。</summary>
+	[JsonIgnore]
+	public bool HasCachedVitalStatus => _vitalStatusCacheSet && !_capacitiesDirty;
+
+	[JsonIgnore]
+	public string? CachedVitalStatus => _vitalStatusCache;
+
+	public void SetCachedVitalStatus(string? status)
+	{
+		_vitalStatusCache = status;
+		_vitalStatusCacheSet = true;
+	}
 
 	public Dictionary<string, float> ComputeCapacities()
 	{

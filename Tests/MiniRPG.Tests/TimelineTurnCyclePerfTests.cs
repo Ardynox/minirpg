@@ -46,6 +46,14 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		var visionMs = MeasureMs(50, () => PerceptionBuilder.Build(benchState, benchEnemy, SimDetail.Full));
 		var perception = PerceptionBuilder.Build(benchState, benchEnemy, SimDetail.Full);
 		var aiFullMs = MeasureMs(50, () => AIDispatcher.DecideAndExecuteAnyResult(benchState, benchEnemy, tickBuffs: false));
+
+		// 分项微基准：隔离各阶段成本
+		var awarenessCtx = AwarenessModule.CreateTurnContext(benchState);
+		var awarenessMs = MeasureMs(100, () => AwarenessModule.UpdateForTurn(benchState, benchEnemy, perception, awarenessCtx));
+		var brainMs = MeasureMs(100, () => new SimpleBrain().Decide(perception, new Random(42)));
+		var healthSyncMs = MeasureMs(100, () => HealthSystem.Sync(benchEnemy, benchState.Turn,
+			DefaultEnvironmentExposureProvider.Instance.Capture(benchState, benchEnemy)));
+		var captureMs = MeasureMs(200, () => DefaultEnvironmentExposureProvider.Instance.Capture(benchState, benchEnemy));
 		benchState.SnapshotCache = null;
 
 		// 2. 主测试：模拟玩家结束回合
@@ -61,6 +69,7 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 
 		// 3. 计时 AI 行动循环直到再次轮到玩家
 		var stepTimes = new List<double>(enemyCount * 2);
+		TimelineTurnManager.EnableStepProfiling();
 		var sw = Stopwatch.StartNew();
 		TimelineStepResult result;
 		var stepSw = new Stopwatch();
@@ -72,6 +81,7 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 			stepTimes.Add(stepSw.Elapsed.TotalMilliseconds);
 		} while (result.HasPendingAutoStep && !result.PlayerTurnReady && stepTimes.Count < enemyCount * 4);
 		sw.Stop();
+		var stageStats = TimelineTurnManager.DisableStepProfilingAndRead();
 		var turnDelta = state.Turn - turnBefore;
 		var worldTicks = TurnModule.WorldSystemTickCount;
 
@@ -104,6 +114,10 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		output.WriteLine($"║  AdvanceWorld:{worldMs,8:F3} ms/call  × {worldTicks} = {estWorld,7:F1} ms");
 		output.WriteLine($"║  AI vision  : {visionMs,8:F3} ms/call");
 		output.WriteLine($"║  AI full    : {aiFullMs,8:F3} ms/call  (vision+brain+exec)");
+		output.WriteLine($"║  Awareness  : {awarenessMs,8:F3} ms/call");
+		output.WriteLine($"║  Brain      : {brainMs,8:F3} ms/call");
+		output.WriteLine($"║  HealthSync : {healthSyncMs,8:F3} ms/call");
+		output.WriteLine($"║  EnvCapture : {captureMs,8:F3} ms/call");
 		output.WriteLine($"╠── 估算占比");
 		output.WriteLine($"║  SyncActors : {estSync / totalMs * 100,5:F1} %  (~{estSync:F1} ms)");
 		output.WriteLine($"║  AdvanceWorld:{estWorld / totalMs * 100,5:F1} %  (~{estWorld:F1} ms)");
@@ -116,6 +130,29 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 			output.WriteLine($"╠── 首步 vs 后续 (batch cache)");
 			output.WriteLine($"║  first step : {firstMs,8:F2} ms");
 			output.WriteLine($"║  rest avg   : {restAvg,8:F3} ms  × {steps - 1} = {restMs:F1} ms");
+		}
+
+		// 单步阶段剖析（EnsureCurrent / HealthDeath / AI / Finalize）
+		if (stageStats.Steps > 0)
+		{
+			var ensureMs = TimelineTurnManager.TicksToMs(stageStats.EnsureCurrentTicks);
+			var deathMs = TimelineTurnManager.TicksToMs(stageStats.HealthDeathTicks);
+			var aiMs = TimelineTurnManager.TicksToMs(stageStats.AiDispatchTicks);
+			var finMs = TimelineTurnManager.TicksToMs(stageStats.FinalizeTicks);
+			var finCdMs = TimelineTurnManager.TicksToMs(stageStats.FinalizeCooldownTicks);
+			var finCtMs = TimelineTurnManager.TicksToMs(stageStats.FinalizeConsumeTurnTicks);
+			var finPbMs = TimelineTurnManager.TicksToMs(stageStats.FinalizeProbeTicks);
+			var sumMs = ensureMs + deathMs + aiMs + finMs;
+			var n = stageStats.Steps;
+			output.WriteLine($"╠── 阶段剖析 (AdvanceAutoSingleStep, {n} steps)");
+			output.WriteLine($"║  EnsureCurrent: {ensureMs,8:F2} ms  ({ensureMs / n,6:F3} ms/step, {ensureMs / sumMs * 100,5:F1}%)");
+			output.WriteLine($"║  HealthDeath  : {deathMs,8:F2} ms  ({deathMs / n,6:F3} ms/step, {deathMs / sumMs * 100,5:F1}%)");
+			output.WriteLine($"║  AI Dispatch  : {aiMs,8:F2} ms  ({aiMs / n,6:F3} ms/step, {aiMs / sumMs * 100,5:F1}%)");
+			output.WriteLine($"║  Finalize     : {finMs,8:F2} ms  ({finMs / n,6:F3} ms/step, {finMs / sumMs * 100,5:F1}%)");
+			output.WriteLine($"║    .cooldown+grav : {finCdMs,8:F2} ms  ({finCdMs / n,6:F3} ms/step)");
+			output.WriteLine($"║    .consumeTurn   : {finCtMs,8:F2} ms  ({finCtMs / n,6:F3} ms/step)");
+			output.WriteLine($"║    .probe         : {finPbMs,8:F2} ms  ({finPbMs / n,6:F3} ms/step)");
+			output.WriteLine($"║  Sum          : {sumMs,8:F2} ms");
 		}
 
 		// Fast-turn 模式测量
@@ -198,8 +235,16 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 	{
 		public string Id   => "flat_floor";
 		public string Name => "Flat Floor";
-		public void GenerateChunk(ChunkData chunk, int worldSeed) =>
-			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+		public void GenerateChunk(ChunkData chunk, int worldSeed)
+		{
+			// z=0 is walkable floor. Deeper layers are solid so ApplyGravity stops immediately.
+			// Without this, FlatFloor would create an infinite well and the player would fall to death
+			// after every consumed action (via ClimbingService.ApplyPlayerGravityAndDamage).
+			var terrainId = chunk.Coord.Cz == 0
+				? TerrainRegistry.GetId(Terrains.Floor)
+				: TerrainRegistry.GetId(Terrains.WallStone);
+			chunk.Fill(terrainId);
+		}
 		public void PopulateChunk(ChunkData chunk, int worldSeed) { }
 	}
 }

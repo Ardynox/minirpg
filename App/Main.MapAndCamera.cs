@@ -201,39 +201,45 @@ public partial class Main
 	{
 		var overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
 		overlayLayer.GetNodeOrNull<Control>("WorldHoverOverlay")?.QueueFree();
-		var root = new MarginContainer
+
+		var root = new PanelContainer
 		{
 			Name = "WorldHoverOverlay",
+			Theme = GetNode<Control>(HudRootPath).Theme,
+			ThemeTypeVariation = "TooltipPanel",
 			MouseFilter = Control.MouseFilterEnum.Ignore,
 			Visible = false,
 			ZIndex = 80,
 		};
-		root.SetAnchorsPreset(Control.LayoutPreset.TopWide);
-		root.OffsetLeft = 12f;
-		root.OffsetTop = 64f;
-		root.OffsetRight = -12f;
-		root.OffsetBottom = 0f;
-		root.AddThemeConstantOverride("margin_left", 8);
-		root.AddThemeConstantOverride("margin_top", 4);
-		root.AddThemeConstantOverride("margin_right", 8);
-		root.AddThemeConstantOverride("margin_bottom", 4);
+		root.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+		root.GrowHorizontal = Control.GrowDirection.End;
+		root.GrowVertical = Control.GrowDirection.End;
 
-		var panel = new PanelContainer
+		var margin = new MarginContainer
 		{
 			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Visible = true,
 		};
-		var label = new Label
+		margin.AddThemeConstantOverride("margin_left", 10);
+		margin.AddThemeConstantOverride("margin_top", 6);
+		margin.AddThemeConstantOverride("margin_right", 10);
+		margin.AddThemeConstantOverride("margin_bottom", 6);
+
+		var rtl = new RichTextLabel
 		{
 			Name = "CellInfo",
-			Visible = true,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			BbcodeEnabled = true,
+			FitContent = true,
+			ScrollActive = false,
 			AutowrapMode = TextServer.AutowrapMode.Off,
-			HorizontalAlignment = HorizontalAlignment.Left,
 		};
-		panel.AddChild(label);
-		root.AddChild(panel);
+
+		margin.AddChild(rtl);
+		root.AddChild(margin);
 		overlayLayer.AddChild(root);
-		_worldHoverLabel = label;
+
+		_worldHoverRtl = rtl;
+		_worldHoverRoot = root;
 	}
 
 	private bool HandleWorldHoverInput(InputEvent @event, RuntimeUiModeSnapshot snapshot)
@@ -250,6 +256,7 @@ public partial class Main
 		if (_mapRender.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var worldCell))
 		{
 			SetWorldHoverCell(worldCell);
+			PositionWorldHoverOverlay(motion.GlobalPosition);
 			return false;
 		}
 
@@ -263,40 +270,113 @@ public partial class Main
 			return;
 
 		_hoverWorldCell = cell;
+		_hoverDwell = 0f;
+		if (_worldHoverRoot != null)
+			_worldHoverRoot.Visible = false;
 		RefreshWorldHoverOverlay();
 		if (_session.GameStarted && !_menu.InMenu && RenderReady)
 			FlushMap();
 	}
 
+	private const float HoverShowDelay = 0.35f;
+	private const float HoverFadeDuration = 0.18f;
+
+	private void TickWorldHoverOverlay(float delta)
+	{
+		if (_worldHoverRoot == null)
+			return;
+
+		if (_hoverWorldCell == null)
+		{
+			_hoverDwell = 0f;
+			_worldHoverRoot.Visible = false;
+			return;
+		}
+
+		_hoverDwell += delta;
+
+		if (_hoverDwell < HoverShowDelay)
+		{
+			_worldHoverRoot.Visible = false;
+			return;
+		}
+
+		if (!_worldHoverRoot.Visible)
+		{
+			_worldHoverRoot.Visible = true;
+			_worldHoverRoot.Modulate = new Color(1f, 1f, 1f, 0f);
+		}
+
+		var fadeProgress = Mathf.Clamp((_hoverDwell - HoverShowDelay) / HoverFadeDuration, 0f, 1f);
+		_worldHoverRoot.Modulate = new Color(1f, 1f, 1f, fadeProgress);
+	}
+
 	private void RefreshWorldHoverOverlay()
 	{
-		var overlay = GetNodeOrNull<Control>($"{OverlayRootPath}/WorldHoverOverlay");
-		if (overlay == null || _worldHoverLabel == null)
+		if (_worldHoverRoot == null || _worldHoverRtl == null)
 			return;
 
 		if (_hoverWorldCell is not { } cell || _state.World == null)
 		{
-			overlay.Visible = false;
+			_worldHoverRoot.Visible = false;
 			return;
 		}
 
 		var terrain = _state.World.GetTerrain(cell.X, cell.Y, cell.Z);
+		var terrainName = GameLocalizer.LocalizeTerrainName(terrain.StringId);
+		var isWalkable = _state.World.IsWalkable(cell.X, cell.Y, cell.Z);
 		var actor = ActorModule.GetAt(_state, cell.X, cell.Y, cell.Z);
-		var actorText = actor != null
-			? IdentificationModule.GetActorDisplayName(_state, actor)
-			: LocalizationService.T("ui.common.none");
-		var walkable = LocalizationService.T(
-			_state.World.IsWalkable(cell.X, cell.Y, cell.Z)
-				? "ui.world_hover.walkable.yes"
-				: "ui.world_hover.walkable.no");
-		_worldHoverLabel.Text = LocalizationService.T(
-			"ui.world_hover.cell",
-			("x", cell.X),
-			("y", cell.Y),
-			("z", cell.Z),
-			("terrain", GameLocalizer.LocalizeTerrainName(terrain.StringId)),
-			("walkable", walkable),
-			("actor", actorText));
-		overlay.Visible = true;
+
+		var header = $"[color={UIColors.HexHeader}]{terrainName}[/color]  " +
+		             $"[color={UIColors.HexDim}]({cell.X}, {cell.Y}, {cell.Z})[/color]";
+
+		var walkableLabel = LocalizationService.T("ui.world_hover.label.walkable");
+		var walkableText = LocalizationService.T(
+			isWalkable ? "ui.world_hover.walkable.yes" : "ui.world_hover.walkable.no");
+		var walkableColor = isWalkable ? UIColors.HexSuccess : UIColors.HexWarning;
+
+		var actorLabel = LocalizationService.T("ui.world_hover.label.actor");
+		string actorValue;
+		if (actor != null)
+		{
+			var actorName = IdentificationModule.GetActorDisplayName(_state, actor);
+			actorValue = $"[color={UIColors.HexNormal}]{actorName}[/color]";
+		}
+		else
+		{
+			actorValue = $"[color={UIColors.HexDim}]{LocalizationService.T("ui.common.none")}[/color]";
+		}
+
+		var detail = $"[color={UIColors.HexDim}]{walkableLabel}:[/color] " +
+		             $"[color={walkableColor}]{walkableText}[/color]  " +
+		             $"[color={UIColors.HexDim}]{actorLabel}:[/color] {actorValue}";
+
+		_worldHoverRtl.Text = $"{header}\n{detail}";
+	}
+
+	private void PositionWorldHoverOverlay(Vector2 mouseGlobal)
+	{
+		_hoverLastMousePos = mouseGlobal;
+		if (_worldHoverRoot == null)
+			return;
+
+		const float offsetX = 16f;
+		const float offsetY = 20f;
+
+		var viewportSize = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1920, 1080);
+		var tooltipSize = _worldHoverRoot.Size;
+
+		var x = mouseGlobal.X + offsetX;
+		var y = mouseGlobal.Y + offsetY;
+
+		if (x + tooltipSize.X > viewportSize.X - 8f)
+			x = mouseGlobal.X - tooltipSize.X - 8f;
+		if (y + tooltipSize.Y > viewportSize.Y - 8f)
+			y = mouseGlobal.Y - tooltipSize.Y - 8f;
+
+		x = Mathf.Max(8f, x);
+		y = Mathf.Max(8f, y);
+
+		_worldHoverRoot.Position = new Vector2(x, y);
 	}
 }

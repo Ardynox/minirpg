@@ -627,6 +627,14 @@ public class TileMapRenderModule
 			: LocalizationService.T("render.fog_map.closed");
 	}
 
+	public bool ToggleRevealAll()
+	{
+		_fogTracker.RevealAll = !_fogTracker.RevealAll;
+		return _fogTracker.RevealAll;
+	}
+
+	public bool IsRevealAll => _fogTracker.RevealAll;
+
 	public void CenterFogMap() { }
 
 	public void ScrollFogMap(int dx, int dy) { }

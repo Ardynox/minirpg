@@ -169,6 +169,9 @@ public static class CombatModule
 
 	public static string? CheckVitalStatus(Actor actor)
 	{
+		if (actor.HasCachedVitalStatus)
+			return actor.CachedVitalStatus;
+
 		var capacities = actor.ComputeCapacities();
 		string? worst = null;
 		foreach (var def in PresetDB.Capacities.Values)
@@ -180,12 +183,16 @@ public static class CombatModule
 			if (value <= def.ZeroThreshold)
 			{
 				if (def.VitalEffect == "death_instant")
+				{
+					actor.SetCachedVitalStatus("death_instant");
 					return "death_instant";
+				}
 				if (worst == null || def.VitalEffect == "incapacitate" && worst == "death_slow")
 					worst = def.VitalEffect;
 			}
 		}
 
+		actor.SetCachedVitalStatus(worst);
 		return worst;
 	}
 

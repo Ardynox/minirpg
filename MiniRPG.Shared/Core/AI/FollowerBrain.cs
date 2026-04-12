@@ -57,7 +57,8 @@ public class FollowerBrain : IBrainModule
 			return null;
 
 		var adjacentEnemy = perception.NearbyActors
-			.Where(other => FactionRelation.IsHostile(self.Faction, other.Faction)
+			.Where(other => !CombatModule.IsDead(other)
+				&& FactionRelation.IsHostile(self.Faction, other.Faction)
 				&& other.Limbs.Count > 0
 				&& Math.Abs(other.X - self.X) + Math.Abs(other.Y - self.Y) == 1)
 			.OrderBy(other => other.Id, StringComparer.Ordinal)

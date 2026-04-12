@@ -38,21 +38,18 @@ public partial class IsometricVoxelRenderer
 	private const float NonSolidSideEdgeStrength = 0.06f;
 	private const int SideTextureWidth = 64;
 	private const int SideTextureHeight = 176;
-	private const int SideFaceHeight = 84;
+	private const int SideFaceHeight = (int)IsoCoordUtil.ZStep;
 	private const int WallSideFaceHeight = SideFaceHeight;
 	private const float DefaultLeftSideDarken = LeftDarken;
 	private const float DefaultRightSideDarken = RightDarken;
 	private const float WallLeftSideDarken = 0.52f;
 	private const float WallRightSideDarken = 0.68f;
 	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
-	private static readonly Color HoverCellTint = new(1.0f, 0.94f, 0.22f, 0.56f);
-	private static readonly Color HoverCellOutlineTint = new(0.10f, 0.08f, 0.02f, 0.74f);
-	private static readonly Color HoverAirTint = new(0.36f, 0.92f, 1.0f, 0.34f);
-	private static readonly Color HoverAirOutlineTint = new(0.04f, 0.14f, 0.18f, 0.58f);
-	private static readonly Vector2 HoverCellFillScale = new(2.00f, 1.00f);
-	private static readonly Vector2 HoverCellOutlineScale = new(2.08f, 1.04f);
-	private static readonly Vector2 HoverAirFillScale = new(1.94f, 0.97f);
-	private static readonly Vector2 HoverAirOutlineScale = new(2.02f, 1.01f);
+	private static readonly Color HoverCellTint = new(0.92f, 0.82f, 0.50f, 0.08f);
+	private static readonly Color HoverCellOutlineTint = new(0.92f, 0.82f, 0.50f, 0.70f);
+	private static readonly Color HoverWallTint = new(0.92f, 0.82f, 0.50f, 0.38f);
+	private static readonly Vector2 HoverCellFillScale = new(1.96f, 0.98f);
+	private static readonly Vector2 HoverCellOutlineScale = new(2.04f, 1.02f);
 
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
@@ -179,9 +176,18 @@ public partial class IsometricVoxelRenderer
 			if (IsFullyOccluded(wx, wy, wz))
 				continue;
 
-			var drawTop = !_state.World.GetTerrain(wx, wy, wz - 1).IsOpaque;
+			var topOccluded = _state.World.GetTerrain(wx, wy, wz - 1).IsOpaque;
+			var drawTop = !topOccluded;
 			var drawLeft = !_state.World.GetTerrain(wx, wy + 1, wz).IsOpaque;
 			var drawRight = !_state.World.GetTerrain(wx + 1, wy, wz).IsOpaque;
+
+			// 当侧面可见但顶面被遮挡时，强制绘制暗化顶面，避免"悬浮平行四边形"
+			var shadowTop = false;
+			if (topOccluded && (drawLeft || drawRight))
+			{
+				drawTop = true;
+				shadowTop = true;
+			}
 
 			if (!drawTop && !drawLeft && !drawRight)
 				continue;
@@ -193,6 +199,7 @@ public partial class IsometricVoxelRenderer
 				SortKey = IsoCoordUtil.SortKey(wx, wy, wz),
 				Terrain = terrain,
 				DrawTop = drawTop, DrawLeftSide = drawLeft, DrawRightSide = drawRight,
+				ShadowTop = shadowTop,
 			});
 		}
 
@@ -215,14 +222,19 @@ public partial class IsometricVoxelRenderer
 
 	// ── Drawing Methods ──
 
+	private const float ShadowTopDarken = 0.35f;
+
 	private void DrawBlockTop(VoxelDrawCommand cmd)
 	{
 		var textures = GetOrCreateTextures(cmd.Terrain);
 		if (textures.Top == null) return;
+		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
+		if (cmd.ShadowTop)
+			tint = new Color(tint.R * ShadowTopDarken, tint.G * ShadowTopDarken, tint.B * ShadowTopDarken, tint.A);
 		_faceCommands.Add(new FaceSpriteCommand(
 			textures.Top,
 			cmd.ScreenPos,
-			GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top),
+			tint,
 			cmd.SortKey));
 	}
 
@@ -609,8 +621,8 @@ public partial class IsometricVoxelRenderer
 				? (tw - 1) - (int)Math.Round(t * (tw - 1))
 				: (int)Math.Round(t * (tw - 1));
 			var pyStart = isRight
-				? (int)((iw - 1 - px) * 0.5f)
-				: (int)(px * 0.5f);
+				? (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1))
+				: (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
 
 			for (var dy = 0; dy < faceH; dy++)
 			{
@@ -821,9 +833,9 @@ public partial class IsometricVoxelRenderer
 	/// </summary>
 	private static Image GenerateLeftSideImage(Image topImage)
 	{
-		const int iw = 64;
-		const int ih = 64;
-		const int faceH = 32;
+		const int iw = SideTextureWidth;
+		const int ih = SideTextureHeight;
+		const int faceH = SideFaceHeight;
 		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
 		var tw = topImage.GetWidth();
 		var th = topImage.GetHeight();
@@ -839,7 +851,7 @@ public partial class IsometricVoxelRenderer
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
 			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
 
-			var pyStart = (int)(px * 0.5f);
+			var pyStart = (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
 			for (var dy = 0; dy < faceH; dy++)
 			{
 				var py = pyStart + dy;
@@ -861,9 +873,9 @@ public partial class IsometricVoxelRenderer
 	/// </summary>
 	private static Image GenerateRightSideImage(Image topImage)
 	{
-		const int iw = 64;
-		const int ih = 64;
-		const int faceH = 32;
+		const int iw = SideTextureWidth;
+		const int ih = SideTextureHeight;
+		const int faceH = SideFaceHeight;
 		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
 		var tw = topImage.GetWidth();
 		var th = topImage.GetHeight();
@@ -879,7 +891,7 @@ public partial class IsometricVoxelRenderer
 			sampleY = Math.Clamp(sampleY, 0, th - 1);
 			var color = SampleArea(topImage, sampleX, sampleY, tw, th);
 
-			var pyStart = (int)((iw - 1 - px) * 0.5f);
+			var pyStart = (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1));
 			for (var dy = 0; dy < faceH; dy++)
 			{
 				var py = pyStart + dy;
@@ -1011,27 +1023,90 @@ public partial class IsometricVoxelRenderer
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
 		_highlightCommands.Add(new HoverHighlightCommand(basePos, HoverCellTint, IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000));
-
-		var airPos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z - 1);
-		_highlightCommands.Add(new HoverHighlightCommand(airPos, HoverAirTint, IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z - 1) + 9001));
-		_highlightCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
 		_highlightCommandCount = _highlightCommands.Count;
 	}
 
 	private void RenderHoverHighlights()
 	{
-		var pulse = 0.84f + 0.16f * (0.5f + 0.5f * Mathf.Sin(Time.GetTicksMsec() / 120.0f));
+		var pulse = 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Sin(Time.GetTicksMsec() / 320.0f));
 		for (var i = 0; i < _highlightCommands.Count; i++)
 		{
 			var command = _highlightCommands[i];
-			var isAir = i > 0;
 			var fillTint = command.Tint * new Color(1f, 1f, 1f, pulse);
-			var outlineTint = isAir ? HoverAirOutlineTint : HoverCellOutlineTint;
-			var outlineScale = isAir ? HoverAirOutlineScale : HoverCellOutlineScale;
-			var fillScale = isAir ? HoverAirFillScale : HoverCellFillScale;
-			DrawHoverDiamond(command.ScreenPos, outlineTint, outlineScale, zIndex: 2, textureKey: "hover_diamond_outline");
-			DrawHoverDiamond(command.ScreenPos, fillTint, fillScale, zIndex: 3, textureKey: "hover_diamond_fill");
+			DrawHoverDiamond(command.ScreenPos, HoverCellOutlineTint, HoverCellOutlineScale, zIndex: 2, textureKey: "hover_diamond_outline");
+			DrawHoverDiamond(command.ScreenPos, fillTint, HoverCellFillScale, zIndex: 3, textureKey: "hover_diamond_fill");
+			DrawHoverLightWalls(command.ScreenPos, pulse);
 		}
+	}
+
+	/// <summary>
+	/// 在菱形四角绘制向上渐隐的光柱 + 顶部连线，营造立体光笼选择框效果。
+	/// </summary>
+	private void DrawHoverLightWalls(Vector2 cellPos, float pulse)
+	{
+		const float wallH = 28f;
+		var wallTint = HoverWallTint * new Color(1f, 1f, 1f, pulse);
+
+		// 菱形4个顶点偏移（相对于 cellPos）
+		Vector2 top = new(0f, -31f), right = new(63f, 0f),
+		        bottom = new(0f, 31f), left = new(-63f, 0f);
+
+		// 四角光柱：从顶点向上延伸的竖直渐隐光条
+		DrawCornerPillar(cellPos + top, wallH, wallTint);
+		DrawCornerPillar(cellPos + right, wallH, wallTint);
+		DrawCornerPillar(cellPos + bottom, wallH, wallTint);
+		DrawCornerPillar(cellPos + left, wallH, wallTint);
+
+		// 顶部横向连线：在光柱顶端之间绘制淡化水平线，形成笼顶
+		var capTint = wallTint * new Color(1f, 1f, 1f, 0.4f);
+		DrawWallCap(cellPos + top + new Vector2(0f, -wallH),
+		            cellPos + right + new Vector2(0f, -wallH), capTint);
+		DrawWallCap(cellPos + right + new Vector2(0f, -wallH),
+		            cellPos + bottom + new Vector2(0f, -wallH), capTint);
+		DrawWallCap(cellPos + bottom + new Vector2(0f, -wallH),
+		            cellPos + left + new Vector2(0f, -wallH), capTint);
+		DrawWallCap(cellPos + left + new Vector2(0f, -wallH),
+		            cellPos + top + new Vector2(0f, -wallH), capTint);
+	}
+
+	private void DrawCornerPillar(Vector2 basePos, float height, Color tint)
+	{
+		var sprite = AcquireSprite();
+		sprite.Centered = false;
+		sprite.Texture = GetEntityMarkerTexture("hover_wall_pillar");
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
+		sprite.RegionEnabled = false;
+		sprite.Rotation = 0f;
+		sprite.Skew = 0f;
+		// 纹理 4x32：宽度保持 1:1（~4px），高度缩放到实际光柱高度
+		sprite.Scale = new Vector2(1f, height / 32f);
+		// 从基准点向上延伸，水平居中
+		sprite.Position = new Vector2(basePos.X - 2f, basePos.Y - height);
+		sprite.ZIndex = 4;
+		sprite.Modulate = tint;
+		sprite.Visible = true;
+	}
+
+	private void DrawWallCap(Vector2 from, Vector2 to, Color tint)
+	{
+		var mid = (from + to) * 0.5f;
+		var dir = to - from;
+		var len = dir.Length();
+		if (len < 1f) return;
+
+		var sprite = AcquireSprite();
+		sprite.Centered = true;
+		sprite.Texture = GetEntityMarkerTexture("hover_wall_cap");
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
+		sprite.RegionEnabled = false;
+		sprite.Skew = 0f;
+		// 纹理 32x4：水平拉伸到边长
+		sprite.Scale = new Vector2(len / 32f, 1f);
+		sprite.Position = mid;
+		sprite.Rotation = dir.Angle();
+		sprite.ZIndex = 4;
+		sprite.Modulate = tint;
+		sprite.Visible = true;
 	}
 
 	private void DrawHoverDiamond(Vector2 pos, Color tint, Vector2 scale, int zIndex, string textureKey)
@@ -1243,6 +1318,40 @@ public partial class IsometricVoxelRenderer
 	private ImageTexture GetEntityMarkerTexture(string label)
 	{
 		if (_entityMarkerCache.TryGetValue(label, out var cached)) return cached;
+
+		if (label is "hover_wall_pillar" or "hover_wall_cap")
+		{
+			// 光柱: 4x32 竖直渐变（底亮顶透明）
+			// 顶部连线: 32x4 水平渐变（中间亮两端淡）
+			var isVert = label == "hover_wall_pillar";
+			int w = isVert ? 4 : 32, h = isVert ? 32 : 4;
+			var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+			for (var py = 0; py < h; py++)
+			for (var px = 0; px < w; px++)
+			{
+				float a;
+				if (isVert)
+				{
+					// 底部(py=h-1)最亮，顶部(py=0)全透明
+					var t = (float)py / (h - 1);
+					var vertFade = t * t; // 二次曲线：顶部快速衰减
+					var cx = Math.Abs(px - (w - 1) * 0.5f) / (w * 0.5f);
+					a = vertFade * (1f - cx * cx);
+				}
+				else
+				{
+					// 中心最亮，两端渐淡
+					var nx = Math.Abs(px - (w - 1) * 0.5f) / (w * 0.5f);
+					var ny = Math.Abs(py - (h - 1) * 0.5f) / (h * 0.5f);
+					a = (1f - nx * nx) * (1f - ny * ny);
+				}
+				img.SetPixel(px, py, new Color(1f, 1f, 1f, a));
+			}
+			var wallTex = ImageTexture.CreateFromImage(img);
+			_entityMarkerCache[label] = wallTex;
+			return wallTex;
+		}
+
 		const int size = 64;
 		var image = Image.CreateEmpty(size, size, false, Image.Format.Rgba8);
 		var center = (size - 1) * 0.5f;
@@ -1270,9 +1379,9 @@ public partial class IsometricVoxelRenderer
 
 				if (label == "hover_diamond_outline")
 				{
-					var edgeAlpha = Math.Clamp((d - 0.78f) / 0.22f, 0f, 1f);
+					var edgeAlpha = Math.Clamp((d - 0.85f) / 0.15f, 0f, 1f);
 					var innerFade = 1f - Math.Clamp((d - 0.15f) / 0.45f, 0f, 1f);
-					var alpha = Math.Max(edgeAlpha, innerFade * 0.16f);
+					var alpha = Math.Max(edgeAlpha, innerFade * 0.06f);
 					image.SetPixel(px, py, new Color(color.R, color.G, color.B, alpha));
 				}
 				else
@@ -1414,6 +1523,7 @@ public partial class IsometricVoxelRenderer
 		public long SortKey;
 		public TerrainDef Terrain;
 		public bool DrawTop, DrawLeftSide, DrawRightSide;
+		public bool ShadowTop;
 	}
 
 	private readonly record struct EntityDrawCommand(

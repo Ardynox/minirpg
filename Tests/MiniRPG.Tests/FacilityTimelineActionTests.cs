@@ -108,7 +108,9 @@ public sealed class FacilityTimelineActionTests
 
 		public void GenerateChunk(ChunkData chunk, int worldSeed)
 		{
-			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+			chunk.Fill(chunk.Coord.Cz == 0
+				? TerrainRegistry.GetId(Terrains.Floor)
+				: TerrainRegistry.GetId(Terrains.WallStone));
 		}
 
 		public void PopulateChunk(ChunkData chunk, int worldSeed)

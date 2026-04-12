@@ -94,13 +94,6 @@ toggle_mode = true
 theme_type_variation = "ActionButton"
 text = "Settings"
 
-[node name="WorldHoverHint" type="Label" parent="HudLayer/UI"]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = "MutedText"
-text = " "
-
 [node name="TopRow" type="HBoxContainer" parent="HudLayer/UI"]
 layout_mode = 2
 size_flags_vertical = 3

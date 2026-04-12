@@ -26,6 +26,10 @@ public static class ActorModule
 		state.Actors.Remove(id);
 		if (state.SnapshotCache != null)
 			state.SnapshotCache.IsDirty = true;
+		// Perception 缓存可能持有对已移除 actor 的陈旧引用（例如 NearbyActors 列表）。
+		// 如果不清除，后续 AI 决策会基于失效的目标发起攻击 → ValidateCastSkill 返回
+		// MissingTarget → ActionConsumed=false → 回合停滞（流浪商人卡住回合的根因）。
+		state.PerceptionCache?.Clear();
 	}
 
 	public static Actor? GetById(GameState state, string id) =>

@@ -96,6 +96,11 @@ public class SimpleBrain : IBrainModule
 		var result = new List<Actor>();
 		foreach (var other in nearby)
 		{
+			// 防御：即便感知缓存持有陈旧（已死亡/已移除）actor 引用，也不要把它们
+			// 当作有效目标返回。否则 BuildAttackDecision 会发起针对空目标的 Cast，
+			// ValidateCastSkill 返回 MissingTarget，Consumed=false，回合无法推进。
+			if (CombatModule.IsDead(other))
+				continue;
 			if (FactionRelation.IsHostile(self.Faction, other.Faction))
 				result.Add(other);
 		}
@@ -326,7 +331,8 @@ public class SimpleBrain : IBrainModule
 			return null;
 
 		var visibleTrackedTarget = perception.NearbyActors
-			.FirstOrDefault(other => string.Equals(other.Id, self.AlertTargetActorId, StringComparison.Ordinal));
+			.FirstOrDefault(other => string.Equals(other.Id, self.AlertTargetActorId, StringComparison.Ordinal)
+				&& !CombatModule.IsDead(other));
 		if (visibleTrackedTarget != null)
 			return visibleTrackedTarget;
 

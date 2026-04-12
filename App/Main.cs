@@ -161,7 +161,10 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool _skillCastCursorActive;
 	private Vector3I? _inspectWorldCell;
 	private Vector3I? _hoverWorldCell;
-	private Label _worldHoverLabel = null!;
+	private RichTextLabel _worldHoverRtl = null!;
+	private PanelContainer _worldHoverRoot = null!;
+	private float _hoverDwell;
+	private Vector2 _hoverLastMousePos;
 	private string? _inspectPreviousFocusId;
 	private string? _inspectActorId;
 	private PlayerTargetingContext _playerTargeting = PlayerTargetingContext.Empty;
@@ -607,7 +610,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 						return (0, 0, 0d);
 					var snapshot = _mapRender.LastPerfSnapshot;
 					return (snapshot.ActiveSpriteCount, snapshot.DrawCommandCount, snapshot.FrameTimeAvgMs);
-				});
+				},
+				() => _mapRender?.ToggleRevealAll() ?? false);
 			_runtime = BuildRuntimeComposition();
 			_multiplayerFlowCoordinator = new MultiplayerFlowCoordinator(
 				AppSettingsStore.LoadMultiplayerSettings,
@@ -684,9 +688,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				_inputModule,
 				_log,
 				() => IsMultiplayerSession,
-				TrySubmitClientCommand,
-				command => ServerActionGateway.Execute(_state, command),
-				ApplyServerActionResult,
+				SubmitClientCommand,
 				SubmitPlayerAction,
 				Dispatch,
 				FlushMap,
@@ -875,6 +877,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_healthAlerts.Update(_state, ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
 		_partyHud.Update(_state, !snapshot.SuppressHudAndAlerts);
 		_incidentAlerts.Update((float)delta, !snapshot.SuppressHudAndAlerts);
+		TickWorldHoverOverlay((float)delta);
 		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();
@@ -1547,117 +1550,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private void Dispatch(List<GameEvent> events)
 	{
 		_gameEventPresentationRouter.Dispatch(events);
-	}
-
-	// ══════════════════════════════════════════════════════
-	//  楼梯（上行 / 下行）
-	// ══════════════════════════════════════════════════════
-
-	private async void DoEnterStairs()
-	{
-		if (_busyOperationActive)
-			return;
-
-		if (CanClimbAtPlayerCell(goDown: true))
-		{
-			await ExecuteClimb(goDown: true);
-			return;
-		}
-
-		if (CanClimbAtPlayerCell(goDown: false))
-		{
-			await ExecuteClimb(goDown: false);
-			return;
-		}
-
-		_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
-	}
-
-	private async void DoClimb(bool goDown)
-	{
-		if (_busyOperationActive)
-			return;
-
-		if (!CanClimbAtPlayerCell(goDown))
-		{
-			_log.Add(LocalizationService.T("ui.interaction.none_nearby"));
-			return;
-		}
-
-		await ExecuteClimb(goDown);
-	}
-
-	private async Task ExecuteClimb(bool goDown)
-	{
-		BeginBusyOperation("ui.loading.floor.prepare", 18f / 100f);
-		try
-		{
-			await ShowBusyOperationStageAsync("ui.loading.floor.prepare", 0.18f);
-			if (ChestOpen) CloseChestPanel();
-
-			await ShowBusyOperationStageAsync("ui.loading.floor.load", 0.76f);
-			var player = ActorModule.GetPlayer(_state);
-			if (player == null)
-			{
-				_log.Add(LocalizationService.TOrFallback("log.vertical.missing_player", "当前没有可移动的玩家角色。"));
-				return;
-			}
-			if (!VerticalTraversalService.TryMoveActorVertical(_state, player, goDown))
-			{
-				_log.Add(LocalizationService.TOrFallback(
-					"log.vertical.blocked",
-					goDown ? "无法向下移动：当前位置没有可用通道或下层被阻挡。" : "无法向上移动：当前位置没有可用通道或上层被阻挡。"));
-				return;
-			}
-
-			await ShowBusyOperationStageAsync("ui.loading.floor.finalize", 0.95f);
-			_log.Add(LocalizationService.TOrFallback(
-				goDown ? "log.vertical.climb_down" : "log.vertical.climb_up",
-				goDown ? $"你沿竖向通道下降到 Z={_state.PlayerZ}。" : $"你沿竖向通道上升到 Z={_state.PlayerZ}。"));
-			FlushMap();
-		}
-		finally
-		{
-			EndBusyOperation();
-		}
-	}
-
-	private bool CanClimbAtPlayerCell(bool goDown)
-	{
-		if (_state.World == null)
-			return false;
-
-		return VerticalTraversalService.CanClimb(_state.World, _state.PlayerX, _state.PlayerY, _state.PlayerZ, goDown);
-	}
-
-	private void ApplyPlayerGravityIfUnsupported()
-	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null)
-			return;
-
-		var runtime = GameConfig.WorldRuntime;
-		var fellLayers = VerticalTraversalService.ApplyGravity(_state, player, runtime.MaxFallLayersPerStep);
-		if (fellLayers <= 0)
-			return;
-
-		_log.Add(LocalizationService.TOrFallback(
-			"log.fall.player",
-			$"你失足下坠了 {fellLayers} 层，当前位于 Z={_state.PlayerZ}。"));
-
-		var freeLayers = Math.Clamp(runtime.FallDamageFreeLayers, 0, 16);
-		if (fellLayers > freeLayers && player.Limbs.Count > 0)
-		{
-			var impact = player.Limbs.Find(limb => limb.BodyPart == BodyParts.Leg)
-				?? player.Limbs.Find(limb => limb.BodyPart == BodyParts.Foot)
-				?? player.Limbs.Find(limb => limb.BodyPart == BodyParts.Torso)
-				?? player.Limbs[0];
-			var damagePerLayer = Math.Clamp(runtime.FallDamagePerLayer, 1, 100);
-			var fallDamage = (fellLayers - freeLayers) * damagePerLayer;
-			var events = CombatModule.ApplyEnvironmentalDamage(_state, player, impact, fallDamage, DamageTypes.Blunt);
-			if (events.Count > 0)
-				Dispatch(events);
-		}
 	}
 
 	// ══════════════════════════════════════════════════════

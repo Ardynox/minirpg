@@ -123,7 +123,7 @@ public sealed class LocalizationCatalogTests
 		Assert.Equal("多人房间", zh["ui.multiplayer.room_panel.title"]);
 		Assert.True(zh.ContainsKey("ui.multiplayer.room_panel.host.room_name"));
 		Assert.True(zh.ContainsKey("ui.multiplayer.connect.room_failed"));
-		Assert.True(zh.ContainsKey("ui.world_hover.cell"));
+		Assert.True(zh.ContainsKey("ui.world_hover.label.walkable"));
 		Assert.DoesNotContain(zh, static entry => entry.Value.Contains('\uFFFD'));
 		foreach (var marker in mojibakeMarkers)
 		{

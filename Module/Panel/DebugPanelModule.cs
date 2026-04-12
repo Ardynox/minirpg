@@ -30,6 +30,7 @@ public sealed class DebugPanelModule : IPanel
 		DebugModule.Result ExecuteFacilityBuild();
 		DebugModule.Result ExecuteExportPreset(string scenarioId);
 		DebugModule.Result ExecuteQueryRenderPerfStatus();
+		DebugModule.Result ExecuteToggleRevealAll();
 	}
 
 	private const string AllFilterId = "all";
@@ -53,6 +54,7 @@ public sealed class DebugPanelModule : IPanel
 	private readonly Button _toggleGodModeButton;
 	private readonly Button _downFloorButton;
 	private readonly Button _spawnNpcButton;
+	private readonly Button _revealAllButton;
 	private readonly OptionButton _spawnFilterOption;
 	private readonly OptionButton _spawnTemplateOption;
 	private readonly Button _spawnButton;
@@ -96,6 +98,7 @@ public sealed class DebugPanelModule : IPanel
 		_toggleGodModeButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/GodModeBtn");
 		_downFloorButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/DownFloorBtn");
 		_spawnNpcButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/SpawnNpcBtn");
+		_revealAllButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/RevealAllBtn");
 		_spawnFilterOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/FilterRow/SpawnFilterOption");
 		_spawnTemplateOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/TemplateRow/SpawnTemplateOption");
 		_spawnButton = vbox.GetNode<Button>("ContentScroll/Content/SpawnSection/ActionsRow/SpawnBtn");
@@ -131,6 +134,7 @@ public sealed class DebugPanelModule : IPanel
 		_toggleGodModeButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleGodMode());
 		_downFloorButton.Pressed += () => ApplyHostResult(_host.ExecuteMoveDownFloor());
 		_spawnNpcButton.Pressed += () => ApplyHostResult(_host.ExecuteSpawnDialogTestNpcs());
+		_revealAllButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleRevealAll());
 		_spawnFilterOption.ItemSelected += _ => RefreshSpawnTemplateOptions();
 		_spawnButton.Pressed += OnSpawnPressed;
 		_weatherStatusButton.Pressed += () => ApplyHostResult(_host.ExecuteQueryWeatherStatus());

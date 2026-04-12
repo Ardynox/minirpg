@@ -243,6 +243,56 @@ public sealed class TimelineTurnManagerTests
 	}
 
 	[Fact]
+	public void AdvanceAuto_FriendlyMerchantDoesNotStallTimeline()
+	{
+		// Keep the hostile enemy from the helper so awareness transitions fire for
+		// the merchant (friendly faction sees hostile → Suspicious → Alerted).
+		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState(enemyX: 4, enemyY: 1);
+
+		var merchant = PresetDB.SpawnActor("merchant", "merchant1");
+		Assert.NotNull(merchant);
+		merchant!.X = 3;
+		merchant.Y = 1;
+		merchant.Z = 0;
+		merchant.BrainId = "simple";
+		// Deliberately use direct assignment (NOT ActorModule.Add) to mirror what
+		// TraderVisitIncidentWorker / WandererJoinIncidentWorker do — they skip
+		// world registration. This is the production spawn path for "流浪商人".
+		state.Actors[merchant.Id] = merchant;
+
+		TimelineTurnManager.Reset(state);
+
+		// Simulate 30 turns of alternating player and merchant actions. Any hang
+		// would manifest as autoResult.ActionConsumed being false on a merchant turn.
+		for (var cycle = 0; cycle < 30; cycle++)
+		{
+			// Use Move as the player action — no cooldown, no consumable required.
+			// Oscillate direction so the player stays within a tight range.
+			var dx = cycle % 2 == 0 ? 1 : -1;
+			var playerAction = TimelineTurnManager.SubmitPlayerAction(
+				state,
+				TimelinePlayerAction.Move(dx, 0));
+			Assert.True(playerAction.ActionConsumed, $"Cycle {cycle}: player action failed. player=({player.X},{player.Y})");
+
+			// Auto-advance until player turn returns or we detect a stall.
+			var safety = 0;
+			while (true)
+			{
+				if (++safety > 5)
+					Assert.Fail($"Cycle {cycle}: AdvanceAuto stuck after 5 iterations. merchantAwareness={merchant.AwarenessState} merchant=({merchant.X},{merchant.Y})");
+
+				var autoResult = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false, fastTurnModeEnabled: false);
+				if (autoResult.PlayerTurnReady)
+					break;
+				if (!autoResult.ActionConsumed && !autoResult.HasPendingAutoStep)
+					break;
+				if (!autoResult.ActionConsumed && autoResult.HasPendingAutoStep)
+					Assert.Fail($"Cycle {cycle}: Merchant turn NOT consumed. ActingActor={autoResult.ActingActorId}, Events=[{string.Join(",", autoResult.Events.ConvertAll(e => $"{e.Type}({e.FailureReason}|{e.EffectType}|{e.InteractionDefId}|@{e.TargetX},{e.TargetY})"))}] merchantAwareness={merchant.AwarenessState} merchant=({merchant.X},{merchant.Y}) enemy=({enemy.X},{enemy.Y}) enemyAlive={!CombatModule.IsDead(enemy)}");
+			}
+		}
+	}
+
+	[Fact]
 	public void SubmitPlayerAction_CastSkillConsumesOnlyWhenValid()
 	{
 		var (state, _, _) = SkillCastingTestHelper.CreateCombatState();
