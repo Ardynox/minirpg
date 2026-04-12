@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module;
 
-namespace MiniRPG.Core.Session;
+namespace MiniRPG.Module.Session;
 
 public sealed class LocalSessionBackend : IGameSessionBackend
 {

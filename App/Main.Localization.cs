@@ -1,29 +1,25 @@
 using System;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Godot;
 using GodotFileAccess = Godot.FileAccess;
 
-namespace MiniRPG.Core.Config;
+namespace MiniRPG;
 
-internal static class GodotConfigBridge
+public partial class Main
 {
 	private const string LocaleMeta = "__loc_text_key";
 	private const string PlaceholderMeta = "__loc_placeholder_key";
-	private static readonly Regex KeyPattern = new(@"^[A-Za-z0-9_.-]+$", RegexOptions.Compiled);
+	private static readonly Regex LocKeyPattern = new(@"^[A-Za-z0-9_.-]+$", RegexOptions.Compiled);
 
-#pragma warning disable CA2255
-	[ModuleInitializer]
-	internal static void Initialize()
+	private static void ConfigureGodotBridge()
 	{
-		LocalizationService.ConfigureTreeLocalizer(LocalizeTree);
+		LocalizationService.ConfigureTreeLocalizer(LocalizeGodotTree);
 		if (CanUseGodotRuntimeFileAccess())
-			GameDataLocator.ConfigureResourceTextReader(ReadResourceText);
+			GameDataLocator.ConfigureResourceTextReader(ReadGodotResourceText);
 	}
-#pragma warning restore CA2255
 
-	private static string? ReadResourceText(string resourcePath)
+	private static string? ReadGodotResourceText(string resourcePath)
 	{
 		try
 		{
@@ -36,39 +32,39 @@ internal static class GodotConfigBridge
 		}
 	}
 
-	private static void LocalizeTree(object root)
+	private static void LocalizeGodotTree(object root)
 	{
 		if (root is not Node node)
 			return;
 
-		ApplyNode(node);
+		ApplyLocaleNode(node);
 		foreach (var child in node.GetChildren())
 		{
 			if (child is Node childNode)
-				LocalizeTree(childNode);
+				LocalizeGodotTree(childNode);
 		}
 	}
 
-	private static void ApplyNode(Node node)
+	private static void ApplyLocaleNode(Node node)
 	{
 		switch (node)
 		{
 			case Button button:
-				ApplyText(button, LocaleMeta, () => button.Text, value => button.Text = value);
+				ApplyLocaleText(button, LocaleMeta, () => button.Text, value => button.Text = value);
 				break;
 			case Label label:
-				ApplyText(label, LocaleMeta, () => label.Text, value => label.Text = value);
+				ApplyLocaleText(label, LocaleMeta, () => label.Text, value => label.Text = value);
 				break;
 			case RichTextLabel richTextLabel:
-				ApplyText(richTextLabel, LocaleMeta, () => richTextLabel.Text, value => richTextLabel.Text = value);
+				ApplyLocaleText(richTextLabel, LocaleMeta, () => richTextLabel.Text, value => richTextLabel.Text = value);
 				break;
 			case LineEdit lineEdit:
-				ApplyText(lineEdit, PlaceholderMeta, () => lineEdit.PlaceholderText, value => lineEdit.PlaceholderText = value);
+				ApplyLocaleText(lineEdit, PlaceholderMeta, () => lineEdit.PlaceholderText, value => lineEdit.PlaceholderText = value);
 				break;
 		}
 	}
 
-	private static void ApplyText(GodotObject obj, string metaKey, Func<string> getter, Action<string> setter)
+	private static void ApplyLocaleText(GodotObject obj, string metaKey, Func<string> getter, Action<string> setter)
 	{
 		string key;
 		if (obj.HasMeta(metaKey))
@@ -76,7 +72,7 @@ internal static class GodotConfigBridge
 		else
 		{
 			key = getter();
-			if (!LooksLikeKey(key))
+			if (!LooksLikeLocKey(key))
 				return;
 			obj.SetMeta(metaKey, key);
 		}
@@ -84,10 +80,10 @@ internal static class GodotConfigBridge
 		setter(LocalizationService.T(key));
 	}
 
-	private static bool LooksLikeKey(string value) =>
+	private static bool LooksLikeLocKey(string value) =>
 		!string.IsNullOrWhiteSpace(value)
 		&& value.Contains('.')
-		&& KeyPattern.IsMatch(value);
+		&& LocKeyPattern.IsMatch(value);
 
 	private static bool CanUseGodotRuntimeFileAccess()
 	{

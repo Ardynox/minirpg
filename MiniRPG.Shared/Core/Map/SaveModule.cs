@@ -9,6 +9,7 @@ using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.Health;
+using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Map;
@@ -241,6 +242,11 @@ public static class SaveModule
 	}
 
 	internal static readonly Dictionary<ChunkCoord, ChunkSnapshot> DirtyChunkCache = new();
+
+	static SaveModule()
+	{
+		WeatherSurface.AccumulationStore = new SaveModuleWeatherAdapter();
+	}
 
 	/// <summary>供 ChunkManager.OnChunkLoad 使用：从存档缓存中恢复 dirty chunk。</summary>
 	public static ChunkData? LoadChunkFromCache(ChunkCoord coord)

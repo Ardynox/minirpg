@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module.Network;
 
-namespace MiniRPG.Core.Session;
+namespace MiniRPG.Module.Session;
 
 public sealed class MultiplayerSessionConnectRequest
 {

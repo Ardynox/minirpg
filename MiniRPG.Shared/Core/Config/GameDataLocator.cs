@@ -164,9 +164,6 @@ public static class GameDataLocator
 		return null;
 	}
 
-	private static bool CanUseGodotResourceFileAccess() =>
-		CanUseGodotResourceFileAccess(System.Environment.ProcessPath);
-
 	private static bool CanUseGodotResourceFileAccess(string? processPath)
 	{
 		try

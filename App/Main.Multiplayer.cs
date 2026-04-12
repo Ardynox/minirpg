@@ -149,65 +149,6 @@ public partial class Main
 			_multiplayerRoomPanel.Close();
 	}
 
-	private IReadOnlyList<MultiplayerRoomPlayerOption> BuildMultiplayerRoomPlayerOptions(string currentPlayerSessionId) =>
-		_state.Room.Players.Values
-			.OrderByDescending(static player => player.IsRoomOwner)
-			.ThenByDescending(player => string.Equals(player.PlayerSessionId, currentPlayerSessionId, StringComparison.Ordinal))
-			.ThenBy(player => string.IsNullOrWhiteSpace(player.DisplayName) ? player.PlayerSessionId : player.DisplayName, StringComparer.Ordinal)
-			.Select(player => new MultiplayerRoomPlayerOption
-			{
-				PlayerSessionId = player.PlayerSessionId,
-				DisplayLabel = BuildMultiplayerRoomPlayerLabel(player, currentPlayerSessionId),
-			})
-			.ToArray();
-
-	private IReadOnlyList<MultiplayerRoomActorOption> BuildMultiplayerRoomActorOptions() =>
-		_state.Actors.Values
-			.Where(IsAssignableMultiplayerRoomActor)
-			.OrderBy(GetAssignableMultiplayerActorPriority)
-			.ThenBy(actor => ResolveActorDisplayName(actor.Id), StringComparer.Ordinal)
-			.ThenBy(static actor => actor.Id, StringComparer.Ordinal)
-			.Select(actor => new MultiplayerRoomActorOption
-			{
-				ActorId = actor.Id,
-				DisplayLabel = BuildMultiplayerRoomActorLabel(actor),
-			})
-			.ToArray();
-
-	private string BuildMultiplayerRoomPlayerLabel(RoomPlayerState player, string currentPlayerSessionId)
-	{
-		var flags = new List<string>();
-		if (player.IsRoomOwner)
-			flags.Add(LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.owner", "owner"));
-		if (string.Equals(player.PlayerSessionId, currentPlayerSessionId, StringComparison.Ordinal))
-			flags.Add(LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.you", "you"));
-		flags.Add(player.Connected
-			? LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.online", "online")
-			: LocalizationService.TOrFallback("ui.multiplayer.room_panel.flag.offline", "offline"));
-
-		var actorLabel = ResolveActorDisplayName(player.PrimaryActorId);
-		return string.IsNullOrWhiteSpace(actorLabel)
-			? $"{player.DisplayName} ({string.Join(", ", flags)})"
-			: $"{player.DisplayName} ({string.Join(", ", flags)}) | {actorLabel}";
-	}
-
-	private string BuildMultiplayerRoomActorLabel(Actor actor)
-	{
-		var ownerPlayerId = _state.Room.ActorControlBindings.TryGetValue(actor.Id, out var binding)
-			? binding.PrimaryOwnerPlayerId
-			: _state.Room.Players.Values.FirstOrDefault(player =>
-				string.Equals(player.PrimaryActorId, actor.Id, StringComparison.Ordinal))?.PlayerSessionId;
-		var controllerPlayerId = RoomRuntimeModule.GetCurrentControllerPlayerId(_state, actor.Id);
-		var ownerDisplayName = ResolvePlayerDisplayName(ownerPlayerId);
-		var controllerDisplayName = ResolvePlayerDisplayName(controllerPlayerId);
-		return LocalizationService.TOrFallback(
-			"ui.multiplayer.room_panel.actor_row",
-			"{actor} | owner: {owner} | control: {controller}",
-			("actor", ResolveActorDisplayName(actor.Id)),
-			("owner", ownerDisplayName),
-			("controller", controllerDisplayName));
-	}
-
 	private string ResolveCurrentMultiplayerRoomDisplayName()
 	{
 		var ticket = _multiplayerFlowCoordinator.GetReconnectTicket();
@@ -270,30 +211,6 @@ public partial class Main
 
 		actorId = player.PrimaryActorId;
 		return true;
-	}
-
-	private string DescribeMultiplayerHostMode(MultiplayerHostMode hostMode) => hostMode == MultiplayerHostMode.Local
-		? LocalizationService.T("ui.multiplayer.config.host_mode.local")
-		: LocalizationService.T("ui.multiplayer.config.host_mode.remote");
-
-	private bool IsAssignableMultiplayerRoomActor(Actor actor)
-	{
-		if (string.Equals(actor.Id, _state.PlayerId, StringComparison.Ordinal))
-			return true;
-		if (string.Equals(actor.Faction, Factions.Player, StringComparison.Ordinal))
-			return true;
-		return string.Equals(actor.Faction, Factions.Friendly, StringComparison.Ordinal);
-	}
-
-	private int GetAssignableMultiplayerActorPriority(Actor actor)
-	{
-		if (string.Equals(actor.Id, _state.PlayerId, StringComparison.Ordinal))
-			return 0;
-		if (string.Equals(actor.Faction, Factions.Player, StringComparison.Ordinal))
-			return 1;
-		if (string.Equals(actor.Faction, Factions.Friendly, StringComparison.Ordinal))
-			return 2;
-		return 3;
 	}
 
 	private async Task OpenMultiplayerHubAsync(

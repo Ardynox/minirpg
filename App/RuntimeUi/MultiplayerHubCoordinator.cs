@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Multiplayer;
-using MiniRPG.Core.Session;
+using MiniRPG.Module.Session;
 
 namespace MiniRPG;
 

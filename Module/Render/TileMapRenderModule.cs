@@ -18,28 +18,11 @@ public class TileMapRenderModule
 	private const string ItemWorldRenderResPath = "item_world_render.json";
 	private const string FallbackFixtureTile = "Misc A4_N";
 	private const string PeripheralFixtureTile = "Misc A4_N";
-	private const string WeatherAssetRoot = "res://Assets/Art/Placeholders/weather";
-	private const string WeatherScreenShaderPath = "res://Assets/Shaders/weather_screen_fx.gdshader";
-	private const string WeatherRealtimeShaderPath = "res://Assets/Shaders/weather_realtime_fx.gdshader";
-	private const string WeatherScreenFxOverlayName = "WeatherScreenFxOverlay";
-	private static readonly string[] WeatherAssetIds =
-	[
-		"snow_cover",
-		"sand_cover",
-		"ice_gloss",
-		"wet_gloss",
-		"rain",
-		"fog",
-		"snow",
-		"dust",
-		"lightning",
-	];
 	private const float DefaultAnimatedTileFps = 10f;
 	private const float DefaultCameraZoom = 1.0f;
 	private const float DefaultMinCameraZoom = 0.6f;
 	private const float DefaultMaxCameraZoom = 2.4f;
 	private const float CameraZoomStep = 0.1f;
-	private const float WeatherOverlayFootprintTiles = 1.0f;
 	private static readonly Color MemoryTint = new(0.22f, 0.22f, 0.28f);
 	private static readonly Color PeripheralTint = new(0.50f, 0.50f, 0.56f);
 	private static readonly Color EditorHighlightTint = new(1.0f, 0.95f, 0.55f, 0.55f);
@@ -81,12 +64,7 @@ public class TileMapRenderModule
 	private IAnimatable? _playerAnim;
 	private SubViewportContainer? _viewportContainer;
 	private SubViewport? _subViewport;
-	private ColorRect? _weatherScreenFxOverlay;
-	private ShaderMaterial? _weatherScreenFxMaterial;
-	private Shader? _weatherScreenFxShader;
-	private WeatherScreenFxParams _weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-	private readonly WeatherScreenFxState _weatherScreenFxState = new();
-	private WeatherScreenFxTuningSet _weatherScreenFxTuning = new();
+	private WeatherFxController _weatherFxController = null!;
 
 	private readonly List<AnimatedTileBinding> _animatedTiles = [];
 	private Dictionary<string, TileVisual> _nameToVisual = new(StringComparer.OrdinalIgnoreCase);
@@ -102,26 +80,13 @@ public class TileMapRenderModule
 	private Dictionary<string, string> _itemMap = new();
 	private ItemWorldRenderRegistry _itemWorldRegistry = ItemWorldRenderRegistry.Empty;
 	private readonly Dictionary<string, Texture2D> _itemTextureCache = new(StringComparer.OrdinalIgnoreCase);
-	private readonly Dictionary<string, Texture2D> _weatherTextureCache = new(StringComparer.OrdinalIgnoreCase);
-	private readonly List<Sprite2D> _weatherOverlaySprites = [];
-	private readonly List<Sprite2D> _peripheralWeatherOverlaySprites = [];
-	private readonly List<Sprite2D> _memoryWeatherOverlaySprites = [];
 	private readonly List<Sprite2D> _groundItemSprites = [];
 	private readonly List<Sprite2D> _peripheralGroundItemSprites = [];
-	private readonly List<Sprite2D> _weatherFxSprites = [];
-	private readonly List<Sprite2D> _peripheralWeatherFxSprites = [];
 	private readonly List<Sprite2D> _entitySprites = [];
 	private readonly List<Sprite2D> _peripheralEntitySprites = [];
 	private Vector2 _tilePixelSize = DefaultTilePixelSize;
-	private Texture2D? _weatherFxQuadTexture;
-	private Shader? _weatherFxShader;
-	private int _weatherOverlaySpriteCount;
-	private int _peripheralWeatherOverlaySpriteCount;
-	private int _memoryWeatherOverlaySpriteCount;
 	private int _groundItemSpriteCount;
 	private int _peripheralGroundItemSpriteCount;
-	private int _weatherFxSpriteCount;
-	private int _peripheralWeatherFxSpriteCount;
 	private int _entitySpriteCount;
 	private int _peripheralEntitySpriteCount;
 	private int _tileDrawCommandCount;
@@ -173,9 +138,7 @@ public class TileMapRenderModule
 	}
 
 	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>
-		WeatherAssetIds
-			.Select(static assetId => $"{WeatherAssetRoot}/{assetId}.png")
-			.ToArray();
+		WeatherFxController.EnumerateWeatherAssetPaths();
 
 	public void Init(
 		Node2D mapRoot,
@@ -190,18 +153,9 @@ public class TileMapRenderModule
 		LoadItemWorldRenderMapping(ItemWorldRenderResPath);
 		_tileSet = tileSet;
 		_tilePixelSize = ResolveTilePixelSize();
-		_weatherFxQuadTexture = null;
-		_weatherFxShader = null;
-		_weatherScreenFxShader = ResolveWeatherScreenFxShader();
 		_itemTextureCache.Clear();
-		_weatherTextureCache.Clear();
-		_weatherOverlaySprites.Clear();
-		_peripheralWeatherOverlaySprites.Clear();
-		_memoryWeatherOverlaySprites.Clear();
 		_groundItemSprites.Clear();
 		_peripheralGroundItemSprites.Clear();
-		_weatherFxSprites.Clear();
-		_peripheralWeatherFxSprites.Clear();
 		_entitySprites.Clear();
 		_peripheralEntitySprites.Clear();
 
@@ -252,10 +206,17 @@ public class TileMapRenderModule
 		_viewportContainer = viewportContainer;
 		_subViewport = subViewport;
 		_camera = camera;
-		_weatherScreenFxOverlay = EnsureWeatherScreenFxOverlay(viewportContainer);
-		_weatherScreenFxMaterial = EnsureWeatherScreenFxMaterial(_weatherScreenFxOverlay);
-		RefreshWeatherScreenFxTarget();
-		UpdateWeatherScreenFxOverlay(0d);
+		_weatherFxController = new WeatherFxController(_state);
+		_weatherFxController.Init(
+			mapRoot,
+			_groundLayer,
+			_tilePixelSize,
+			viewportContainer,
+			_weatherOverlayRoot,
+			_peripheralWeatherOverlayRoot,
+			_memoryWeatherOverlayRoot,
+			_weatherFxRoot,
+			_peripheralWeatherFxRoot);
 		UpdateCamera();
 
 		// 初始化等距体素渲染器
@@ -282,9 +243,7 @@ public class TileMapRenderModule
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
 	{
-		_weatherScreenFxTuning = tuning ?? new WeatherScreenFxTuningSet();
-		RefreshWeatherScreenFxTarget();
-		UpdateWeatherScreenFxOverlay(0d);
+		_weatherFxController.SetTuning(tuning, _editorViewActive);
 	}
 
 	public bool TryGetWorldCellFromGlobalPosition(Vector2 globalPos, out Vector3I worldCell)
@@ -379,6 +338,11 @@ public class TileMapRenderModule
 	public bool TryGetWorldOverlayPosition(int wx, int wy, int wz, out Vector2 position)
 	{
 		position = Vector2.Zero;
+		if (_isometricMode)
+		{
+			var mapPos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
+			return TryMapToOverlayPosition(mapPos, out position);
+		}
 		if (!TryGetWorldEffectPosition(wx, wy, wz, out var mapPosition))
 			return false;
 
@@ -437,17 +401,17 @@ public class TileMapRenderModule
 			_animatedTiles.Clear();
 			ClearLayers();
 			BeginGroundItemFrame();
-			BeginWeatherFrame();
+			_weatherFxController.BeginFrame();
 			BeginEntitySpriteFrame();
 			HidePlayerVisual();
 			_lastPlayerWorldPosition = null;
 
 			if (_state.World == null)
 			{
-				_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-				UpdateWeatherScreenFxOverlay(0d);
+				_weatherFxController.ClearScreenFxTarget();
+				_weatherFxController.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 				EndEntitySpriteFrame();
-				EndWeatherFrame();
+				_weatherFxController.EndFrame();
 				EndGroundItemFrame();
 				CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 				return;
@@ -455,12 +419,12 @@ public class TileMapRenderModule
 
 			if (_editorViewActive)
 			{
-				_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
+				_weatherFxController.ClearScreenFxTarget();
 			}
 			else
 			{
 				_fogTracker.Update(_state);
-				RefreshWeatherScreenFxTarget();
+				_weatherFxController.RefreshWeatherScreenFxTarget(editorViewActive: false);
 				_viewCenterX = _state.PlayerX;
 				_viewCenterY = _state.PlayerY;
 				_viewCenterZ = _state.PlayerZ;
@@ -468,9 +432,9 @@ public class TileMapRenderModule
 
 			_voxelRenderer.Render();
 			_tileDrawCommandCount = _voxelRenderer.LastDrawCommandCount;
-			UpdateWeatherScreenFxOverlay(0d);
+			_weatherFxController.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 			EndEntitySpriteFrame();
-			EndWeatherFrame();
+			_weatherFxController.EndFrame();
 			EndGroundItemFrame();
 			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
@@ -479,17 +443,17 @@ public class TileMapRenderModule
 		_animatedTiles.Clear();
 		ClearLayers();
 		BeginGroundItemFrame();
-		BeginWeatherFrame();
+		_weatherFxController.BeginFrame();
 		BeginEntitySpriteFrame();
 
 		if (_state.World == null)
 		{
-			_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-			UpdateWeatherScreenFxOverlay(0d);
+			_weatherFxController.ClearScreenFxTarget();
+			_weatherFxController.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 			HidePlayerVisual();
 			_lastPlayerWorldPosition = null;
 			EndEntitySpriteFrame();
-			EndWeatherFrame();
+			_weatherFxController.EndFrame();
 			EndGroundItemFrame();
 			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
@@ -497,11 +461,11 @@ public class TileMapRenderModule
 
 		if (_editorViewActive)
 		{
-			_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-			UpdateWeatherScreenFxOverlay(0d);
+			_weatherFxController.ClearScreenFxTarget();
+			_weatherFxController.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 			FlushEditor();
 			EndEntitySpriteFrame();
-			EndWeatherFrame();
+			_weatherFxController.EndFrame();
 			EndGroundItemFrame();
 			CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 			return;
@@ -512,7 +476,7 @@ public class TileMapRenderModule
 		var cx = _state.PlayerX;
 		var cy = _state.PlayerY;
 		var cz = _state.PlayerZ;
-		RefreshWeatherScreenFxTarget();
+		_weatherFxController.RefreshWeatherScreenFxTarget(editorViewActive: false);
 		_viewCenterX = cx;
 		_viewCenterY = cy;
 		_viewCenterZ = cz;
@@ -557,9 +521,9 @@ public class TileMapRenderModule
 		DrawInspectHighlight(cx, cy, cz);
 		UpdateCamera();
 		UpdatePlayerVisual(cx, cy, cz);
-		UpdateWeatherScreenFxOverlay(0d);
+		_weatherFxController.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 		EndEntitySpriteFrame();
-		EndWeatherFrame();
+		_weatherFxController.EndFrame();
 		EndGroundItemFrame();
 		CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 	}
@@ -570,7 +534,7 @@ public class TileMapRenderModule
 			return;
 
 		_tileAnimationClockSeconds += delta;
-		UpdateWeatherScreenFxOverlay(delta);
+		_weatherFxController.UpdateWeatherScreenFxOverlay(delta, _tileAnimationClockSeconds);
 		AdvancePlayerCorrectionSmoothing((float)delta);
 		if (_animatedTiles.Count == 0)
 			return;
@@ -909,24 +873,6 @@ public class TileMapRenderModule
 	{
 		HideUnusedGroundItemSprites(_groundItemSprites, _groundItemSpriteCount);
 		HideUnusedGroundItemSprites(_peripheralGroundItemSprites, _peripheralGroundItemSpriteCount);
-	}
-
-	private void BeginWeatherFrame()
-	{
-		_weatherOverlaySpriteCount = 0;
-		_peripheralWeatherOverlaySpriteCount = 0;
-		_memoryWeatherOverlaySpriteCount = 0;
-		_weatherFxSpriteCount = 0;
-		_peripheralWeatherFxSpriteCount = 0;
-	}
-
-	private void EndWeatherFrame()
-	{
-		HideUnusedGroundItemSprites(_weatherOverlaySprites, _weatherOverlaySpriteCount);
-		HideUnusedGroundItemSprites(_peripheralWeatherOverlaySprites, _peripheralWeatherOverlaySpriteCount);
-		HideUnusedGroundItemSprites(_memoryWeatherOverlaySprites, _memoryWeatherOverlaySpriteCount);
-		HideUnusedGroundItemSprites(_weatherFxSprites, _weatherFxSpriteCount);
-		HideUnusedGroundItemSprites(_peripheralWeatherFxSprites, _peripheralWeatherFxSpriteCount);
 	}
 
 	private void BeginEntitySpriteFrame()
@@ -1292,320 +1238,6 @@ public class TileMapRenderModule
 			default:
 				return;
 		}
-
-	}
-
-	private void RenderWeatherFx(Vector2I cell, int wx, int wy, int wz, WeatherSurfaceState surface, PlayerVisionBand band)
-	{
-		if (wz != 0 || !surface.IsExposed || band is PlayerVisionBand.Memory or PlayerVisionBand.Unknown)
-			return;
-
-		var sample = WeatherRules.GetLocalWeather(_state, wx, wy, wz);
-		if (!sample.HasActiveWeather)
-			return;
-
-		var hash = ComputeWeatherVisualHash(wx, wy, wz, _state.Turn, (int)sample.Type, (int)sample.Intensity);
-		if (WeatherFxVisualResolver.ResolveWeatherFxVisual(sample, band, hash) is { } weatherFx
-			&& !TryRenderWeatherShaderFx(cell, band, weatherFx))
-		{
-			var assetId = ResolveLegacyWeatherFxAssetId(sample.Type);
-			if (!string.IsNullOrEmpty(assetId))
-			{
-				RenderWeatherTextureSprite(
-					cell,
-					assetId,
-					band,
-					overlay: false,
-					weatherFx.FootprintTiles,
-					new Color(weatherFx.Tint.R, weatherFx.Tint.G, weatherFx.Tint.B, weatherFx.Alpha));
-			}
-		}
-
-		if (WeatherFxVisualResolver.ResolveLightningFxVisual(sample, band, hash) is { } lightningFx
-			&& !TryRenderWeatherShaderFx(cell, band, lightningFx))
-		{
-			RenderWeatherTextureSprite(
-				cell,
-				"lightning",
-				band,
-				overlay: false,
-				lightningFx.FootprintTiles,
-				new Color(lightningFx.Tint.R, lightningFx.Tint.G, lightningFx.Tint.B, lightningFx.Alpha));
-		}
-	}
-
-	private void RenderWeatherTextureSprite(
-		Vector2I cell,
-		string assetId,
-		PlayerVisionBand band,
-		bool overlay,
-		float footprintTiles,
-		Color modulate)
-	{
-		var texture = ResolveWeatherTexture(assetId);
-		if (texture == null)
-			return;
-
-		var sprite = AcquireWeatherSprite(band, overlay);
-		ConfigureWeatherTextureSprite(sprite, texture, cell, footprintTiles, modulate);
-	}
-
-	private bool TryRenderWeatherShaderFx(Vector2I cell, PlayerVisionBand band, WeatherFxVisualParams visual)
-	{
-		if (_weatherFxShader == null || _weatherFxQuadTexture == null)
-			return false;
-
-		var sprite = AcquireWeatherSprite(band, overlay: false);
-		ConfigureWeatherFxSprite(sprite, cell, visual);
-		return true;
-	}
-
-	private static string ResolveLegacyWeatherFxAssetId(WeatherType type) => type switch
-	{
-		WeatherType.Rain => "rain",
-		WeatherType.Fog => "fog",
-		WeatherType.Snow => "snow",
-		WeatherType.Storm => "rain",
-		WeatherType.Thunderstorm => "rain",
-		WeatherType.Sandstorm => "dust",
-		_ => string.Empty,
-	};
-
-	private void ConfigureWeatherTextureSprite(
-		Sprite2D sprite,
-		Texture2D texture,
-		Vector2I cell,
-		float footprintTiles,
-		Color modulate)
-	{
-		sprite.Material = null;
-		sprite.Texture = texture;
-		sprite.RegionEnabled = false;
-		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
-		sprite.Scale = ResolveWeatherTextureScale(texture, footprintTiles);
-		sprite.Position = _groundLayer.MapToLocal(cell);
-		sprite.Modulate = modulate;
-		sprite.Visible = true;
-	}
-
-	private void ConfigureWeatherFxSprite(Sprite2D sprite, Vector2I cell, WeatherFxVisualParams visual)
-	{
-		if (_weatherFxQuadTexture == null || EnsureWeatherFxMaterial(sprite) is not { } material)
-			return;
-
-		sprite.Texture = _weatherFxQuadTexture;
-		sprite.RegionEnabled = false;
-		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
-		sprite.Scale = _tilePixelSize * visual.FootprintTiles;
-		sprite.Position = _groundLayer.MapToLocal(cell);
-		sprite.Modulate = Colors.White;
-		sprite.Visible = true;
-
-		material.SetShaderParameter("mode", (int)visual.Mode);
-		material.SetShaderParameter("intensity", visual.Intensity);
-		material.SetShaderParameter("band_strength", visual.BandStrength);
-		material.SetShaderParameter("time", (float)_tileAnimationClockSeconds);
-		material.SetShaderParameter("seed", visual.Seed);
-		material.SetShaderParameter("wind_dir", visual.WindDirection);
-		material.SetShaderParameter("coverage_alpha", visual.CoverageAlpha * visual.Alpha);
-		material.SetShaderParameter("tint", visual.Tint);
-		material.SetShaderParameter("density", visual.Density);
-		material.SetShaderParameter("speed", visual.Speed);
-	}
-
-	private Texture2D? ResolveWeatherTexture(string assetId)
-	{
-		if (_weatherTextureCache.TryGetValue(assetId, out var cached))
-			return cached;
-
-		var texture = ResAccess.Get<Texture2D>($"{WeatherAssetRoot}/{assetId}.png");
-		if (texture != null)
-			_weatherTextureCache[assetId] = texture;
-		return texture;
-	}
-
-	private Vector2 ResolveWeatherTextureScale(Texture2D texture, float footprintTiles)
-	{
-		var size = texture.GetSize();
-		if (size.X <= 0f || size.Y <= 0f)
-			return Vector2.One;
-
-		return new Vector2(
-			(_tilePixelSize.X * footprintTiles) / size.X,
-			(_tilePixelSize.Y * footprintTiles) / size.Y);
-	}
-
-	private ShaderMaterial? EnsureWeatherFxMaterial(Sprite2D sprite)
-	{
-		if (_weatherFxShader == null)
-			return null;
-
-		if (sprite.Material is ShaderMaterial material)
-		{
-			if (material.Shader != _weatherFxShader)
-				material.Shader = _weatherFxShader;
-			return material;
-		}
-
-		var created = new ShaderMaterial
-		{
-			Shader = _weatherFxShader,
-		};
-		sprite.Material = created;
-		return created;
-	}
-
-	private Shader? ResolveWeatherFxShader() =>
-		ResAccess.Get<Shader>(WeatherRealtimeShaderPath);
-
-	private Shader? ResolveWeatherScreenFxShader() =>
-		ResAccess.Get<Shader>(WeatherScreenShaderPath);
-
-	private static Texture2D ResolveWeatherQuadTexture()
-	{
-		var image = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-		image.SetPixel(0, 0, Colors.White);
-		return ImageTexture.CreateFromImage(image);
-	}
-
-	private ColorRect? EnsureWeatherScreenFxOverlay(SubViewportContainer? viewportContainer)
-	{
-		if (viewportContainer == null)
-			return null;
-
-		var existingNode = viewportContainer.GetNodeOrNull<Node>(WeatherScreenFxOverlayName);
-		if (existingNode is ColorRect existingOverlay)
-		{
-			ConfigureWeatherScreenFxOverlay(existingOverlay);
-			return existingOverlay;
-		}
-
-		existingNode?.QueueFree();
-		var overlay = new ColorRect
-		{
-			Name = WeatherScreenFxOverlayName,
-			Color = Colors.White,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Visible = false,
-			ZIndex = 32,
-		};
-		ConfigureWeatherScreenFxOverlay(overlay);
-		viewportContainer.AddChild(overlay);
-		return overlay;
-	}
-
-	private static void ConfigureWeatherScreenFxOverlay(ColorRect overlay)
-	{
-		overlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		overlay.OffsetLeft = 0f;
-		overlay.OffsetTop = 0f;
-		overlay.OffsetRight = 0f;
-		overlay.OffsetBottom = 0f;
-		overlay.MouseFilter = Control.MouseFilterEnum.Ignore;
-	}
-
-	private ShaderMaterial? EnsureWeatherScreenFxMaterial(ColorRect? overlay)
-	{
-		if (overlay == null || _weatherScreenFxShader == null)
-			return null;
-
-		if (overlay.Material is ShaderMaterial material)
-		{
-			if (material.Shader != _weatherScreenFxShader)
-				material.Shader = _weatherScreenFxShader;
-			return material;
-		}
-
-		var created = new ShaderMaterial
-		{
-			Shader = _weatherScreenFxShader,
-		};
-		overlay.Material = created;
-		return created;
-	}
-
-	private void RefreshWeatherScreenFxTarget()
-	{
-		if (_state.World == null || _editorViewActive)
-		{
-			_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-			return;
-		}
-
-		var surface = WeatherSurface.GetSurfaceState(_state, _state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		var canShowScreenFx = _state.PlayerZ == 0 && surface.IsExposed;
-		if (!canShowScreenFx)
-		{
-			_weatherScreenFxTarget = WeatherScreenFxParams.Clear;
-			return;
-		}
-
-		var sample = WeatherRules.GetLocalWeather(_state, _state.PlayerX, _state.PlayerY, _state.PlayerZ);
-		var hash = ComputeWeatherVisualHash(
-			_state.WorldSeed,
-			_state.PlayerX,
-			_state.PlayerY,
-			_state.PlayerZ,
-			_state.Turn,
-			(int)sample.Type,
-			(int)sample.Intensity);
-		_weatherScreenFxTarget = WeatherScreenFxResolver.ApplyTuning(
-			WeatherScreenFxResolver.Resolve(sample, isActive: true, hash),
-			_weatherScreenFxTuning);
-	}
-
-	private void UpdateWeatherScreenFxOverlay(double deltaSeconds)
-	{
-		if (_weatherScreenFxOverlay == null || _weatherScreenFxMaterial == null)
-			return;
-
-		_weatherScreenFxState.AdvanceTo(_weatherScreenFxTarget, deltaSeconds);
-		var primary = _weatherScreenFxState.Primary;
-		var secondary = _weatherScreenFxState.Secondary;
-		_weatherScreenFxOverlay.Visible = _weatherScreenFxState.HasVisibleFx;
-		if (!_weatherScreenFxOverlay.Visible)
-			return;
-
-		var viewportSize = _viewportContainer?.Size ?? Vector2.Zero;
-		_weatherScreenFxMaterial.SetShaderParameter("time", (float)_tileAnimationClockSeconds);
-		_weatherScreenFxMaterial.SetShaderParameter("viewport_size", viewportSize);
-		ApplyWeatherScreenFxParams("a", primary);
-		ApplyWeatherScreenFxParams("b", secondary);
-		ApplyWeatherScreenFxTuningProfile(_weatherScreenFxTuning.ResolveBlendedProfile(
-			primary.Mode,
-			secondary.Mode,
-			_weatherScreenFxState.Blend));
-		_weatherScreenFxMaterial.SetShaderParameter("blend_factor", _weatherScreenFxState.Blend);
-	}
-
-	private void ApplyWeatherScreenFxParams(string suffix, WeatherScreenFxParams value)
-	{
-		if (_weatherScreenFxMaterial == null)
-			return;
-
-		_weatherScreenFxMaterial.SetShaderParameter($"mode_{suffix}", (int)value.Mode);
-		_weatherScreenFxMaterial.SetShaderParameter($"overlay_alpha_{suffix}", value.OverlayAlpha);
-		_weatherScreenFxMaterial.SetShaderParameter($"fog_alpha_{suffix}", value.FogAlpha);
-		_weatherScreenFxMaterial.SetShaderParameter($"edge_tint_alpha_{suffix}", value.EdgeTintAlpha);
-		_weatherScreenFxMaterial.SetShaderParameter($"edge_shadow_{suffix}", value.EdgeShadow);
-		_weatherScreenFxMaterial.SetShaderParameter($"density_{suffix}", value.Density);
-		_weatherScreenFxMaterial.SetShaderParameter($"speed_{suffix}", value.Speed);
-		_weatherScreenFxMaterial.SetShaderParameter($"lightning_flash_{suffix}", value.LightningFlash);
-		_weatherScreenFxMaterial.SetShaderParameter($"temperature_bias_{suffix}", value.TemperatureBias);
-		_weatherScreenFxMaterial.SetShaderParameter($"seed_{suffix}", value.Seed);
-		_weatherScreenFxMaterial.SetShaderParameter($"wind_dir_{suffix}", value.WindDirection);
-		_weatherScreenFxMaterial.SetShaderParameter($"tint_{suffix}", value.Tint);
-	}
-
-	private void ApplyWeatherScreenFxTuningProfile(WeatherScreenFxTuningProfile value)
-	{
-		if (_weatherScreenFxMaterial == null)
-			return;
-
-		_weatherScreenFxMaterial.SetShaderParameter("particle_size_scale", value.ParticleSizeScale);
-		_weatherScreenFxMaterial.SetShaderParameter("particle_frequency_scale", value.ParticleFrequencyScale);
-		_weatherScreenFxMaterial.SetShaderParameter("particle_blend_scale", value.ParticleBlendScale);
-		_weatherScreenFxMaterial.SetShaderParameter("tint_strength_scale", value.TintStrengthScale);
 	}
 
 	private Vector2 ResolveTilePixelSize()
@@ -1619,47 +1251,6 @@ public class TileMapRenderModule
 		}
 
 		return DefaultTilePixelSize;
-	}
-
-	private Sprite2D AcquireWeatherSprite(PlayerVisionBand band, bool overlay)
-	{
-		return (band, overlay) switch
-		{
-			(PlayerVisionBand.Focused, true) => AcquireSprite(_weatherOverlaySprites, _weatherOverlayRoot, "WeatherOverlaySprite", ref _weatherOverlaySpriteCount),
-			(PlayerVisionBand.Peripheral, true) => AcquireSprite(_peripheralWeatherOverlaySprites, _peripheralWeatherOverlayRoot, "PeripheralWeatherOverlaySprite", ref _peripheralWeatherOverlaySpriteCount),
-			(PlayerVisionBand.Memory, true) => AcquireSprite(_memoryWeatherOverlaySprites, _memoryWeatherOverlayRoot, "MemoryWeatherOverlaySprite", ref _memoryWeatherOverlaySpriteCount),
-			(PlayerVisionBand.Peripheral, false) => AcquireSprite(_peripheralWeatherFxSprites, _peripheralWeatherFxRoot, "PeripheralWeatherFxSprite", ref _peripheralWeatherFxSpriteCount),
-			_ => AcquireSprite(_weatherFxSprites, _weatherFxRoot, "WeatherFxSprite", ref _weatherFxSpriteCount),
-		};
-	}
-
-	private static Sprite2D AcquireSprite(List<Sprite2D> pool, Node2D root, string namePrefix, ref int count)
-	{
-		var index = count++;
-		if (index >= pool.Count)
-		{
-			var sprite = new Sprite2D
-			{
-				Name = $"{namePrefix}{pool.Count}",
-				Centered = true,
-				TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-			};
-			root.AddChild(sprite);
-			pool.Add(sprite);
-		}
-
-		return pool[index];
-	}
-
-	private static int ComputeWeatherVisualHash(params int[] values)
-	{
-		unchecked
-		{
-			var hash = 19;
-			foreach (var value in values)
-				hash = (hash * 397) ^ value;
-			return hash & int.MaxValue;
-		}
 	}
 
 	private static TileMapLayer MakeLayer(Node2D parent, string name, TileSet tileSet, int zIndex)
@@ -1910,13 +1501,9 @@ public class TileMapRenderModule
 			_frameTimeEwmaMs = (_frameTimeEwmaMs * (1.0 - alpha)) + (frameTimeMs * alpha);
 		}
 
-		var activeSpriteCount = _weatherOverlaySpriteCount
-			+ _peripheralWeatherOverlaySpriteCount
-			+ _memoryWeatherOverlaySpriteCount
+		var activeSpriteCount = _weatherFxController.ActiveSpriteCount
 			+ _groundItemSpriteCount
 			+ _peripheralGroundItemSpriteCount
-			+ _weatherFxSpriteCount
-			+ _peripheralWeatherFxSpriteCount
 			+ _entitySpriteCount
 			+ _peripheralEntitySpriteCount
 			+ (_isometricMode && _voxelRenderer != null ? _voxelRenderer.LastSpriteCount : 0);

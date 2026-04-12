@@ -14,7 +14,7 @@ using MiniRPG.Core.Dialog;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
-using MiniRPG.Core.Session;
+using MiniRPG.Module.Session;
 using MiniRPG.Core.World;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
@@ -341,6 +341,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 				onWarning: GD.PushWarning,
 				refreshStartupUi: RefreshStartupUi,
 				prewarmDeferredUiScenes: PrewarmDeferredUiScenes);
+			ConfigureGodotBridge();
 			GameConfig.Load();
 			FinalizeAutoTestCliConfig();
 			PresetDB.Load();
@@ -376,6 +377,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 			_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
 			var lineEdit = _inputBar;
 			BindWorldHoverOverlay();
+			BindAltLabelOverlay();
 			BindPanelLauncherBar();
 			_mapEditor = new MapEditorSession(_state);
 
@@ -878,6 +880,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_partyHud.Update(_state, !snapshot.SuppressHudAndAlerts);
 		_incidentAlerts.Update((float)delta, !snapshot.SuppressHudAndAlerts);
 		TickWorldHoverOverlay((float)delta);
+		TickAltLabelOverlay(snapshot);
 		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();
@@ -1561,89 +1564,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	{
 		_session.SaveGame(path);
 		_log.Add(LocalizationService.T("log.save.saved", ("label", label)));
-	}
-
-	/// <summary>从指定路径加载存档。加载后重建世界并确保玩家 Actor 存在。</summary>
-	private async void DoLoad(string path, string label)
-	{
-		if (_busyOperationActive)
-			return;
-
-		BeginBusyOperation("ui.loading.save.prepare", 16f / 100f);
-		try
-		{
-			await ShowBusyOperationStageAsync("ui.loading.save.prepare", 0.16f);
-			ExitMapEditor(silent: true);
-			CloseSaveNameDialog();
-
-			await ShowBusyOperationStageAsync("ui.loading.save.load", 0.76f);
-			var status = _session.LoadGame(path);
-			if (status != SaveLoadStatus.Success)
-			{
-				LogLoadFailure(status, label);
-				return;
-			}
-
-			await ShowBusyOperationStageAsync("ui.loading.save.finalize", 0.95f);
-			ClearArmedSkill(restoreFocus: false);
-			ClearPlayerTargeting();
-			_playerRestModeActive = false;
-			ResetThreatHud();
-			RefreshPlayerCharacterVisual();
-			SyncSettingsUiState();
-			SyncTimelineAutoAdvanceState();
-			RefreshLocalizedUi(clearLogs: false);
-			_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-			FlushMap();
-		}
-		finally
-		{
-			EndBusyOperation();
-		}
-	}
-
-	private void LogLoadFailure(SaveLoadStatus status, string label)
-	{
-		_log.Add(BuildLoadFailureMessage(status, label));
-	}
-
-	private string BuildLoadFailureMessage(SaveLoadStatus status, string label)
-	{
-		var key = status switch
-		{
-			SaveLoadStatus.Incompatible => "log.save.incompatible",
-			_ => "log.save.not_found",
-		};
-		return LocalizationService.T(key, ("label", label));
-	}
-
-	private void SetWorldManagerStatus(string message, bool isError)
-	{
-	}
-
-	private void ClearWorldManagerStatus()
-	{
-	}
-
-	private (string? WorldId, string? CharacterId) ResolvePreferredWorldManagerSelection()
-	{
-		return (null, null);
-	}
-
-	private void SaveCurrentSessionAndLoadFromWorldManager(string label, Func<PreparedSessionLoad> loadAction)
-	{
-		_mainAppFlowCoordinator.LoadFromWorldManager(label, loadAction);
-	}
-
-	private void OpenSwitchConfirmation(
-		string title,
-		string message,
-		IReadOnlyList<ConfirmDialogAction> actions,
-		int defaultActionIndex,
-		Action? onSaveAndSwitch = null,
-		Action? onSwitch = null)
-	{
-		throw new NotSupportedException("OpenSwitchConfirmation is handled by MainAppFlowCoordinator.");
 	}
 
 	private void HandleConfirmDialogActionSelected(string actionId)

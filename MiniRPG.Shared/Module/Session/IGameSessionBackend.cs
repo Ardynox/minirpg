@@ -5,7 +5,7 @@ using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module;
 using MiniRPG;
 
-namespace MiniRPG.Core.Session;
+namespace MiniRPG.Module.Session;
 
 public interface IGameSessionBackend : IAsyncDisposable
 {

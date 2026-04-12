@@ -325,7 +325,7 @@ public partial class Main
 		var terrain = _state.World.GetTerrain(cell.X, cell.Y, cell.Z);
 		var terrainName = GameLocalizer.LocalizeTerrainName(terrain.StringId);
 		var isWalkable = _state.World.IsWalkable(cell.X, cell.Y, cell.Z);
-		var actor = ActorModule.GetAt(_state, cell.X, cell.Y, cell.Z);
+		var actors = ActorModule.GetAllAt(_state, cell.X, cell.Y, cell.Z);
 
 		var header = $"[color={UIColors.HexHeader}]{terrainName}[/color]  " +
 		             $"[color={UIColors.HexDim}]({cell.X}, {cell.Y}, {cell.Z})[/color]";
@@ -337,10 +337,10 @@ public partial class Main
 
 		var actorLabel = LocalizationService.T("ui.world_hover.label.actor");
 		string actorValue;
-		if (actor != null)
+		if (actors.Count > 0)
 		{
-			var actorName = IdentificationModule.GetActorDisplayName(_state, actor);
-			actorValue = $"[color={UIColors.HexNormal}]{actorName}[/color]";
+			var names = actors.ConvertAll(a => IdentificationModule.GetActorDisplayName(_state, a));
+			actorValue = $"[color={UIColors.HexNormal}]{string.Join(", ", names)}[/color]";
 		}
 		else
 		{

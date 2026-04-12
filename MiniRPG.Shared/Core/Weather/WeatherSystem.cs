@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Health;
-using MiniRPG.Core.Map;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Weather;
@@ -231,6 +230,8 @@ public static class WeatherRules
 
 public static class WeatherSurface
 {
+	internal static IWeatherAccumulationStore? AccumulationStore { get; set; }
+
 	public static WeatherAccumulation GetAccumulation(GameState state, int x, int y, int z)
 	{
 		if (state.World == null)
@@ -249,14 +250,8 @@ public static class WeatherSurface
 				ReadAt(chunk.IceDepth, index));
 		}
 
-		if (SaveModule.DirtyChunkCache.TryGetValue(coord, out var snapshot))
-		{
-			return new WeatherAccumulation(
-				ReadAt(snapshot.SnowDepth, index),
-				ReadAt(snapshot.SandDepth, index),
-				ReadAt(snapshot.Wetness, index),
-				ReadAt(snapshot.IceDepth, index));
-		}
+		if (AccumulationStore != null && AccumulationStore.TryGetAccumulation(coord, index, out var cached))
+			return cached;
 
 		return default;
 	}
@@ -432,18 +427,7 @@ public static class WeatherAccumulationSimulator
 			}
 		}
 
-		foreach (var snapshot in SaveModule.DirtyChunkCache.Values)
-		{
-			snapshot.SnowDepth ??= [];
-			snapshot.SandDepth ??= [];
-			snapshot.Wetness ??= [];
-			snapshot.IceDepth ??= [];
-			Array.Fill(snapshot.SnowDepth, (byte)0);
-			Array.Fill(snapshot.SandDepth, (byte)0);
-			Array.Fill(snapshot.Wetness, (byte)0);
-			Array.Fill(snapshot.IceDepth, (byte)0);
-			snapshot.LastWeatherSimTurn = state.Turn;
-		}
+		WeatherSurface.AccumulationStore?.ClearAllAccumulation(state.Turn);
 	}
 
 	private static void SimulateChunk(GameState state, ChunkCoord coord, ChunkData chunk)

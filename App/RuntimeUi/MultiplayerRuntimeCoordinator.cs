@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Multiplayer;
-using MiniRPG.Core.Session;
+using MiniRPG.Module.Session;
 
 namespace MiniRPG;
 

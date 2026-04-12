@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
-using MiniRPG.Core.Session;
+using MiniRPG.Module.Session;
 using MiniRPG.Module;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module.Panel;

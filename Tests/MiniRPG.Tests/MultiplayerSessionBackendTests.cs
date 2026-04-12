@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using MiniRPG.Core.Multiplayer;
-using MiniRPG.Core.Session;
+using MiniRPG.Module.Session;
 using MiniRPG.Module.Network;
 using Xunit;
 

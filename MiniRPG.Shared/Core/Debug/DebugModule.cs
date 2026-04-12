@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
-using MiniRPG.Module;
 
 namespace MiniRPG.Core.Debug;
 
@@ -20,7 +19,7 @@ public static class DebugModule
 
 	private const string GodBuffId = "debug_godmode";
 
-	public static Result HandleCommand(string cmd, GameState state, GameSessionModule session)
+	public static Result HandleCommand(string cmd, GameState state, IDebugSessionActions session)
 	{
 		var parts = cmd.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 		var verb = parts[0].ToLowerInvariant();
@@ -182,7 +181,7 @@ public static class DebugModule
 		return player != null && player.Buffs.Exists(static buff => buff.Id == GodBuffId);
 	}
 
-	public static Result MoveDownFloor(GameState state, GameSessionModule session)
+	public static Result MoveDownFloor(GameState state, IDebugSessionActions session)
 	{
 		if (ActorModule.GetPlayer(state) == null)
 			return CreateResult("[debug] no player");
@@ -225,7 +224,7 @@ public static class DebugModule
 			needsUiRefresh: true);
 	}
 
-	public static Result ExportPreset(GameSessionModule session, string scenarioId)
+	public static Result ExportPreset(IDebugSessionActions session, string scenarioId)
 	{
 		if (string.IsNullOrWhiteSpace(scenarioId))
 			return CreateResult("[debug] usage: /export_preset <scenario_id>");

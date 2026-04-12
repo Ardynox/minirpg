@@ -7,6 +7,7 @@ using System.Diagnostics;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Debug;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Event.Workers;
 using MiniRPG.Core.Map;
@@ -18,10 +19,8 @@ namespace MiniRPG.Module;
 /// <summary>
 /// 游戏会话生命周期管理：新建游戏、世界/角色开局、读取、保存与继续游戏。
 /// </summary>
-public class GameSessionModule
+public class GameSessionModule : IDebugSessionActions
 {
-	private const string ContinueKindWorldCharacter = "world_character";
-
 	private static readonly string DefaultUserDataRoot = ResolveUserDataDir();
 	private static readonly string DefaultSaveDir = Path.Combine(DefaultUserDataRoot, "save");
 
@@ -29,6 +28,8 @@ public class GameSessionModule
 	private readonly FogOfWarTracker _fogTracker;
 	private readonly WorldStore _worldStore;
 	private readonly WorldStorageMigrationReport _worldStorageMigrationReport;
+	private readonly WorldCatalogService _worldCatalog;
+	private readonly ContinueStateService _continueState;
 
 	private ActiveSessionKind _activeSessionKind = ActiveSessionKind.None;
 	private IViewMode _viewMode = new SingleLayerViewMode();
@@ -68,6 +69,19 @@ public class GameSessionModule
 		_fogTracker = fogTracker;
 		_worldStore = new WorldStore(userDataRoot ?? ResolveUserDataDir());
 		_worldStorageMigrationReport = _worldStore.MigrateLegacyWorldLayout();
+		_worldCatalog = new WorldCatalogService(
+			_worldStore,
+			worldId => _activeSessionKind == ActiveSessionKind.WorldCharacter
+				&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal));
+		_continueState = new ContinueStateService(
+			_worldStore,
+			listWorlds: () => _worldCatalog.ListWorlds(),
+			listWorldCharacters: worldId => _worldCatalog.ListWorldCharacters(worldId),
+			listLegacySaveEntries: ListLegacySaveEntries,
+			loadWorldCharacter: LoadWorldCharacter,
+			loadGame: LoadGame,
+			getCurrentWorldId: () => CurrentWorldId,
+			getCurrentCharacterId: () => CurrentCharacterId);
 	}
 
 	public void NewGame(PlayerCreationOptions? options)
@@ -96,104 +110,16 @@ public class GameSessionModule
 	}
 
 	public WorldSaveDataDeletionStatus DeleteWorldSaveData(string worldId)
-	{
-		if (string.IsNullOrWhiteSpace(worldId))
-			return WorldSaveDataDeletionStatus.NotFound;
-
-		if (_activeSessionKind == ActiveSessionKind.WorldCharacter
-			&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal))
-		{
-			return WorldSaveDataDeletionStatus.ActiveWorldLocked;
-		}
-
-		if (!_worldStore.TryLoadWorld(worldId, out _))
-			return WorldSaveDataDeletionStatus.NotFound;
-
-		if (!_worldStore.DeleteWorldSaveData(worldId))
-			return WorldSaveDataDeletionStatus.Failed;
-
-		ClearContinueStateForDeletedWorld(worldId);
-		return WorldSaveDataDeletionStatus.Success;
-	}
+		=> _worldCatalog.DeleteWorldSaveData(worldId);
 
 	public WorldAssetCleanupStatus DeleteWorldAssets(string worldId)
-	{
-		if (string.IsNullOrWhiteSpace(worldId))
-			return WorldAssetCleanupStatus.NotFound;
-
-		if (_activeSessionKind == ActiveSessionKind.WorldCharacter
-			&& string.Equals(CurrentWorldId, worldId, StringComparison.Ordinal))
-		{
-			return WorldAssetCleanupStatus.ActiveWorldLocked;
-		}
-
-		if (!_worldStore.TryLoadWorld(worldId, out _))
-			return WorldAssetCleanupStatus.NotFound;
-
-		if (!_worldStore.HasWorldAssets(worldId))
-			return WorldAssetCleanupStatus.NoAssets;
-
-		return _worldStore.DeleteWorldAssets(worldId)
-			? WorldAssetCleanupStatus.Success
-			: WorldAssetCleanupStatus.Failed;
-	}
+		=> _worldCatalog.DeleteWorldAssets(worldId);
 
 	public IReadOnlyList<WorldEntryInfo> ListWorlds()
-	{
-		var manifests = _worldStore.ListWorlds();
-		var result = new List<WorldEntryInfo>(manifests.Count);
-		foreach (var manifest in manifests)
-		{
-			var characters = ListWorldCharacters(manifest.WorldId);
-			result.Add(new WorldEntryInfo
-			{
-				WorldId = manifest.WorldId,
-				DisplayName = manifest.DisplayName,
-				Summary = BuildWorldSummary(manifest, characters),
-				Settings = manifest.Settings.Clone(),
-				CreatedAtUtc = manifest.CreatedAtUtc,
-				LastPlayedAtUtc = manifest.LastPlayedAtUtc,
-				LastPlayedCharacterId = manifest.LastPlayedCharacterId,
-				Characters = characters,
-				CharacterCount = characters.Count,
-			});
-		}
-
-		return result;
-	}
+		=> _worldCatalog.ListWorlds();
 
 	public IReadOnlyList<WorldCharacterEntryInfo> ListWorldCharacters(string worldId)
-	{
-		if (!_worldStore.TryLoadWorld(worldId, out var manifest))
-			return Array.Empty<WorldCharacterEntryInfo>();
-
-		var rawCharacters = _worldStore.ListWorldCharacters(worldId, manifest.DisplayName);
-		var result = new List<WorldCharacterEntryInfo>(rawCharacters.Count);
-		foreach (var entry in rawCharacters)
-		{
-			var isLastPlayedCharacter = string.Equals(
-				entry.CharacterId,
-				manifest.LastPlayedCharacterId,
-				StringComparison.Ordinal);
-			result.Add(new WorldCharacterEntryInfo
-			{
-				WorldId = entry.WorldId,
-				WorldName = entry.WorldName,
-				CharacterId = entry.CharacterId,
-				CharacterName = entry.CharacterName,
-				SavePath = entry.SavePath,
-				Summary = BuildCharacterSummary(entry.Turn, entry.PlayerZ, entry.SavedAtUtc, isLastPlayedCharacter),
-				SavedAtUtc = entry.SavedAtUtc,
-				ModifiedAtUtc = entry.ModifiedAtUtc,
-				Turn = entry.Turn,
-				PlayerZ = entry.PlayerZ,
-				GeneratorId = entry.GeneratorId,
-				IsLastPlayedCharacter = isLastPlayedCharacter,
-			});
-		}
-
-		return result;
-	}
+		=> _worldCatalog.ListWorldCharacters(worldId);
 
 	public IReadOnlyList<SaveSlotInfo> ListScenarioEntries()
 	{
@@ -301,7 +227,7 @@ public class GameSessionModule
 			CharacterId = characterId,
 			CharacterName = characterName,
 			SavePath = canonicalPath,
-			Summary = BuildCharacterSummary(_state.Turn, _state.PlayerZ, DateTimeOffset.UtcNow, isLastPlayedCharacter: true),
+			Summary = WorldCatalogService.BuildCharacterSummary(_state.Turn, _state.PlayerZ, DateTimeOffset.UtcNow, isLastPlayedCharacter: true),
 			SavedAtUtc = DateTimeOffset.UtcNow,
 			ModifiedAtUtc = DateTimeOffset.UtcNow,
 			Turn = _state.Turn,
@@ -474,60 +400,22 @@ public class GameSessionModule
 	}
 
 	public bool TryContinue()
-	{
-		var target = ResolveContinueTarget();
-		return target.Kind switch
-		{
-			ContinueTargetKind.WorldCharacter when !string.IsNullOrWhiteSpace(target.WorldId)
-				&& !string.IsNullOrWhiteSpace(target.CharacterId)
-				=> LoadWorldCharacter(target.WorldId!, target.CharacterId!) == SaveLoadStatus.Success,
-			ContinueTargetKind.LegacySave when !string.IsNullOrWhiteSpace(target.SavePath)
-				=> LoadGame(target.SavePath!) == SaveLoadStatus.Success,
-			_ => false,
-		};
-	}
+		=> _continueState.TryContinue();
 
 	public bool TryLoadGame()
-	{
-		return LoadGame(ManualSavePath) == SaveLoadStatus.Success
-			|| LoadGame(QuickSavePath) == SaveLoadStatus.Success;
-	}
+		=> _continueState.TryLoadGame();
 
 	public ContinueTarget ResolveContinueTarget()
-	{
-		if (TryResolveStoredWorldContinueTarget(out var storedWorld))
-			return storedWorld;
-
-		var recentWorldCharacter = ListWorlds()
-			.SelectMany(static world => world.Characters)
-			.OrderByDescending(static character => character.ModifiedAtUtc)
-			.ThenByDescending(static character => character.SavedAtUtc)
-			.FirstOrDefault();
-		if (recentWorldCharacter != null)
-			return BuildWorldContinueTarget(recentWorldCharacter);
-
-		if (TryResolveStoredLegacyContinueTarget(out var storedLegacy))
-			return storedLegacy;
-
-		var legacySave = ListLegacySaveEntries().FirstOrDefault();
-		return legacySave != null
-			? BuildLegacyContinueTarget(legacySave)
-			: ContinueTarget.None;
-	}
+		=> _continueState.ResolveContinueTarget();
 
 	public string BuildContinueButtonText(ContinueTarget? target = null)
-	{
-		var resolvedTarget = target ?? ResolveContinueTarget();
-		return resolvedTarget.Kind == ContinueTargetKind.None
-			? LocalizationService.T("ui.main_menu.continue")
-			: LocalizationService.T("ui.main_menu.continue.with_target", ("target", resolvedTarget.Label));
-	}
+		=> _continueState.BuildContinueButtonText(target);
 
 	public string DescribeCurrentSessionLabel()
 	{
 		return _activeSessionKind switch
 		{
-			ActiveSessionKind.WorldCharacter => BuildWorldContinueTargetLabel(
+			ActiveSessionKind.WorldCharacter => ContinueStateService.BuildWorldContinueTargetLabel(
 				CurrentCharacterName ?? LocalizationService.T("ui.common.none"),
 				CurrentWorldName),
 			ActiveSessionKind.LegacySave => LocalizationService.T(
@@ -555,13 +443,13 @@ public class GameSessionModule
 			case ActiveSessionKind.WorldCharacter when !string.IsNullOrWhiteSpace(CurrentWorldId)
 				&& !string.IsNullOrWhiteSpace(CurrentCharacterId):
 				_worldStore.UpdateWorldLastPlayed(CurrentWorldId!, DateTimeOffset.UtcNow, CurrentCharacterId);
-				SaveContinueStateForWorldCharacter();
+				_continueState.SaveContinueStateForWorldCharacter();
 				break;
 
 			case ActiveSessionKind.LegacySave:
 			case ActiveSessionKind.None:
 				_activeSessionKind = ActiveSessionKind.LegacySave;
-				SaveLegacyContinuePath(resolvedPath);
+				_continueState.SaveLegacyContinuePath(resolvedPath);
 				break;
 		}
 	}
@@ -613,7 +501,7 @@ public class GameSessionModule
 		return Path.Combine(SaveDirectory, safeName + ".json");
 	}
 
-	public bool HasAnySave() => ResolveContinueTarget().Kind != ContinueTargetKind.None;
+	public bool HasAnySave() => _continueState.HasAnySave();
 
 	public void ProcessWorldStreaming()
 	{
@@ -705,67 +593,6 @@ public class GameSessionModule
 		SyncViewMode();
 	}
 
-	private bool TryResolveStoredWorldContinueTarget(out ContinueTarget target)
-	{
-		var state = AppSettingsStore.LoadContinueState();
-		if (string.Equals(state.LastContinueKind, ContinueKindWorldCharacter, StringComparison.Ordinal)
-			&& !string.IsNullOrWhiteSpace(state.LastWorldId)
-			&& !string.IsNullOrWhiteSpace(state.LastCharacterId)
-			&& _worldStore.TryLoadWorld(state.LastWorldId, out var manifest))
-		{
-			var character = ListWorldCharacters(manifest.WorldId)
-				.FirstOrDefault(entry => string.Equals(entry.CharacterId, state.LastCharacterId, StringComparison.Ordinal));
-			if (character != null)
-			{
-				target = BuildWorldContinueTarget(character);
-				return true;
-			}
-		}
-
-		target = ContinueTarget.None;
-		return false;
-	}
-
-	private bool TryResolveStoredLegacyContinueTarget(out ContinueTarget target)
-	{
-		var state = AppSettingsStore.LoadContinueState();
-		if (!string.IsNullOrWhiteSpace(state.LastLegacySavePath)
-			&& File.Exists(state.LastLegacySavePath))
-		{
-			var legacy = ListLegacySaveEntries()
-				.FirstOrDefault(entry => string.Equals(
-					entry.SourcePath,
-					Path.GetFullPath(state.LastLegacySavePath),
-					StringComparison.OrdinalIgnoreCase));
-			if (legacy != null)
-			{
-				target = BuildLegacyContinueTarget(legacy);
-				return true;
-			}
-		}
-
-		target = ContinueTarget.None;
-		return false;
-	}
-
-	private ContinueTarget BuildWorldContinueTarget(WorldCharacterEntryInfo entry) => new()
-	{
-		Kind = ContinueTargetKind.WorldCharacter,
-		WorldId = entry.WorldId,
-		WorldName = entry.WorldName,
-		CharacterId = entry.CharacterId,
-		CharacterName = entry.CharacterName,
-		SavePath = entry.SavePath,
-		Label = BuildWorldContinueTargetLabel(entry.CharacterName, entry.WorldName),
-	};
-
-	private static ContinueTarget BuildLegacyContinueTarget(SaveSlotInfo slot) => new()
-	{
-		Kind = ContinueTargetKind.LegacySave,
-		SavePath = slot.SourcePath,
-		Label = slot.DisplayName,
-	};
-
 	private string BuildSummary(string path, DateTime modifiedAt)
 	{
 		var status = SaveModule.TryReadSaveHeader(path, out var header);
@@ -780,34 +607,6 @@ public class GameSessionModule
 		return LocalizationService.T("ui.save_browser.summary.standard",
 			("turn", header.Turn),
 			("floor", header.PlayerZ),
-			("timestamp", timestamp));
-	}
-
-	private string BuildWorldSummary(WorldManifest manifest, IReadOnlyList<WorldCharacterEntryInfo> characters)
-	{
-		var lastPlayedCharacter = characters
-			.FirstOrDefault(entry => string.Equals(entry.CharacterId, manifest.LastPlayedCharacterId, StringComparison.Ordinal))
-			?.CharacterName
-			?? LocalizationService.T("ui.common.none");
-		var lastPlayed = manifest.LastPlayedAtUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-			?? LocalizationService.T("ui.common.none");
-		return LocalizationService.T(
-			"ui.world_manager.world_summary",
-			("lastCharacter", lastPlayedCharacter),
-			("generator", DescribeGenerator(manifest.Settings.GeneratorId)),
-			("lastPlayed", lastPlayed));
-	}
-
-	private string BuildCharacterSummary(int turn, int playerZ, DateTimeOffset savedAtUtc, bool isLastPlayedCharacter)
-	{
-		var timestamp = savedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-		return LocalizationService.T(
-			"ui.world_manager.character_summary",
-			("marker", isLastPlayedCharacter
-				? LocalizationService.T("ui.world_manager.character_marker.last_played") + " | "
-				: string.Empty),
-			("turn", turn),
-			("floor", playerZ),
 			("timestamp", timestamp));
 	}
 
@@ -1041,7 +840,7 @@ public class GameSessionModule
 			if (!suppressLocalPersistence)
 			{
 				_worldStore.UpdateWorldLastPlayed(worldId, DateTimeOffset.UtcNow, characterId);
-				SaveContinueStateForWorldCharacter();
+				_continueState.SaveContinueStateForWorldCharacter();
 			}
 		}
 		else if (!string.IsNullOrWhiteSpace(currentSavePath))
@@ -1049,7 +848,7 @@ public class GameSessionModule
 			ClearWorldCharacterContext();
 			_activeSessionKind = ActiveSessionKind.LegacySave;
 			if (!suppressLocalPersistence)
-				SaveLegacyContinuePath(currentSavePath);
+				_continueState.SaveLegacyContinuePath(currentSavePath);
 		}
 		else
 		{
@@ -1101,30 +900,6 @@ public class GameSessionModule
 		return requestedPath;
 	}
 
-	private void SaveContinueStateForWorldCharacter()
-	{
-		var current = AppSettingsStore.LoadContinueState();
-		AppSettingsStore.SaveContinueState(new ContinueState
-		{
-			LastContinueKind = ContinueKindWorldCharacter,
-			LastWorldId = CurrentWorldId,
-			LastCharacterId = CurrentCharacterId,
-			LastLegacySavePath = current.LastLegacySavePath,
-		});
-	}
-
-	private void SaveLegacyContinuePath(string path)
-	{
-		var current = AppSettingsStore.LoadContinueState();
-		AppSettingsStore.SaveContinueState(new ContinueState
-		{
-			LastContinueKind = current.LastContinueKind,
-			LastWorldId = current.LastWorldId,
-			LastCharacterId = current.LastCharacterId,
-			LastLegacySavePath = path,
-		});
-	}
-
 	private void SetWorldCharacterContext(
 		string worldId,
 		string worldName,
@@ -1156,21 +931,6 @@ public class GameSessionModule
 		CurrentCharacterName = null;
 	}
 
-	private static void ClearContinueStateForDeletedWorld(string worldId)
-	{
-		var current = AppSettingsStore.LoadContinueState();
-		if (!string.Equals(current.LastWorldId, worldId, StringComparison.Ordinal))
-			return;
-
-		AppSettingsStore.SaveContinueState(new ContinueState
-		{
-			LastContinueKind = null,
-			LastWorldId = null,
-			LastCharacterId = null,
-			LastLegacySavePath = current.LastLegacySavePath,
-		});
-	}
-
 	private static WorldSettings NormalizeWorldSettings(WorldSettings settings)
 	{
 		var normalized = settings.Clone();
@@ -1198,17 +958,6 @@ public class GameSessionModule
 		return normalized;
 	}
 
-	private static string BuildWorldContinueTargetLabel(string characterName, string? worldName)
-	{
-		if (string.IsNullOrWhiteSpace(worldName))
-			return characterName;
-
-		return LocalizationService.T(
-			"ui.continue_target.world_character",
-			("character", characterName),
-			("world", worldName));
-	}
-
 	private static string ResolvePresetScenarioDisplayName(string? presetScenarioId)
 	{
 		if (!string.IsNullOrWhiteSpace(presetScenarioId)
@@ -1222,14 +971,6 @@ public class GameSessionModule
 		return string.IsNullOrWhiteSpace(presetScenarioId)
 			? LocalizationService.T("ui.common.none")
 			: GameLocalizer.HumanizeId(presetScenarioId);
-	}
-
-	private static string DescribeGenerator(string generatorId)
-	{
-		if (MapGenModule.AllGenerators.TryGetValue(generatorId, out var generator))
-			return generator.Name;
-
-		return GameLocalizer.HumanizeId(generatorId);
 	}
 
 	private static string NormalizePresetScenarioId(string id)
