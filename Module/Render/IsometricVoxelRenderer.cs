@@ -282,14 +282,14 @@ public partial class IsometricVoxelRenderer
 			PlayerVisionBand.Focused => Colors.White,
 			PlayerVisionBand.Peripheral => new Color(0.78f, 0.78f, 0.82f, 1.0f),
 			PlayerVisionBand.Memory => new Color(0.42f, 0.42f, 0.48f, 0.88f),
-			_ => new Color(0f, 0f, 0f, 0f),
+			_ => new Color(0f, 0f, 0f, 1f),
 		};
 	}
 
 	private Color GetFaceTint(int wx, int wy, int wz, VoxelFace face)
 	{
 		var visionTint = GetVisionTint(wx, wy, wz);
-		if (visionTint.A <= 0f)
+		if (visionTint.R <= 0f && visionTint.G <= 0f && visionTint.B <= 0f)
 			return visionTint;
 
 		var faceLight = face switch
@@ -954,8 +954,8 @@ public partial class IsometricVoxelRenderer
 		{
 			if (actor.Z < zMin || actor.Z > zMax) continue;
 			if (Math.Abs(actor.X - cx) > halfW || Math.Abs(actor.Y - cy) > halfH) continue;
+			if (_fogTracker.GetVisionBand(actor.X, actor.Y, actor.Z) == PlayerVisionBand.Unknown) continue;
 			var tint = GetVisionTint(actor.X, actor.Y, actor.Z);
-			if (tint.A <= 0f) continue;
 			var label = actor.Id == _state.PlayerId ? "P" : (actor.Faction == Factions.Hostile ? "!" : "?");
 			_entityCommands.Add(new EntityDrawCommand(
 				IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
@@ -971,8 +971,8 @@ public partial class IsometricVoxelRenderer
 		{
 			var entities = _state.World!.GetEntities(wx, wy, wz);
 			if (entities.Count == 0) continue;
+			if (_fogTracker.GetVisionBand(wx, wy, wz) == PlayerVisionBand.Unknown) continue;
 			var tint = GetVisionTint(wx, wy, wz);
-			if (tint.A <= 0f) continue;
 			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			var key = IsoCoordUtil.SortKey(wx, wy, wz);
 			foreach (var e in entities)

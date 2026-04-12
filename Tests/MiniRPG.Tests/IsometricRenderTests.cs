@@ -75,9 +75,9 @@ public sealed class IsometricRenderTests
 		var unknown = InvokeVisionTint(renderer, 4, 4, 0);
 
 		AssertColorApprox(Colors.White, focused);
-		AssertColorApprox(new Color(0.50f, 0.50f, 0.56f), peripheral);
-		AssertColorApprox(new Color(0.22f, 0.22f, 0.28f), memory);
-		AssertColorApprox(new Color(0f, 0f, 0f, 0f), unknown);
+		AssertColorApprox(new Color(0.78f, 0.78f, 0.82f, 1f), peripheral);
+		AssertColorApprox(new Color(0.42f, 0.42f, 0.48f, 0.88f), memory);
+		AssertColorApprox(new Color(0f, 0f, 0f, 1f), unknown);
 	}
 
 	[Fact]
