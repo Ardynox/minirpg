@@ -56,43 +56,43 @@ theme_override_constants/separation = 6
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Status"
+text = "input.action.toggle_status"
 
 [node name="SkillBarBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Skill Bar"
+text = "input.action.skillbar"
 
 [node name="SkillMgrBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Skills"
+text = "input.action.skills"
 
 [node name="InventoryBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Inventory"
+text = "input.action.inventory"
 
 [node name="QuestBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Quest"
+text = "input.action.quests"
 
 [node name="DebugBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Debug"
+text = "input.action.debug_panel"
 
 [node name="SettingsBtn" type="Button" parent="HudLayer/UI/PanelLauncherBar"]
 layout_mode = 2
 toggle_mode = true
 theme_type_variation = "ActionButton"
-text = "Settings"
+text = "input.action.open_settings"
 
 [node name="TopRow" type="HBoxContainer" parent="HudLayer/UI"]
 layout_mode = 2

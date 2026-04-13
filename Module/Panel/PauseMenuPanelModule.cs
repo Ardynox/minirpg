@@ -118,9 +118,7 @@ public sealed class PauseMenuPanelModule : IPauseMenuOverlay, IPanel
 	{
 		for (var i = 0; i < _items.Count; i++)
 		{
-			var text = _items[i].Action == PauseMenuAction.OpenMultiplayerRoom
-				? LocalizationService.TOrFallback(_items[i].TextKey, "Multiplayer Room")
-				: LocalizationService.T(_items[i].TextKey);
+			var text = LocalizationService.T(_items[i].TextKey);
 			_items[i].Button.Text = i == _selectedIndex
 				? $"> {text}"
 				: text;

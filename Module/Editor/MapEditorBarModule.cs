@@ -70,6 +70,28 @@ public sealed class MapEditorBarModule
 	};
 
 	private static readonly Color DefaultSwatchColor = new(0.5f, 0.5f, 0.5f);
+	private static readonly string[] WeatherOptionTextKeys =
+	[
+		"weather.type.clear",
+		"weather.type.rain",
+		"weather.type.fog",
+		"weather.type.snow",
+		"weather.type.storm",
+		"weather.type.thunderstorm",
+		"weather.type.sandstorm",
+	];
+	private static readonly string[] WeatherIntensityTextKeys =
+	[
+		"weather.intensity.light",
+		"weather.intensity.normal",
+		"weather.intensity.heavy",
+	];
+	private static readonly string[] LightingProfileTextKeys =
+	[
+		"render.lighting.profile.default",
+		"render.lighting.profile.cinematic",
+		"render.lighting.profile.soft",
+	];
 
 	public MapEditorBarModule(PanelContainer panel)
 	{
@@ -134,7 +156,6 @@ public sealed class MapEditorBarModule
 
 		_turnPlayButton.Pressed += () => TurnControllerRequested?.Invoke();
 
-		InitializeEnvironmentDropdowns();
 		RefreshTexts();
 	}
 
@@ -178,15 +199,15 @@ public sealed class MapEditorBarModule
 		_titleLabel.Text = LocalizationService.T("ui.map_editor.title");
 		_terrainButton.Text = LocalizationService.T("ui.map_editor.category.terrain");
 		_fixtureButton.Text = LocalizationService.T("ui.map_editor.category.fixture");
-		_environmentButton.Text = LocalizationService.TOrFallback("ui.map_editor.category.environment", "Environment");
-		_hintLabel.Text = LocalizationService.TOrFallback("ui.map_editor.hint.v2",
-			"LMB: Place  RMB: Erase  Scroll: Cycle\nTab: Category  Ctrl+Z/Y: Undo/Redo");
+		_environmentButton.Text = LocalizationService.T("ui.map_editor.category.environment");
+		_hintLabel.Text = LocalizationService.T("ui.map_editor.hint.v2");
 		_centerButton.Text = LocalizationService.T("ui.map_editor.center");
 		_saveButton.Text = LocalizationService.T("ui.map_editor.save");
 		_exitButton.Text = LocalizationService.T("ui.map_editor.exit");
-		_undoButton.Text = LocalizationService.TOrFallback("ui.map_editor.undo", "Undo");
-		_redoButton.Text = LocalizationService.TOrFallback("ui.map_editor.redo", "Redo");
-		_turnPlayButton.Text = LocalizationService.TOrFallback("ui.map_editor.turn_controller", "Turn Play");
+		_undoButton.Text = LocalizationService.T("ui.map_editor.undo");
+		_redoButton.Text = LocalizationService.T("ui.map_editor.redo");
+		_turnPlayButton.Text = LocalizationService.T("ui.map_editor.turn_controller");
+		RebuildEnvironmentOptions();
 		UpdateCurrentBrushLabel();
 	}
 
@@ -227,14 +248,20 @@ public sealed class MapEditorBarModule
 	public void SetEnvironmentState(int timeOfDay, int weatherTypeIndex, int intensityIndex, int lightingIndex)
 	{
 		_suppressEvents = true;
-		_timeSlider.Value = timeOfDay;
-		if (weatherTypeIndex >= 0 && weatherTypeIndex < _weatherSelect.ItemCount)
-			_weatherSelect.Select(weatherTypeIndex);
-		if (intensityIndex >= 0 && intensityIndex < _intensitySelect.ItemCount)
-			_intensitySelect.Select(intensityIndex);
-		if (lightingIndex >= 0 && lightingIndex < _lightingSelect.ItemCount)
-			_lightingSelect.Select(lightingIndex);
-		_suppressEvents = false;
+		try
+		{
+			_timeSlider.Value = timeOfDay;
+			if (weatherTypeIndex >= 0 && weatherTypeIndex < _weatherSelect.ItemCount)
+				_weatherSelect.Select(weatherTypeIndex);
+			if (intensityIndex >= 0 && intensityIndex < _intensitySelect.ItemCount)
+				_intensitySelect.Select(intensityIndex);
+			if (lightingIndex >= 0 && lightingIndex < _lightingSelect.ItemCount)
+				_lightingSelect.Select(lightingIndex);
+		}
+		finally
+		{
+			_suppressEvents = false;
+		}
 	}
 
 	// ── Private ──
@@ -295,28 +322,37 @@ public sealed class MapEditorBarModule
 		_currentBrushLabel.Text = $"[{brush.Id}] {brush.Label}";
 	}
 
-	private void InitializeEnvironmentDropdowns()
+	private void RebuildEnvironmentOptions()
 	{
-		// Weather types
-		_weatherSelect.Clear();
-		_weatherSelect.AddItem("Clear", 0);
-		_weatherSelect.AddItem("Rain", 1);
-		_weatherSelect.AddItem("Fog", 2);
-		_weatherSelect.AddItem("Snow", 3);
-		_weatherSelect.AddItem("Storm", 4);
-		_weatherSelect.AddItem("Thunderstorm", 5);
-		_weatherSelect.AddItem("Sandstorm", 6);
+		var weatherIndex = _weatherSelect.ItemCount > 0 ? (int)_weatherSelect.Selected : 0;
+		var intensityIndex = _intensitySelect.ItemCount > 0 ? (int)_intensitySelect.Selected : 1;
+		var lightingIndex = _lightingSelect.ItemCount > 0 ? (int)_lightingSelect.Selected : 0;
 
-		// Intensity
-		_intensitySelect.Clear();
-		_intensitySelect.AddItem("Light", 0);
-		_intensitySelect.AddItem("Normal", 1);
-		_intensitySelect.AddItem("Heavy", 2);
+		_suppressEvents = true;
+		try
+		{
+			RebuildOptionButton(_weatherSelect, WeatherOptionTextKeys, weatherIndex);
+			RebuildOptionButton(_intensitySelect, WeatherIntensityTextKeys, intensityIndex);
+			RebuildOptionButton(_lightingSelect, LightingProfileTextKeys, lightingIndex);
+		}
+		finally
+		{
+			_suppressEvents = false;
+		}
+	}
 
-		// Lighting profiles
-		_lightingSelect.Clear();
-		_lightingSelect.AddItem("Default", 0);
-		_lightingSelect.AddItem("Cinematic", 1);
-		_lightingSelect.AddItem("Soft", 2);
+	private static void RebuildOptionButton(OptionButton button, IReadOnlyList<string> textKeys, int selectedIndex)
+	{
+		button.Clear();
+		for (var i = 0; i < textKeys.Count; i++)
+			button.AddItem(LocalizationService.T(textKeys[i]), i);
+
+		if (button.ItemCount == 0)
+			return;
+
+		var clampedIndex = selectedIndex >= 0 && selectedIndex < button.ItemCount
+			? selectedIndex
+			: 0;
+		button.Select(clampedIndex);
 	}
 }

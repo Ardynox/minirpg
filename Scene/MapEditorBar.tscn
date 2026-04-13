@@ -161,7 +161,7 @@ vertical_alignment = 1
 
 [node name="Hint" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-text = "ui.map_editor.hint"
+text = "ui.map_editor.hint.v2"
 autowrap_mode = 2
 
 [node name="Actions" type="HBoxContainer" parent="Margin/VBox"]

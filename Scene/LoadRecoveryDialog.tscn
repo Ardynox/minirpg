@@ -30,12 +30,12 @@ theme_override_constants/separation = 12
 layout_mode = 2
 theme_type_variation = "HeaderLabel"
 horizontal_alignment = 1
-text = "Load Recovery"
+text = "ui.load_recovery.title"
 
 [node name="Message" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 autowrap_mode = 3
-text = ""
+text = "ui.load_recovery.message"
 
 [node name="CandidateList" type="ItemList" parent="Margin/VBox"]
 custom_minimum_size = Vector2(0, 180)
@@ -53,9 +53,9 @@ theme_override_constants/separation = 8
 [node name="ConfirmBtn" type="Button" parent="Margin/VBox/Footer"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Rebind"
+text = "ui.load_recovery.confirm"
 
 [node name="CancelBtn" type="Button" parent="Margin/VBox/Footer"]
 layout_mode = 2
 theme_type_variation = "ActionButton"
-text = "Cancel"
+text = "ui.load_recovery.cancel"

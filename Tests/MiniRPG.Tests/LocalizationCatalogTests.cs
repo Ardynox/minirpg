@@ -134,6 +134,86 @@ public sealed class LocalizationCatalogTests
 	}
 
 	[Fact]
+	public void CatalogFiles_ContainLocalizationFixesForMapEditorMultiplayerAndLighting()
+	{
+		var en = LoadCatalog("en");
+		var zh = LoadCatalog("zh_CN");
+		string[] requiredKeys =
+		[
+			"ui.multiplayer.disabled.map_editor",
+			"ui.multiplayer.disabled.save",
+			"ui.multiplayer.disabled.load",
+			"ui.map_editor.category.environment",
+			"ui.map_editor.time_of_day",
+			"ui.map_editor.weather",
+			"ui.map_editor.lighting_profile",
+			"ui.map_editor.turn_controller",
+			"ui.map_editor.hint.v2",
+			"ui.map_editor.undo",
+			"ui.map_editor.redo",
+			"ui.pause_menu.multiplayer_room",
+			"render.lighting.unavailable",
+			"render.lighting.profile_changed",
+			"render.lighting.profile.default",
+			"render.lighting.profile.cinematic",
+			"render.lighting.profile.soft",
+			"log.multiplayer.delegate_actor_unauthorized",
+			"log.multiplayer.assign_primary_actor",
+			"log.multiplayer.assign_primary_actor_failed",
+			"log.multiplayer.kick_player",
+			"log.multiplayer.kick_player_failed",
+			"ui.weather_lab.preview.line2",
+		];
+
+		foreach (var key in requiredKeys)
+		{
+			Assert.True(en.ContainsKey(key), $"Missing en key: {key}");
+			Assert.True(zh.ContainsKey(key), $"Missing zh_CN key: {key}");
+			Assert.False(string.IsNullOrWhiteSpace(en[key]));
+			Assert.False(string.IsNullOrWhiteSpace(zh[key]));
+		}
+
+		var expectedZhValues = new Dictionary<string, string>
+		{
+			["ui.multiplayer.disabled.map_editor"] = "多人会话中暂不支持地图编辑器。",
+			["ui.multiplayer.disabled.save"] = "多人会话中已禁用本地存档。",
+			["ui.multiplayer.disabled.load"] = "多人会话中已禁用本地读档。",
+			["ui.map_editor.category.environment"] = "环境",
+			["ui.map_editor.time_of_day"] = "时间段",
+			["ui.map_editor.weather"] = "天气",
+			["ui.map_editor.lighting_profile"] = "光照预设",
+			["ui.map_editor.turn_controller"] = "回合控制",
+			["ui.map_editor.hint.v2"] = "左键：放置  右键：擦除  滚轮：切换\nTab：分类  Ctrl+Z/Y：撤销/重做",
+			["ui.map_editor.undo"] = "撤销",
+			["ui.map_editor.redo"] = "重做",
+			["ui.pause_menu.multiplayer_room"] = "多人房间",
+			["render.lighting.unavailable"] = "当前光照预设不可用。",
+			["render.lighting.profile_changed"] = "光照预设已切换：{profile}",
+			["render.lighting.profile.default"] = "默认",
+			["render.lighting.profile.cinematic"] = "电影感",
+			["render.lighting.profile.soft"] = "柔和",
+			["log.multiplayer.delegate_actor_unauthorized"] = "只有主拥有者才能移交 {actor}。",
+			["log.multiplayer.assign_primary_actor"] = "已将 {actor} 分配给 {player}。",
+			["log.multiplayer.assign_primary_actor_failed"] = "分配 {actor} 失败。",
+			["log.multiplayer.kick_player"] = "已移除玩家 {player}。",
+			["log.multiplayer.kick_player_failed"] = "移除玩家 {player} 失败。",
+			["ui.save_browser.summary.standard"] = "回合 {turn} | Z{floor} | {timestamp}",
+			["ui.status.tab.buff"] = "增益",
+			["ui.turn_panel.tag.you"] = "你",
+			["ui.turn_panel.tag.last"] = "上一位",
+			["render.view_mode.tilemap"] = "瓦片地图 2D",
+			["ui.save_name_dialog.placeholder"] = "输入存档名",
+			["ui.load_recovery.message"] = "存档中的玩家 ID {playerId} 不存在。请选择一个玩家阵营角色，重新绑定后再继续加载。",
+			["ui.multiplayer.status.backend_missing"] = "多人会话后端不可用。",
+			["ui.weather_lab.preview.line2"] = "控制：{control} | 回合：{turn}",
+			["ui.loading.save.finalize"] = "正在刷新游戏界面...",
+		};
+
+		foreach (var entry in expectedZhValues)
+			Assert.Equal(entry.Value, zh[entry.Key]);
+	}
+
+	[Fact]
 	public void ControlledTextFiles_DoNotContainKnownMojibakeMarkers()
 	{
 		var markers = LoadMojibakeMarkers();
