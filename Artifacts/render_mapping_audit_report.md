@@ -1,6 +1,6 @@
 ﻿# Render Mapping Audit Report
 
-Generated (UTC): 2026-04-13T06:39:12.5986360Z
+Generated (UTC): 2026-04-13T07:13:42.4332176Z
 
 ## Scope
 - Data/entity_render.json
