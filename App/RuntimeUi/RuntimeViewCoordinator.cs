@@ -1,5 +1,6 @@
 using Godot;
 using MiniRPG.Core.Combat;
+using MiniRPG.Module.Editor;
 
 namespace MiniRPG;
 
@@ -25,6 +26,7 @@ internal sealed class RuntimeViewCoordinator
 		int mapEditorCameraY,
 		int mapEditorCameraZ,
 		Vector3I? mapEditorHoverWorld,
+		MapEditorPlacementPreview? mapEditorPlacementPreview,
 		Action syncViewToActiveActor,
 		Action markUiDirty)
 	{
@@ -35,6 +37,7 @@ internal sealed class RuntimeViewCoordinator
 		_ui.MapRender.InspectWorldCell = inspectModeActive ? inspectWorldCell : null;
 		var editorZ = mapEditorActive ? mapEditorCameraZ : _state.PlayerZ;
 		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : hoverWorldCell;
+		_ui.MapRender.EditorPlacementPreview = mapEditorActive ? mapEditorPlacementPreview : null;
 		_ui.MapRender.SetEditorView(
 			mapEditorActive,
 			mapEditorActive ? mapEditorCameraX : _state.PlayerX,

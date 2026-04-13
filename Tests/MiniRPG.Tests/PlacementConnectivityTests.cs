@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Godot;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
 using MiniRPG.Module.Editor;
@@ -75,6 +76,104 @@ public sealed class PlacementConnectivityTests
 		Assert.Equal(Terrains.Floor, state.World.GetTerrain(3, 3, -1).StringId);
 	}
 
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_TerrainOnAirWithSupport_UsesHoveredCell()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(9, 8, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(8, 8, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.Equal(MapEditorPlacementPreviewKind.Terrain, resolved.Kind);
+		Assert.Equal(new Vector3I(8, 8, 0), resolved.HoverCell);
+		Assert.Equal(new Vector3I(8, 8, 0), resolved.TargetCell);
+		Assert.True(resolved.CanPlace);
+		Assert.True(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_TerrainOnSolidCell_UsesFirstAirAbove()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(3, 3, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(3, 3, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.Equal(new Vector3I(3, 3, -1), resolved.TargetCell);
+		Assert.True(resolved.CanPlace);
+		Assert.True(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_TerrainWithoutConnectivity_IsBlocked()
+	{
+		var state = CreateEditorState();
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(8, 8, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.Equal(new Vector3I(8, 8, 0), resolved.TargetCell);
+		Assert.False(resolved.CanPlace);
+		Assert.False(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_IgnoreConnectivity_MakesTerrainPlaceable()
+	{
+		var state = CreateEditorState();
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+		session.SetIgnoreConnectivityRequirement(true);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(8, 8, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.True(resolved.CanPlace);
+		Assert.True(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_FixtureSameId_IsBlocked()
+	{
+		var state = CreateEditorState();
+		state.World!.SetFixture(5, 5, 0, "D", Entities.Door);
+		var session = new MapEditorSession(state);
+		SelectFixtureBrush(session, Entities.Door);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(5, 5, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.Equal(MapEditorPlacementPreviewKind.Fixture, resolved.Kind);
+		Assert.Equal(new Vector3I(5, 5, 0), resolved.TargetCell);
+		Assert.False(resolved.CanPlace);
+		Assert.False(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolvePlacementPreview_FixtureDifferentId_IsPlaceable()
+	{
+		var state = CreateEditorState();
+		state.World!.SetFixture(5, 5, 0, "D", Entities.Door);
+		var session = new MapEditorSession(state);
+		SelectFixtureBrush(session, Entities.Nest);
+
+		var preview = session.ResolvePlacementPreview(new Vector3I(5, 5, 0));
+
+		var resolved = Assert.IsType<MapEditorPlacementPreview>(preview);
+		Assert.Equal(MapEditorPlacementPreviewKind.Fixture, resolved.Kind);
+		Assert.Equal(new Vector3I(5, 5, 0), resolved.TargetCell);
+		Assert.True(resolved.CanPlace);
+		Assert.True(resolved.ShowGhost);
+	}
+
 	private static (GameState State, Actor Actor) CreatePlacementState()
 	{
 		var state = new GameState
@@ -105,6 +204,16 @@ public sealed class PlacementConnectivityTests
 			.First(entry => string.Equals(entry.Id, terrainId, StringComparison.Ordinal))
 			.brushIndex;
 		session.SelectCategory(MapEditorBrushCategory.Terrain);
+		session.SelectBrush(index);
+	}
+
+	private static void SelectFixtureBrush(MapEditorSession session, string fixtureId)
+	{
+		var index = session.FixtureBrushes
+			.Select((brush, brushIndex) => (brush.Id, brushIndex))
+			.First(entry => string.Equals(entry.Id, fixtureId, StringComparison.Ordinal))
+			.brushIndex;
+		session.SelectCategory(MapEditorBrushCategory.Fixture);
 		session.SelectBrush(index);
 	}
 

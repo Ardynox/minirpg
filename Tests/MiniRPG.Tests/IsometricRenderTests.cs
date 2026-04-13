@@ -5,6 +5,7 @@ using Godot;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
+using MiniRPG.Module.Editor;
 using MiniRPG.Module.Render;
 using Xunit;
 
@@ -157,6 +158,75 @@ public sealed class IsometricRenderTests
 		Assert.Contains("hover_side_left_fill", keys);
 		Assert.Contains("hover_side_right_fill", keys);
 		Assert.Contains("hover_edge_segment", keys);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_ResolveHoverHighlightCell_UsesEditorPreviewTarget()
+	{
+		var rawHover = new Vector3I(4, 5, 0);
+		var preview = new MapEditorPlacementPreview(
+			MapEditorPlacementPreviewKind.Terrain,
+			rawHover,
+			new Vector3I(4, 5, -1),
+			Terrains.Floor,
+			"#",
+			CanPlace: true,
+			ShowGhost: true);
+
+		var highlightCell = IsometricVoxelRenderer.ResolveHoverHighlightCell(
+			editorViewActive: true,
+			rawHover,
+			preview);
+
+		Assert.Equal(preview.TargetCell, highlightCell);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_EditorPlacementGhost_UsesThirtyPercentAlpha()
+	{
+		Assert.True(Mathf.Abs(IsometricVoxelRenderer.EditorPlacementGhostAlpha - 0.30f) < 0.0001f);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_EditorPlacementGhost_IsHiddenWhenPreviewCannotPlace()
+	{
+		var preview = new MapEditorPlacementPreview(
+			MapEditorPlacementPreviewKind.Terrain,
+			new Vector3I(2, 2, 0),
+			new Vector3I(2, 2, 0),
+			Terrains.Floor,
+			"#",
+			CanPlace: false,
+			ShowGhost: false);
+
+		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(preview));
+		Assert.Equal(0, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(preview));
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_EditorPlacementGhost_SupportsTerrainAndFixturePreviews()
+	{
+		var terrainPreview = new MapEditorPlacementPreview(
+			MapEditorPlacementPreviewKind.Terrain,
+			new Vector3I(1, 1, 0),
+			new Vector3I(1, 1, 0),
+			Terrains.Floor,
+			"#",
+			CanPlace: true,
+			ShowGhost: true);
+		var fixturePreview = new MapEditorPlacementPreview(
+			MapEditorPlacementPreviewKind.Fixture,
+			new Vector3I(3, 3, 0),
+			new Vector3I(3, 3, 0),
+			Entities.Door,
+			"D",
+			CanPlace: true,
+			ShowGhost: true);
+
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(terrainPreview));
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(fixturePreview));
+		Assert.Equal(3, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(terrainPreview));
+		Assert.Equal(1, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(fixturePreview));
 	}
 
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)

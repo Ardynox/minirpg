@@ -5,6 +5,7 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Editor;
 
 namespace MiniRPG.Module.Render;
 
@@ -52,9 +53,19 @@ public partial class IsometricVoxelRenderer
 	private const string HoverSideLeftFillTextureKey = "hover_side_left_fill";
 	private const string HoverSideRightFillTextureKey = "hover_side_right_fill";
 	private const string HoverEdgeSegmentTextureKey = "hover_edge_segment";
+	internal const float EditorPlacementGhostAlpha = 0.30f;
 	private static readonly Color HoverCellTint = new(0.92f, 0.82f, 0.50f, 0.08f);
 	private static readonly Color HoverCellOutlineTint = new(0.92f, 0.82f, 0.50f, 0.70f);
 	private static readonly Color HoverWallTint = new(0.92f, 0.82f, 0.50f, 0.38f);
+	private static readonly HoverHighlightStyle DefaultHoverHighlightStyle = new(HoverCellTint, HoverCellOutlineTint, HoverWallTint);
+	private static readonly HoverHighlightStyle EditorPlaceableHoverHighlightStyle = new(
+		new Color(0.96f, 0.87f, 0.56f, 0.18f),
+		new Color(0.97f, 0.88f, 0.58f, 0.90f),
+		new Color(0.96f, 0.87f, 0.56f, 0.50f));
+	private static readonly HoverHighlightStyle EditorBlockedHoverHighlightStyle = new(
+		new Color(0.90f, 0.80f, 0.48f, 0.06f),
+		new Color(0.90f, 0.80f, 0.48f, 0.52f),
+		new Color(0.90f, 0.80f, 0.48f, 0.24f));
 	private static readonly Vector2 HoverCellFillScale = new(1.96f, 0.98f);
 	private static readonly Vector2 HoverCellOutlineScale = new(2.04f, 1.02f);
 
@@ -162,6 +173,7 @@ public partial class IsometricVoxelRenderer
 	public int LastDrawCommandCount => _lastDrawCommandCount;
 	public IsometricLightingSettings LightingSettings => _lighting;
 	public Vector3I? HoverWorldCell { get; set; }
+	internal MapEditorPlacementPreview? EditorPlacementPreview { get; set; }
 	public Vector3I? InspectWorldCell { get; set; }
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
 	public bool IsIsometricMode => true;
@@ -257,6 +269,27 @@ public partial class IsometricVoxelRenderer
 		_viewCenterX = centerX;
 		_viewCenterY = centerY;
 		_viewCenterZ = centerZ;
+	}
+
+	internal static Vector3I? ResolveHoverHighlightCell(
+		bool editorViewActive,
+		Vector3I? hoverWorldCell,
+		MapEditorPlacementPreview? editorPlacementPreview)
+	{
+		if (editorViewActive && editorPlacementPreview is { } preview)
+			return preview.TargetCell;
+		return hoverWorldCell;
+	}
+
+	internal static bool ShouldDrawEditorPlacementGhost(MapEditorPlacementPreview? preview) =>
+		preview is { CanPlace: true, ShowGhost: true };
+
+	internal static int GetEditorPlacementGhostCommandCount(MapEditorPlacementPreview? preview)
+	{
+		if (preview is not { } resolved || !ShouldDrawEditorPlacementGhost(resolved))
+			return 0;
+
+		return resolved.Kind == MapEditorPlacementPreviewKind.Terrain ? 3 : 1;
 	}
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
@@ -593,6 +626,7 @@ public partial class IsometricVoxelRenderer
 		var halfH = _viewH / 2;
 		var zMin = cz - DefaultViewDepthAbove;
 		var zMax = cz + DefaultViewDepthBelow;
+		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorPlacementPreview);
 		_editorPerspective = _editorViewActive
 			? EditorPerspectiveResolver.Resolve(
 				_state,
@@ -601,7 +635,7 @@ public partial class IsometricVoxelRenderer
 				cz,
 				zMin,
 				zMax,
-				HoverWorldCell is { } hover ? new WorldCoord(hover.X, hover.Y, cz) : null)
+				highlightCell is { } hover ? new WorldCoord(hover.X, hover.Y, cz) : null)
 			: EditorPerspectiveResult.Empty;
 
 		_drawCommands.Clear();
@@ -1343,11 +1377,25 @@ public partial class IsometricVoxelRenderer
 		RenderHoverHighlights();
 	}
 
+	private static HoverHighlightStyle ResolveHoverHighlightStyle(
+		bool editorViewActive,
+		MapEditorPlacementPreview? editorPlacementPreview)
+	{
+		if (!editorViewActive || editorPlacementPreview is not { } preview)
+			return DefaultHoverHighlightStyle;
+
+		return preview.CanPlace
+			? EditorPlaceableHoverHighlightStyle
+			: EditorBlockedHoverHighlightStyle;
+	}
+
 	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
-		if (HoverWorldCell is not { } hover)
+		var editorPreview = _editorViewActive ? EditorPlacementPreview : null;
+		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, editorPreview);
+		if (highlightCell is not { } hover)
 			return;
 		if (Math.Abs(hover.X - cx) > halfW || Math.Abs(hover.Y - cy) > halfH)
 			return;
@@ -1357,8 +1405,12 @@ public partial class IsometricVoxelRenderer
 			return;
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
-		_highlightCommands.Add(new HoverHighlightCommand(basePos, HoverCellTint, IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000));
-		_highlightCommandCount = _highlightCommands.Count;
+		_highlightCommands.Add(new HoverHighlightCommand(
+			basePos,
+			ResolveHoverHighlightStyle(_editorViewActive, editorPreview),
+			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000,
+			editorPreview));
+		_highlightCommandCount = _highlightCommands.Count + GetEditorPlacementGhostCommandCount(editorPreview);
 	}
 
 	private void RenderHoverHighlights()
@@ -1367,15 +1419,57 @@ public partial class IsometricVoxelRenderer
 		for (var i = 0; i < _highlightCommands.Count; i++)
 		{
 			var command = _highlightCommands[i];
+			if (command.EditorPreview is { } editorPreview && ShouldDrawEditorPlacementGhost(editorPreview))
+				DrawEditorPlacementGhost(command.ScreenPos, editorPreview);
+
 			var geometry = BuildHoverVolumeGeometry(command.ScreenPos);
-			var fillTint = command.Tint * new Color(1f, 1f, 1f, pulse);
-			var sideTint = HoverWallTint * new Color(1f, 1f, 1f, 0.75f + pulse * 0.25f);
-			var edgeTint = HoverCellOutlineTint * new Color(1f, 1f, 1f, 0.65f + pulse * 0.35f);
+			var fillTint = command.Style.FillTint * new Color(1f, 1f, 1f, pulse);
+			var sideTint = command.Style.SideTint * new Color(1f, 1f, 1f, 0.75f + pulse * 0.25f);
+			var edgeTint = command.Style.OutlineTint * new Color(1f, 1f, 1f, 0.65f + pulse * 0.35f);
 			DrawHoverVolumeFaces(geometry.TopCenter, sideTint);
 			DrawHoverVolumeEdges(geometry, edgeTint);
-			DrawHoverDiamond(command.ScreenPos, HoverCellOutlineTint, HoverCellOutlineScale, zIndex: 3, textureKey: HoverDiamondOutlineTextureKey);
+			DrawHoverDiamond(command.ScreenPos, edgeTint, HoverCellOutlineScale, zIndex: 3, textureKey: HoverDiamondOutlineTextureKey);
 			DrawHoverDiamond(command.ScreenPos, fillTint, HoverCellFillScale, zIndex: 4, textureKey: HoverDiamondFillTextureKey);
 		}
+	}
+
+	private void DrawEditorPlacementGhost(Vector2 screenPos, MapEditorPlacementPreview preview)
+	{
+		switch (preview.Kind)
+		{
+			case MapEditorPlacementPreviewKind.Terrain:
+				DrawTerrainPlacementGhost(screenPos, preview.BrushId);
+				break;
+			case MapEditorPlacementPreviewKind.Fixture:
+				DrawFixturePlacementGhost(screenPos, preview);
+				break;
+		}
+	}
+
+	private void DrawTerrainPlacementGhost(Vector2 screenPos, string terrainId)
+	{
+		var terrain = TerrainRegistry.Get(terrainId);
+		var atlasTexture = _terrainAtlas.AtlasTexture;
+		if (terrain == null || atlasTexture == null)
+			return;
+		if (terrain.StringId is Terrains.Air or Terrains.Void)
+			return;
+		if (!_terrainAtlas.TryGetRegions(terrain.StringId, out var regions))
+			return;
+
+		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
+		DrawAtlasRegionSprite(atlasTexture, regions.Left, ResolveLeftFacePosition(screenPos), tint, zIndex: 1);
+		DrawAtlasRegionSprite(atlasTexture, regions.Right, ResolveRightFacePosition(screenPos), tint, zIndex: 1);
+		DrawAtlasRegionSprite(atlasTexture, regions.Top, screenPos, tint, zIndex: 2);
+	}
+
+	private void DrawFixturePlacementGhost(Vector2 screenPos, MapEditorPlacementPreview preview)
+	{
+		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
+		if (!string.IsNullOrWhiteSpace(preview.BrushId) && TryDrawWorldEntitySprite(screenPos, preview.BrushId, tint))
+			return;
+
+		DrawEntityMarker(screenPos, preview.BrushGlyph ?? preview.BrushId, tint);
 	}
 
 	private void DrawHoverVolumeFaces(Vector2 cellPos, Color tint)
@@ -1441,6 +1535,23 @@ public partial class IsometricVoxelRenderer
 		sprite.Scale = scale;
 		sprite.Position = pos;
 		sprite.Skew = 0f;
+		sprite.ZIndex = zIndex;
+		sprite.Modulate = tint;
+		sprite.Visible = true;
+	}
+
+	private void DrawAtlasRegionSprite(Texture2D texture, Rect2 sourceRegion, Vector2 position, Color tint, int zIndex)
+	{
+		var sprite = AcquireSprite();
+		sprite.Centered = true;
+		sprite.Texture = texture;
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
+		sprite.RegionEnabled = true;
+		sprite.RegionRect = sourceRegion;
+		sprite.Scale = Vector2.One;
+		sprite.Position = position;
+		sprite.Skew = 0f;
+		sprite.Rotation = 0f;
 		sprite.ZIndex = zIndex;
 		sprite.Modulate = tint;
 		sprite.Visible = true;
@@ -2082,10 +2193,16 @@ public partial class IsometricVoxelRenderer
 		string Label,
 		Color Tint);
 
+	private readonly record struct HoverHighlightStyle(
+		Color FillTint,
+		Color OutlineTint,
+		Color SideTint);
+
 	private readonly record struct HoverHighlightCommand(
 		Vector2 ScreenPos,
-		Color Tint,
-		long SortKey);
+		HoverHighlightStyle Style,
+		long SortKey,
+		MapEditorPlacementPreview? EditorPreview);
 
 	private readonly record struct HoverVolumeGeometry(
 		Vector2 TopCenter,

@@ -20,6 +20,12 @@ public enum MapEditorBrushCategory
 	Environment,
 }
 
+internal enum MapEditorPlacementPreviewKind
+{
+	Terrain,
+	Fixture,
+}
+
 public enum MapEditorBrushApplyResult
 {
 	None,
@@ -29,8 +35,18 @@ public enum MapEditorBrushApplyResult
 
 public readonly record struct MapEditorBrush(string Id, string Label, string? Glyph = null);
 
+internal readonly record struct MapEditorPlacementPreview(
+	MapEditorPlacementPreviewKind Kind,
+	Vector3I HoverCell,
+	Vector3I TargetCell,
+	string BrushId,
+	string? BrushGlyph,
+	bool CanPlace,
+	bool ShowGhost);
+
 public sealed class MapEditorSession
 {
+	private const int TerrainPreviewScanDepth = 16;
 	private readonly GameState _state;
 	private readonly MapEditorHistory _history = new();
 	private readonly List<MapEditorBrush> _terrainBrushes = [];
@@ -204,60 +220,45 @@ public sealed class MapEditorSession
 	public void SetIgnoreConnectivityRequirement(bool ignore) =>
 		IgnoreConnectivityRequirement = ignore;
 
+	internal MapEditorPlacementPreview? ResolvePlacementPreview(Vector3I? hoverWorld)
+	{
+		var (preview, _) = ResolvePlacementPreviewCore(hoverWorld);
+		return preview;
+	}
+
 	public MapEditorBrushApplyResult ApplyBrush(int x, int y, int pickedZ)
 	{
 		if (_state.World == null)
 			return MapEditorBrushApplyResult.None;
 
-		var brush = CurrentBrush;
-		if (CurrentCategory == MapEditorBrushCategory.Terrain)
+		var (preview, applyResult) = ResolvePlacementPreviewCore(new Vector3I(x, y, pickedZ));
+		if (preview is not { CanPlace: true } resolved)
+			return applyResult;
+
+		if (resolved.Kind == MapEditorPlacementPreviewKind.Terrain)
 		{
-			var pickedTerrain = _state.World.GetTerrain(x, y, pickedZ).StringId;
-			int placeZ;
-			if (pickedTerrain is Terrains.Air or Terrains.Void)
-			{
-				placeZ = pickedZ;
-			}
-			else
-			{
-				// Scan upward (Z decreasing) from the picked block to find the first empty cell
-				placeZ = pickedZ - 1;
-				const int maxScanDepth = 16;
-				var scanned = 0;
-				while (_state.World.GetTerrain(x, y, placeZ).StringId is not (Terrains.Air or Terrains.Void))
-				{
-					placeZ--;
-					if (++scanned >= maxScanDepth)
-						return MapEditorBrushApplyResult.None;
-				}
-			}
-
-			if (_state.World.GetTerrain(x, y, placeZ).StringId == brush.Id)
-				return MapEditorBrushApplyResult.None;
-
-			var requiresConnectivity = brush.Id is not (Terrains.Air or Terrains.Void) &&
-				!IgnoreConnectivityRequirement;
-			if (requiresConnectivity && !BlockPlacementRules.HasFaceConnectedTerrain(_state.World, x, y, placeZ))
-				return MapEditorBrushApplyResult.ConnectivityRequired;
-
-			var oldTerrain = _state.World.GetTerrain(x, y, placeZ).StringId;
-			_history.Execute(new SetTerrainCommand(x, y, placeZ, brush.Id, oldTerrain), _state.World);
+			var oldTerrain = _state.World.GetTerrain(resolved.TargetCell.X, resolved.TargetCell.Y, resolved.TargetCell.Z).StringId;
+			_history.Execute(new SetTerrainCommand(
+				resolved.TargetCell.X,
+				resolved.TargetCell.Y,
+				resolved.TargetCell.Z,
+				resolved.BrushId,
+				oldTerrain), _state.World);
 			return MapEditorBrushApplyResult.Applied;
 		}
 
-		if (CurrentCategory == MapEditorBrushCategory.Fixture)
-		{
-			var z = pickedZ;
-			var oldFixtureId = _state.World.GetFixtureId(x, y, z);
-			var oldGlyph = EntityAccess.ResolveFixtureGlyph(oldFixtureId);
-			var newGlyph = brush.Glyph ?? string.Empty;
-			if (oldFixtureId == brush.Id)
-				return MapEditorBrushApplyResult.None;
-			_history.Execute(new SetFixtureCommand(x, y, z, brush.Id, newGlyph, oldFixtureId, oldGlyph), _state.World);
-			return MapEditorBrushApplyResult.Applied;
-		}
-
-		return MapEditorBrushApplyResult.None;
+		var oldFixtureId = _state.World.GetFixtureId(resolved.TargetCell.X, resolved.TargetCell.Y, resolved.TargetCell.Z);
+		var oldGlyph = EntityAccess.ResolveFixtureGlyph(oldFixtureId);
+		var newGlyph = resolved.BrushGlyph ?? string.Empty;
+		_history.Execute(new SetFixtureCommand(
+			resolved.TargetCell.X,
+			resolved.TargetCell.Y,
+			resolved.TargetCell.Z,
+			resolved.BrushId,
+			newGlyph,
+			oldFixtureId,
+			oldGlyph), _state.World);
+		return MapEditorBrushApplyResult.Applied;
 	}
 
 	public void EraseBrush(int x, int y, int pickedZ)
@@ -292,6 +293,118 @@ public sealed class MapEditorSession
 	{
 		if (_state.World == null) return false;
 		return _history.Redo(_state.World);
+	}
+
+	private (MapEditorPlacementPreview? Preview, MapEditorBrushApplyResult ApplyResult) ResolvePlacementPreviewCore(Vector3I? hoverWorld)
+	{
+		if (_state.World == null || hoverWorld is not { } hoverCell)
+			return (null, MapEditorBrushApplyResult.None);
+
+		var brush = CurrentBrush;
+		return CurrentCategory switch
+		{
+			MapEditorBrushCategory.Terrain => ResolveTerrainPlacementPreview(hoverCell, brush),
+			MapEditorBrushCategory.Fixture => ResolveFixturePlacementPreview(hoverCell, brush),
+			_ => (null, MapEditorBrushApplyResult.None),
+		};
+	}
+
+	private (MapEditorPlacementPreview Preview, MapEditorBrushApplyResult ApplyResult) ResolveTerrainPlacementPreview(
+		Vector3I hoverCell,
+		MapEditorBrush brush)
+	{
+		var targetCell = ResolveTerrainTargetCell(hoverCell);
+		var previewGlyph = TerrainRegistry.Get(brush.Id)?.Glyph;
+		if (targetCell == null)
+		{
+			return (new MapEditorPlacementPreview(
+					MapEditorPlacementPreviewKind.Terrain,
+					hoverCell,
+					hoverCell,
+					brush.Id,
+					previewGlyph,
+					CanPlace: false,
+					ShowGhost: false),
+				MapEditorBrushApplyResult.None);
+		}
+
+		var targetTerrain = _state.World!.GetTerrain(targetCell.Value.X, targetCell.Value.Y, targetCell.Value.Z).StringId;
+		if (targetTerrain == brush.Id)
+		{
+			return (new MapEditorPlacementPreview(
+					MapEditorPlacementPreviewKind.Terrain,
+					hoverCell,
+					targetCell.Value,
+					brush.Id,
+					previewGlyph,
+					CanPlace: false,
+					ShowGhost: false),
+				MapEditorBrushApplyResult.None);
+		}
+
+		var requiresConnectivity = brush.Id is not (Terrains.Air or Terrains.Void) &&
+			!IgnoreConnectivityRequirement;
+		if (requiresConnectivity && !BlockPlacementRules.HasFaceConnectedTerrain(
+				_state.World!,
+				targetCell.Value.X,
+				targetCell.Value.Y,
+				targetCell.Value.Z))
+		{
+			return (new MapEditorPlacementPreview(
+					MapEditorPlacementPreviewKind.Terrain,
+					hoverCell,
+					targetCell.Value,
+					brush.Id,
+					previewGlyph,
+					CanPlace: false,
+					ShowGhost: false),
+				MapEditorBrushApplyResult.ConnectivityRequired);
+		}
+
+		return (new MapEditorPlacementPreview(
+				MapEditorPlacementPreviewKind.Terrain,
+				hoverCell,
+				targetCell.Value,
+				brush.Id,
+				previewGlyph,
+				CanPlace: true,
+				ShowGhost: brush.Id is not (Terrains.Air or Terrains.Void)),
+			MapEditorBrushApplyResult.Applied);
+	}
+
+	private (MapEditorPlacementPreview Preview, MapEditorBrushApplyResult ApplyResult) ResolveFixturePlacementPreview(
+		Vector3I hoverCell,
+		MapEditorBrush brush)
+	{
+		var existingFixtureId = _state.World!.GetFixtureId(hoverCell.X, hoverCell.Y, hoverCell.Z);
+		var previewGlyph = brush.Glyph ?? EntityAccess.ResolveFixtureGlyph(brush.Id);
+		var canPlace = !string.Equals(existingFixtureId, brush.Id, StringComparison.Ordinal);
+		return (new MapEditorPlacementPreview(
+				MapEditorPlacementPreviewKind.Fixture,
+				hoverCell,
+				hoverCell,
+				brush.Id,
+				previewGlyph,
+				canPlace,
+				ShowGhost: canPlace),
+			canPlace ? MapEditorBrushApplyResult.Applied : MapEditorBrushApplyResult.None);
+	}
+
+	private Vector3I? ResolveTerrainTargetCell(Vector3I hoverCell)
+	{
+		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
+		if (pickedTerrain is Terrains.Air or Terrains.Void)
+			return hoverCell;
+
+		var placeZ = hoverCell.Z - 1;
+		for (var scanned = 0; scanned < TerrainPreviewScanDepth; scanned++, placeZ--)
+		{
+			var terrain = _state.World.GetTerrain(hoverCell.X, hoverCell.Y, placeZ).StringId;
+			if (terrain is Terrains.Air or Terrains.Void)
+				return new Vector3I(hoverCell.X, hoverCell.Y, placeZ);
+		}
+
+		return null;
 	}
 
 	private void RefreshFixtureBrushes()

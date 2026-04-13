@@ -140,6 +140,7 @@ public partial class Main
 			_mapEditor.CameraY,
 			_mapEditor.CameraZ,
 			_mapEditor.HoverWorld,
+			_mapEditor.ResolvePlacementPreview(_mapEditor.HoverWorld),
 			SyncViewToActiveActor,
 			MarkUIDirty);
 	}
