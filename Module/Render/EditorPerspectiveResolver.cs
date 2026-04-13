@@ -8,7 +8,7 @@ namespace MiniRPG.Module.Render;
 
 internal static class EditorPerspectiveResolver
 {
-	internal const float SoftFadeAlpha = 0.18f;
+	internal const float SoftFadeAlpha = 0.30f;
 	private const int GeometryFallbackRadius = 2;
 
 	public static EditorPerspectiveResult Resolve(
