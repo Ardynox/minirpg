@@ -253,7 +253,7 @@ public partial class IsometricVoxelRenderer
 
 	// ── Orchestration (Flush / Advance / Coordinate Picking / Zoom) ──
 
-	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector2I? hoverWorld = null)
+	public void SetEditorView(bool active, int centerX, int centerY, int centerZ, Vector3I? hoverWorld = null)
 	{
 		_editorViewActive = active;
 		_viewCenterX = centerX;
@@ -319,6 +319,24 @@ public partial class IsometricVoxelRenderer
 	public bool TryGetWorldCellFromGlobalPosition(Vector2 globalPos, out Vector3I worldCell)
 	{
 		worldCell = Vector3I.Zero;
+		if (!TryGetMapLocalFromGlobalPosition(globalPos, out var mapLocal))
+			return false;
+
+		return TryPickIsometricCell(mapLocal, out worldCell);
+	}
+
+	public bool TryGetEditorWorldCellFromGlobalPosition(Vector2 globalPos, int targetZ, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (!TryGetMapLocalFromGlobalPosition(globalPos, out var mapLocal))
+			return false;
+
+		return TryPickEditorCell(mapLocal, targetZ, out worldCell);
+	}
+
+	private bool TryGetMapLocalFromGlobalPosition(Vector2 globalPos, out Vector2 mapLocal)
+	{
+		mapLocal = Vector2.Zero;
 		if (_viewportContainer == null || _subViewport == null || _camera == null)
 			return false;
 
@@ -332,11 +350,10 @@ public partial class IsometricVoxelRenderer
 			localInContainer.Y * _subViewport.Size.Y / rect.Size.Y);
 		var viewportSize = new Vector2(_subViewport.Size.X, _subViewport.Size.Y);
 		var screenOffset = viewportPos - viewportSize / 2f;
-		var mapLocal = _camera.Position + new Vector2(
+		mapLocal = _camera.Position + new Vector2(
 			screenOffset.X / _camera.Zoom.X,
 			screenOffset.Y / _camera.Zoom.Y);
-
-		return TryPickIsometricCell(mapLocal, out worldCell);
+		return true;
 	}
 
 	private bool TryPickIsometricCell(Vector2 screenPos, out Vector3I worldCell)
@@ -367,6 +384,17 @@ public partial class IsometricVoxelRenderer
 		}
 
 		return false;
+	}
+
+	private bool TryPickEditorCell(Vector2 screenPos, int targetZ, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (_state.World == null)
+			return false;
+
+		var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, targetZ);
+		worldCell = new Vector3I(wx, wy, targetZ);
+		return true;
 	}
 
 	public bool TryGetWorldEffectPosition(int wx, int wy, int wz, out Vector2 position)

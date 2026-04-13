@@ -32,7 +32,7 @@ public sealed class MapEditorSession
 	private int _terrainBrushIndex;
 	private int _fixtureBrushIndex;
 	private int _selectedZ;
-	private Vector2I? _hoverWorld;
+	private Vector3I? _hoverWorld;
 
 	public MapEditorSession(GameState state)
 	{
@@ -47,7 +47,7 @@ public sealed class MapEditorSession
 	public int CameraY { get; private set; }
 	public int CameraZ => _selectedZ;
 	public string? SavePath { get; private set; }
-	public Vector2I? HoverWorld => _hoverWorld;
+	public Vector3I? HoverWorld => _hoverWorld;
 	public bool StartedFromMenu => EntryMode == MapEditorEntryMode.MenuBlank;
 	public bool CanCenterOnPlayer => EntryMode == MapEditorEntryMode.InGame;
 	public bool CanUndo => _history.CanUndo;
@@ -183,7 +183,7 @@ public sealed class MapEditorSession
 		SelectBrush(next);
 	}
 
-	public bool SetHover(Vector2I? hoverWorld)
+	public bool SetHover(Vector3I? hoverWorld)
 	{
 		if (_hoverWorld == hoverWorld)
 			return false;

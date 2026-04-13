@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using Godot;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.World;
+using MiniRPG.Core.World.Generators;
 using MiniRPG.Module.Render;
 using Xunit;
 
@@ -98,6 +100,28 @@ public sealed class IsometricRenderTests
 			Assert.Equal(x, cx);
 			Assert.Equal(y, cy);
 		}
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_TryPickEditorCell_PreservesTargetLayer()
+	{
+		var state = new GameState
+		{
+			World = new WorldMap(worldSeed: 7, new BlankFloorGenerator()),
+		};
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker(), viewW: 20, viewH: 20);
+		var method = typeof(IsometricVoxelRenderer).GetMethod("TryPickEditorCell", BindingFlags.NonPublic | BindingFlags.Instance);
+
+		Assert.NotNull(method);
+
+		var expected = new Vector3I(6, -2, -3);
+		var screen = IsoCoordUtil.WorldToScreen(expected.X, expected.Y, expected.Z);
+		object?[] args = [screen, expected.Z, null];
+
+		var picked = (bool)method!.Invoke(renderer, args)!;
+
+		Assert.True(picked);
+		Assert.Equal(expected, Assert.IsType<Vector3I>(args[2]));
 	}
 
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)

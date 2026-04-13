@@ -557,7 +557,9 @@ public partial class Main
 			_turnControllerPanelController,
 			() => SyncSettingsUiState(),
 			ShowMainMenuWithCurrentContinue,
-			CloseAllInGamePanels);
+			CloseAllInGamePanels,
+			SetWorldHoverCellFromMapEditor,
+			PositionWorldHoverOverlay);
 		_mainInputCoordinator = new MainInputCoordinator(
 			_modalInputLayers,
 			() => GetViewport().SetInputAsHandled(),

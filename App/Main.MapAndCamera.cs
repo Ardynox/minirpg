@@ -263,7 +263,7 @@ public partial class Main
 		return false;
 	}
 
-	private void SetWorldHoverCell(Vector3I? cell)
+	private void SetWorldHoverCell(Vector3I? cell, bool flushMap = true)
 	{
 		if (_hoverWorldCell == cell)
 			return;
@@ -273,9 +273,12 @@ public partial class Main
 		if (_worldHoverRoot != null)
 			_worldHoverRoot.Visible = false;
 		RefreshWorldHoverOverlay();
-		if (_session.GameStarted && !_menu.InMenu && RenderReady)
+		if (flushMap && _session.GameStarted && !_menu.InMenu && RenderReady)
 			FlushMap();
 	}
+
+	private void SetWorldHoverCellFromMapEditor(Vector3I? cell) =>
+		SetWorldHoverCell(cell, flushMap: false);
 
 	private const float HoverShowDelay = 0.35f;
 	private const float HoverFadeDuration = 0.18f;

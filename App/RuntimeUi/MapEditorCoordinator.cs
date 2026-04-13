@@ -30,6 +30,8 @@ internal sealed class MapEditorCoordinator
 	private readonly Action _syncSettingsUiState;
 	private readonly Action _showMainMenuWithCurrentContinue;
 	private readonly Action _closeAllInGamePanels;
+	private readonly Action<Vector3I?> _setWorldHoverCell;
+	private readonly Action<Vector2> _positionWorldHoverOverlay;
 
 	public MapEditorCoordinator(
 		GameState state,
@@ -48,7 +50,9 @@ internal sealed class MapEditorCoordinator
 		TurnControllerPanelController turnController,
 		Action syncSettingsUiState,
 		Action showMainMenuWithCurrentContinue,
-		Action closeAllInGamePanels)
+		Action closeAllInGamePanels,
+		Action<Vector3I?> setWorldHoverCell,
+		Action<Vector2> positionWorldHoverOverlay)
 	{
 		_state = state;
 		_session = session;
@@ -67,6 +71,8 @@ internal sealed class MapEditorCoordinator
 		_syncSettingsUiState = syncSettingsUiState;
 		_showMainMenuWithCurrentContinue = showMainMenuWithCurrentContinue;
 		_closeAllInGamePanels = closeAllInGamePanels;
+		_setWorldHoverCell = setWorldHoverCell;
+		_positionWorldHoverOverlay = positionWorldHoverOverlay;
 	}
 
 	public bool Active => _session.Active;
@@ -81,6 +87,7 @@ internal sealed class MapEditorCoordinator
 		_panels.ClearFocus();
 		_closeAllInGamePanels();
 		_session.Enter(entryMode, savePath);
+		ClearEditorHover(flushMap: false);
 
 		// Default to daytime if current turn is in night/dawn/dusk range
 		var phase = _state.Turn % 120;
@@ -99,6 +106,7 @@ internal sealed class MapEditorCoordinator
 
 		var startedFromMenu = _session.StartedFromMenu;
 		_session.Exit();
+		ClearEditorHover(flushMap: false);
 		_bar.Close();
 		_closeSaveNameDialog();
 		_turnController.Close();
@@ -176,22 +184,28 @@ internal sealed class MapEditorCoordinator
 	{
 		if (@event is InputEventMouse mouse &&
 			(_bar.IsPointerOver(mouse.GlobalPosition) || _turnController.IsPointerOver(mouse.GlobalPosition)))
+		{
+			ClearEditorHover();
 			return false;
+		}
 
 		var renderer = _getRenderer();
-		if (renderer == null) return false;
+		if (renderer == null)
+		{
+			if (@event is InputEventMouseMotion)
+				ClearEditorHover();
+			return false;
+		}
 
 		if (@event is InputEventMouseMotion motion)
 		{
-			if (renderer.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var hovered))
+			if (renderer.TryGetEditorWorldCellFromGlobalPosition(motion.GlobalPosition, _session.CameraZ, out var hovered))
 			{
-				if (_session.SetHover(new Vector2I(hovered.X, hovered.Y)))
-					_flushMap();
+				UpdateEditorHover(hovered, motion.GlobalPosition);
 				return true;
 			}
 
-			if (_session.SetHover(null))
-				_flushMap();
+			ClearEditorHover();
 			return false;
 		}
 
@@ -209,10 +223,13 @@ internal sealed class MapEditorCoordinator
 		if (mb.ButtonIndex is not MouseButton.Left and not MouseButton.Right)
 			return false;
 
-		if (!renderer.TryGetWorldCellFromGlobalPosition(mb.GlobalPosition, out var worldCell))
+		if (!renderer.TryGetEditorWorldCellFromGlobalPosition(mb.GlobalPosition, _session.CameraZ, out var worldCell))
+		{
+			ClearEditorHover();
 			return false;
+		}
 
-		_session.SetHover(new Vector2I(worldCell.X, worldCell.Y));
+		SetEditorHoverCell(worldCell, mb.GlobalPosition);
 		if (mb.ButtonIndex == MouseButton.Left)
 			_session.ApplyBrush(worldCell.X, worldCell.Y, worldCell.Z);
 		else
@@ -259,6 +276,7 @@ internal sealed class MapEditorCoordinator
 	public void CenterOnPlayer()
 	{
 		_session.CenterOnPlayer();
+		ClearEditorHover(flushMap: false);
 		RefreshBar();
 		_flushMap();
 	}
@@ -266,6 +284,7 @@ internal sealed class MapEditorCoordinator
 	public void HandleHeightChanged(int delta)
 	{
 		_session.AdjustZ(delta);
+		ClearEditorHover(flushMap: false);
 		RefreshBar();
 		_flushMap();
 	}
@@ -348,5 +367,29 @@ internal sealed class MapEditorCoordinator
 		_closeSaveNameDialog();
 		_doSave(path, _gameSession.DescribeSavePath(path));
 		_session.UpdateSavePath(path);
+	}
+
+	private void UpdateEditorHover(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
+	{
+		var changed = _session.SetHover(hoveredCell);
+		_setWorldHoverCell(hoveredCell);
+		_positionWorldHoverOverlay(pointerGlobalPosition);
+		if (changed)
+			_flushMap();
+	}
+
+	private void SetEditorHoverCell(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
+	{
+		_session.SetHover(hoveredCell);
+		_setWorldHoverCell(hoveredCell);
+		_positionWorldHoverOverlay(pointerGlobalPosition);
+	}
+
+	private void ClearEditorHover(bool flushMap = true)
+	{
+		var changed = _session.SetHover(null);
+		_setWorldHoverCell(null);
+		if (flushMap && changed)
+			_flushMap();
 	}
 }
