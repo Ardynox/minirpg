@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
 using MiniRPG.Module.WorldTool;
 
@@ -50,6 +51,18 @@ internal sealed class RuntimeWorldToolSession
 	public RuntimeWorldToolBrush CurrentBrush => CurrentCategory == WorldToolCategory.Facility
 		? (_facilityBrushes.Count > 0 ? _facilityBrushes[Math.Clamp(_facilityBrushIndex, 0, _facilityBrushes.Count - 1)] : default)
 		: (_terrainBrushes.Count > 0 ? _terrainBrushes[Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1)] : default);
+
+	public void ResetForSession()
+	{
+		RefreshBrushes();
+		CurrentToolMode = WorldToolMode.Select;
+		CurrentCategory = WorldToolCategory.Terrain;
+		HoverWorld = null;
+		_reverseStack = false;
+		_facilityRotationSeeded = false;
+		_facilityBrushIndex = _facilityBrushes.Count > 0 ? Math.Clamp(_facilityBrushIndex, 0, _facilityBrushes.Count - 1) : -1;
+		_terrainBrushIndex = _terrainBrushes.Count > 0 ? Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1) : -1;
+	}
 
 	public void RefreshBrushes()
 	{
@@ -153,18 +166,25 @@ internal sealed class RuntimeWorldToolSession
 
 	public string BuildSummary(WorldToolPreviewState? previewState)
 	{
+		if (CurrentToolMode == WorldToolMode.Select)
+			return LocalizationService.TOrFallback("ui.runtime_tool.summary.select", "Select mode: inspect actors or cells.");
+
 		var actor = ResolveActiveActor();
 		if (_state.RuntimeFreeBuild)
 			return LocalizationService.TOrFallback("ui.runtime_tool.summary.free_build", "Free Build");
 
 		if (CurrentToolMode == WorldToolMode.Demolish && previewState is { CanApply: true })
 		{
-			var refund = previewState.Kind switch
+			var preview = previewState.Value;
+			var refund = preview.Kind switch
 			{
-				WorldToolPreviewKind.Facility => RuntimeBuildActionModule.GetFacilityDemolishRefund(previewState.GhostFacility),
-				_ => ResolveTerrainRefund(previewState.ResolvedTargetCell),
+				WorldToolPreviewKind.Facility => RuntimeBuildActionModule.GetFacilityDemolishRefund(preview.GhostFacility),
+				_ => ResolveTerrainRefund(preview.ResolvedTargetCell),
 			};
-			return FormatMaterialSummary(refund, actor, affordPrefix: "Refund");
+			return FormatMaterialSummary(
+				refund,
+				actor,
+				affordPrefix: LocalizationService.TOrFallback("ui.runtime_tool.summary.refund", "Refund"));
 		}
 
 		var costs = CurrentCategory == WorldToolCategory.Facility

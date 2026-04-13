@@ -430,8 +430,15 @@ public partial class IsometricVoxelRenderer
 
 	internal static Vector3I? ResolveHoverHighlightCell(
 		Vector3I? hoverWorldCell,
-		WorldToolPreviewState? previewState) =>
-		previewState?.ResolvedTargetCell ?? hoverWorldCell;
+		WorldToolPreviewState? previewState)
+	{
+		if (previewState is not { } preview)
+			return hoverWorldCell;
+
+		return preview.ToolMode == WorldToolMode.Build
+			? preview.ResolvedTargetCell ?? hoverWorldCell
+			: preview.ResolvedTargetCell;
+	}
 
 	internal static Vector3I? ResolveHoverHighlightCell(
 		bool editorViewActive,

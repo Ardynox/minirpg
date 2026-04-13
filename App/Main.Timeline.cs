@@ -308,7 +308,7 @@ public partial class Main
 
 		_inputModule.CancelSelection();
 		ClearArmedSkill(restoreFocus: false);
-		EndInspectMode(restoreFocus: false);
+		EndSkillTargetCursorMode(restoreFocus: false);
 		ClearPlayerTargeting();
 		_playerRestModeActive = false;
 		ResetThreatHud();

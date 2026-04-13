@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
@@ -15,6 +16,14 @@ namespace MiniRPG.Tests;
 
 public sealed class IsometricRenderTests
 {
+	public IsometricRenderTests()
+	{
+		LocalizationService.Initialize();
+		LocalizationService.SetLocale("en", notify: false);
+		TerrainRegistry.Load("terrains.json");
+		PresetDB.Load();
+	}
+
 	[Fact]
 	public void IsoCoordUtil_WorldToScreen_And_ScreenToWorld_AreConsistent()
 	{

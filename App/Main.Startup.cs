@@ -314,6 +314,7 @@ public partial class Main
 		var mapEditorBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/MapEditorBar");
 		mapEditorBarNode.Theme = _uiTheme;
 		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
+		InitializeRuntimeWorldToolUi();
 		var turnControllerNode = GetNode<PanelContainer>($"{OverlayRootPath}/TurnControllerPanel");
 		turnControllerNode.Theme = _uiTheme;
 		var turnControllerModule = new TurnControllerPanelModule(turnControllerNode);
@@ -446,7 +447,7 @@ public partial class Main
 			DoEnterGame,
 			HideSettingsPanels,
 			() => ClearArmedSkill(restoreFocus: false),
-			() => EndInspectMode(restoreFocus: false),
+			() => EndSkillTargetCursorMode(restoreFocus: false),
 			ClearPlayerTargeting,
 			ResetThreatHud,
 			() => _log.Clear(),
@@ -499,7 +500,13 @@ public partial class Main
 				var snapshot = _mapRender.LastPerfSnapshot;
 				return (snapshot.ActiveSpriteCount, snapshot.DrawCommandCount, snapshot.FrameTimeAvgMs);
 			},
-			() => _mapRender?.ToggleRevealAll() ?? false);
+			() => _mapRender?.ToggleRevealAll() ?? false,
+			() =>
+			{
+				_runtimeWorldToolSession.RefreshBrushes();
+				RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+				RefreshRuntimeWorldToolBar();
+			});
 		_runtime = BuildRuntimeComposition();
 		_multiplayerFlowCoordinator = new MultiplayerFlowCoordinator(
 			AppSettingsStore.LoadMultiplayerSettings,
@@ -569,7 +576,7 @@ public partial class Main
 			HandleLayoutEditInput,
 			HandleMapEditorKeyInput,
 			HandleMapEditorMouseInput,
-			HandleInspectModeKey,
+			HandleRuntimeWorldToolKey,
 			_panels.HandleKey,
 			_inputModule.HandleKeyInput,
 			HandleGameplayMouseInput);

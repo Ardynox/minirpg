@@ -25,6 +25,15 @@ public partial class Main
 		if (HandleWorldHoverInput(@event, snapshot))
 			return true;
 
+		if (@event is InputEventMouseButton releasedButton
+			&& releasedButton.ButtonIndex == MouseButton.Left
+			&& !releasedButton.Pressed)
+		{
+			_runtimeWorldToolDragActive = false;
+			_runtimeWorldToolLastAppliedCell = null;
+			return false;
+		}
+
 		if (@event is not InputEventMouseButton mb || !mb.Pressed)
 			return false;
 		if (!snapshot.AllowGameplayInput)
@@ -33,8 +42,13 @@ public partial class Main
 		if (HandleGameplayMouseWheelInput(mb, snapshot))
 			return true;
 
+		if (_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(mb.GlobalPosition))
+			return false;
+
 		if (snapshot.AllowPanelChrome && _panelChrome.IsPointerOverInteractiveChrome(mb.GlobalPosition))
 			return false;
+
+		var hit = _panels.HitTest(mb.GlobalPosition);
 
 		if (mb.ButtonIndex == MouseButton.Right)
 		{
@@ -60,7 +74,33 @@ public partial class Main
 		if (mb.ButtonIndex != MouseButton.Left)
 			return false;
 
-		var hit = _panels.HitTest(mb.GlobalPosition);
+		if (hit != null && hit.PanelId != "map")
+		{
+			if (hit == _panels.Focused)
+				return false;
+
+			if (hit.PanelId == "inventory" && !_inventoryPanel.Visible)
+			{
+				_inventoryPanel.Visible = true;
+				FlushMap();
+			}
+
+			_panels.FocusFromPointer(hit, false);
+			return false;
+		}
+
+		if (_mapRender != null && _mapRender.TryGetWorldCellFromGlobalPosition(mb.GlobalPosition, out var worldCell))
+		{
+			_runtimeWorldToolSession.SetReverseStack(mb.CtrlPressed);
+			_runtimeWorldToolSession.SetHover(worldCell);
+			_runtimeWorldToolDragActive = SupportsRuntimeWorldToolDrag();
+			_runtimeWorldToolLastAppliedCell = null;
+			RefreshRuntimeWorldHoverPresentation(worldCell, mb.GlobalPosition);
+			_panels.SetFocus("map");
+			TryApplyRuntimeWorldToolAtCell(worldCell);
+			return true;
+		}
+
 		if (hit == null)
 			return false;
 

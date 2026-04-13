@@ -143,10 +143,11 @@ public partial class Main
 	/// <summary>立即刷新地图，标记 UI 面板为脏（由 _Process 统一驱动刷新）。</summary>
 	private void FlushMap()
 	{
+		var runtimePreviewState = ResolveRuntimeWorldToolPreviewState();
 		_runtimeViewCoordinator.FlushMap(
-			_inspectModeActive,
-			_inspectWorldCell,
-			_hoverWorldCell,
+			_runtimeWorldToolSession.HoverWorld,
+			runtimePreviewState,
+			_skillTargetCursorActive ? _skillTargetWorldCell : null,
 			MapEditorActive,
 			_mapEditor.CameraX,
 			_mapEditor.CameraY,
@@ -261,17 +262,47 @@ public partial class Main
 
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
+			_runtimeWorldToolDragActive = false;
+			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolSession.SetHover(null);
+			SetWorldHoverCell(null);
+			RefreshRuntimeWorldToolBar(snapshot);
+			return false;
+		}
+
+		if (_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(motion.GlobalPosition))
+		{
+			_runtimeWorldToolDragActive = false;
+			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolSession.SetHover(null);
+			RefreshRuntimeWorldHoverPresentation(null);
 			SetWorldHoverCell(null);
 			return false;
 		}
 
+		var reverseStackChanged = _runtimeWorldToolSession.SetReverseStack(motion.CtrlPressed);
 		if (_mapRender.TryGetWorldCellFromGlobalPosition(motion.GlobalPosition, out var worldCell))
 		{
-			SetWorldHoverCell(worldCell);
-			PositionWorldHoverOverlay(motion.GlobalPosition);
+			var hoverChanged = _runtimeWorldToolSession.SetHover(worldCell);
+			RefreshRuntimeWorldHoverPresentation(worldCell, motion.GlobalPosition);
+			if (_runtimeWorldToolDragActive
+				&& SupportsRuntimeWorldToolDrag()
+				&& (motion.ButtonMask & MouseButtonMask.Left) != 0)
+			{
+				var previewState = ResolveRuntimeWorldToolPreviewState();
+				var dragTargetCell = previewState?.ResolvedTargetCell ?? worldCell;
+				if (_runtimeWorldToolLastAppliedCell != dragTargetCell)
+					TryApplyRuntimeWorldToolAtCell(worldCell);
+			}
+			if ((hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
+				FlushMap();
 			return false;
 		}
 
+		_runtimeWorldToolSession.SetHover(null);
+		_runtimeWorldToolDragActive = false;
+		_runtimeWorldToolLastAppliedCell = null;
+		RefreshRuntimeWorldHoverPresentation(null);
 		SetWorldHoverCell(null);
 		return false;
 	}

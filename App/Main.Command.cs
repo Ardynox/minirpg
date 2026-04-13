@@ -64,12 +64,6 @@ public partial class Main
 			return;
 		}
 
-		if (cmd == ":inspect_mode")
-		{
-			HandleInspectToggleCommand();
-			return;
-		}
-
 		if (cmd == ":debug_panel")
 		{
 			ToggleDebugPanel();

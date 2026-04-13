@@ -24,6 +24,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	private readonly Func<bool> _enabled;
 	private readonly Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> _renderPerfSnapshot;
 	private readonly Func<bool>? _toggleRevealAll;
+	private readonly Action? _runtimeBuildStateChanged;
 
 	private DebugPanelModule? _panel;
 
@@ -40,7 +41,8 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		Func<bool> menuInMenu,
 		Func<bool> enabled,
 		Func<(int ActiveSpriteCount, int DrawCommandCount, double FrameTimeAvgMs)> renderPerfSnapshot,
-		Func<bool>? toggleRevealAll = null)
+		Func<bool>? toggleRevealAll = null,
+		Action? runtimeBuildStateChanged = null)
 	{
 		_state = state;
 		_session = session;
@@ -55,6 +57,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		_enabled = enabled;
 		_renderPerfSnapshot = renderPerfSnapshot;
 		_toggleRevealAll = toggleRevealAll;
+		_runtimeBuildStateChanged = runtimeBuildStateChanged;
 	}
 
 	public void Toggle()
@@ -118,6 +121,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	DebugModule.Result DebugPanelModule.IHost.ExecuteUnlockWeather() => ApplyResult(DebugModule.UnlockWeather(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteStepWeather(int turns) => ApplyResult(DebugModule.StepWeather(_state, turns));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteClearWeatherAccumulation() => ApplyResult(DebugModule.ClearWeatherAccumulation(_state));
+	DebugModule.Result DebugPanelModule.IHost.ExecuteToggleFreeBuild() => ApplyResult(ExecuteToggleFreeBuild());
 	DebugModule.Result DebugPanelModule.IHost.ExecuteQueryFacilityStatus() => ApplyResult(DebugModule.QueryFacilityStatus(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecutePlaceFacility(string facilityId, string? directionId) => ApplyResult(DebugModule.PlaceFacility(_state, facilityId, directionId));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteFacilityDeliver() => ApplyResult(ExecuteFacilityDeliverDebugAction());
@@ -136,6 +140,23 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 		{
 			Logs = [nowRevealed ? "Full map vision: ON" : "Full map vision: OFF"],
 			NeedsFlush = true,
+		};
+	}
+
+	private DebugModule.Result ExecuteToggleFreeBuild()
+	{
+		_state.RuntimeFreeBuild = !_state.RuntimeFreeBuild;
+		_runtimeBuildStateChanged?.Invoke();
+		return new DebugModule.Result
+		{
+			Logs =
+			[
+				_state.RuntimeFreeBuild
+					? LocalizationService.TOrFallback("log.debug.free_build.on", "Free Build enabled.")
+					: LocalizationService.TOrFallback("log.debug.free_build.off", "Free Build disabled."),
+			],
+			NeedsFlush = true,
+			NeedsUiRefresh = true,
 		};
 	}
 

@@ -36,8 +36,8 @@ public partial class Main
 
 		_armedSkillId = skillId;
 		CloseLimbTargetPanel();
-		if (_skillCastCursorActive)
-			EndInspectMode();
+		if (_skillTargetCursorActive)
+			EndSkillTargetCursorMode();
 
 		RefreshArmedSkillUi();
 	}
@@ -47,8 +47,8 @@ public partial class Main
 		_armedSkillId = null;
 		CloseLimbTargetPanel();
 		RefreshArmedSkillUi();
-		if (_skillCastCursorActive)
-			EndInspectMode(restoreFocus);
+		if (_skillTargetCursorActive)
+			EndSkillTargetCursorMode(restoreFocus);
 	}
 
 	private void RefreshArmedSkillUi()
@@ -254,26 +254,6 @@ public partial class Main
 		return null;
 	}
 
-	private void StartSkillCastCursorMode()
-	{
-		var skill = GetArmedSkill();
-		if (skill == null || !_session.GameStarted || _menu.InMenu || _mapRender == null)
-			return;
-
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null)
-			return;
-
-		_inspectModeActive = true;
-		_skillCastCursorActive = true;
-		_inspectWorldCell = ResolveSkillCursorOriginCell(player);
-		_inspectPreviousFocusId = _panels.FocusedId;
-		CloseActorInspectPanel();
-		_panels.SetFocus("map");
-		_log.Add(LocalizationService.T("ui.skill.targeting.entered", ("skill", skill.Name)));
-		FlushMap();
-	}
-
 	private bool TryCastArmedSkillAtMouse(Vector2 globalPosition)
 	{
 		if (_mapRender == null || !(_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out var worldCell)))
@@ -296,9 +276,9 @@ public partial class Main
 		var targetActor = targetType == SkillTargetType.Actor
 			? ActorModule.GetAt(_state, worldCell.X, worldCell.Y, worldCell.Z)
 			: null;
-		var restoreFocus = _skillCastCursorActive;
-		if (_inspectModeActive)
-			EndInspectMode(restoreFocus);
+		var restoreFocus = _skillTargetCursorActive;
+		if (_skillTargetCursorActive)
+			EndSkillTargetCursorMode(restoreFocus);
 
 		if (IsIdentifySkill(skill))
 			return TryHandleIdentifyActorTarget(targetActor);

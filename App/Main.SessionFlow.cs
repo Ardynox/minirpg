@@ -7,8 +7,9 @@ public partial class Main
 	private void FinalizeSessionPanels(bool openSkillBar)
 	{
 		ClearArmedSkill(restoreFocus: false);
-		EndInspectMode(restoreFocus: false);
+		EndSkillTargetCursorMode(restoreFocus: false);
 		ClearPlayerTargeting();
+		ResetRuntimeWorldToolSession();
 		ResetThreatHud();
 		RefreshPlayerCharacterVisual();
 		SyncSettingsUiState();

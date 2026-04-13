@@ -155,7 +155,7 @@ public readonly record struct BindingActionView(
 public sealed class InputBindingService
 {
 	private const string BindingFileName = "keybindings.json";
-	private const int BindingSchemaVersion = 2;
+	private const int BindingSchemaVersion = 3;
 
 	private readonly Dictionary<InputBindingContext, List<BindingActionState>> _byContext = [];
 	private readonly Dictionary<string, BindingActionState> _byId = [];
@@ -292,7 +292,7 @@ public sealed class InputBindingService
 			{
 				PropertyNameCaseInsensitive = true,
 			});
-			if (store == null || store.Bindings == null || store.Bindings.Count == 0)
+			if (store == null || store.Version != BindingSchemaVersion || store.Bindings == null || store.Bindings.Count == 0)
 			{
 				ResetAllNoSave();
 				SaveToDisk();
@@ -417,8 +417,7 @@ public sealed class InputBindingService
 			new("move_west", "input.action.move_west", InputBindingContext.Action, "a", InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
 			new("move_east", "input.action.move_east", InputBindingContext.Action, "d", InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
 			new("look", "input.action.look", InputBindingContext.Action, "look", InputGesture.FromKey(Key.L), default),
-			new("inspect_mode", "input.action.inspect_mode", InputBindingContext.Action, ":inspect_mode", InputGesture.FromKey(Key.Asterisk), InputGesture.FromKey(Key.KpMultiply)),
-			new("toggle_render", "input.action.toggle_render", InputBindingContext.Action, ":render", InputGesture.FromKey(Key.R), default),
+			new("toggle_render", "input.action.toggle_render", InputBindingContext.Action, ":render", InputGesture.FromKey(Key.R, ctrl: true), default),
 			new("interact", "input.action.interact", InputBindingContext.Action, ":interact", InputGesture.FromKey(Key.F), InputGesture.FromKey(Key.O)),
 			new("inventory", "input.action.inventory", InputBindingContext.Action, ":inventory", InputGesture.FromKey(Key.I), default),
 			new("rest", "input.action.rest", InputBindingContext.Action, ":rest", InputGesture.FromKey(Key.Y), default),

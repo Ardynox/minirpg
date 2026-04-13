@@ -131,6 +131,11 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.debug_panel.quick.reveal_all"
 
+[node name="FreeBuildBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.debug_panel.quick.free_build.enable"
+
 [node name="QuickSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
 layout_mode = 2
 

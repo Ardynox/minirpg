@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MiniRPG.Core.Facility;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module.Network;
+using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
 
@@ -126,15 +127,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private (int x, int y, int z)? _openChestPos;
 	private OpenContainerContext? _openChestContext;
 	private string? _armedSkillId;
-	private bool _inspectModeActive;
-	private bool _skillCastCursorActive;
-	private Vector3I? _inspectWorldCell;
+	private RuntimeWorldToolSession _runtimeWorldToolSession = null!;
+	private RuntimeWorldToolBarModule _runtimeWorldToolBar = null!;
+	private bool _runtimeWorldToolDragActive;
+	private Vector3I? _runtimeWorldToolLastAppliedCell;
+	private bool _skillTargetCursorActive;
+	private Vector3I? _skillTargetWorldCell;
 	private Vector3I? _hoverWorldCell;
 	private RichTextLabel _worldHoverRtl = null!;
 	private PanelContainer _worldHoverRoot = null!;
 	private float _hoverDwell;
 	private Vector2 _hoverLastMousePos;
-	private string? _inspectPreviousFocusId;
+	private string? _skillTargetPreviousFocusId;
 	private string? _inspectActorId;
 	private bool _playerRestModeActive;
 	private bool _enableKeyboardTargeting;
@@ -280,6 +284,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_incidentAlerts.Update((float)delta, !snapshot.SuppressHudAndAlerts);
 		TickWorldHoverOverlay((float)delta);
 		TickAltLabelOverlay(snapshot);
+		RefreshRuntimeWorldToolBar(snapshot);
 		if (snapshot.InMenu) return;
 
 		ProcessDirtyPanels();

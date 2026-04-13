@@ -1,0 +1,32 @@
+[
+  {
+    "terrainId": "floor",
+    "costs": [
+      { "itemId": "mat_wood", "count": 1 }
+    ]
+  },
+  {
+    "terrainId": "wall_soil",
+    "costs": [
+      { "itemId": "mat_wood", "count": 1 }
+    ]
+  },
+  {
+    "terrainId": "wall_stone",
+    "costs": [
+      { "itemId": "mat_stone", "count": 2 }
+    ]
+  },
+  {
+    "terrainId": "wall_granite",
+    "costs": [
+      { "itemId": "mat_stone", "count": 3 }
+    ]
+  },
+  {
+    "terrainId": "rubble",
+    "costs": [
+      { "itemId": "mat_stone", "count": 1 }
+    ]
+  }
+]

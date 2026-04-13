@@ -99,8 +99,8 @@ public partial class Main
 		AppSettingsStore.SaveEnableKeyboardTargeting(_enableKeyboardTargeting);
 		SyncSettingsUiState();
 
-		if (!_enableKeyboardTargeting && _inspectModeActive)
-			EndInspectMode(restoreFocus: false);
+		if (!_enableKeyboardTargeting && _skillTargetCursorActive)
+			EndSkillTargetCursorMode(restoreFocus: false);
 	}
 
 	private void ToggleFastTurnMode()
@@ -190,6 +190,8 @@ public partial class Main
 		_characterCreation.RefreshTexts();
 		_loadRecoveryDialog.RefreshTexts();
 		_mapEditorBar.RefreshTexts();
+		_runtimeWorldToolSession.RefreshBrushes();
+		_runtimeWorldToolBar.RefreshTexts();
 		_threatHud.RefreshTexts();
 		_targetSummaryHud.RefreshTexts();
 		_needsHud.RefreshTexts(ActorModule.GetPlayer(_state), _state.Turn);
@@ -200,6 +202,8 @@ public partial class Main
 
 		if (MapEditorActive)
 			RefreshMapEditorBar();
+
+		RefreshRuntimeWorldToolBar();
 
 		RefreshVisiblePanels();
 		if (IsWorldManagerOpen)

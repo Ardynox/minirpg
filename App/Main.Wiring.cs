@@ -1,4 +1,5 @@
 using MiniRPG.Core.World;
+using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
 
@@ -110,6 +111,33 @@ public partial class Main
 		_mapEditorBar.HeightChanged += delta => _mapEditorCoordinator.HandleHeightChanged(delta);
 		_mapEditorBar.IgnoreConnectivityRequirementChanged += ignore => _mapEditorCoordinator.HandleIgnoreConnectivityRequirementChanged(ignore);
 		_mapEditorBar.TurnControllerRequested += () => _mapEditorCoordinator.HandleTurnControllerRequested();
+		_runtimeWorldToolBar.ToolModeSelected += toolMode =>
+		{
+			_runtimeWorldToolSession.SetToolMode(toolMode);
+			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+			FlushMap();
+		};
+		_runtimeWorldToolBar.CategorySelected += category =>
+		{
+			_runtimeWorldToolSession.SetCategory(category);
+			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+			FlushMap();
+		};
+		_runtimeWorldToolBar.BrushSelected += index =>
+		{
+			if (_runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Facility)
+				_runtimeWorldToolSession.SelectFacilityBrush(index);
+			else
+				_runtimeWorldToolSession.SelectTerrainBrush(index);
+			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+			FlushMap();
+		};
+		_runtimeWorldToolBar.RotateRequested += delta =>
+		{
+			_runtimeWorldToolSession.RotateFacility(delta);
+			RefreshRuntimeWorldToolBar();
+			FlushMap();
+		};
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;

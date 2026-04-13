@@ -60,28 +60,20 @@ public sealed class KeyBindingsViewTests
 	}
 
 	[Fact]
-	public void ActionBindings_IncludeInspectModeShortcut()
+	public void ActionBindings_ReserveRForRuntimeRotation_AndKeepTypingShortcut()
 	{
 		using var fixture = CreateFixture();
 
-		var inspect = fixture.Bindings.GetActions(InputBindingContext.Action)
-			.Single(action => action.Id == "inspect_mode");
-
-		Assert.Equal(":inspect_mode", inspect.Command);
-		Assert.Equal(Key.Asterisk, inspect.Primary.Keycode);
-		Assert.Equal(Key.KpMultiply, inspect.Secondary.Keycode);
-	}
-
-	[Fact]
-	public void ActionBindings_IncludeDebugPanelShortcut_WithoutChangingTypingShortcut()
-	{
-		using var fixture = CreateFixture();
-
+		var toggleRender = fixture.Bindings.GetActions(InputBindingContext.Action)
+			.Single(action => action.Id == "toggle_render");
 		var debugPanel = fixture.Bindings.GetActions(InputBindingContext.Action)
 			.Single(action => action.Id == "debug_panel");
 		var openTyping = fixture.Bindings.GetActions(InputBindingContext.Action)
 			.Single(action => action.Id == "open_typing");
 
+		Assert.Equal(":render", toggleRender.Command);
+		Assert.Equal(Key.R, toggleRender.Primary.Keycode);
+		Assert.True(toggleRender.Primary.Ctrl);
 		Assert.Equal(":debug_panel", debugPanel.Command);
 		Assert.Equal(Key.F12, debugPanel.Primary.Keycode);
 		Assert.Equal(":typing", openTyping.Command);
