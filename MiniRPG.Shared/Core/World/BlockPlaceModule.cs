@@ -15,20 +15,26 @@ public static class BlockPlaceModule
 	{
 		var world = state.World;
 		if (world == null)
-			return [PlaceFailed(actor, "世界未初始化")];
+			return [PlaceFailed(actor, tx, ty, tz, "world_uninitialized")];
 
 		var current = world.GetTerrain(tx, ty, tz);
 
 		// 只能在空气或非实心格子放置
 		if (current.Solid)
-			return [PlaceFailed(actor, "目标位置已被占据")];
+			return [PlaceFailed(actor, tx, ty, tz, "occupied")];
 
 		if (current.StringId != Terrains.Air && current.StringId != Terrains.Void)
-			return [PlaceFailed(actor, "目标位置不是空气")];
+			return [PlaceFailed(actor, tx, ty, tz, "target_not_empty")];
 
 		var terrainId = TerrainRegistry.GetId(terrainStringId);
 		if (terrainId == 0 && terrainStringId != Terrains.Void)
-			return [PlaceFailed(actor, $"未知方块类型: {terrainStringId}")];
+			return [PlaceFailed(actor, tx, ty, tz, "unknown_terrain", terrainStringId)];
+
+		if (terrainStringId is not (Terrains.Air or Terrains.Void) &&
+			!BlockPlacementRules.HasFaceConnectedTerrain(world, tx, ty, tz))
+		{
+			return [PlaceFailed(actor, tx, ty, tz, "missing_support")];
+		}
 
 		// 检查玩家是否持有对应材料（简化：暂不检查背包）
 		world.SetTerrainId(tx, ty, tz, terrainId);
@@ -39,10 +45,19 @@ public static class BlockPlaceModule
 			InitiatorId = actor.Id,
 			TargetX = tx,
 			TargetY = ty,
+			TargetZ = tz,
 			ItemName = terrainStringId,
 		}];
 	}
 
-	private static GameEvent PlaceFailed(Actor actor, string reason) =>
-		new("block_place_failed") { InitiatorId = actor.Id, ItemName = reason };
+	private static GameEvent PlaceFailed(Actor actor, int tx, int ty, int tz, string failureReason, string? itemName = null) =>
+		new("block_place_failed")
+		{
+			InitiatorId = actor.Id,
+			TargetX = tx,
+			TargetY = ty,
+			TargetZ = tz,
+			FailureReason = failureReason,
+			ItemName = itemName,
+		};
 }

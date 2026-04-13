@@ -20,6 +20,13 @@ public enum MapEditorBrushCategory
 	Environment,
 }
 
+public enum MapEditorBrushApplyResult
+{
+	None,
+	Applied,
+	ConnectivityRequired,
+}
+
 public readonly record struct MapEditorBrush(string Id, string Label, string? Glyph = null);
 
 public sealed class MapEditorSession
@@ -53,6 +60,7 @@ public sealed class MapEditorSession
 	public bool CanUndo => _history.CanUndo;
 	public bool CanRedo => _history.CanRedo;
 	public int UndoCount => _history.UndoCount;
+	public bool IgnoreConnectivityRequirement { get; private set; }
 
 	public IReadOnlyList<MapEditorBrush> TerrainBrushes => _terrainBrushes;
 	public IReadOnlyList<MapEditorBrush> FixtureBrushes => _fixtureBrushes;
@@ -111,6 +119,7 @@ public sealed class MapEditorSession
 		CameraY = _state.PlayerY;
 		_selectedZ = _state.PlayerZ;
 		_hoverWorld = null;
+		IgnoreConnectivityRequirement = false;
 		_history.Clear();
 	}
 
@@ -192,10 +201,13 @@ public sealed class MapEditorSession
 		return true;
 	}
 
-	public void ApplyBrush(int x, int y, int pickedZ)
+	public void SetIgnoreConnectivityRequirement(bool ignore) =>
+		IgnoreConnectivityRequirement = ignore;
+
+	public MapEditorBrushApplyResult ApplyBrush(int x, int y, int pickedZ)
 	{
 		if (_state.World == null)
-			return;
+			return MapEditorBrushApplyResult.None;
 
 		var brush = CurrentBrush;
 		if (CurrentCategory == MapEditorBrushCategory.Terrain)
@@ -215,13 +227,22 @@ public sealed class MapEditorSession
 				while (_state.World.GetTerrain(x, y, placeZ).StringId is not (Terrains.Air or Terrains.Void))
 				{
 					placeZ--;
-					if (++scanned >= maxScanDepth) return;
+					if (++scanned >= maxScanDepth)
+						return MapEditorBrushApplyResult.None;
 				}
 			}
-			if (_state.World.GetTerrain(x, y, placeZ).StringId == brush.Id) return;
+
+			if (_state.World.GetTerrain(x, y, placeZ).StringId == brush.Id)
+				return MapEditorBrushApplyResult.None;
+
+			var requiresConnectivity = brush.Id is not (Terrains.Air or Terrains.Void) &&
+				!IgnoreConnectivityRequirement;
+			if (requiresConnectivity && !BlockPlacementRules.HasFaceConnectedTerrain(_state.World, x, y, placeZ))
+				return MapEditorBrushApplyResult.ConnectivityRequired;
+
 			var oldTerrain = _state.World.GetTerrain(x, y, placeZ).StringId;
 			_history.Execute(new SetTerrainCommand(x, y, placeZ, brush.Id, oldTerrain), _state.World);
-			return;
+			return MapEditorBrushApplyResult.Applied;
 		}
 
 		if (CurrentCategory == MapEditorBrushCategory.Fixture)
@@ -230,9 +251,13 @@ public sealed class MapEditorSession
 			var oldFixtureId = _state.World.GetFixtureId(x, y, z);
 			var oldGlyph = EntityAccess.ResolveFixtureGlyph(oldFixtureId);
 			var newGlyph = brush.Glyph ?? string.Empty;
-			if (oldFixtureId == brush.Id) return;
+			if (oldFixtureId == brush.Id)
+				return MapEditorBrushApplyResult.None;
 			_history.Execute(new SetFixtureCommand(x, y, z, brush.Id, newGlyph, oldFixtureId, oldGlyph), _state.World);
+			return MapEditorBrushApplyResult.Applied;
 		}
+
+		return MapEditorBrushApplyResult.None;
 	}
 
 	public void EraseBrush(int x, int y, int pickedZ)

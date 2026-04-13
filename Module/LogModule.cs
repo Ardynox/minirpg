@@ -90,6 +90,7 @@ public class LogModule
 			"item_dropped" => [C(UIColors.HexUtility, LocalizationService.T("log.item_dropped", ("item", e.ItemName)))],
 			"drop_failed" => [C(UIColors.HexDim, LocalizationService.T("log.drop_failed", ("item", e.ItemName)))],
 			"pickup_failed" => [C(UIColors.HexDim, LocalizationService.T("log.pickup_failed"))],
+			"block_place_failed" => [C(UIColors.HexWarning, FormatBlockPlaceFailed(e))],
 			"dig_success" => [C(UIColors.HexSocial, LocalizationService.T("log.dig_success", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage)))],
 			"dig_progress" => [C(UIColors.HexDim, LocalizationService.T("log.dig_progress", ("action", e.ActionName ?? LocalizationService.T("action.dig")), ("damage", e.Damage)))],
 			"dig_failed" => [C(UIColors.HexWarning, LocalizationService.T("log.dig_failed", ("item", e.ItemName)))],
@@ -210,6 +211,20 @@ public class LogModule
 			("action", e.ActionName ?? Localize("手术", "Operation")),
 			("target", e.TargetActorName ?? e.ItemName ?? Localize("目标", "target")),
 			("reason", LocalizeOperateFailureReason(e.FailureReason)));
+
+	private static string FormatBlockPlaceFailed(GameEvent e) => e.FailureReason switch
+	{
+		"world_uninitialized" => LocalizationService.T("log.block_place_failed.world_uninitialized"),
+		"occupied" => LocalizationService.T("log.block_place_failed.occupied"),
+		"target_not_empty" => LocalizationService.T("log.block_place_failed.target_not_empty"),
+		"unknown_terrain" => LocalizationService.T(
+			"log.block_place_failed.unknown_terrain",
+			("terrain", e.ItemName ?? Localize("未知方块", "unknown block"))),
+		"missing_support" => LocalizationService.T("log.block_place_failed.missing_support"),
+		_ => string.IsNullOrWhiteSpace(e.ItemName)
+			? Localize("放置失败。", "Place failed.")
+			: e.ItemName!,
+	};
 
 	private static List<string> FormatCombatAttack(GameEvent e, GameState state)
 	{

@@ -231,7 +231,14 @@ internal sealed class MapEditorCoordinator
 
 		SetEditorHoverCell(worldCell, mb.GlobalPosition);
 		if (mb.ButtonIndex == MouseButton.Left)
-			_session.ApplyBrush(worldCell.X, worldCell.Y, worldCell.Z);
+		{
+			var result = _session.ApplyBrush(worldCell.X, worldCell.Y, worldCell.Z);
+			if (result == MapEditorBrushApplyResult.ConnectivityRequired)
+			{
+				_log.Add(LocalizationService.T(
+					"log.map_editor.place_requires_support"));
+			}
+		}
 		else
 			_session.EraseBrush(worldCell.X, worldCell.Y, worldCell.Z);
 
@@ -246,6 +253,7 @@ internal sealed class MapEditorCoordinator
 	{
 		if (!Active) return;
 		_bar.Render(_session.CurrentCategory, _session.CurrentBrushes, _session.CurrentBrushIndex);
+		_bar.SetIgnoreConnectivityRequirement(_session.IgnoreConnectivityRequirement);
 		_bar.UpdateInfo(_session.CameraX, _session.CameraY, _session.CameraZ,
 			_session.CanUndo, _session.CanRedo, _session.UndoCount);
 		_bar.UpdateHeight(_session.CameraZ);
@@ -287,6 +295,12 @@ internal sealed class MapEditorCoordinator
 		ClearEditorHover(flushMap: false);
 		RefreshBar();
 		_flushMap();
+	}
+
+	public void HandleIgnoreConnectivityRequirementChanged(bool ignore)
+	{
+		_session.SetIgnoreConnectivityRequirement(ignore);
+		RefreshBar();
 	}
 
 	public void HandleUndo()

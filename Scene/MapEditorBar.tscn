@@ -136,6 +136,14 @@ custom_minimum_size = Vector2(36, 0)
 theme_type_variation = "ActionButton"
 text = "▲"
 
+[node name="OptionsRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="IgnoreSupportBtn" type="CheckButton" parent="Margin/VBox/OptionsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.map_editor.ignore_support"
+
 [node name="UndoRedoRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8

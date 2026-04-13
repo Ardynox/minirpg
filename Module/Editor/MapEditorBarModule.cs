@@ -29,6 +29,8 @@ public sealed class MapEditorBarModule
 	private readonly Button _heightDownButton;
 	private readonly Label _heightLabel;
 	private readonly Button _heightUpButton;
+	private readonly HBoxContainer _optionsRow;
+	private readonly CheckButton _ignoreConnectivityButton;
 	private readonly Label _hintLabel;
 	private readonly Button _centerButton;
 	private readonly Button _saveButton;
@@ -120,6 +122,8 @@ public sealed class MapEditorBarModule
 		_heightDownButton = heightRow.GetNode<Button>("HeightDownBtn");
 		_heightLabel = heightRow.GetNode<Label>("HeightLabel");
 		_heightUpButton = heightRow.GetNode<Button>("HeightUpBtn");
+		_optionsRow = root.GetNode<HBoxContainer>("OptionsRow");
+		_ignoreConnectivityButton = _optionsRow.GetNode<CheckButton>("IgnoreSupportBtn");
 		_hintLabel = root.GetNode<Label>("Hint");
 		var actions = root.GetNode<HBoxContainer>("Actions");
 		_centerButton = actions.GetNode<Button>("CenterBtn");
@@ -136,6 +140,10 @@ public sealed class MapEditorBarModule
 		_centerButton.Pressed += () => CenterRequested?.Invoke();
 		_saveButton.Pressed += () => SaveRequested?.Invoke();
 		_exitButton.Pressed += () => ExitRequested?.Invoke();
+		_ignoreConnectivityButton.Toggled += pressed =>
+		{
+			if (!_suppressEvents) IgnoreConnectivityRequirementChanged?.Invoke(pressed);
+		};
 
 		_timeSlider.ValueChanged += value =>
 		{
@@ -177,6 +185,7 @@ public sealed class MapEditorBarModule
 	public event Action? ExitRequested;
 	public event Action? CenterRequested;
 	public event Action<int>? HeightChanged;
+	public event Action<bool>? IgnoreConnectivityRequirementChanged;
 	public event Action<int>? TimeOfDayChanged;
 	public event Action<int>? WeatherTypeChanged;
 	public event Action<int>? WeatherIntensityChanged;
@@ -206,6 +215,7 @@ public sealed class MapEditorBarModule
 		_exitButton.Text = LocalizationService.T("ui.map_editor.exit");
 		_undoButton.Text = LocalizationService.T("ui.map_editor.undo");
 		_redoButton.Text = LocalizationService.T("ui.map_editor.redo");
+		_ignoreConnectivityButton.Text = LocalizationService.T("ui.map_editor.ignore_support");
 		_turnPlayButton.Text = LocalizationService.T("ui.map_editor.turn_controller");
 		RebuildEnvironmentOptions();
 		UpdateCurrentBrushLabel();
@@ -225,6 +235,7 @@ public sealed class MapEditorBarModule
 		var isBrushCategory = category is MapEditorBrushCategory.Terrain or MapEditorBrushCategory.Fixture;
 		_brushScroll.Visible = isBrushCategory;
 		_environmentControls.Visible = category == MapEditorBrushCategory.Environment;
+		_optionsRow.Visible = category == MapEditorBrushCategory.Terrain;
 
 		if (isBrushCategory)
 			RebuildBrushGrid(brushes, selectedIndex, category);
@@ -243,6 +254,19 @@ public sealed class MapEditorBarModule
 	public void UpdateHeight(int z)
 	{
 		_heightLabel.Text = $"Z: {z}";
+	}
+
+	public void SetIgnoreConnectivityRequirement(bool ignore)
+	{
+		_suppressEvents = true;
+		try
+		{
+			_ignoreConnectivityButton.ButtonPressed = ignore;
+		}
+		finally
+		{
+			_suppressEvents = false;
+		}
 	}
 
 	public void SetEnvironmentState(int timeOfDay, int weatherTypeIndex, int intensityIndex, int lightingIndex)

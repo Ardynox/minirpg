@@ -107,6 +107,7 @@ public partial class Main
 		_mapEditorBar.ExitRequested += () => ExitMapEditor();
 		_mapEditorBar.CenterRequested += () => _mapEditorCoordinator.CenterOnPlayer();
 		_mapEditorBar.HeightChanged += delta => _mapEditorCoordinator.HandleHeightChanged(delta);
+		_mapEditorBar.IgnoreConnectivityRequirementChanged += ignore => _mapEditorCoordinator.HandleIgnoreConnectivityRequirementChanged(ignore);
 		_mapEditorBar.TurnControllerRequested += () => _mapEditorCoordinator.HandleTurnControllerRequested();
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
