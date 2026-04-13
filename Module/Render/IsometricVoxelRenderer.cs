@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
@@ -133,6 +134,26 @@ public partial class IsometricVoxelRenderer
 	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
 	private float _playerVisualCorrectionRemaining;
 	private float _playerVisualCorrectionDuration;
+	private RenderTraceSample _lastRenderTraceSample = RenderTraceSample.Empty;
+	private int _editorPerfTraceFrameCount;
+	private double _editorPerfTraceFlushMs;
+	private double _editorPerfTraceTerrainMs;
+	private double _editorPerfTraceLightMapMs;
+	private double _editorPerfTraceEntityMs;
+	private double _editorPerfTraceHoverMs;
+	private double _editorPerfTraceSceneMs;
+	private long _editorPerfTraceScannedTerrainCells;
+	private long _editorPerfTracePreviewHiddenTerrainCells;
+	private long _editorPerfTraceScreenCulledTerrainCells;
+	private long _editorPerfTraceEmptyTerrainCells;
+	private long _editorPerfTraceOccludedTerrainCells;
+	private long _editorPerfTraceHiddenFaceTerrainCells;
+	private long _editorPerfTraceAcceptedVoxelCount;
+	private long _editorPerfTraceEntityCommandCount;
+	private long _editorPerfTraceHighlightCommandCount;
+	private long _editorPerfTraceFaceCommandCount;
+	private const int EditorPerfTraceReportEveryFrames = 20;
+	private const double EditorPerfTraceSlowFlushThresholdMs = 20.0;
 
 	private static readonly (string Key, IsometricLightingSettings Lighting)[] LightingProfiles =
 	[
@@ -790,6 +811,7 @@ public partial class IsometricVoxelRenderer
 			(_weatherFxController?.ActiveSpriteCount ?? 0) + _spriteCount,
 			_tileDrawCommandCount,
 			_frameTimeEwmaMs);
+		TraceEditorPerfFrame(frameTimeMs, _lastRenderTraceSample);
 	}
 
 	public readonly record struct RenderPerfSnapshot(
@@ -800,11 +822,129 @@ public partial class IsometricVoxelRenderer
 		public static RenderPerfSnapshot Empty => new(0, 0, 0d);
 	}
 
+	private readonly record struct RenderTraceSample(
+		double TerrainMs,
+		double LightMapMs,
+		double EntityMs,
+		double HoverMs,
+		double SceneMs,
+		long ScannedTerrainCells,
+		long PreviewHiddenTerrainCells,
+		long ScreenCulledTerrainCells,
+		long EmptyTerrainCells,
+		long OccludedTerrainCells,
+		long HiddenFaceTerrainCells,
+		int AcceptedVoxelCount,
+		int EntityCommandCount,
+		int HighlightCommandCount,
+		int FaceCommandCount)
+	{
+		public static RenderTraceSample Empty => new(
+			0d,
+			0d,
+			0d,
+			0d,
+			0d,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0);
+	}
+
+	private static double GetElapsedMs(long startTimestamp) =>
+		(Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+
+	private void TraceEditorPerfFrame(double flushTimeMs, RenderTraceSample sample)
+	{
+		if (!OS.IsDebugBuild())
+			return;
+
+		if (!_editorViewActive)
+		{
+			ResetEditorPerfTrace();
+			return;
+		}
+
+		_editorPerfTraceFrameCount++;
+		_editorPerfTraceFlushMs += flushTimeMs;
+		_editorPerfTraceTerrainMs += sample.TerrainMs;
+		_editorPerfTraceLightMapMs += sample.LightMapMs;
+		_editorPerfTraceEntityMs += sample.EntityMs;
+		_editorPerfTraceHoverMs += sample.HoverMs;
+		_editorPerfTraceSceneMs += sample.SceneMs;
+		_editorPerfTraceScannedTerrainCells += sample.ScannedTerrainCells;
+		_editorPerfTracePreviewHiddenTerrainCells += sample.PreviewHiddenTerrainCells;
+		_editorPerfTraceScreenCulledTerrainCells += sample.ScreenCulledTerrainCells;
+		_editorPerfTraceEmptyTerrainCells += sample.EmptyTerrainCells;
+		_editorPerfTraceOccludedTerrainCells += sample.OccludedTerrainCells;
+		_editorPerfTraceHiddenFaceTerrainCells += sample.HiddenFaceTerrainCells;
+		_editorPerfTraceAcceptedVoxelCount += sample.AcceptedVoxelCount;
+		_editorPerfTraceEntityCommandCount += sample.EntityCommandCount;
+		_editorPerfTraceHighlightCommandCount += sample.HighlightCommandCount;
+		_editorPerfTraceFaceCommandCount += sample.FaceCommandCount;
+
+		var shouldReport = _editorPerfTraceFrameCount >= EditorPerfTraceReportEveryFrames
+			|| flushTimeMs >= EditorPerfTraceSlowFlushThresholdMs;
+		if (!shouldReport)
+			return;
+
+		var frames = Math.Max(1, _editorPerfTraceFrameCount);
+		GD.Print(
+			$"[IsoPerf] frames={frames} flush_ms={_editorPerfTraceFlushMs / frames:F2} " +
+			$"terrain_ms={_editorPerfTraceTerrainMs / frames:F2} " +
+			$"light_ms={_editorPerfTraceLightMapMs / frames:F2} " +
+			$"entity_ms={_editorPerfTraceEntityMs / frames:F2} " +
+			$"hover_ms={_editorPerfTraceHoverMs / frames:F2} " +
+			$"scene_ms={_editorPerfTraceSceneMs / frames:F2} " +
+			$"terrain_scan={_editorPerfTraceScannedTerrainCells / frames} " +
+			$"accepted_voxels={_editorPerfTraceAcceptedVoxelCount / frames} " +
+			$"entities={_editorPerfTraceEntityCommandCount / frames} " +
+			$"highlights={_editorPerfTraceHighlightCommandCount / frames} " +
+			$"faces={_editorPerfTraceFaceCommandCount / frames} " +
+			$"preview_hidden={_editorPerfTracePreviewHiddenTerrainCells / frames} " +
+			$"screen_culled={_editorPerfTraceScreenCulledTerrainCells / frames} " +
+			$"empty={_editorPerfTraceEmptyTerrainCells / frames} " +
+			$"occluded={_editorPerfTraceOccludedTerrainCells / frames} " +
+			$"hidden_faces={_editorPerfTraceHiddenFaceTerrainCells / frames}");
+		ResetEditorPerfTrace();
+	}
+
+	private void ResetEditorPerfTrace()
+	{
+		_editorPerfTraceFrameCount = 0;
+		_editorPerfTraceFlushMs = 0d;
+		_editorPerfTraceTerrainMs = 0d;
+		_editorPerfTraceLightMapMs = 0d;
+		_editorPerfTraceEntityMs = 0d;
+		_editorPerfTraceHoverMs = 0d;
+		_editorPerfTraceSceneMs = 0d;
+		_editorPerfTraceScannedTerrainCells = 0;
+		_editorPerfTracePreviewHiddenTerrainCells = 0;
+		_editorPerfTraceScreenCulledTerrainCells = 0;
+		_editorPerfTraceEmptyTerrainCells = 0;
+		_editorPerfTraceOccludedTerrainCells = 0;
+		_editorPerfTraceHiddenFaceTerrainCells = 0;
+		_editorPerfTraceAcceptedVoxelCount = 0;
+		_editorPerfTraceEntityCommandCount = 0;
+		_editorPerfTraceHighlightCommandCount = 0;
+		_editorPerfTraceFaceCommandCount = 0;
+	}
+
 	// ── Main Render Pass ──
 
 	public void Render()
 	{
-		if (_state.World == null || _root == null) return;
+		if (_state.World == null || _root == null)
+		{
+			_lastRenderTraceSample = RenderTraceSample.Empty;
+			return;
+		}
 
 		_dayNight = DayNightCycle.Compute(_state.Turn);
 		BeginFrame();
@@ -832,23 +972,44 @@ public partial class IsometricVoxelRenderer
 			: EditorPerspectiveResult.Empty;
 
 		_drawCommands.Clear();
+		var terrainStageStart = Stopwatch.GetTimestamp();
+		long scannedTerrainCells = 0;
+		long previewHiddenTerrainCells = 0;
+		long screenCulledTerrainCells = 0;
+		long emptyTerrainCells = 0;
+		long occludedTerrainCells = 0;
+		long hiddenFaceTerrainCells = 0;
 
 		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
 		for (var wx = cx - halfW; wx <= cx + halfW; wx++)
 		for (var wz = zMax; wz >= zMin; wz--)
 		{
+			scannedTerrainCells++;
+
 			if (ShouldHideEditorPreviewTerrain(_editorViewActive ? EditorHoverState : null, wx, wy, wz))
+			{
+				previewHiddenTerrainCells++;
 				continue;
+			}
 
 			var screenPos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(screenPos, mapRect))
+			{
+				screenCulledTerrainCells++;
 				continue;
+			}
 
 			var terrain = _state.World.GetTerrain(wx, wy, wz);
 			if (terrain.StringId == Terrains.Air || terrain.StringId == Terrains.Void)
+			{
+				emptyTerrainCells++;
 				continue;
+			}
 			if (IsFullyOccluded(wx, wy, wz))
+			{
+				occludedTerrainCells++;
 				continue;
+			}
 
 			var topOccluded = _state.World.GetTerrain(wx, wy, wz - 1).IsOpaque;
 			var drawTop = !topOccluded;
@@ -864,7 +1025,10 @@ public partial class IsometricVoxelRenderer
 			}
 
 			if (!drawTop && !drawLeft && !drawRight)
+			{
+				hiddenFaceTerrainCells++;
 				continue;
+			}
 
 			_drawCommands.Add(new VoxelDrawCommand
 			{
@@ -878,11 +1042,40 @@ public partial class IsometricVoxelRenderer
 		}
 
 		_drawCommands.Sort(CompareVoxelDrawCommands);
+		var terrainStageMs = GetElapsedMs(terrainStageStart);
+
+		var lightMapStageStart = Stopwatch.GetTimestamp();
 		_lightMap.Rebuild(_state.World, cx, cy, cz, halfW, halfH, zMin, zMax);
+		var lightMapStageMs = GetElapsedMs(lightMapStageStart);
+
+		var entityStageStart = Stopwatch.GetTimestamp();
 		CollectEntityCommands(cx, cy, cz, halfW, halfH, zMin, zMax);
+		var entityStageMs = GetElapsedMs(entityStageStart);
+
+		var hoverStageStart = Stopwatch.GetTimestamp();
 		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax, visibleMapRect);
+		var hoverStageMs = GetElapsedMs(hoverStageStart);
 		_lastDrawCommandCount = _drawCommands.Count + _entityCommands.Count + _highlightCommandCount;
+
+		var sceneStageStart = Stopwatch.GetTimestamp();
 		RenderScene();
+		var sceneStageMs = GetElapsedMs(sceneStageStart);
+		_lastRenderTraceSample = new RenderTraceSample(
+			terrainStageMs,
+			lightMapStageMs,
+			entityStageMs,
+			hoverStageMs,
+			sceneStageMs,
+			scannedTerrainCells,
+			previewHiddenTerrainCells,
+			screenCulledTerrainCells,
+			emptyTerrainCells,
+			occludedTerrainCells,
+			hiddenFaceTerrainCells,
+			_drawCommands.Count,
+			_entityCommands.Count,
+			_highlightCommandCount,
+			_faceCommands.Count);
 		EndFrame();
 		UpdateCamera(cx, cy, cz);
 	}
