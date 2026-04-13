@@ -2936,6 +2936,25 @@ public partial class IsometricVoxelRenderer
 		public bool ShadowTop;
 	}
 
+	internal readonly record struct TerrainSurfaceEntry(
+		int WorldX,
+		int WorldY,
+		int WorldZ,
+		Vector2 ScreenPos,
+		long SortKey,
+		TerrainDef Terrain,
+		bool DrawTop,
+		bool DrawLeftSide,
+		bool DrawRightSide,
+		bool ShadowTop);
+
+	private readonly record struct ChunkTerrainSurfaceCache(
+		int TerrainGeometryRevision,
+		TerrainSurfaceEntry[] Entries,
+		int EmptyCellCount,
+		int OccludedCellCount,
+		int HiddenFaceCellCount);
+
 	private readonly record struct EntityDrawCommand(
 		long SortKey,
 		Vector2 ScreenPos,

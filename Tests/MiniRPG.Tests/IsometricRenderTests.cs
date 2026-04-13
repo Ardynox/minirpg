@@ -888,4 +888,22 @@ public sealed class IsometricRenderTests
 	private static string GetRepoPath(params string[] parts) =>
 		Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", Path.Combine(parts)));
 
+	private sealed class AirOnlyGenerator : IMapGenerator
+	{
+		public string Id => "air_only";
+		public string Name => "Air Only";
+
+		public void GenerateChunk(ChunkData chunk, int worldSeed)
+		{
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Air));
+			chunk.Entities.Clear();
+			chunk.Nests.Clear();
+			chunk.ActorIds.Clear();
+			chunk.Dirty = false;
+		}
+
+		public void PopulateChunk(ChunkData chunk, int worldSeed)
+		{
+		}
+	}
 }
