@@ -154,6 +154,7 @@ public partial class IsometricVoxelRenderer
 	private long _editorPerfTraceEntityCommandCount;
 	private long _editorPerfTraceHighlightCommandCount;
 	private long _editorPerfTraceFaceCommandCount;
+	private static readonly bool EnableEditorPerfTrace = false;
 	private const int EditorPerfTraceReportEveryFrames = 20;
 	private const double EditorPerfTraceSlowFlushThresholdMs = 20.0;
 
@@ -813,7 +814,10 @@ public partial class IsometricVoxelRenderer
 			(_weatherFxController?.ActiveSpriteCount ?? 0) + _spriteCount,
 			_tileDrawCommandCount,
 			_frameTimeEwmaMs);
-		TraceEditorPerfFrame(frameTimeMs, _lastRenderTraceSample);
+		if (EnableEditorPerfTrace)
+			TraceEditorPerfFrame(frameTimeMs, _lastRenderTraceSample);
+		else if (_editorPerfTraceFrameCount != 0)
+			ResetEditorPerfTrace();
 	}
 
 	public readonly record struct RenderPerfSnapshot(
