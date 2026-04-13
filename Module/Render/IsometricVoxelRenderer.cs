@@ -1228,6 +1228,8 @@ public partial class IsometricVoxelRenderer
 
 	private static readonly Vector2 DefaultEntitySpriteScale = new(0.25f, 0.25f);
 	private static readonly Vector2 EntitySpriteBaseOffset = new(0f, -8f);
+	private static readonly Vector2 DefaultFacilitySpriteScale = new(0.72f, 0.72f);
+	private static readonly Vector2 FacilitySpriteBaseOffset = Vector2.Zero;
 	private readonly Dictionary<string, ImageTexture> _entityMarkerCache = new();
 
 	private void CollectEntityCommands(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
@@ -1245,6 +1247,55 @@ public partial class IsometricVoxelRenderer
 				IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
 				IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z),
 				actor,
+				null,
+				label,
+				tint));
+		}
+
+		foreach (var facility in _state.Facilities.Values)
+		{
+			if (facility.Z < zMin || facility.Z > zMax)
+				continue;
+
+			var footprint = _state.World!.GetFootprintCells(facility);
+			if (footprint.Count == 0)
+				continue;
+
+			var inView = false;
+			var visible = false;
+			var sortKey = long.MinValue;
+			var screenPos = Vector2.Zero;
+			var tint = Colors.White;
+
+			for (var index = 0; index < footprint.Count; index++)
+			{
+				var cell = footprint[index];
+				screenPos += IsoCoordUtil.WorldToScreen(cell.X, cell.Y, cell.Z);
+				sortKey = Math.Max(sortKey, IsoCoordUtil.SortKey(cell.X, cell.Y, cell.Z));
+
+				if (Math.Abs(cell.X - cx) > halfW || Math.Abs(cell.Y - cy) > halfH)
+					continue;
+
+				inView = true;
+
+				if (_fogTracker.GetVisionBand(cell.X, cell.Y, cell.Z) == PlayerVisionBand.Unknown)
+					continue;
+
+				visible = true;
+				tint = GetVisionTint(cell.X, cell.Y, cell.Z);
+			}
+
+			if (!inView || !visible)
+				continue;
+
+			screenPos /= footprint.Count;
+			var def = FacilityRegistry.Get(facility.FacilityDefId);
+			var label = def?.Glyph is { Length: > 0 } glyph ? glyph : "#";
+			_entityCommands.Add(new EntityDrawCommand(
+				sortKey - 1,
+				screenPos,
+				null,
+				facility,
 				label,
 				tint));
 		}
@@ -1260,7 +1311,7 @@ public partial class IsometricVoxelRenderer
 			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			var key = IsoCoordUtil.SortKey(wx, wy, wz);
 			foreach (var e in entities)
-				_entityCommands.Add(new EntityDrawCommand(key, pos, null, e.Glyph, tint));
+				_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, e.Glyph, tint));
 		}
 
 		_entityCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
@@ -1286,6 +1337,8 @@ public partial class IsometricVoxelRenderer
 		{
 			var entity = _entityCommands[i];
 			if (entity.Actor != null && TryDrawActorSprite(entity.ScreenPos, entity.Actor, entity.Tint))
+				continue;
+			if (entity.Facility != null && TryDrawFacilitySprite(entity.ScreenPos, entity.Facility, entity.Tint))
 				continue;
 			DrawEntityMarker(entity.ScreenPos, entity.Label, entity.Tint);
 		}
@@ -1443,6 +1496,30 @@ public partial class IsometricVoxelRenderer
 		return true;
 	}
 
+	private bool TryDrawFacilitySprite(Vector2 pos, FacilityInstance facility, Color tint)
+	{
+		if (!TryResolveFacilitySpriteVisual(facility, out var visual))
+			return false;
+
+		var size = visual.Region?.Size ?? visual.Texture.GetSize();
+		var sprite = AcquireSprite();
+		sprite.Centered = false;
+		sprite.Texture = visual.Texture;
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
+		sprite.RegionEnabled = visual.Region != null;
+		if (visual.Region is { } region)
+			sprite.RegionRect = region;
+		sprite.Scale = visual.Scale;
+		sprite.Skew = 0f;
+		sprite.ZIndex = 1;
+		sprite.Modulate = tint * ResolveFacilityStageTint(facility.Stage);
+		sprite.Position = pos + FacilitySpriteBaseOffset + visual.Offset + new Vector2(
+			-(size.X * visual.Scale.X) / 2f,
+			-(size.Y * visual.Scale.Y));
+		sprite.Visible = true;
+		return true;
+	}
+
 	private bool TryResolveActorSpriteVisual(Actor actor, out ActorSpriteVisual visual)
 	{
 		visual = default;
@@ -1480,11 +1557,37 @@ public partial class IsometricVoxelRenderer
 		return true;
 	}
 
+	private bool TryResolveFacilitySpriteVisual(FacilityInstance facility, out FacilitySpriteVisual visual)
+	{
+		visual = default;
+		var entry = ResolveFacilityRenderEntry(facility);
+		if (entry == null || entry.TexturePath is not { Length: > 0 } texturePath)
+			return false;
+
+		var texture = ResAccess.Get<Texture2D>(texturePath);
+		if (texture == null)
+			return false;
+
+		visual = new FacilitySpriteVisual(
+			texture,
+			ResolveFacilitySpriteRegion(entry, facility, texture),
+			ResolveFacilitySpriteScale(entry.Scale),
+			ResolveEntitySpriteOffset(entry.Offset));
+		return true;
+	}
+
 	private static Vector2 ResolveEntitySpriteScale(float[]? scale)
 	{
 		if (scale is [var x, var y] && x > 0f && y > 0f)
 			return new Vector2(x, y);
 		return DefaultEntitySpriteScale;
+	}
+
+	private static Vector2 ResolveFacilitySpriteScale(float[]? scale)
+	{
+		if (scale is [var x, var y] && x > 0f && y > 0f)
+			return new Vector2(x, y);
+		return DefaultFacilitySpriteScale;
 	}
 
 	private static Vector2 ResolveEntitySpriteOffset(float[]? offset)
@@ -1518,6 +1621,23 @@ public partial class IsometricVoxelRenderer
 		return new Rect2(0, row * frameHeight, frameWidth, frameHeight);
 	}
 
+	private static Rect2? ResolveFacilitySpriteRegion(ResAccess.RenderEntry entry, FacilityInstance facility, Texture2D texture)
+	{
+		var textureWidth = (int)texture.GetWidth();
+		var textureHeight = (int)texture.GetHeight();
+		if (textureWidth <= 0 || textureHeight <= 0)
+			return null;
+
+		var frameWidth = entry.FrameWidth > 0 ? Math.Min(entry.FrameWidth, textureWidth) : textureWidth;
+		var frameHeight = entry.FrameHeight > 0 ? Math.Min(entry.FrameHeight, textureHeight) : textureHeight;
+		if (frameWidth <= 0 || frameHeight <= 0)
+			return null;
+
+		var rowCount = Math.Max(1, textureHeight / frameHeight);
+		var row = Math.Clamp(ResolveFacilityRotationRow(facility.Rotation), 0, rowCount - 1);
+		return new Rect2(0, row * frameHeight, frameWidth, frameHeight);
+	}
+
 	private ResAccess.RenderEntry? ResolveActorRenderEntry(Actor actor)
 	{
 		if (actor.Id == _state.PlayerId)
@@ -1545,6 +1665,12 @@ public partial class IsometricVoxelRenderer
 			return race;
 
 		return null;
+	}
+
+	private static ResAccess.RenderEntry? ResolveFacilityRenderEntry(FacilityInstance facility)
+	{
+		var entry = ResAccess.GetEntry($"facility_{facility.FacilityDefId}");
+		return IsTextureEntry(entry) ? entry : null;
 	}
 
 	private static bool TryGetSupportedActorEntry(string key, out ResAccess.RenderEntry? entry)
@@ -1595,6 +1721,23 @@ public partial class IsometricVoxelRenderer
 		entry != null
 		&& string.Equals(entry.Type, "texture", StringComparison.OrdinalIgnoreCase)
 		&& !string.IsNullOrWhiteSpace(entry.TexturePath);
+
+	private static int ResolveFacilityRotationRow(FacilityRotation rotation) => rotation switch
+	{
+		FacilityRotation.East => 1,
+		FacilityRotation.South => 2,
+		FacilityRotation.West => 3,
+		_ => 0,
+	};
+
+	private static Color ResolveFacilityStageTint(FacilityStage stage) => stage switch
+	{
+		FacilityStage.Blueprint => new Color(0.62f, 0.78f, 1.0f, 0.82f),
+		FacilityStage.DeliverMaterials => new Color(0.92f, 0.86f, 0.72f, 0.94f),
+		FacilityStage.Construct => new Color(0.88f, 0.80f, 0.66f, 0.97f),
+		FacilityStage.Broken => new Color(0.74f, 0.70f, 0.72f, 0.94f),
+		_ => Colors.White,
+	};
 
 	private void DrawEntityMarker(Vector2 pos, string label, Color tint)
 	{
@@ -1829,6 +1972,7 @@ public partial class IsometricVoxelRenderer
 		long SortKey,
 		Vector2 ScreenPos,
 		Actor? Actor,
+		FacilityInstance? Facility,
 		string Label,
 		Color Tint);
 
@@ -1838,6 +1982,12 @@ public partial class IsometricVoxelRenderer
 		long SortKey);
 
 	private readonly record struct ActorSpriteVisual(
+		Texture2D Texture,
+		Rect2? Region,
+		Vector2 Scale,
+		Vector2 Offset);
+
+	private readonly record struct FacilitySpriteVisual(
 		Texture2D Texture,
 		Rect2? Region,
 		Vector2 Scale,

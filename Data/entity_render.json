@@ -285,6 +285,97 @@
     "tileName": "Misc B6_N"
   },
 
+  "facility_shelf": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_shelf_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.60, 0.60],
+    "offset": [0.0, 0.0]
+  },
+  "facility_fire_brazier": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_fire_brazier_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.58, 0.58],
+    "offset": [0.0, 0.0]
+  },
+  "facility_bed": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_bed_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.82, 0.82],
+    "offset": [0.0, 0.0]
+  },
+  "facility_dormitory_bed": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_dormitory_bed_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.64, 0.64],
+    "offset": [0.0, 0.0]
+  },
+  "facility_stove": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_stove_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.84, 0.84],
+    "offset": [0.0, 0.0]
+  },
+  "facility_butcher_table": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_butcher_table_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.78, 0.78],
+    "offset": [0.0, 0.0]
+  },
+  "facility_smithy": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_smithy_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.86, 0.86],
+    "offset": [0.0, 0.0]
+  },
+  "facility_loom": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_loom_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.76, 0.76],
+    "offset": [0.0, 0.0]
+  },
+  "facility_herbal_bench": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_herbal_bench_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [0.78, 0.78],
+    "offset": [0.0, 0.0]
+  },
+  "facility_market_stall": {
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/facilities/facility_market_stall_4dir.png",
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "useFacing": false,
+    "scale": [1.05, 1.05],
+    "offset": [0.0, 0.0]
+  },
+
   "container": {
     "type": "tile",
     "tileName": "Chest A1_N"
