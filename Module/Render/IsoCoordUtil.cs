@@ -93,4 +93,30 @@ public static class IsoCoordUtil
 		var depthOrder = int.MaxValue - wz;
 		return (diagonal << 32) | (uint)depthOrder;
 	}
+
+	/// <summary>
+	/// 比较两个世界格的稳定绘制顺序。
+	/// 在对角线和深度完全相同的情况下，继续按屏幕 X 从左到右做 tie-break，
+	/// 避免共享边缘的面片在重绘时因为不稳定排序发生抖动。
+	/// </summary>
+	public static int CompareSortOrder(int ax, int ay, int az, int bx, int by, int bz)
+	{
+		var diagonalCompare = (ax + ay).CompareTo(bx + by);
+		if (diagonalCompare != 0)
+			return diagonalCompare;
+
+		var depthCompare = bz.CompareTo(az);
+		if (depthCompare != 0)
+			return depthCompare;
+
+		var screenXCompare = (ax - ay).CompareTo(bx - by);
+		if (screenXCompare != 0)
+			return screenXCompare;
+
+		var xCompare = ax.CompareTo(bx);
+		if (xCompare != 0)
+			return xCompare;
+
+		return ay.CompareTo(by);
+	}
 }

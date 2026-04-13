@@ -877,7 +877,7 @@ public partial class IsometricVoxelRenderer
 			});
 		}
 
-		_drawCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+		_drawCommands.Sort(CompareVoxelDrawCommands);
 		_lightMap.Rebuild(_state.World, cx, cy, cz, halfW, halfH, zMin, zMax);
 		CollectEntityCommands(cx, cy, cz, halfW, halfH, zMin, zMax);
 		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax, visibleMapRect);
@@ -893,6 +893,17 @@ public partial class IsometricVoxelRenderer
 		return w.GetTerrain(wx, wy, wz - 1).IsOpaque
 			&& w.GetTerrain(wx, wy + 1, wz).IsOpaque
 			&& w.GetTerrain(wx + 1, wy, wz).IsOpaque;
+	}
+
+	private static int CompareVoxelDrawCommands(VoxelDrawCommand a, VoxelDrawCommand b)
+	{
+		var sortCompare = IsoCoordUtil.CompareSortOrder(
+			a.WorldX, a.WorldY, a.WorldZ,
+			b.WorldX, b.WorldY, b.WorldZ);
+		if (sortCompare != 0)
+			return sortCompare;
+
+		return 0;
 	}
 
 	// ── Drawing Methods ──
@@ -1518,12 +1529,13 @@ public partial class IsometricVoxelRenderer
 		for (var i = 0; i < _drawCommands.Count; i++)
 		{
 			var terrain = _drawCommands[i];
-			if (terrain.DrawTop) DrawBlockTop(terrain);
 			if (terrain.DrawLeftSide) DrawLeftSide(terrain);
 			if (terrain.DrawRightSide) DrawRightSide(terrain);
+			if (terrain.DrawTop) DrawBlockTop(terrain);
 		}
 
-		_faceCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+		// _drawCommands is already in stable painter order; preserve emission order so
+		// same-cell faces keep a deterministic "sides first, top last" layering.
 		_faceBatchCanvas?.SetCommands(_faceCommands);
 
 		for (var i = 0; i < _entityCommands.Count; i++)

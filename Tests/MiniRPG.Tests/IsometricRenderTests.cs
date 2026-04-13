@@ -106,6 +106,26 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsoCoordUtil_CompareSortOrder_BreaksSameDiagonalDepthTiesLeftToRight()
+	{
+		var cells = new List<(int X, int Y, int Z)>
+		{
+			(2, -1, 0),
+			(0, 1, 0),
+			(1, 0, 0),
+		};
+
+		cells.Sort(static (a, b) => IsoCoordUtil.CompareSortOrder(a.X, a.Y, a.Z, b.X, b.Y, b.Z));
+
+		for (var i = 1; i < cells.Count; i++)
+		{
+			var previousScreenX = IsoCoordUtil.WorldToScreen(cells[i - 1].X, cells[i - 1].Y, cells[i - 1].Z).X;
+			var currentScreenX = IsoCoordUtil.WorldToScreen(cells[i].X, cells[i].Y, cells[i].Z).X;
+			Assert.True(previousScreenX < currentScreenX, "same diagonal ties should sort from left to right");
+		}
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_TryPickEditorCell_PreservesTargetLayer()
 	{
 		var state = new GameState
