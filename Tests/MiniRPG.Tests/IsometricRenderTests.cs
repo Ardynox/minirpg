@@ -229,7 +229,10 @@ public sealed class IsometricRenderTests
 			"#",
 			CanApply: true,
 			ShowGhost: true,
-			ShowInfoOverlay: false);
+			ShowInfoOverlay: false,
+			GhostRenderId: Terrains.Floor,
+			GhostGlyph: "#",
+			HideResolvedTargetInWorld: false);
 
 		var highlightCell = IsometricVoxelRenderer.ResolveHoverHighlightCell(
 			editorViewActive: true,
@@ -295,7 +298,10 @@ public sealed class IsometricRenderTests
 			"#",
 			CanApply: false,
 			ShowGhost: false,
-			ShowInfoOverlay: false);
+			ShowInfoOverlay: false,
+			GhostRenderId: null,
+			GhostGlyph: null,
+			HideResolvedTargetInWorld: false);
 		var selectState = new MapEditorHoverState(
 			MapEditorToolMode.Select,
 			MapEditorBrushCategory.Terrain,
@@ -306,7 +312,10 @@ public sealed class IsometricRenderTests
 			"#",
 			CanApply: true,
 			ShowGhost: false,
-			ShowInfoOverlay: true);
+			ShowInfoOverlay: true,
+			GhostRenderId: null,
+			GhostGlyph: null,
+			HideResolvedTargetInWorld: false);
 
 		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(blockedBuildState));
 		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(selectState));
@@ -327,7 +336,10 @@ public sealed class IsometricRenderTests
 			"#",
 			CanApply: true,
 			ShowGhost: true,
-			ShowInfoOverlay: false);
+			ShowInfoOverlay: false,
+			GhostRenderId: Terrains.Floor,
+			GhostGlyph: "#",
+			HideResolvedTargetInWorld: false);
 		var fixtureHoverState = new MapEditorHoverState(
 			MapEditorToolMode.Build,
 			MapEditorBrushCategory.Fixture,
@@ -338,12 +350,106 @@ public sealed class IsometricRenderTests
 			"D",
 			CanApply: true,
 			ShowGhost: true,
-			ShowInfoOverlay: false);
+			ShowInfoOverlay: false,
+			GhostRenderId: Entities.Door,
+			GhostGlyph: "D",
+			HideResolvedTargetInWorld: false);
 
 		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(terrainHoverState));
 		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(fixtureHoverState));
 		Assert.Equal(3, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(terrainHoverState));
 		Assert.Equal(1, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(fixtureHoverState));
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_EditorPlacementGhost_SupportsTerrainAndFixtureDemolishStates()
+	{
+		var terrainHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Demolish,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
+			new Vector3I(4, 4, 0),
+			new Vector3I(4, 4, 0),
+			Terrains.Floor,
+			"#",
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false,
+			GhostRenderId: Terrains.WallStone,
+			GhostGlyph: "#",
+			HideResolvedTargetInWorld: true);
+		var fixtureHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Demolish,
+			MapEditorBrushCategory.Fixture,
+			MapEditorHoverStateKind.Fixture,
+			new Vector3I(5, 5, 0),
+			new Vector3I(5, 5, 0),
+			Entities.Nest,
+			"N",
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false,
+			GhostRenderId: Entities.Door,
+			GhostGlyph: "D",
+			HideResolvedTargetInWorld: true);
+
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(terrainHoverState));
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(fixtureHoverState));
+		Assert.Equal(3, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(terrainHoverState));
+		Assert.Equal(1, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(fixtureHoverState));
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_HideEditorPreviewTarget_HidesMatchingDemolishTargetsOnly()
+	{
+		var terrainHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Demolish,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
+			new Vector3I(4, 4, 0),
+			new Vector3I(4, 4, 0),
+			Terrains.Floor,
+			"#",
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false,
+			GhostRenderId: Terrains.WallStone,
+			GhostGlyph: "#",
+			HideResolvedTargetInWorld: true);
+		var fixtureHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Demolish,
+			MapEditorBrushCategory.Fixture,
+			MapEditorHoverStateKind.Fixture,
+			new Vector3I(5, 5, 0),
+			new Vector3I(5, 5, 0),
+			Entities.Nest,
+			"N",
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false,
+			GhostRenderId: Entities.Door,
+			GhostGlyph: "D",
+			HideResolvedTargetInWorld: true);
+		var selectState = new MapEditorHoverState(
+			MapEditorToolMode.Select,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
+			new Vector3I(4, 4, 0),
+			new Vector3I(4, 4, 0),
+			Terrains.Floor,
+			"#",
+			CanApply: true,
+			ShowGhost: false,
+			ShowInfoOverlay: true,
+			GhostRenderId: null,
+			GhostGlyph: null,
+			HideResolvedTargetInWorld: false);
+
+		Assert.True(IsometricVoxelRenderer.ShouldHideEditorPreviewTerrain(terrainHoverState, 4, 4, 0));
+		Assert.False(IsometricVoxelRenderer.ShouldHideEditorPreviewTerrain(terrainHoverState, 4, 4, -1));
+		Assert.True(IsometricVoxelRenderer.ShouldHideEditorPreviewFixture(fixtureHoverState, 5, 5, 0, Entities.Door));
+		Assert.False(IsometricVoxelRenderer.ShouldHideEditorPreviewFixture(fixtureHoverState, 5, 5, 0, Entities.Nest));
+		Assert.False(IsometricVoxelRenderer.ShouldHideEditorPreviewTerrain(selectState, 4, 4, 0));
 	}
 
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)

@@ -113,6 +113,57 @@ public sealed class PlacementConnectivityTests
 	}
 
 	[Fact]
+	public void MapEditorSession_ResolveHoverState_BuildTerrainOnSolidCell_WithReverseStack_UsesFirstAirBelow()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(3, 3, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var hoverState = session.ResolveHoverState(new Vector3I(3, 3, 0), reverseStack: true);
+
+		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
+		Assert.Equal(new Vector3I(3, 3, 1), resolved.ResolvedTargetCell);
+		Assert.True(resolved.CanApply);
+		Assert.True(resolved.ShowGhost);
+		Assert.Equal(Terrains.Floor, resolved.GhostRenderId);
+		Assert.False(resolved.HideResolvedTargetInWorld);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolveHoverState_BuildTerrainOnAir_WithReverseStack_KeepsHoveredCell()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(9, 8, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var hoverState = session.ResolveHoverState(new Vector3I(8, 8, 0), reverseStack: true);
+
+		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
+		Assert.Equal(new Vector3I(8, 8, 0), resolved.ResolvedTargetCell);
+		Assert.True(resolved.CanApply);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolveHoverState_BuildTerrainReverseStackWithoutOpenAir_IsBlocked()
+	{
+		var state = CreateEditorState();
+		for (var z = 0; z <= 16; z++)
+			state.World!.SetTerrain(3, 3, z, Terrains.WallStone);
+
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var hoverState = session.ResolveHoverState(new Vector3I(3, 3, 0), reverseStack: true);
+
+		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
+		Assert.Null(resolved.ResolvedTargetCell);
+		Assert.False(resolved.CanApply);
+		Assert.False(resolved.ShowGhost);
+	}
+
+	[Fact]
 	public void MapEditorSession_ResolveHoverState_BuildTerrainWithoutConnectivity_IsBlocked()
 	{
 		var state = CreateEditorState();
@@ -141,6 +192,21 @@ public sealed class PlacementConnectivityTests
 		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
 		Assert.True(resolved.CanApply);
 		Assert.True(resolved.ShowGhost);
+	}
+
+	[Fact]
+	public void MapEditorSession_ApplyBrush_WithReverseStack_PlacesTerrainBelowHoveredSolidCell()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(3, 3, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+
+		var result = session.ApplyBrush(3, 3, 0, reverseStack: true);
+
+		Assert.Equal(MapEditorBrushApplyResult.Applied, result);
+		Assert.Equal(Terrains.Floor, state.World.GetTerrain(3, 3, 1).StringId);
+		Assert.Equal(Terrains.WallStone, state.World.GetTerrain(3, 3, 0).StringId);
 	}
 
 	[Fact]
@@ -216,6 +282,25 @@ public sealed class PlacementConnectivityTests
 	}
 
 	[Fact]
+	public void MapEditorSession_ResolveHoverState_DemolishTerrainOnOccupiedCell_ShowsExistingTerrainGhost()
+	{
+		var state = CreateEditorState();
+		state.World!.SetTerrain(4, 4, 0, Terrains.WallStone);
+		var session = new MapEditorSession(state);
+		SelectTerrainBrush(session, Terrains.Floor);
+		session.SelectToolMode(MapEditorToolMode.Demolish);
+
+		var hoverState = session.ResolveHoverState(new Vector3I(4, 4, 0));
+
+		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
+		Assert.Equal(new Vector3I(4, 4, 0), resolved.ResolvedTargetCell);
+		Assert.True(resolved.CanApply);
+		Assert.True(resolved.ShowGhost);
+		Assert.Equal(Terrains.WallStone, resolved.GhostRenderId);
+		Assert.True(resolved.HideResolvedTargetInWorld);
+	}
+
+	[Fact]
 	public void MapEditorSession_ResolveHoverState_SelectFixture_OnlyUsesCurrentLayer()
 	{
 		var state = CreateEditorState();
@@ -231,7 +316,29 @@ public sealed class PlacementConnectivityTests
 		var resolved = Assert.IsType<MapEditorHoverState>(occupiedCurrentLayer);
 		Assert.Equal(new Vector3I(5, 5, 1), resolved.ResolvedTargetCell);
 		Assert.True(resolved.CanApply);
+		Assert.False(resolved.ShowGhost);
 		Assert.True(resolved.ShowInfoOverlay);
+		Assert.False(resolved.HideResolvedTargetInWorld);
+	}
+
+	[Fact]
+	public void MapEditorSession_ResolveHoverState_DemolishFixtureOnOccupiedCell_ShowsExistingFixtureGhost()
+	{
+		var state = CreateEditorState();
+		state.World!.SetFixture(5, 5, 0, "D", Entities.Door);
+		var session = new MapEditorSession(state);
+		SelectFixtureBrush(session, Entities.Nest);
+		session.SelectToolMode(MapEditorToolMode.Demolish);
+
+		var hoverState = session.ResolveHoverState(new Vector3I(5, 5, 0));
+
+		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
+		Assert.Equal(new Vector3I(5, 5, 0), resolved.ResolvedTargetCell);
+		Assert.True(resolved.CanApply);
+		Assert.True(resolved.ShowGhost);
+		Assert.Equal(Entities.Door, resolved.GhostRenderId);
+		Assert.Equal("D", resolved.GhostGlyph);
+		Assert.True(resolved.HideResolvedTargetInWorld);
 	}
 
 	[Fact]

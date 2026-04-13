@@ -143,6 +143,9 @@ internal sealed class MapEditorCoordinator
 		{
 			switch (key.Keycode)
 			{
+				case Key.Ctrl:
+					RefreshBuildReverseStackModifier(key.CtrlPressed);
+					return true;
 				case Key.Escape:
 					Exit();
 					return true;
@@ -193,6 +196,9 @@ internal sealed class MapEditorCoordinator
 		{
 			switch (key.Keycode)
 			{
+				case Key.Ctrl:
+					RefreshBuildReverseStackModifier(key.CtrlPressed);
+					return true;
 				case Key.W or Key.Up:
 				case Key.S or Key.Down:
 				case Key.A or Key.Left:
@@ -281,9 +287,10 @@ internal sealed class MapEditorCoordinator
 
 		if (@event is InputEventMouseMotion motion)
 		{
+			var reverseStackChanged = _session.SetBuildReverseStack(motion.CtrlPressed);
 			if (renderer.TryGetEditorWorldCellFromGlobalPosition(motion.GlobalPosition, _session.CameraZ, out var hovered))
 			{
-				UpdateEditorHover(hovered, motion.GlobalPosition);
+				UpdateEditorHover(hovered, motion.GlobalPosition, forceRefresh: reverseStackChanged);
 				if (_leftMouseHeld && hovered != _lastPaintedCell)
 					TryPaintCell(hovered);
 				return true;
@@ -295,6 +302,7 @@ internal sealed class MapEditorCoordinator
 
 		if (@event is InputEventMouseButton mb)
 		{
+			_session.SetBuildReverseStack(mb.CtrlPressed);
 			if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed)
 			{
 				_leftMouseHeld = false;
@@ -356,6 +364,17 @@ internal sealed class MapEditorCoordinator
 
 		_lastPaintedCell = worldCell;
 		RefreshBar();
+		_flushMap();
+	}
+
+	private void RefreshBuildReverseStackModifier(bool reverseStack)
+	{
+		if (!_session.SetBuildReverseStack(reverseStack))
+			return;
+
+		if (_session.HoverWorld is { } hoverCell)
+			SyncEditorHoverPresentation(hoverCell);
+
 		_flushMap();
 	}
 
@@ -514,13 +533,13 @@ internal sealed class MapEditorCoordinator
 		_session.UpdateSavePath(path);
 	}
 
-	private void UpdateEditorHover(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
+	private void UpdateEditorHover(Vector3I hoveredCell, Vector2 pointerGlobalPosition, bool forceRefresh = false)
 	{
 		_lastPointerGlobalPosition = pointerGlobalPosition;
 		_hasLastPointerGlobalPosition = true;
 		var changed = _session.SetHover(hoveredCell);
 		SyncEditorHoverPresentation(hoveredCell, pointerGlobalPosition);
-		if (changed)
+		if (changed || forceRefresh)
 			_flushMap();
 	}
 

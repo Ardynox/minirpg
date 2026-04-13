@@ -52,7 +52,10 @@ internal readonly record struct MapEditorHoverState(
 	string? BrushGlyph,
 	bool CanApply,
 	bool ShowGhost,
-	bool ShowInfoOverlay);
+	bool ShowInfoOverlay,
+	string? GhostRenderId,
+	string? GhostGlyph,
+	bool HideResolvedTargetInWorld);
 
 public sealed class MapEditorSession
 {
@@ -66,6 +69,7 @@ public sealed class MapEditorSession
 	private int _fixtureBrushIndex;
 	private int _selectedZ;
 	private Vector3I? _hoverWorld;
+	private bool _buildReverseStack;
 
 	public MapEditorSession(GameState state)
 	{
@@ -151,6 +155,7 @@ public sealed class MapEditorSession
 		CameraY = _state.PlayerY;
 		_selectedZ = _state.PlayerZ;
 		_hoverWorld = null;
+		_buildReverseStack = false;
 		IgnoreConnectivityRequirement = false;
 		_history.Clear();
 	}
@@ -159,6 +164,7 @@ public sealed class MapEditorSession
 	{
 		Active = false;
 		_hoverWorld = null;
+		_buildReverseStack = false;
 		_history.Clear();
 	}
 
@@ -244,6 +250,15 @@ public sealed class MapEditorSession
 		return true;
 	}
 
+	internal bool SetBuildReverseStack(bool reverseStack)
+	{
+		if (_buildReverseStack == reverseStack)
+			return false;
+
+		_buildReverseStack = reverseStack;
+		return true;
+	}
+
 	public void SetIgnoreConnectivityRequirement(bool ignore) =>
 		IgnoreConnectivityRequirement = ignore;
 
@@ -253,14 +268,24 @@ public sealed class MapEditorSession
 		return hoverState;
 	}
 
+	internal MapEditorHoverState? ResolveHoverState(Vector3I? hoverWorld, bool reverseStack)
+	{
+		var (hoverState, _) = ResolveHoverStateCore(hoverWorld, reverseStackOverride: reverseStack);
+		return hoverState;
+	}
+
 	public MapEditorBrushApplyResult ApplyBrush(int x, int y, int pickedZ)
+		=> ApplyBrush(x, y, pickedZ, _buildReverseStack);
+
+	public MapEditorBrushApplyResult ApplyBrush(int x, int y, int pickedZ, bool reverseStack)
 	{
 		if (_state.World == null)
 			return MapEditorBrushApplyResult.None;
 
 		var (hoverState, applyResult) = ResolveHoverStateCore(
 			new Vector3I(x, y, pickedZ),
-			MapEditorToolMode.Build);
+			MapEditorToolMode.Build,
+			reverseStack);
 		if (hoverState is not { CanApply: true, ResolvedTargetCell: { } targetCell } resolved)
 			return applyResult;
 
@@ -329,7 +354,8 @@ public sealed class MapEditorSession
 
 	private (MapEditorHoverState? HoverState, MapEditorBrushApplyResult ApplyResult) ResolveHoverStateCore(
 		Vector3I? hoverWorld,
-		MapEditorToolMode? toolModeOverride = null)
+		MapEditorToolMode? toolModeOverride = null,
+		bool? reverseStackOverride = null)
 	{
 		if (_state.World == null || hoverWorld is not { } hoverCell)
 			return (null, MapEditorBrushApplyResult.None);
@@ -342,9 +368,10 @@ public sealed class MapEditorSession
 			return (null, MapEditorBrushApplyResult.None);
 
 		var toolMode = toolModeOverride ?? CurrentToolMode;
+		var reverseStack = reverseStackOverride ?? _buildReverseStack;
 		return CurrentCategory switch
 		{
-			MapEditorBrushCategory.Terrain when toolMode == MapEditorToolMode.Build => ResolveTerrainBuildHoverState(hoverCell, brush),
+			MapEditorBrushCategory.Terrain when toolMode == MapEditorToolMode.Build => ResolveTerrainBuildHoverState(hoverCell, brush, reverseStack),
 			MapEditorBrushCategory.Terrain => ResolveTerrainOccupiedHoverState(toolMode, hoverCell, brush),
 			MapEditorBrushCategory.Fixture when toolMode == MapEditorToolMode.Build => ResolveFixtureBuildHoverState(hoverCell, brush),
 			MapEditorBrushCategory.Fixture => ResolveFixtureOccupiedHoverState(toolMode, hoverCell, brush),
@@ -354,9 +381,10 @@ public sealed class MapEditorSession
 
 	private (MapEditorHoverState HoverState, MapEditorBrushApplyResult ApplyResult) ResolveTerrainBuildHoverState(
 		Vector3I hoverCell,
-		MapEditorBrush brush)
+		MapEditorBrush brush,
+		bool reverseStack)
 	{
-		var targetCell = ResolveTerrainBuildTargetCell(hoverCell);
+		var targetCell = ResolveTerrainBuildTargetCell(hoverCell, reverseStack);
 		var previewGlyph = TerrainRegistry.Get(brush.Id)?.Glyph;
 		if (targetCell is not { } resolvedTargetCell)
 		{
@@ -435,6 +463,13 @@ public sealed class MapEditorSession
 		var targetCell = ResolveTerrainOccupiedTargetCell(hoverCell);
 		var previewGlyph = TerrainRegistry.Get(brush.Id)?.Glyph;
 		var canApply = targetCell != null;
+		var existingTerrainId = targetCell is { } resolvedTargetCell
+			? _state.World!.GetTerrain(resolvedTargetCell.X, resolvedTargetCell.Y, resolvedTargetCell.Z).StringId
+			: null;
+		var showGhost = toolMode == MapEditorToolMode.Demolish &&
+			canApply &&
+			existingTerrainId is not null &&
+			existingTerrainId is not (Terrains.Air or Terrains.Void);
 		return (CreateHoverState(
 				toolMode,
 				MapEditorBrushCategory.Terrain,
@@ -444,8 +479,11 @@ public sealed class MapEditorSession
 				brush,
 				previewGlyph,
 				canApply,
-				showGhost: false,
-				showInfoOverlay: toolMode == MapEditorToolMode.Select && canApply),
+				showGhost,
+				showInfoOverlay: toolMode == MapEditorToolMode.Select && canApply,
+				ghostRenderId: existingTerrainId,
+				ghostGlyph: existingTerrainId != null ? TerrainRegistry.Get(existingTerrainId)?.Glyph : null,
+				hideResolvedTargetInWorld: toolMode == MapEditorToolMode.Demolish && canApply),
 			MapEditorBrushApplyResult.None);
 	}
 
@@ -479,6 +517,7 @@ public sealed class MapEditorSession
 		Vector3I? targetCell = string.IsNullOrEmpty(existingFixtureId) ? null : hoverCell;
 		var previewGlyph = brush.Glyph ?? EntityAccess.ResolveFixtureGlyph(brush.Id);
 		var canApply = targetCell != null;
+		var showGhost = toolMode == MapEditorToolMode.Demolish && canApply;
 		return (CreateHoverState(
 				toolMode,
 				MapEditorBrushCategory.Fixture,
@@ -488,19 +527,23 @@ public sealed class MapEditorSession
 				brush,
 				previewGlyph,
 				canApply,
-				showGhost: false,
-				showInfoOverlay: toolMode == MapEditorToolMode.Select && canApply),
+				showGhost,
+				showInfoOverlay: toolMode == MapEditorToolMode.Select && canApply,
+				ghostRenderId: canApply ? existingFixtureId : null,
+				ghostGlyph: canApply ? EntityAccess.ResolveFixtureGlyph(existingFixtureId) : null,
+				hideResolvedTargetInWorld: toolMode == MapEditorToolMode.Demolish && canApply),
 			MapEditorBrushApplyResult.None);
 	}
 
-	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell)
+	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell, bool reverseStack)
 	{
 		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
 		if (pickedTerrain is Terrains.Air or Terrains.Void)
 			return hoverCell;
 
-		var placeZ = hoverCell.Z - 1;
-		for (var scanned = 0; scanned < TerrainColumnScanDepth; scanned++, placeZ--)
+		var zStep = reverseStack ? 1 : -1;
+		var placeZ = hoverCell.Z + zStep;
+		for (var scanned = 0; scanned < TerrainColumnScanDepth; scanned++, placeZ += zStep)
 		{
 			var terrain = _state.World.GetTerrain(hoverCell.X, hoverCell.Y, placeZ).StringId;
 			if (terrain is Terrains.Air or Terrains.Void)
@@ -529,8 +572,12 @@ public sealed class MapEditorSession
 		string? brushGlyph,
 		bool canApply,
 		bool showGhost,
-		bool showInfoOverlay)
+		bool showInfoOverlay,
+		string? ghostRenderId = null,
+		string? ghostGlyph = null,
+		bool hideResolvedTargetInWorld = false)
 	{
+		var resolvedBrushGlyph = brushGlyph ?? brush.Glyph;
 		return new MapEditorHoverState(
 			toolMode,
 			category,
@@ -538,10 +585,13 @@ public sealed class MapEditorSession
 			rawHoverCell,
 			resolvedTargetCell,
 			brush.Id,
-			brushGlyph ?? brush.Glyph,
+			resolvedBrushGlyph,
 			canApply,
 			showGhost,
-			showInfoOverlay);
+			showInfoOverlay,
+			showGhost ? ghostRenderId ?? brush.Id : null,
+			showGhost ? ghostGlyph ?? resolvedBrushGlyph : null,
+			hideResolvedTargetInWorld);
 	}
 
 	private void RefreshFixtureBrushes()

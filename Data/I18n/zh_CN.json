@@ -479,7 +479,7 @@
     "ui.map_editor.lighting_profile":  "光照预设",
     "ui.map_editor.turn_controller":  "回合控制",
     "ui.map_editor.hint":  "左键执行当前工具 | 滚轮切笔刷 | 工具栏切换选择/建造/拆除 | Tab 切分类",
-    "ui.map_editor.hint.v2":  "左键：执行当前工具  滚轮：切换笔刷\n工具栏：选择/建造/拆除  Tab：分类  Ctrl+Z/Y：撤销/重做",
+    "ui.map_editor.hint.v2":  "左键：执行当前工具  滚轮：切换笔刷\n工具栏：选择/建造/拆除  建造时按住 Ctrl：反向堆叠  Tab：分类  Ctrl+Z/Y：撤销/重做",
     "ui.map_editor.center":  "回到玩家",
     "ui.map_editor.save":  "保存",
     "ui.map_editor.exit":  "退出编辑",

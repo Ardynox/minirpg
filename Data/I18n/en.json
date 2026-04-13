@@ -535,7 +535,7 @@
   "ui.map_editor.lighting_profile": "Lighting Profile",
   "ui.map_editor.turn_controller": "Turn Controller",
   "ui.map_editor.hint": "LMB Uses Current Tool | Wheel Cycles Brush | Toolbar Switches Select / Build / Demolish | Tab Switches Category",
-  "ui.map_editor.hint.v2": "LMB: Use Current Tool  Scroll: Cycle Brush\nToolbar: Select / Build / Demolish  Tab: Category  Ctrl+Z/Y: Undo/Redo",
+  "ui.map_editor.hint.v2": "LMB: Use Current Tool  Scroll: Cycle Brush\nToolbar: Select / Build / Demolish  Hold Ctrl in Build: Reverse Stack  Tab: Category  Ctrl+Z/Y: Undo/Redo",
   "ui.map_editor.center": "Center On Player",
   "ui.map_editor.save": "Save",
   "ui.map_editor.exit": "Exit Editor",

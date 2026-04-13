@@ -294,11 +294,28 @@ public partial class IsometricVoxelRenderer
 	internal static bool ShouldDrawEditorPlacementGhost(MapEditorHoverState? hoverState) =>
 		hoverState is
 		{
-			ToolMode: MapEditorToolMode.Build,
 			CanApply: true,
 			ShowGhost: true,
-			ResolvedTargetCell: { }
+			ResolvedTargetCell: { },
+			GhostRenderId: { Length: > 0 }
 		};
+
+	internal static bool ShouldHideEditorPreviewTerrain(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ) =>
+		ShouldHideEditorPreviewTarget(
+			hoverState,
+			MapEditorHoverStateKind.Terrain,
+			worldX,
+			worldY,
+			worldZ);
+
+	internal static bool ShouldHideEditorPreviewFixture(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
+		ShouldHideEditorPreviewTarget(
+			hoverState,
+			MapEditorHoverStateKind.Fixture,
+			worldX,
+			worldY,
+			worldZ,
+			entityId);
 
 	internal static int GetEditorPlacementGhostCommandCount(MapEditorHoverState? hoverState)
 	{
@@ -306,6 +323,33 @@ public partial class IsometricVoxelRenderer
 			return 0;
 
 		return resolved.Kind == MapEditorHoverStateKind.Terrain ? 3 : 1;
+	}
+
+	private static bool ShouldHideEditorPreviewTarget(
+		MapEditorHoverState? hoverState,
+		MapEditorHoverStateKind kind,
+		int worldX,
+		int worldY,
+		int worldZ,
+		string? entityId = null)
+	{
+		if (hoverState is not
+			{
+				HideResolvedTargetInWorld: true,
+				Kind: var hoverKind,
+				ResolvedTargetCell: { } targetCell
+			} || hoverKind != kind)
+		{
+			return false;
+		}
+
+		if (targetCell.X != worldX || targetCell.Y != worldY || targetCell.Z != worldZ)
+			return false;
+
+		var resolved = hoverState.Value;
+		return kind != MapEditorHoverStateKind.Fixture ||
+			(!string.IsNullOrWhiteSpace(entityId) &&
+			 string.Equals(resolved.GhostRenderId, entityId, StringComparison.Ordinal));
 	}
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
@@ -676,6 +720,9 @@ public partial class IsometricVoxelRenderer
 		for (var wx = cx - halfW; wx <= cx + halfW; wx++)
 		for (var wz = zMax; wz >= zMin; wz--)
 		{
+			if (ShouldHideEditorPreviewTerrain(_editorViewActive ? EditorHoverState : null, wx, wy, wz))
+				continue;
+
 			var terrain = _state.World.GetTerrain(wx, wy, wz);
 			if (terrain.StringId == Terrains.Air || terrain.StringId == Terrains.Void)
 				continue;
@@ -1333,7 +1380,11 @@ public partial class IsometricVoxelRenderer
 			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
 			var key = IsoCoordUtil.SortKey(wx, wy, wz);
 			foreach (var e in entities)
+			{
+				if (ShouldHideEditorPreviewFixture(_editorViewActive ? EditorHoverState : null, wx, wy, wz, e.EntityId))
+					continue;
 				_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, e.EntityId, e.Glyph, tint));
+			}
 		}
 
 		_entityCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
@@ -1439,19 +1490,25 @@ public partial class IsometricVoxelRenderer
 
 	private void DrawEditorPlacementGhost(Vector2 screenPos, MapEditorHoverState hoverState)
 	{
+		if (string.IsNullOrWhiteSpace(hoverState.GhostRenderId))
+			return;
+
 		switch (hoverState.Kind)
 		{
 			case MapEditorHoverStateKind.Terrain:
-				DrawTerrainPlacementGhost(screenPos, hoverState.BrushId);
+				DrawTerrainPlacementGhost(screenPos, hoverState.GhostRenderId);
 				break;
 			case MapEditorHoverStateKind.Fixture:
-				DrawFixturePlacementGhost(screenPos, hoverState);
+				DrawFixturePlacementGhost(screenPos, hoverState.GhostRenderId, hoverState.GhostGlyph);
 				break;
 		}
 	}
 
-	private void DrawTerrainPlacementGhost(Vector2 screenPos, string terrainId)
+	private void DrawTerrainPlacementGhost(Vector2 screenPos, string? terrainId)
 	{
+		if (string.IsNullOrWhiteSpace(terrainId))
+			return;
+
 		var terrain = TerrainRegistry.Get(terrainId);
 		var atlasTexture = _terrainAtlas.AtlasTexture;
 		if (terrain == null || atlasTexture == null)
@@ -1467,13 +1524,16 @@ public partial class IsometricVoxelRenderer
 		DrawAtlasRegionSprite(atlasTexture, regions.Top, screenPos, tint, zIndex: 2);
 	}
 
-	private void DrawFixturePlacementGhost(Vector2 screenPos, MapEditorHoverState hoverState)
+	private void DrawFixturePlacementGhost(Vector2 screenPos, string? entityId, string? glyph)
 	{
-		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
-		if (!string.IsNullOrWhiteSpace(hoverState.BrushId) && TryDrawWorldEntitySprite(screenPos, hoverState.BrushId, tint))
+		if (string.IsNullOrWhiteSpace(entityId))
 			return;
 
-		DrawEntityMarker(screenPos, hoverState.BrushGlyph ?? hoverState.BrushId, tint);
+		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
+		if (TryDrawWorldEntitySprite(screenPos, entityId, tint))
+			return;
+
+		DrawEntityMarker(screenPos, glyph ?? entityId, tint);
 	}
 
 	private void DrawHoverVolumeFaces(Vector2 cellPos, Color tint)
