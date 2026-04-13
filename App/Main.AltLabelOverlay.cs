@@ -63,8 +63,7 @@ public partial class Main
 		var cx = _state.PlayerX;
 		var cy = _state.PlayerY;
 		var cz = _state.PlayerZ;
-		var halfW = ViewW / 2;
-		var halfH = ViewH / 2;
+		var (halfW, halfH) = GetCurrentVisibleWorldHalfExtents();
 
 		_altLabelCount = 0;
 

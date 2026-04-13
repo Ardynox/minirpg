@@ -18,6 +18,8 @@ public partial class IsometricVoxelRenderer
 {
 	private const int DefaultViewDepthAbove = 4;
 	private const int DefaultViewDepthBelow = 2;
+	private const int VisibleWindowOverscanCells = 2;
+	private const int MaxVisibleWindowHalfExtent = 32;
 	private const int DefaultCharacterSheetFrameWidth = 128;
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
@@ -196,6 +198,84 @@ public partial class IsometricVoxelRenderer
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
 	public bool IsRevealAll => _fogTracker.RevealAll;
 	public IAnimatable? PlayerAnimatable => _playerAnim;
+
+	internal VisibleWorldWindow GetVisibleWorldWindow()
+	{
+		var fallback = new VisibleWorldWindow(_viewW / 2, _viewH / 2);
+		if (_subViewport == null || _camera == null)
+			return fallback;
+
+		return CalculateVisibleWorldWindow(
+			_subViewport.Size,
+			_camera.Zoom,
+			fallback);
+	}
+
+	internal static VisibleWorldWindow CalculateVisibleWorldWindow(
+		Vector2I viewportSize,
+		Vector2 zoom,
+		VisibleWorldWindow fallback)
+	{
+		if (viewportSize.X <= 0 || viewportSize.Y <= 0)
+			return fallback;
+
+		var zoomX = Math.Max(0.001f, zoom.X);
+		var zoomY = Math.Max(0.001f, zoom.Y);
+		var localHalfWidth = viewportSize.X * 0.5f / zoomX;
+		var localHalfHeight = viewportSize.Y * 0.5f / zoomY
+			+ Math.Max(DefaultViewDepthAbove, DefaultViewDepthBelow) * IsoCoordUtil.ZStep;
+		var requiredCoverageSum = Mathf.CeilToInt(Mathf.Max(
+			localHalfWidth / IsoCoordUtil.TileHalfW,
+			localHalfHeight / IsoCoordUtil.TileHalfH));
+		var baseCap = Math.Max(0, MaxVisibleWindowHalfExtent - VisibleWindowOverscanCells);
+		var expanded = ExpandVisibleWorldWindow(fallback, requiredCoverageSum, baseCap);
+		return new VisibleWorldWindow(
+			Math.Min(MaxVisibleWindowHalfExtent, expanded.HalfX + VisibleWindowOverscanCells),
+			Math.Min(MaxVisibleWindowHalfExtent, expanded.HalfY + VisibleWindowOverscanCells));
+	}
+
+	private static VisibleWorldWindow ExpandVisibleWorldWindow(
+		VisibleWorldWindow fallback,
+		int requiredCoverageSum,
+		int maxHalfExtent)
+	{
+		var halfX = Math.Clamp(fallback.HalfX, 0, maxHalfExtent);
+		var halfY = Math.Clamp(fallback.HalfY, 0, maxHalfExtent);
+		var currentCoverageSum = halfX + halfY;
+		if (requiredCoverageSum <= currentCoverageSum)
+			return new VisibleWorldWindow(halfX, halfY);
+
+		var remaining = requiredCoverageSum - currentCoverageSum;
+		var weightSum = Math.Max(1, currentCoverageSum);
+		var preferredXGrowth = Math.Min(
+			maxHalfExtent - halfX,
+			Mathf.RoundToInt(remaining * (halfX / (float)weightSum)));
+		halfX += preferredXGrowth;
+		remaining -= preferredXGrowth;
+
+		var preferredYGrowth = Math.Min(maxHalfExtent - halfY, remaining);
+		halfY += preferredYGrowth;
+		remaining -= preferredYGrowth;
+
+		while (remaining > 0 && (halfX < maxHalfExtent || halfY < maxHalfExtent))
+		{
+			if (halfX < maxHalfExtent)
+			{
+				halfX++;
+				remaining--;
+				if (remaining <= 0)
+					break;
+			}
+
+			if (halfY < maxHalfExtent)
+			{
+				halfY++;
+				remaining--;
+			}
+		}
+
+		return new VisibleWorldWindow(halfX, halfY);
+	}
 
 	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>
 		WeatherFxController.EnumerateWeatherAssetPaths();
@@ -698,8 +778,9 @@ public partial class IsometricVoxelRenderer
 		var cx = _viewCenterX;
 		var cy = _viewCenterY;
 		var cz = _viewCenterZ;
-		var halfW = _viewW / 2;
-		var halfH = _viewH / 2;
+		var visibleWindow = GetVisibleWorldWindow();
+		var halfW = visibleWindow.HalfX;
+		var halfH = visibleWindow.HalfY;
 		var zMin = cz - DefaultViewDepthAbove;
 		var zMax = cz + DefaultViewDepthBelow;
 		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorHoverState);
@@ -2443,6 +2524,10 @@ public partial class IsometricVoxelRenderer
 		Vector2 LowerRight,
 		Vector2 LowerBottom,
 		Vector2 LowerLeft);
+
+	internal readonly record struct VisibleWorldWindow(
+		int HalfX,
+		int HalfY);
 
 	private readonly record struct FacilityRenderPlacement(
 		bool Visible,

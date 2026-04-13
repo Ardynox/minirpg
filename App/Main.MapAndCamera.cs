@@ -5,6 +5,17 @@ namespace MiniRPG;
 
 public partial class Main
 {
+	private (int HalfW, int HalfH) GetCurrentVisibleWorldHalfExtents()
+	{
+		if (_mapRender != null)
+		{
+			var window = _mapRender.GetVisibleWorldWindow();
+			return (window.HalfX, window.HalfY);
+		}
+
+		return (ViewW / 2, ViewH / 2);
+	}
+
 	private static Control CreateMapOverlayRoot(Control mapPanel)
 	{
 		mapPanel.GetNodeOrNull<Control>("CombatFxTextRoot")?.QueueFree();

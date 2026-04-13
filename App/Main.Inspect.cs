@@ -152,10 +152,9 @@ public partial class Main
 		if (_inspectWorldCell is not { } current)
 			return;
 
-		var halfW = ViewW / 2;
-		var halfH = ViewH / 2;
-		var nextX = Math.Clamp(current.X + dx, _state.PlayerX - halfW, _state.PlayerX - halfW + ViewW - 1);
-		var nextY = Math.Clamp(current.Y + dy, _state.PlayerY - halfH, _state.PlayerY - halfH + ViewH - 1);
+		var (halfW, halfH) = GetCurrentVisibleWorldHalfExtents();
+		var nextX = Math.Clamp(current.X + dx, _state.PlayerX - halfW, _state.PlayerX + halfW);
+		var nextY = Math.Clamp(current.Y + dy, _state.PlayerY - halfH, _state.PlayerY + halfH);
 		if (nextX == current.X && nextY == current.Y)
 			return;
 

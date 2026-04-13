@@ -147,6 +147,64 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_GetVisibleWorldWindow_WithoutViewport_UsesFallbackBaseline()
+	{
+		var renderer = new IsometricVoxelRenderer(new GameState(), new FogOfWarTracker(), viewW: 20, viewH: 20);
+
+		var window = renderer.GetVisibleWorldWindow();
+
+		Assert.Equal(10, window.HalfX);
+		Assert.Equal(10, window.HalfY);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForDefaultZoom_IsNotSmallerThanLegacyBaseline()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			Vector2.One,
+			fallback);
+
+		Assert.True(window.HalfX >= fallback.HalfX);
+		Assert.True(window.HalfY >= fallback.HalfY);
+		Assert.True(window.HalfX + window.HalfY > fallback.HalfX + fallback.HalfY);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForZoomedOutView_ExpandsCoverage()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var defaultZoomWindow = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			Vector2.One,
+			fallback);
+
+		var zoomedOutWindow = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			new Vector2(0.6f, 0.6f),
+			fallback);
+
+		Assert.True(zoomedOutWindow.HalfX > defaultZoomWindow.HalfX);
+		Assert.True(zoomedOutWindow.HalfY > defaultZoomWindow.HalfY);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_CapsExtremeZoomOutCoverage()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			new Vector2(0.2f, 0.2f),
+			fallback);
+
+		Assert.Equal(32, window.HalfX);
+		Assert.Equal(32, window.HalfY);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_ResolveFacilityFootprintScreenCenter_UsesFootprintBoundsCenter()
 	{
 		var footprint = new List<ZoneCell>
