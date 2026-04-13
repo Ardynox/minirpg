@@ -12,6 +12,10 @@ public enum ClientCommandKind
 	CastSkill,
 	EatInventory,
 	Rest,
+	TerrainBuild,
+	TerrainDemolish,
+	FacilityPlaceBlueprint,
+	FacilityDemolish,
 	FacilityDeliver,
 	FacilityConstruct,
 	Interact,
@@ -168,6 +172,35 @@ public sealed record EatInventoryClientCommand() : ClientCommand(ClientCommandKi
 
 public sealed record RestClientCommand() : ClientCommand(ClientCommandKind.Rest)
 {
+}
+
+public sealed record TerrainBuildClientCommand() : ClientCommand(ClientCommandKind.TerrainBuild)
+{
+	public string TerrainId { get; init; } = string.Empty;
+	public int TargetX { get; init; }
+	public int TargetY { get; init; }
+	public int TargetZ { get; init; }
+}
+
+public sealed record TerrainDemolishClientCommand() : ClientCommand(ClientCommandKind.TerrainDemolish)
+{
+	public int TargetX { get; init; }
+	public int TargetY { get; init; }
+	public int TargetZ { get; init; }
+}
+
+public sealed record FacilityPlaceBlueprintClientCommand() : ClientCommand(ClientCommandKind.FacilityPlaceBlueprint)
+{
+	public string FacilityDefId { get; init; } = string.Empty;
+	public int TargetX { get; init; }
+	public int TargetY { get; init; }
+	public int TargetZ { get; init; }
+	public FacilityRotation Rotation { get; init; }
+}
+
+public sealed record FacilityDemolishClientCommand() : ClientCommand(ClientCommandKind.FacilityDemolish)
+{
+	public string FacilityId { get; init; } = string.Empty;
 }
 
 public sealed record FacilityDeliverClientCommand() : ClientCommand(ClientCommandKind.FacilityDeliver)

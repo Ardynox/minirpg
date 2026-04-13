@@ -1,6 +1,7 @@
 using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
 
@@ -18,9 +19,9 @@ internal sealed class RuntimeViewCoordinator
 	}
 
 	public void FlushMap(
-		bool inspectModeActive,
-		Vector3I? inspectWorldCell,
-		Vector3I? hoverWorldCell,
+		Vector3I? gameplayHoverWorldCell,
+		WorldToolPreviewState? runtimeWorldToolPreviewState,
+		Vector3I? targetCursorWorldCell,
 		bool mapEditorActive,
 		int mapEditorCameraX,
 		int mapEditorCameraY,
@@ -34,10 +35,12 @@ internal sealed class RuntimeViewCoordinator
 			return;
 
 		syncViewToActiveActor();
-		_ui.MapRender.InspectWorldCell = inspectModeActive ? inspectWorldCell : null;
+		var editorPreviewState = MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(mapEditorHoverState);
 		var editorZ = mapEditorActive ? mapEditorCameraZ : _state.PlayerZ;
-		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : hoverWorldCell;
+		_ui.MapRender.TargetCursorWorldCell = targetCursorWorldCell;
+		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : gameplayHoverWorldCell;
 		_ui.MapRender.EditorHoverState = mapEditorActive ? mapEditorHoverState : null;
+		_ui.MapRender.WorldToolPreviewState = mapEditorActive ? editorPreviewState : runtimeWorldToolPreviewState;
 		_ui.MapRender.SetEditorView(
 			mapEditorActive,
 			mapEditorActive ? mapEditorCameraX : _state.PlayerX,

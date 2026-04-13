@@ -17,6 +17,10 @@ public enum TimelinePlayerActionType
 	CastSkill,
 	EatInventory,
 	Rest,
+	TerrainBuild,
+	TerrainDemolish,
+	FacilityPlaceBlueprint,
+	FacilityDemolish,
 	FacilityDeliver,
 	FacilityConstruct,
 	Climb,
@@ -37,7 +41,10 @@ public sealed class TimelinePlayerAction
 	public int TargetY { get; }
 	public int TargetZ { get; }
 	public int InventoryIndex { get; }
+	public string? TerrainId { get; }
 	public string? FacilityId { get; }
+	public string? FacilityDefId { get; }
+	public FacilityRotation FacilityRotation { get; }
 
 	private TimelinePlayerAction(
 		TimelinePlayerActionType type,
@@ -53,7 +60,10 @@ public sealed class TimelinePlayerAction
 		int targetY = 0,
 		int targetZ = 0,
 		int inventoryIndex = -1,
-		string? facilityId = null)
+		string? terrainId = null,
+		string? facilityId = null,
+		string? facilityDefId = null,
+		FacilityRotation facilityRotation = FacilityRotation.North)
 	{
 		Type = type;
 		Dx = dx;
@@ -68,7 +78,10 @@ public sealed class TimelinePlayerAction
 		TargetY = targetY;
 		TargetZ = targetZ;
 		InventoryIndex = inventoryIndex;
+		TerrainId = terrainId;
 		FacilityId = facilityId;
+		FacilityDefId = facilityDefId;
+		FacilityRotation = facilityRotation;
 	}
 
 	public static TimelinePlayerAction Move(int dx, int dy) =>
@@ -108,6 +121,38 @@ public sealed class TimelinePlayerAction
 
 	public static TimelinePlayerAction Rest() =>
 		new(TimelinePlayerActionType.Rest);
+
+	public static TimelinePlayerAction TerrainBuild(string terrainId, int targetX, int targetY, int targetZ) =>
+		new(
+			TimelinePlayerActionType.TerrainBuild,
+			terrainId: terrainId,
+			targetX: targetX,
+			targetY: targetY,
+			targetZ: targetZ);
+
+	public static TimelinePlayerAction TerrainDemolish(int targetX, int targetY, int targetZ) =>
+		new(
+			TimelinePlayerActionType.TerrainDemolish,
+			targetX: targetX,
+			targetY: targetY,
+			targetZ: targetZ);
+
+	public static TimelinePlayerAction FacilityPlaceBlueprint(
+		string facilityDefId,
+		int targetX,
+		int targetY,
+		int targetZ,
+		FacilityRotation rotation) =>
+		new(
+			TimelinePlayerActionType.FacilityPlaceBlueprint,
+			targetX: targetX,
+			targetY: targetY,
+			targetZ: targetZ,
+			facilityDefId: facilityDefId,
+			facilityRotation: rotation);
+
+	public static TimelinePlayerAction FacilityDemolish(string facilityId) =>
+		new(TimelinePlayerActionType.FacilityDemolish, facilityId: facilityId);
 
 	public static TimelinePlayerAction FacilityDeliver(string facilityId) =>
 		new(TimelinePlayerActionType.FacilityDeliver, facilityId: facilityId);
@@ -590,6 +635,14 @@ public static class TimelineTurnManager
 				return TryExecuteEat(state, player, action, events);
 			case TimelinePlayerActionType.Rest:
 				return TryExecuteRest(state, player, events);
+			case TimelinePlayerActionType.TerrainBuild:
+				return TryExecuteTerrainBuild(state, player, action);
+			case TimelinePlayerActionType.TerrainDemolish:
+				return TryExecuteTerrainDemolish(state, player, action);
+			case TimelinePlayerActionType.FacilityPlaceBlueprint:
+				return TryExecuteFacilityPlaceBlueprint(state, player, action);
+			case TimelinePlayerActionType.FacilityDemolish:
+				return TryExecuteFacilityDemolish(state, player, action);
 			case TimelinePlayerActionType.FacilityDeliver:
 				return TryExecuteFacilityDeliver(state, player, action, events);
 			case TimelinePlayerActionType.FacilityConstruct:
@@ -710,6 +763,70 @@ public static class TimelineTurnManager
 			RestContext.ForPlayerBedroll(NeedActionModule.GetBedrollQuality(player)));
 		events.AddRange(result.Events);
 		return result.Consumed;
+	}
+
+	private static bool TryExecuteTerrainBuild(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action)
+	{
+		if (string.IsNullOrWhiteSpace(action.TerrainId))
+			return false;
+
+		return RuntimeBuildActionModule.TryExecuteTerrainBuild(
+			state,
+			player,
+			action.TerrainId,
+			action.TargetX,
+			action.TargetY,
+			action.TargetZ,
+			state.RuntimeFreeBuild);
+	}
+
+	private static bool TryExecuteTerrainDemolish(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action) =>
+		RuntimeBuildActionModule.TryExecuteTerrainDemolish(
+			state,
+			player,
+			action.TargetX,
+			action.TargetY,
+			action.TargetZ,
+			state.RuntimeFreeBuild);
+
+	private static bool TryExecuteFacilityPlaceBlueprint(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action)
+	{
+		if (string.IsNullOrWhiteSpace(action.FacilityDefId))
+			return false;
+
+		return RuntimeBuildActionModule.TryExecuteFacilityPlaceBlueprint(
+			state,
+			player,
+			action.FacilityDefId,
+			action.TargetX,
+			action.TargetY,
+			action.TargetZ,
+			action.FacilityRotation,
+			state.RuntimeFreeBuild);
+	}
+
+	private static bool TryExecuteFacilityDemolish(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action)
+	{
+		if (string.IsNullOrWhiteSpace(action.FacilityId))
+			return false;
+
+		return RuntimeBuildActionModule.TryExecuteFacilityDemolish(
+			state,
+			player,
+			action.FacilityId,
+			state.RuntimeFreeBuild);
 	}
 
 	private static bool TryExecuteFacilityDeliver(

@@ -80,6 +80,23 @@ public static class ServerActionGateway
 					targetZ: cast.TargetZ)),
 			EatInventoryClientCommand eat => ExecuteTimelineAction(state, TimelinePlayerAction.EatInventory(eat.InventoryIndex)),
 			RestClientCommand => ExecuteTimelineAction(state, TimelinePlayerAction.Rest()),
+			TerrainBuildClientCommand build => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.TerrainBuild(build.TerrainId, build.TargetX, build.TargetY, build.TargetZ)),
+			TerrainDemolishClientCommand demolish => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.TerrainDemolish(demolish.TargetX, demolish.TargetY, demolish.TargetZ)),
+			FacilityPlaceBlueprintClientCommand place => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.FacilityPlaceBlueprint(
+					place.FacilityDefId,
+					place.TargetX,
+					place.TargetY,
+					place.TargetZ,
+					place.Rotation)),
+			FacilityDemolishClientCommand demolishFacility => ExecuteTimelineAction(
+				state,
+				TimelinePlayerAction.FacilityDemolish(demolishFacility.FacilityId)),
 			FacilityDeliverClientCommand deliver => ExecuteTimelineAction(
 				state,
 				TimelinePlayerAction.FacilityDeliver(deliver.FacilityId)),

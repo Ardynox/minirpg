@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Config;
+using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Data;
 
@@ -249,6 +250,7 @@ public static class PresetDB
 			SurgeryOperationRegistry.Register(def);
 		FixtureRegistry.Load();
 		FacilityRegistry.Load();
+		TerrainBuildRuleRegistry.Load();
 		RecipeRegistry.Load();
 		RoomRoleRegistry.Load();
 

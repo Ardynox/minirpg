@@ -82,6 +82,9 @@ public class GameState
 	[JsonIgnore]
 	public AIBehaviorContext? BehaviorContextCache { get; set; }
 
+	[JsonIgnore]
+	public bool RuntimeFreeBuild { get; set; }
+
 	// ── 玩家三维坐标 ──
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
@@ -159,6 +162,7 @@ public class GameState
 		Timeline.Reset();
 		Weather = WeatherState.CreateDefault(WorldSeed);
 		WatchMode = false;
+		RuntimeFreeBuild = false;
 		IdentifiedActorTypes.Clear();
 		IdentifiedItemTypes.Clear();
 		GeneratorId = "dwarf_fortress";

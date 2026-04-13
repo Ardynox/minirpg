@@ -7,6 +7,7 @@ using MiniRPG.Core.Data;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG.Module.Render;
 
@@ -96,6 +97,7 @@ public partial class IsometricVoxelRenderer
 	private Node2D? _combatFxWorldRoot;
 	private IAnimatable? _playerAnim;
 	private Vector2? _editorCameraTarget;
+	private MapEditorHoverState? _editorHoverState;
 	private const float EditorCameraLerpSpeed = 14f;
 
 	private readonly List<Sprite2D> _spritePool = [];
@@ -212,8 +214,17 @@ public partial class IsometricVoxelRenderer
 	public int LastDrawCommandCount => _lastDrawCommandCount;
 	public IsometricLightingSettings LightingSettings => _lighting;
 	public Vector3I? HoverWorldCell { get; set; }
-	internal MapEditorHoverState? EditorHoverState { get; set; }
-	public Vector3I? InspectWorldCell { get; set; }
+	internal MapEditorHoverState? EditorHoverState
+	{
+		get => _editorHoverState;
+		set
+		{
+			_editorHoverState = value;
+			WorldToolPreviewState = MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(value);
+		}
+	}
+	internal WorldToolPreviewState? WorldToolPreviewState { get; set; }
+	public Vector3I? TargetCursorWorldCell { get; set; }
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
 	public bool IsIsometricMode => true;
 	public int LightingProfileIndex => _lightingProfileIndex;
@@ -418,52 +429,78 @@ public partial class IsometricVoxelRenderer
 	}
 
 	internal static Vector3I? ResolveHoverHighlightCell(
+		Vector3I? hoverWorldCell,
+		WorldToolPreviewState? previewState) =>
+		previewState?.ResolvedTargetCell ?? hoverWorldCell;
+
+	internal static Vector3I? ResolveHoverHighlightCell(
 		bool editorViewActive,
 		Vector3I? hoverWorldCell,
-		MapEditorHoverState? editorHoverState)
-	{
-		if (editorViewActive && editorHoverState is { } hoverState)
-			return hoverState.ResolvedTargetCell;
-		return hoverWorldCell;
-	}
+		MapEditorHoverState? editorHoverState) =>
+		editorViewActive
+			? ResolveHoverHighlightCell(hoverWorldCell, MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(editorHoverState))
+			: hoverWorldCell;
 
-	internal static bool ShouldDrawEditorPlacementGhost(MapEditorHoverState? hoverState) =>
+	internal static bool ShouldDrawPlacementGhost(WorldToolPreviewState? hoverState) =>
 		hoverState is
 		{
 			CanApply: true,
 			ShowGhost: true,
-			ResolvedTargetCell: { },
-			GhostRenderId: { Length: > 0 }
-		};
+			ResolvedTargetCell: { }
+		}
+		&& (hoverState.Value.Kind != WorldToolPreviewKind.Facility
+			? !string.IsNullOrWhiteSpace(hoverState.Value.GhostRenderId)
+			: hoverState.Value.GhostFacility != null);
 
-	internal static bool ShouldHideEditorPreviewTerrain(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ) =>
-		ShouldHideEditorPreviewTarget(
+	internal static bool ShouldDrawEditorPlacementGhost(MapEditorHoverState? hoverState) =>
+		ShouldDrawPlacementGhost(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState));
+
+	internal static bool ShouldHidePreviewTerrain(WorldToolPreviewState? hoverState, int worldX, int worldY, int worldZ) =>
+		ShouldHidePreviewTarget(
 			hoverState,
-			MapEditorHoverStateKind.Terrain,
+			WorldToolPreviewKind.Terrain,
 			worldX,
 			worldY,
 			worldZ);
 
-	internal static bool ShouldHideEditorPreviewFixture(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
-		ShouldHideEditorPreviewTarget(
+	internal static bool ShouldHideEditorPreviewTerrain(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ) =>
+		ShouldHidePreviewTerrain(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState), worldX, worldY, worldZ);
+
+	internal static bool ShouldHidePreviewFixture(WorldToolPreviewState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
+		ShouldHidePreviewTarget(
 			hoverState,
-			MapEditorHoverStateKind.Fixture,
+			WorldToolPreviewKind.Fixture,
 			worldX,
 			worldY,
 			worldZ,
 			entityId);
 
-	internal static int GetEditorPlacementGhostCommandCount(MapEditorHoverState? hoverState)
+	internal static bool ShouldHideEditorPreviewFixture(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
+		ShouldHidePreviewFixture(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState), worldX, worldY, worldZ, entityId);
+
+	internal static bool ShouldHidePreviewFacility(WorldToolPreviewState? hoverState, string facilityId) =>
+		hoverState is
+		{
+			HideResolvedTargetInWorld: true,
+			Kind: WorldToolPreviewKind.Facility,
+			ResolvedEntityId: { Length: > 0 } resolvedEntityId
+		}
+		&& string.Equals(resolvedEntityId, facilityId, StringComparison.Ordinal);
+
+	internal static int GetPlacementGhostCommandCount(WorldToolPreviewState? hoverState)
 	{
-		if (hoverState is not { } resolved || !ShouldDrawEditorPlacementGhost(resolved))
+		if (hoverState is not { } resolved || !ShouldDrawPlacementGhost(resolved))
 			return 0;
 
-		return resolved.Kind == MapEditorHoverStateKind.Terrain ? 3 : 1;
+		return resolved.Kind == WorldToolPreviewKind.Terrain ? 3 : 1;
 	}
 
-	private static bool ShouldHideEditorPreviewTarget(
-		MapEditorHoverState? hoverState,
-		MapEditorHoverStateKind kind,
+	internal static int GetEditorPlacementGhostCommandCount(MapEditorHoverState? hoverState) =>
+		GetPlacementGhostCommandCount(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState));
+
+	private static bool ShouldHidePreviewTarget(
+		WorldToolPreviewState? hoverState,
+		WorldToolPreviewKind kind,
 		int worldX,
 		int worldY,
 		int worldZ,
@@ -482,10 +519,9 @@ public partial class IsometricVoxelRenderer
 		if (targetCell.X != worldX || targetCell.Y != worldY || targetCell.Z != worldZ)
 			return false;
 
-		var resolved = hoverState.Value;
-		return kind != MapEditorHoverStateKind.Fixture ||
+		return kind != WorldToolPreviewKind.Fixture ||
 			(!string.IsNullOrWhiteSpace(entityId) &&
-			 string.Equals(resolved.GhostRenderId, entityId, StringComparison.Ordinal));
+			 string.Equals(hoverState.Value.ResolvedEntityId, entityId, StringComparison.Ordinal));
 	}
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
@@ -965,7 +1001,8 @@ public partial class IsometricVoxelRenderer
 		var halfH = visibleWindow.HalfY;
 		var zMin = cz - visibleDepth.Above;
 		var zMax = cz + visibleDepth.Below;
-		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorHoverState);
+		var previewState = WorldToolPreviewState;
+		var highlightCell = ResolveHoverHighlightCell(HoverWorldCell, previewState);
 		_editorPerspective = _editorViewActive
 			? EditorPerspectiveResolver.Resolve(
 				_state,
@@ -994,7 +1031,7 @@ public partial class IsometricVoxelRenderer
 			zMin,
 			zMax,
 			visibleMapRect,
-			_editorViewActive ? EditorHoverState : null,
+			previewState,
 			ref scannedTerrainCells,
 			ref previewHiddenTerrainCells,
 			ref screenCulledTerrainCells,
@@ -1014,7 +1051,7 @@ public partial class IsometricVoxelRenderer
 		var entityStageMs = GetElapsedMs(entityStageStart);
 
 		var hoverStageStart = Stopwatch.GetTimestamp();
-		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax, visibleMapRect);
+		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax, visibleMapRect, previewState);
 		var hoverStageMs = GetElapsedMs(hoverStageStart);
 		_lastDrawCommandCount = _drawCommands.Count + _entityCommands.Count + _highlightCommandCount;
 
@@ -1050,7 +1087,7 @@ public partial class IsometricVoxelRenderer
 		int zMin,
 		int zMax,
 		Rect2? visibleMapRect,
-		MapEditorHoverState? editorHoverState,
+		WorldToolPreviewState? previewState,
 		ref long scannedTerrainCells,
 		ref long previewHiddenTerrainCells,
 		ref long screenCulledTerrainCells,
@@ -1087,7 +1124,7 @@ public partial class IsometricVoxelRenderer
 
 					scannedTerrainCells++;
 
-					if (ShouldHideEditorPreviewTerrain(editorHoverState, entry.WorldX, entry.WorldY, entry.WorldZ))
+					if (ShouldHidePreviewTerrain(previewState, entry.WorldX, entry.WorldY, entry.WorldZ))
 					{
 						previewHiddenTerrainCells++;
 						continue;
@@ -1862,6 +1899,8 @@ public partial class IsometricVoxelRenderer
 
 		foreach (var facility in _state.Facilities.Values)
 		{
+			if (ShouldHidePreviewFacility(WorldToolPreviewState, facility.Id))
+				continue;
 			if (!TryBuildFacilityDrawCommand(facility, cx, cy, halfW, halfH, zMin, zMax, out var command))
 				continue;
 
@@ -1902,7 +1941,7 @@ public partial class IsometricVoxelRenderer
 					for (var i = 0; i < entities.Count; i++)
 					{
 						var entity = entities[i];
-						if (ShouldHideEditorPreviewFixture(_editorViewActive ? EditorHoverState : null, worldX, worldY, worldZ, entity.EntityId))
+						if (ShouldHidePreviewFixture(WorldToolPreviewState, worldX, worldY, worldZ, entity.EntityId))
 							continue;
 
 						_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, entity.EntityId, entity.Glyph, tint));
@@ -1947,27 +1986,38 @@ public partial class IsometricVoxelRenderer
 
 	private static HoverHighlightStyle ResolveHoverHighlightStyle(
 		bool editorViewActive,
-		MapEditorHoverState? editorHoverState)
+		WorldToolPreviewState? previewState)
 	{
-		if (!editorViewActive || editorHoverState is not { } hoverState)
+		if (previewState is not { } hoverState)
 			return DefaultHoverHighlightStyle;
 
 		return hoverState.ToolMode switch
 		{
-			MapEditorToolMode.Select => EditorSelectHoverHighlightStyle,
-			MapEditorToolMode.Demolish => EditorDemolishHoverHighlightStyle,
+			WorldToolMode.Select => EditorSelectHoverHighlightStyle,
+			WorldToolMode.Demolish => EditorDemolishHoverHighlightStyle,
 			_ => hoverState.CanApply
 				? EditorBuildPlaceableHoverHighlightStyle
 				: EditorBuildBlockedHoverHighlightStyle,
 		};
 	}
 
-	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax, Rect2? visibleMapRect)
+	private void CollectHoverHighlights(
+		int cx,
+		int cy,
+		int cz,
+		int halfW,
+		int halfH,
+		int zMin,
+		int zMax,
+		Rect2? visibleMapRect,
+		WorldToolPreviewState? previewState)
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
-		var editorHoverState = _editorViewActive ? EditorHoverState : null;
-		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, editorHoverState);
+		var highlightCell = ResolveHoverHighlightCell(HoverWorldCell, previewState);
+		var targetCursorCell = TargetCursorWorldCell;
+		if (targetCursorCell is { } cursorCell)
+			highlightCell ??= cursorCell;
 		if (highlightCell is not { } hover)
 			return;
 		if (Math.Abs(hover.X - cx) > halfW || Math.Abs(hover.Y - cy) > halfH)
@@ -1983,10 +2033,12 @@ public partial class IsometricVoxelRenderer
 		_highlightCommands.Add(new HoverHighlightCommand(
 			basePos,
 			hover,
-			ResolveHoverHighlightStyle(_editorViewActive, editorHoverState),
+			targetCursorCell is { } cursor && cursor == hover
+				? EditorSelectHoverHighlightStyle
+				: ResolveHoverHighlightStyle(_editorViewActive, previewState),
 			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000,
-			editorHoverState));
-		_highlightCommandCount = _highlightCommands.Count + GetEditorPlacementGhostCommandCount(editorHoverState);
+			previewState));
+		_highlightCommandCount = _highlightCommands.Count + GetPlacementGhostCommandCount(previewState);
 	}
 
 	private void RenderHoverHighlights()
@@ -1995,8 +2047,8 @@ public partial class IsometricVoxelRenderer
 		for (var i = 0; i < _highlightCommands.Count; i++)
 		{
 			var command = _highlightCommands[i];
-			if (command.EditorHoverState is { } editorHoverState && ShouldDrawEditorPlacementGhost(editorHoverState))
-				DrawEditorPlacementGhost(command.ScreenPos, editorHoverState);
+			if (command.PreviewState is { } previewState && ShouldDrawPlacementGhost(previewState))
+				DrawPlacementGhost(command.ScreenPos, previewState);
 
 			var geometry = BuildHoverVolumeGeometry(command.ScreenPos);
 			var fillTint = ApplyEditorPerspectiveAlpha(
@@ -2015,18 +2067,22 @@ public partial class IsometricVoxelRenderer
 		}
 	}
 
-	private void DrawEditorPlacementGhost(Vector2 screenPos, MapEditorHoverState hoverState)
+	private void DrawPlacementGhost(Vector2 screenPos, WorldToolPreviewState hoverState)
 	{
-		if (string.IsNullOrWhiteSpace(hoverState.GhostRenderId))
-			return;
-
 		switch (hoverState.Kind)
 		{
-			case MapEditorHoverStateKind.Terrain:
+			case WorldToolPreviewKind.Terrain:
+				if (string.IsNullOrWhiteSpace(hoverState.GhostRenderId))
+					return;
 				DrawTerrainPlacementGhost(screenPos, hoverState.GhostRenderId);
 				break;
-			case MapEditorHoverStateKind.Fixture:
+			case WorldToolPreviewKind.Fixture:
+				if (string.IsNullOrWhiteSpace(hoverState.GhostRenderId))
+					return;
 				DrawFixturePlacementGhost(screenPos, hoverState.GhostRenderId, hoverState.GhostGlyph);
+				break;
+			case WorldToolPreviewKind.Facility:
+				DrawFacilityPlacementGhost(hoverState.GhostFacility);
 				break;
 		}
 	}
@@ -2061,6 +2117,24 @@ public partial class IsometricVoxelRenderer
 			return;
 
 		DrawEntityMarker(screenPos, glyph ?? entityId, tint);
+	}
+
+	private void DrawFacilityPlacementGhost(FacilityInstance? facility)
+	{
+		if (facility == null || _state.World == null)
+			return;
+
+		var footprint = _state.World.GetFootprintCells(facility);
+		if (footprint.Count == 0)
+			return;
+
+		var screenPos = ResolveFacilityFootprintScreenCenter(footprint);
+		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
+		if (TryDrawFacilitySprite(screenPos, facility, tint))
+			return;
+
+		var def = FacilityRegistry.Get(facility.FacilityDefId);
+		DrawEntityMarker(screenPos, def?.Glyph ?? facility.FacilityDefId, tint);
 	}
 
 	private void DrawHoverVolumeFaces(Vector2 cellPos, Color tint)
@@ -2978,7 +3052,7 @@ public partial class IsometricVoxelRenderer
 		Vector3I WorldCell,
 		HoverHighlightStyle Style,
 		long SortKey,
-		MapEditorHoverState? EditorHoverState);
+		WorldToolPreviewState? PreviewState);
 
 	private readonly record struct HoverVolumeGeometry(
 		Vector2 TopCenter,

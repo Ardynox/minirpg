@@ -200,6 +200,35 @@ public partial class Main
 			{
 				ActorId = actorId,
 			},
+			TimelinePlayerActionType.TerrainBuild => new TerrainBuildClientCommand
+			{
+				ActorId = actorId,
+				TerrainId = action.TerrainId ?? string.Empty,
+				TargetX = action.TargetX,
+				TargetY = action.TargetY,
+				TargetZ = action.TargetZ,
+			},
+			TimelinePlayerActionType.TerrainDemolish => new TerrainDemolishClientCommand
+			{
+				ActorId = actorId,
+				TargetX = action.TargetX,
+				TargetY = action.TargetY,
+				TargetZ = action.TargetZ,
+			},
+			TimelinePlayerActionType.FacilityPlaceBlueprint => new FacilityPlaceBlueprintClientCommand
+			{
+				ActorId = actorId,
+				FacilityDefId = action.FacilityDefId ?? string.Empty,
+				TargetX = action.TargetX,
+				TargetY = action.TargetY,
+				TargetZ = action.TargetZ,
+				Rotation = action.FacilityRotation,
+			},
+			TimelinePlayerActionType.FacilityDemolish => new FacilityDemolishClientCommand
+			{
+				ActorId = actorId,
+				FacilityId = action.FacilityId ?? string.Empty,
+			},
 			TimelinePlayerActionType.FacilityDeliver => new FacilityDeliverClientCommand
 			{
 				ActorId = actorId,
