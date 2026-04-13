@@ -256,33 +256,45 @@
     "tileName": "Misc B3_N"
   },
   "fire": {
-    "type": "tile",
-    "tileName": "Fire"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/fire.png",
+    "scale": [0.58, 0.58],
+    "offset": [0.0, 0.0]
   },
 
   "stair_down": {
-    "type": "tile",
-    "tileName": "Misc A1_N"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/stair_down.png",
+    "scale": [0.68, 0.68],
+    "offset": [0.0, 0.0]
   },
   "stair_up": {
-    "type": "tile",
-    "tileName": "Misc A2_N"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/stair_up.png",
+    "scale": [0.68, 0.68],
+    "offset": [0.0, 0.0]
   },
   "door": {
-    "type": "tile",
-    "tileName": "Door A1_N"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/door.png",
+    "scale": [0.64, 0.64],
+    "offset": [0.0, 0.0]
   },
   "nest": {
-    "type": "tile",
-    "tileName": "Misc A3_N"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/nest.png",
+    "scale": [0.62, 0.62],
+    "offset": [0.0, 0.0]
   },
   "house": {
     "type": "tile",
     "tileName": "Roof A1_N"
   },
   "campfire": {
-    "type": "tile",
-    "tileName": "Misc B6_N"
+    "type": "texture",
+    "texturePath": "res://Assets/Art/Generated/fixtures/campfire.png",
+    "scale": [0.60, 0.60],
+    "offset": [0.0, 0.0]
   },
 
   "facility_shelf": {
