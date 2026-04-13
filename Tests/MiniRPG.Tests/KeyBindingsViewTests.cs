@@ -64,13 +64,15 @@ public sealed class KeyBindingsViewTests
 	{
 		using var fixture = CreateFixture();
 
-		var toggleRender = fixture.Bindings.GetActions(InputBindingContext.Action)
+		var actions = fixture.Bindings.GetActions(InputBindingContext.Action);
+		var toggleRender = actions
 			.Single(action => action.Id == "toggle_render");
-		var debugPanel = fixture.Bindings.GetActions(InputBindingContext.Action)
+		var debugPanel = actions
 			.Single(action => action.Id == "debug_panel");
-		var openTyping = fixture.Bindings.GetActions(InputBindingContext.Action)
+		var openTyping = actions
 			.Single(action => action.Id == "open_typing");
 
+		Assert.DoesNotContain(actions, action => action.Id == "inspect_mode");
 		Assert.Equal(":render", toggleRender.Command);
 		Assert.Equal(Key.R, toggleRender.Primary.Keycode);
 		Assert.True(toggleRender.Primary.Ctrl);

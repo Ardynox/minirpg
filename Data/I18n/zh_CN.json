@@ -750,7 +750,6 @@
     "input.action.move_west":  "向左移动",
     "input.action.move_east":  "向右移动",
     "input.action.look":  "查看周围",
-    "input.action.inspect_mode":  "查看光标",
     "input.action.toggle_render":  "等距视图",
     "input.action.interact":  "交互",
     "input.action.inventory":  "背包",

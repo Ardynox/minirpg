@@ -806,7 +806,6 @@
   "input.action.move_west": "Move West",
   "input.action.move_east": "Move East",
   "input.action.look": "Look Around",
-  "input.action.inspect_mode": "Inspect Cursor",
   "input.action.toggle_render": "Isometric View",
   "input.action.interact": "Interact",
   "input.action.inventory": "Inventory",
