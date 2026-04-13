@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Weather;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG.Module.Editor;
 
@@ -39,6 +40,7 @@ public sealed class MapEditorBarModule
 	private readonly Button _centerButton;
 	private readonly Button _saveButton;
 	private readonly Button _exitButton;
+	private readonly Dictionary<MapEditorBrushPreview, Texture2D?> _brushPreviewCache = [];
 
 	private IReadOnlyList<MapEditorBrush> _lastBrushes = Array.Empty<MapEditorBrush>();
 	private int _lastSelectedIndex = -1;
@@ -350,8 +352,8 @@ public sealed class MapEditorBarModule
 			}
 			else
 			{
-				// Glyph label for fixture
-				btn.Text = brush.Glyph ?? brush.Id[..Math.Min(2, brush.Id.Length)];
+				if (!TryConfigureFixtureBrushButton(btn, brush))
+					btn.Text = brush.Glyph ?? brush.Id[..Math.Min(2, brush.Id.Length)];
 			}
 
 			var index = i;
@@ -371,6 +373,71 @@ public sealed class MapEditorBarModule
 		var clampedIndex = Math.Clamp(_lastSelectedIndex, 0, _lastBrushes.Count - 1);
 		var brush = _lastBrushes[clampedIndex];
 		_currentBrushLabel.Text = $"[{brush.Id}] {brush.Label}";
+	}
+
+	private bool TryConfigureFixtureBrushButton(Button button, MapEditorBrush brush)
+	{
+		if (brush.Preview is not { } preview)
+			return false;
+
+		var texture = ResolveBrushPreviewTexture(preview);
+		if (texture == null)
+			return false;
+
+		button.Text = string.Empty;
+		button.Icon = texture;
+		button.ExpandIcon = true;
+		button.IconAlignment = HorizontalAlignment.Center;
+		button.VerticalIconAlignment = VerticalAlignment.Center;
+		return true;
+	}
+
+	private Texture2D? ResolveBrushPreviewTexture(MapEditorBrushPreview preview)
+	{
+		if (_brushPreviewCache.TryGetValue(preview, out var cached))
+			return cached;
+
+		var texture = ResAccess.Get<Texture2D>(preview.TexturePath);
+		Texture2D? resolved = null;
+		if (texture != null)
+			resolved = preview.Region is { } region
+				? CreateRegionPreviewTexture(texture, region)
+				: texture;
+
+		_brushPreviewCache[preview] = resolved;
+		return resolved;
+	}
+
+	private static Texture2D CreateRegionPreviewTexture(Texture2D texture, Rect2I region)
+	{
+		var clampedRegion = ClampPreviewRegion(texture, region);
+		if (clampedRegion.Position == Vector2I.Zero &&
+			clampedRegion.Size.X == texture.GetWidth() &&
+			clampedRegion.Size.Y == texture.GetHeight())
+		{
+			return texture;
+		}
+
+		return new AtlasTexture
+		{
+			Atlas = texture,
+			Region = new Rect2(
+				clampedRegion.Position.X,
+				clampedRegion.Position.Y,
+				clampedRegion.Size.X,
+				clampedRegion.Size.Y),
+		};
+	}
+
+	private static Rect2I ClampPreviewRegion(Texture2D texture, Rect2I region)
+	{
+		var textureWidth = Math.Max(1, (int)texture.GetWidth());
+		var textureHeight = Math.Max(1, (int)texture.GetHeight());
+		var x = Math.Clamp(region.Position.X, 0, textureWidth - 1);
+		var y = Math.Clamp(region.Position.Y, 0, textureHeight - 1);
+		var width = Math.Clamp(region.Size.X, 1, textureWidth - x);
+		var height = Math.Clamp(region.Size.Y, 1, textureHeight - y);
+		return new Rect2I(x, y, width, height);
 	}
 
 	private void RebuildEnvironmentOptions()

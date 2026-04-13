@@ -1,0 +1,91 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using Godot;
+using MiniRPG.Core.Config;
+
+namespace MiniRPG.Module.Editor;
+
+internal static class MapEditorBrushPreviewResolver
+{
+	private const string RegistryPath = "entity_render.json";
+	private const string EnvironmentSpriteRoot = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Environment/Sprites";
+	private static readonly JsonSerializerOptions JsonOptions = new()
+	{
+		PropertyNameCaseInsensitive = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+	};
+	private static Dictionary<string, PreviewRenderEntry>? _registry;
+
+	public static MapEditorBrushPreview? ResolveFixturePreview(string fixtureId)
+	{
+		if (string.IsNullOrWhiteSpace(fixtureId))
+			return null;
+
+		if (!TryGetEntry(fixtureId, out var entry))
+			return null;
+
+		if (string.Equals(entry.Type, "texture", StringComparison.OrdinalIgnoreCase) &&
+			!string.IsNullOrWhiteSpace(entry.TexturePath))
+		{
+			return new MapEditorBrushPreview(
+				entry.TexturePath,
+				ResolveTexturePreviewRegion(entry));
+		}
+
+		if (string.Equals(entry.Type, "tile", StringComparison.OrdinalIgnoreCase) &&
+			!string.IsNullOrWhiteSpace(entry.TileName))
+		{
+			return new MapEditorBrushPreview($"{EnvironmentSpriteRoot}/{entry.TileName}.png");
+		}
+
+		return null;
+	}
+
+	private static Rect2I? ResolveTexturePreviewRegion(PreviewRenderEntry entry)
+	{
+		if (entry.FrameWidth <= 0 || entry.FrameHeight <= 0)
+			return null;
+
+		return new Rect2I(0, 0, entry.FrameWidth, entry.FrameHeight);
+	}
+
+	private static bool TryGetEntry(string fixtureId, out PreviewRenderEntry entry)
+	{
+		EnsureRegistryLoaded();
+		if (_registry is { } registry && registry.TryGetValue(fixtureId, out var resolvedEntry))
+		{
+			entry = resolvedEntry;
+			return true;
+		}
+
+		entry = new PreviewRenderEntry();
+		return false;
+	}
+
+	private static void EnsureRegistryLoaded()
+	{
+		if (_registry != null)
+			return;
+
+		_registry = new Dictionary<string, PreviewRenderEntry>(StringComparer.Ordinal);
+		if (!GameDataLocator.TryReadText(RegistryPath, out var json, out _))
+			return;
+
+		var entries = JsonSerializer.Deserialize<Dictionary<string, PreviewRenderEntry>>(json, JsonOptions);
+		if (entries == null)
+			return;
+
+		foreach (var (id, entry) in entries)
+			_registry[id] = entry;
+	}
+
+	private sealed class PreviewRenderEntry
+	{
+		public string Type { get; set; } = string.Empty;
+		public string? TexturePath { get; set; }
+		public int FrameWidth { get; set; }
+		public int FrameHeight { get; set; }
+		public string? TileName { get; set; }
+	}
+}

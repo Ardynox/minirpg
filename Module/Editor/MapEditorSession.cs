@@ -40,7 +40,13 @@ public enum MapEditorBrushApplyResult
 	ConnectivityRequired,
 }
 
-public readonly record struct MapEditorBrush(string Id, string Label, string? Glyph = null);
+public readonly record struct MapEditorBrushPreview(string TexturePath, Rect2I? Region = null);
+
+public readonly record struct MapEditorBrush(
+	string Id,
+	string Label,
+	string? Glyph = null,
+	MapEditorBrushPreview? Preview = null);
 
 internal readonly record struct MapEditorHoverState(
 	MapEditorToolMode ToolMode,
@@ -601,10 +607,12 @@ public sealed class MapEditorSession
 		foreach (var (id, def) in FixtureRegistry.All)
 		{
 			var glyph = EntityAccess.ResolveFixtureGlyph(id);
+			var preview = MapEditorBrushPreviewResolver.ResolveFixturePreview(id);
 			_fixtureBrushes.Add(new MapEditorBrush(
 				id,
 				GameLocalizer.LocalizeFixtureName(id),
-				glyph));
+				glyph,
+				preview));
 		}
 
 		if (_fixtureBrushes.Count == 0)
