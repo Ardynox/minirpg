@@ -42,6 +42,7 @@ public sealed class MapEditorBarModule
 
 	private IReadOnlyList<MapEditorBrush> _lastBrushes = Array.Empty<MapEditorBrush>();
 	private int _lastSelectedIndex = -1;
+	private MapEditorBrushCategory _lastCategory = MapEditorBrushCategory.Terrain;
 	private bool _suppressEvents;
 
 	// ── Terrain color swatches (matches IsometricVoxelRenderer.TerrainColors) ──
@@ -242,8 +243,13 @@ public sealed class MapEditorBarModule
 		IReadOnlyList<MapEditorBrush> brushes,
 		int selectedIndex)
 	{
+		var shouldRebuildBrushGrid = !ReferenceEquals(_lastBrushes, brushes)
+			|| _lastSelectedIndex != selectedIndex
+			|| _lastCategory != category;
+
 		_lastBrushes = brushes;
 		_lastSelectedIndex = selectedIndex;
+		_lastCategory = category;
 		_terrainButton.ButtonPressed = category == MapEditorBrushCategory.Terrain;
 		_fixtureButton.ButtonPressed = category == MapEditorBrushCategory.Fixture;
 		_environmentButton.ButtonPressed = category == MapEditorBrushCategory.Environment;
@@ -258,7 +264,7 @@ public sealed class MapEditorBarModule
 		_environmentControls.Visible = category == MapEditorBrushCategory.Environment;
 		_optionsRow.Visible = category == MapEditorBrushCategory.Terrain;
 
-		if (isBrushCategory)
+		if (isBrushCategory && shouldRebuildBrushGrid)
 			RebuildBrushGrid(brushes, selectedIndex, category);
 
 		UpdateCurrentBrushLabel();

@@ -36,6 +36,7 @@ internal sealed class MapEditorCoordinator
 	private bool _hasLastPointerGlobalPosition;
 	private bool _leftMouseHeld;
 	private Vector3I? _lastPaintedCell;
+	private bool _pendingFlushMap;
 	private bool _moveUp, _moveDown, _moveLeft, _moveRight;
 	private float _cameraFloatX, _cameraFloatY;
 	private const float CameraMoveSpeed = 8f;
@@ -105,6 +106,7 @@ internal sealed class MapEditorCoordinator
 		_bar.Open(_session.CanCenterOnPlayer);
 		_syncSettingsUiState();
 		RefreshBar();
+		_pendingFlushMap = false;
 		_flushMap();
 	}
 
@@ -119,6 +121,7 @@ internal sealed class MapEditorCoordinator
 		_closeSaveNameDialog();
 		_turnController.Close();
 		_syncSettingsUiState();
+		_pendingFlushMap = false;
 		_moveUp = _moveDown = _moveLeft = _moveRight = false;
 		_getRenderer()?.ClearEditorCameraSmoothing();
 
@@ -241,27 +244,32 @@ internal sealed class MapEditorCoordinator
 	{
 		if (!Active) return;
 
+		var flushedThisTick = false;
 		var dx = (_moveRight ? 1f : 0f) - (_moveLeft ? 1f : 0f);
 		var dy = (_moveDown ? 1f : 0f) - (_moveUp ? 1f : 0f);
-		if (dx == 0f && dy == 0f)
-			return;
-
-		_cameraFloatX += dx * CameraMoveSpeed * delta;
-		_cameraFloatY += dy * CameraMoveSpeed * delta;
-
-		var cellX = Mathf.RoundToInt(_cameraFloatX);
-		var cellY = Mathf.RoundToInt(_cameraFloatY);
-
-		if (cellX != _session.CameraX || cellY != _session.CameraY)
+		if (dx != 0f || dy != 0f)
 		{
-			_session.MoveCamera(cellX - _session.CameraX, cellY - _session.CameraY);
-			RefreshBar();
-			_flushMap();
+			_cameraFloatX += dx * CameraMoveSpeed * delta;
+			_cameraFloatY += dy * CameraMoveSpeed * delta;
+
+			var cellX = Mathf.RoundToInt(_cameraFloatX);
+			var cellY = Mathf.RoundToInt(_cameraFloatY);
+
+			if (cellX != _session.CameraX || cellY != _session.CameraY)
+			{
+				_session.MoveCamera(cellX - _session.CameraX, cellY - _session.CameraY);
+				RefreshBar();
+				FlushMapNow();
+				flushedThisTick = true;
+			}
+
+			var renderer = _getRenderer();
+			renderer?.SetEditorCameraScreenTarget(
+				IsoCoordUtil.WorldToScreen(_cameraFloatX, _cameraFloatY, _session.CameraZ));
 		}
 
-		var renderer = _getRenderer();
-		renderer?.SetEditorCameraScreenTarget(
-			IsoCoordUtil.WorldToScreen(_cameraFloatX, _cameraFloatY, _session.CameraZ));
+		if (_pendingFlushMap && !flushedThisTick)
+			FlushMapNow();
 	}
 
 	public bool HandleMouseInput(InputEvent @event)
@@ -363,8 +371,8 @@ internal sealed class MapEditorCoordinator
 			_session.EraseBrush(worldCell.X, worldCell.Y, worldCell.Z);
 
 		_lastPaintedCell = worldCell;
-		RefreshBar();
-		_flushMap();
+		UpdateBarInfoOnly();
+		RequestFlushMap();
 	}
 
 	private void RefreshBuildReverseStackModifier(bool reverseStack)
@@ -375,7 +383,7 @@ internal sealed class MapEditorCoordinator
 		if (_session.HoverWorld is { } hoverCell)
 			SyncEditorHoverPresentation(hoverCell);
 
-		_flushMap();
+		RequestFlushMap();
 	}
 
 	// ── UI ──
@@ -400,6 +408,20 @@ internal sealed class MapEditorCoordinator
 			weatherOverride != null ? (int)weatherOverride.Type : 0,
 			weatherOverride != null ? (int)weatherOverride.Intensity : 1,
 			renderer?.LightingProfileIndex ?? 0);
+	}
+
+	private void UpdateBarInfoOnly()
+	{
+		if (!Active)
+			return;
+
+		_bar.UpdateInfo(
+			_session.CameraX,
+			_session.CameraY,
+			_session.CameraZ,
+			_session.CanUndo,
+			_session.CanRedo,
+			_session.UndoCount);
 	}
 
 	public void SelectCategory(MapEditorBrushCategory category)
@@ -540,7 +562,7 @@ internal sealed class MapEditorCoordinator
 		var changed = _session.SetHover(hoveredCell);
 		SyncEditorHoverPresentation(hoveredCell, pointerGlobalPosition);
 		if (changed || forceRefresh)
-			_flushMap();
+			RequestFlushMap();
 	}
 
 	private void SetEditorHoverCell(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
@@ -557,7 +579,15 @@ internal sealed class MapEditorCoordinator
 		var changed = _session.SetHover(null);
 		_setWorldHoverCell(null);
 		if (flushMap && changed)
-			_flushMap();
+			RequestFlushMap();
+	}
+
+	private void RequestFlushMap() => _pendingFlushMap = true;
+
+	private void FlushMapNow()
+	{
+		_pendingFlushMap = false;
+		_flushMap();
 	}
 
 	private void SyncEditorHoverPresentation(Vector3I? hoveredCell, Vector2? pointerGlobalPosition = null)
