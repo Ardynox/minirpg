@@ -119,7 +119,7 @@ public sealed class MainInputCoordinatorTests
 	}
 
 	[Fact]
-	public void HandleInput_SkipsPanelChromeAndDragWhenSnapshotDisallows()
+	public void HandleInput_SkipsPanelChromeAndDrag_AndAllowsMapEditorMouseFallthrough_WhenSnapshotDisallows()
 	{
 		var harness = new CoordinatorHarness();
 
@@ -132,7 +132,7 @@ public sealed class MainInputCoordinatorTests
 				blocksGameplayInput: true),
 			isKeyEvent: false);
 
-		Assert.True(handled);
+		Assert.False(handled);
 		Assert.DoesNotContain("panel_chrome", harness.Calls);
 		Assert.DoesNotContain("panel_drag", harness.Calls);
 		Assert.Contains("map_input", harness.Calls);

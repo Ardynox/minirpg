@@ -364,6 +364,7 @@ public sealed class ServerActionGatewayTests
 
 		var delegated = ServerActionGateway.Execute(state, new DelegateActorClientCommand
 		{
+			PlayerSessionId = "owner",
 			ActorId = "hero",
 			TargetPlayerSessionId = "guest",
 		});
@@ -376,6 +377,7 @@ public sealed class ServerActionGatewayTests
 
 		var delegateFailed = ServerActionGateway.Execute(state, new DelegateActorClientCommand
 		{
+			PlayerSessionId = "owner",
 			ActorId = "hero",
 			TargetPlayerSessionId = "missing",
 		});
