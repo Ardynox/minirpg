@@ -1,4 +1,5 @@
 using Godot;
+using MiniRPG.Module.Editor;
 
 namespace MiniRPG;
 
@@ -140,7 +141,7 @@ public partial class Main
 			_mapEditor.CameraY,
 			_mapEditor.CameraZ,
 			_mapEditor.HoverWorld,
-			_mapEditor.ResolvePlacementPreview(_mapEditor.HoverWorld),
+			_mapEditor.ResolveHoverState(_mapEditor.HoverWorld),
 			SyncViewToActiveActor,
 			MarkUIDirty);
 	}
@@ -282,6 +283,7 @@ public partial class Main
 		SetWorldHoverCell(cell, flushMap: false);
 
 	private const float HoverShowDelay = 0.35f;
+	private const float MapEditorSelectHoverShowDelay = 0.75f;
 	private const float HoverFadeDuration = 0.18f;
 
 	private void TickWorldHoverOverlay(float delta)
@@ -297,8 +299,9 @@ public partial class Main
 		}
 
 		_hoverDwell += delta;
+		var hoverShowDelay = ResolveWorldHoverShowDelay();
 
-		if (_hoverDwell < HoverShowDelay)
+		if (_hoverDwell < hoverShowDelay)
 		{
 			_worldHoverRoot.Visible = false;
 			return;
@@ -310,8 +313,20 @@ public partial class Main
 			_worldHoverRoot.Modulate = new Color(1f, 1f, 1f, 0f);
 		}
 
-		var fadeProgress = Mathf.Clamp((_hoverDwell - HoverShowDelay) / HoverFadeDuration, 0f, 1f);
+		var fadeProgress = Mathf.Clamp((_hoverDwell - hoverShowDelay) / HoverFadeDuration, 0f, 1f);
 		_worldHoverRoot.Modulate = new Color(1f, 1f, 1f, fadeProgress);
+	}
+
+	private float ResolveWorldHoverShowDelay()
+	{
+		if (MapEditorActive &&
+			_mapEditor.CurrentCategory is MapEditorBrushCategory.Terrain or MapEditorBrushCategory.Fixture &&
+			_mapEditor.CurrentToolMode == MapEditorToolMode.Select)
+		{
+			return MapEditorSelectHoverShowDelay;
+		}
+
+		return HoverShowDelay;
 	}
 
 	private void RefreshWorldHoverOverlay()

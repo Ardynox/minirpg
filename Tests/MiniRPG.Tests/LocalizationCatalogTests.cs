@@ -183,7 +183,7 @@ public sealed class LocalizationCatalogTests
 			["ui.map_editor.weather"] = "天气",
 			["ui.map_editor.lighting_profile"] = "光照预设",
 			["ui.map_editor.turn_controller"] = "回合控制",
-			["ui.map_editor.hint.v2"] = "左键：放置  右键：擦除  滚轮：切换\nTab：分类  Ctrl+Z/Y：撤销/重做",
+			["ui.map_editor.hint.v2"] = "左键：执行当前工具  滚轮：切换笔刷\n工具栏：选择/建造/拆除  Tab：分类  Ctrl+Z/Y：撤销/重做",
 			["ui.map_editor.undo"] = "撤销",
 			["ui.map_editor.redo"] = "重做",
 			["ui.pause_menu.multiplayer_room"] = "多人房间",

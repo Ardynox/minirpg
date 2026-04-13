@@ -96,6 +96,7 @@ public partial class Main
 			_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
 		};
 		_mapEditorBar.CategorySelected += category => _mapEditorCoordinator.SelectCategory(category);
+		_mapEditorBar.ToolModeSelected += toolMode => _mapEditorCoordinator.SelectToolMode(toolMode);
 		_mapEditorBar.BrushSelected += index => _mapEditorCoordinator.SelectBrush(index);
 		_mapEditorBar.UndoRequested += () => _mapEditorCoordinator.HandleUndo();
 		_mapEditorBar.RedoRequested += () => _mapEditorCoordinator.HandleRedo();

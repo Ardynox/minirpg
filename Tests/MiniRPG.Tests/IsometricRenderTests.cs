@@ -161,24 +161,40 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
-	public void IsometricVoxelRenderer_ResolveHoverHighlightCell_UsesEditorPreviewTarget()
+	public void IsometricVoxelRenderer_ResolveHoverHighlightCell_UsesEditorHoverTarget()
 	{
 		var rawHover = new Vector3I(4, 5, 0);
-		var preview = new MapEditorPlacementPreview(
-			MapEditorPlacementPreviewKind.Terrain,
+		var hoverState = new MapEditorHoverState(
+			MapEditorToolMode.Build,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
 			rawHover,
 			new Vector3I(4, 5, -1),
 			Terrains.Floor,
 			"#",
-			CanPlace: true,
-			ShowGhost: true);
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false);
 
 		var highlightCell = IsometricVoxelRenderer.ResolveHoverHighlightCell(
 			editorViewActive: true,
 			rawHover,
-			preview);
+			hoverState);
 
-		Assert.Equal(preview.TargetCell, highlightCell);
+		Assert.Equal(hoverState.ResolvedTargetCell, highlightCell);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_ResolveHoverHighlightCell_FallsBackToRawHoverWhenNoEditorStateExists()
+	{
+		var rawHover = new Vector3I(7, 8, 1);
+
+		var highlightCell = IsometricVoxelRenderer.ResolveHoverHighlightCell(
+			editorViewActive: true,
+			rawHover,
+			editorHoverState: null);
+
+		Assert.Equal(rawHover, highlightCell);
 	}
 
 	[Fact]
@@ -188,45 +204,67 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
-	public void IsometricVoxelRenderer_EditorPlacementGhost_IsHiddenWhenPreviewCannotPlace()
+	public void IsometricVoxelRenderer_EditorPlacementGhost_IsHiddenWhenHoverStateCannotBuild()
 	{
-		var preview = new MapEditorPlacementPreview(
-			MapEditorPlacementPreviewKind.Terrain,
+		var blockedBuildState = new MapEditorHoverState(
+			MapEditorToolMode.Build,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
 			new Vector3I(2, 2, 0),
 			new Vector3I(2, 2, 0),
 			Terrains.Floor,
 			"#",
-			CanPlace: false,
-			ShowGhost: false);
+			CanApply: false,
+			ShowGhost: false,
+			ShowInfoOverlay: false);
+		var selectState = new MapEditorHoverState(
+			MapEditorToolMode.Select,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
+			new Vector3I(2, 2, 0),
+			new Vector3I(2, 2, 1),
+			Terrains.Floor,
+			"#",
+			CanApply: true,
+			ShowGhost: false,
+			ShowInfoOverlay: true);
 
-		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(preview));
-		Assert.Equal(0, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(preview));
+		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(blockedBuildState));
+		Assert.False(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(selectState));
+		Assert.Equal(0, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(blockedBuildState));
+		Assert.Equal(0, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(selectState));
 	}
 
 	[Fact]
-	public void IsometricVoxelRenderer_EditorPlacementGhost_SupportsTerrainAndFixturePreviews()
+	public void IsometricVoxelRenderer_EditorPlacementGhost_SupportsTerrainAndFixtureBuildStates()
 	{
-		var terrainPreview = new MapEditorPlacementPreview(
-			MapEditorPlacementPreviewKind.Terrain,
+		var terrainHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Build,
+			MapEditorBrushCategory.Terrain,
+			MapEditorHoverStateKind.Terrain,
 			new Vector3I(1, 1, 0),
 			new Vector3I(1, 1, 0),
 			Terrains.Floor,
 			"#",
-			CanPlace: true,
-			ShowGhost: true);
-		var fixturePreview = new MapEditorPlacementPreview(
-			MapEditorPlacementPreviewKind.Fixture,
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false);
+		var fixtureHoverState = new MapEditorHoverState(
+			MapEditorToolMode.Build,
+			MapEditorBrushCategory.Fixture,
+			MapEditorHoverStateKind.Fixture,
 			new Vector3I(3, 3, 0),
 			new Vector3I(3, 3, 0),
 			Entities.Door,
 			"D",
-			CanPlace: true,
-			ShowGhost: true);
+			CanApply: true,
+			ShowGhost: true,
+			ShowInfoOverlay: false);
 
-		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(terrainPreview));
-		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(fixturePreview));
-		Assert.Equal(3, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(terrainPreview));
-		Assert.Equal(1, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(fixturePreview));
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(terrainHoverState));
+		Assert.True(IsometricVoxelRenderer.ShouldDrawEditorPlacementGhost(fixtureHoverState));
+		Assert.Equal(3, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(terrainHoverState));
+		Assert.Equal(1, IsometricVoxelRenderer.GetEditorPlacementGhostCommandCount(fixtureHoverState));
 	}
 
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)

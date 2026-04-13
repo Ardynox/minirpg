@@ -8,7 +8,7 @@ anchor_right = 1.0
 offset_left = -396.0
 offset_top = 20.0
 offset_right = -20.0
-offset_bottom = 460.0
+offset_bottom = 500.0
 grow_horizontal = 0
 
 [node name="Margin" type="MarginContainer" parent="."]
@@ -52,6 +52,31 @@ size_flags_horizontal = 3
 toggle_mode = true
 theme_type_variation = "TabButton"
 text = "ui.map_editor.category.environment"
+
+[node name="ToolRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SelectBtn" type="Button" parent="Margin/VBox/ToolRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+theme_type_variation = "TabButton"
+text = "ui.map_editor.tool.select"
+
+[node name="BuildBtn" type="Button" parent="Margin/VBox/ToolRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+theme_type_variation = "TabButton"
+text = "ui.map_editor.tool.build"
+
+[node name="DemolishBtn" type="Button" parent="Margin/VBox/ToolRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+theme_type_variation = "TabButton"
+text = "ui.map_editor.tool.demolish"
 
 [node name="BrushScroll" type="ScrollContainer" parent="Margin/VBox"]
 layout_mode = 2

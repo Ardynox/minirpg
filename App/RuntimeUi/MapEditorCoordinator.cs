@@ -32,6 +32,8 @@ internal sealed class MapEditorCoordinator
 	private readonly Action _closeAllInGamePanels;
 	private readonly Action<Vector3I?> _setWorldHoverCell;
 	private readonly Action<Vector2> _positionWorldHoverOverlay;
+	private Vector2 _lastPointerGlobalPosition;
+	private bool _hasLastPointerGlobalPosition;
 
 	public MapEditorCoordinator(
 		GameState state,
@@ -139,6 +141,7 @@ internal sealed class MapEditorCoordinator
 			case Key.Tab:
 				_session.ToggleCategory();
 				RefreshBar();
+				SyncEditorHoverPresentation(_session.HoverWorld);
 				_flushMap();
 				return true;
 			case Key.W or Key.Up:
@@ -216,6 +219,7 @@ internal sealed class MapEditorCoordinator
 		{
 			_session.CycleBrush(mb.ButtonIndex == MouseButton.WheelUp ? -1 : 1);
 			RefreshBar();
+			SyncEditorHoverPresentation(_session.HoverWorld);
 			_flushMap();
 			return true;
 		}
@@ -230,7 +234,16 @@ internal sealed class MapEditorCoordinator
 		}
 
 		SetEditorHoverCell(worldCell, mb.GlobalPosition);
-		if (mb.ButtonIndex == MouseButton.Left)
+		if (mb.ButtonIndex == MouseButton.Right)
+			return true;
+
+		if (_session.CurrentCategory == MapEditorBrushCategory.Environment)
+			return true;
+
+		if (_session.CurrentToolMode == MapEditorToolMode.Select)
+			return true;
+
+		if (_session.CurrentToolMode == MapEditorToolMode.Build)
 		{
 			var result = _session.ApplyBrush(worldCell.X, worldCell.Y, worldCell.Z);
 			if (result == MapEditorBrushApplyResult.ConnectivityRequired)
@@ -252,7 +265,11 @@ internal sealed class MapEditorCoordinator
 	public void RefreshBar()
 	{
 		if (!Active) return;
-		_bar.Render(_session.CurrentCategory, _session.CurrentBrushes, _session.CurrentBrushIndex);
+		_bar.Render(
+			_session.CurrentCategory,
+			_session.CurrentToolMode,
+			_session.CurrentBrushes,
+			_session.CurrentBrushIndex);
 		_bar.SetIgnoreConnectivityRequirement(_session.IgnoreConnectivityRequirement);
 		_bar.UpdateInfo(_session.CameraX, _session.CameraY, _session.CameraZ,
 			_session.CanUndo, _session.CanRedo, _session.UndoCount);
@@ -271,6 +288,15 @@ internal sealed class MapEditorCoordinator
 	{
 		_session.SelectCategory(category);
 		RefreshBar();
+		SyncEditorHoverPresentation(_session.HoverWorld);
+		_flushMap();
+	}
+
+	public void SelectToolMode(MapEditorToolMode toolMode)
+	{
+		_session.SelectToolMode(toolMode);
+		RefreshBar();
+		SyncEditorHoverPresentation(_session.HoverWorld);
 		_flushMap();
 	}
 
@@ -278,6 +304,7 @@ internal sealed class MapEditorCoordinator
 	{
 		_session.SelectBrush(index);
 		RefreshBar();
+		SyncEditorHoverPresentation(_session.HoverWorld);
 		_flushMap();
 	}
 
@@ -301,6 +328,8 @@ internal sealed class MapEditorCoordinator
 	{
 		_session.SetIgnoreConnectivityRequirement(ignore);
 		RefreshBar();
+		SyncEditorHoverPresentation(_session.HoverWorld);
+		_flushMap();
 	}
 
 	public void HandleUndo()
@@ -308,6 +337,7 @@ internal sealed class MapEditorCoordinator
 		if (_session.Undo())
 		{
 			RefreshBar();
+			SyncEditorHoverPresentation(_session.HoverWorld);
 			_flushMap();
 		}
 	}
@@ -317,6 +347,7 @@ internal sealed class MapEditorCoordinator
 		if (_session.Redo())
 		{
 			RefreshBar();
+			SyncEditorHoverPresentation(_session.HoverWorld);
 			_flushMap();
 		}
 	}
@@ -385,25 +416,56 @@ internal sealed class MapEditorCoordinator
 
 	private void UpdateEditorHover(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
 	{
+		_lastPointerGlobalPosition = pointerGlobalPosition;
+		_hasLastPointerGlobalPosition = true;
 		var changed = _session.SetHover(hoveredCell);
-		_setWorldHoverCell(hoveredCell);
-		_positionWorldHoverOverlay(pointerGlobalPosition);
+		SyncEditorHoverPresentation(hoveredCell, pointerGlobalPosition);
 		if (changed)
 			_flushMap();
 	}
 
 	private void SetEditorHoverCell(Vector3I hoveredCell, Vector2 pointerGlobalPosition)
 	{
+		_lastPointerGlobalPosition = pointerGlobalPosition;
+		_hasLastPointerGlobalPosition = true;
 		_session.SetHover(hoveredCell);
-		_setWorldHoverCell(hoveredCell);
-		_positionWorldHoverOverlay(pointerGlobalPosition);
+		SyncEditorHoverPresentation(hoveredCell, pointerGlobalPosition);
 	}
 
 	private void ClearEditorHover(bool flushMap = true)
 	{
+		_hasLastPointerGlobalPosition = false;
 		var changed = _session.SetHover(null);
 		_setWorldHoverCell(null);
 		if (flushMap && changed)
 			_flushMap();
+	}
+
+	private void SyncEditorHoverPresentation(Vector3I? hoveredCell, Vector2? pointerGlobalPosition = null)
+	{
+		var overlayCell = ResolveWorldHoverOverlayCell(hoveredCell);
+		_setWorldHoverCell(overlayCell);
+
+		if (overlayCell is not { })
+			return;
+
+		var resolvedPointerPosition = pointerGlobalPosition
+			?? (_hasLastPointerGlobalPosition ? _lastPointerGlobalPosition : (Vector2?)null);
+		if (resolvedPointerPosition is { } overlayPosition)
+			_positionWorldHoverOverlay(overlayPosition);
+	}
+
+	private Vector3I? ResolveWorldHoverOverlayCell(Vector3I? hoveredCell)
+	{
+		if (hoveredCell is not { } hoverCell)
+			return null;
+
+		if (_session.CurrentCategory == MapEditorBrushCategory.Environment)
+			return hoverCell;
+
+		var hoverState = _session.ResolveHoverState(hoverCell);
+		return hoverState is { ShowInfoOverlay: true, ResolvedTargetCell: { } targetCell }
+			? targetCell
+			: null;
 	}
 }

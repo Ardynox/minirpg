@@ -58,14 +58,22 @@ public partial class IsometricVoxelRenderer
 	private static readonly Color HoverCellOutlineTint = new(0.92f, 0.82f, 0.50f, 0.70f);
 	private static readonly Color HoverWallTint = new(0.92f, 0.82f, 0.50f, 0.38f);
 	private static readonly HoverHighlightStyle DefaultHoverHighlightStyle = new(HoverCellTint, HoverCellOutlineTint, HoverWallTint);
-	private static readonly HoverHighlightStyle EditorPlaceableHoverHighlightStyle = new(
+	private static readonly HoverHighlightStyle EditorBuildPlaceableHoverHighlightStyle = new(
 		new Color(0.96f, 0.87f, 0.56f, 0.18f),
 		new Color(0.97f, 0.88f, 0.58f, 0.90f),
 		new Color(0.96f, 0.87f, 0.56f, 0.50f));
-	private static readonly HoverHighlightStyle EditorBlockedHoverHighlightStyle = new(
+	private static readonly HoverHighlightStyle EditorBuildBlockedHoverHighlightStyle = new(
 		new Color(0.90f, 0.80f, 0.48f, 0.06f),
 		new Color(0.90f, 0.80f, 0.48f, 0.52f),
 		new Color(0.90f, 0.80f, 0.48f, 0.24f));
+	private static readonly HoverHighlightStyle EditorSelectHoverHighlightStyle = new(
+		new Color(0.95f, 0.83f, 0.52f, 0.14f),
+		new Color(0.96f, 0.84f, 0.54f, 0.84f),
+		new Color(0.95f, 0.83f, 0.52f, 0.44f));
+	private static readonly HoverHighlightStyle EditorDemolishHoverHighlightStyle = new(
+		new Color(0.96f, 0.72f, 0.40f, 0.12f),
+		new Color(0.97f, 0.74f, 0.42f, 0.82f),
+		new Color(0.96f, 0.72f, 0.40f, 0.42f));
 	private static readonly Vector2 HoverCellFillScale = new(1.96f, 0.98f);
 	private static readonly Vector2 HoverCellOutlineScale = new(2.04f, 1.02f);
 
@@ -173,7 +181,7 @@ public partial class IsometricVoxelRenderer
 	public int LastDrawCommandCount => _lastDrawCommandCount;
 	public IsometricLightingSettings LightingSettings => _lighting;
 	public Vector3I? HoverWorldCell { get; set; }
-	internal MapEditorPlacementPreview? EditorPlacementPreview { get; set; }
+	internal MapEditorHoverState? EditorHoverState { get; set; }
 	public Vector3I? InspectWorldCell { get; set; }
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
 	public bool IsIsometricMode => true;
@@ -274,22 +282,28 @@ public partial class IsometricVoxelRenderer
 	internal static Vector3I? ResolveHoverHighlightCell(
 		bool editorViewActive,
 		Vector3I? hoverWorldCell,
-		MapEditorPlacementPreview? editorPlacementPreview)
+		MapEditorHoverState? editorHoverState)
 	{
-		if (editorViewActive && editorPlacementPreview is { } preview)
-			return preview.TargetCell;
+		if (editorViewActive && editorHoverState is { } hoverState)
+			return hoverState.ResolvedTargetCell;
 		return hoverWorldCell;
 	}
 
-	internal static bool ShouldDrawEditorPlacementGhost(MapEditorPlacementPreview? preview) =>
-		preview is { CanPlace: true, ShowGhost: true };
+	internal static bool ShouldDrawEditorPlacementGhost(MapEditorHoverState? hoverState) =>
+		hoverState is
+		{
+			ToolMode: MapEditorToolMode.Build,
+			CanApply: true,
+			ShowGhost: true,
+			ResolvedTargetCell: { }
+		};
 
-	internal static int GetEditorPlacementGhostCommandCount(MapEditorPlacementPreview? preview)
+	internal static int GetEditorPlacementGhostCommandCount(MapEditorHoverState? hoverState)
 	{
-		if (preview is not { } resolved || !ShouldDrawEditorPlacementGhost(resolved))
+		if (hoverState is not { } resolved || !ShouldDrawEditorPlacementGhost(resolved))
 			return 0;
 
-		return resolved.Kind == MapEditorPlacementPreviewKind.Terrain ? 3 : 1;
+		return resolved.Kind == MapEditorHoverStateKind.Terrain ? 3 : 1;
 	}
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
@@ -626,7 +640,7 @@ public partial class IsometricVoxelRenderer
 		var halfH = _viewH / 2;
 		var zMin = cz - DefaultViewDepthAbove;
 		var zMax = cz + DefaultViewDepthBelow;
-		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorPlacementPreview);
+		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorHoverState);
 		_editorPerspective = _editorViewActive
 			? EditorPerspectiveResolver.Resolve(
 				_state,
@@ -1379,22 +1393,27 @@ public partial class IsometricVoxelRenderer
 
 	private static HoverHighlightStyle ResolveHoverHighlightStyle(
 		bool editorViewActive,
-		MapEditorPlacementPreview? editorPlacementPreview)
+		MapEditorHoverState? editorHoverState)
 	{
-		if (!editorViewActive || editorPlacementPreview is not { } preview)
+		if (!editorViewActive || editorHoverState is not { } hoverState)
 			return DefaultHoverHighlightStyle;
 
-		return preview.CanPlace
-			? EditorPlaceableHoverHighlightStyle
-			: EditorBlockedHoverHighlightStyle;
+		return hoverState.ToolMode switch
+		{
+			MapEditorToolMode.Select => EditorSelectHoverHighlightStyle,
+			MapEditorToolMode.Demolish => EditorDemolishHoverHighlightStyle,
+			_ => hoverState.CanApply
+				? EditorBuildPlaceableHoverHighlightStyle
+				: EditorBuildBlockedHoverHighlightStyle,
+		};
 	}
 
 	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
-		var editorPreview = _editorViewActive ? EditorPlacementPreview : null;
-		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, editorPreview);
+		var editorHoverState = _editorViewActive ? EditorHoverState : null;
+		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, editorHoverState);
 		if (highlightCell is not { } hover)
 			return;
 		if (Math.Abs(hover.X - cx) > halfW || Math.Abs(hover.Y - cy) > halfH)
@@ -1407,10 +1426,10 @@ public partial class IsometricVoxelRenderer
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
 		_highlightCommands.Add(new HoverHighlightCommand(
 			basePos,
-			ResolveHoverHighlightStyle(_editorViewActive, editorPreview),
+			ResolveHoverHighlightStyle(_editorViewActive, editorHoverState),
 			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000,
-			editorPreview));
-		_highlightCommandCount = _highlightCommands.Count + GetEditorPlacementGhostCommandCount(editorPreview);
+			editorHoverState));
+		_highlightCommandCount = _highlightCommands.Count + GetEditorPlacementGhostCommandCount(editorHoverState);
 	}
 
 	private void RenderHoverHighlights()
@@ -1419,8 +1438,8 @@ public partial class IsometricVoxelRenderer
 		for (var i = 0; i < _highlightCommands.Count; i++)
 		{
 			var command = _highlightCommands[i];
-			if (command.EditorPreview is { } editorPreview && ShouldDrawEditorPlacementGhost(editorPreview))
-				DrawEditorPlacementGhost(command.ScreenPos, editorPreview);
+			if (command.EditorHoverState is { } editorHoverState && ShouldDrawEditorPlacementGhost(editorHoverState))
+				DrawEditorPlacementGhost(command.ScreenPos, editorHoverState);
 
 			var geometry = BuildHoverVolumeGeometry(command.ScreenPos);
 			var fillTint = command.Style.FillTint * new Color(1f, 1f, 1f, pulse);
@@ -1433,15 +1452,15 @@ public partial class IsometricVoxelRenderer
 		}
 	}
 
-	private void DrawEditorPlacementGhost(Vector2 screenPos, MapEditorPlacementPreview preview)
+	private void DrawEditorPlacementGhost(Vector2 screenPos, MapEditorHoverState hoverState)
 	{
-		switch (preview.Kind)
+		switch (hoverState.Kind)
 		{
-			case MapEditorPlacementPreviewKind.Terrain:
-				DrawTerrainPlacementGhost(screenPos, preview.BrushId);
+			case MapEditorHoverStateKind.Terrain:
+				DrawTerrainPlacementGhost(screenPos, hoverState.BrushId);
 				break;
-			case MapEditorPlacementPreviewKind.Fixture:
-				DrawFixturePlacementGhost(screenPos, preview);
+			case MapEditorHoverStateKind.Fixture:
+				DrawFixturePlacementGhost(screenPos, hoverState);
 				break;
 		}
 	}
@@ -1463,13 +1482,13 @@ public partial class IsometricVoxelRenderer
 		DrawAtlasRegionSprite(atlasTexture, regions.Top, screenPos, tint, zIndex: 2);
 	}
 
-	private void DrawFixturePlacementGhost(Vector2 screenPos, MapEditorPlacementPreview preview)
+	private void DrawFixturePlacementGhost(Vector2 screenPos, MapEditorHoverState hoverState)
 	{
 		var tint = new Color(1f, 1f, 1f, EditorPlacementGhostAlpha);
-		if (!string.IsNullOrWhiteSpace(preview.BrushId) && TryDrawWorldEntitySprite(screenPos, preview.BrushId, tint))
+		if (!string.IsNullOrWhiteSpace(hoverState.BrushId) && TryDrawWorldEntitySprite(screenPos, hoverState.BrushId, tint))
 			return;
 
-		DrawEntityMarker(screenPos, preview.BrushGlyph ?? preview.BrushId, tint);
+		DrawEntityMarker(screenPos, hoverState.BrushGlyph ?? hoverState.BrushId, tint);
 	}
 
 	private void DrawHoverVolumeFaces(Vector2 cellPos, Color tint)
@@ -2202,7 +2221,7 @@ public partial class IsometricVoxelRenderer
 		Vector2 ScreenPos,
 		HoverHighlightStyle Style,
 		long SortKey,
-		MapEditorPlacementPreview? EditorPreview);
+		MapEditorHoverState? EditorHoverState);
 
 	private readonly record struct HoverVolumeGeometry(
 		Vector2 TopCenter,

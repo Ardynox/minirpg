@@ -13,6 +13,10 @@ public sealed class MapEditorBarModule
 	private readonly Button _terrainButton;
 	private readonly Button _fixtureButton;
 	private readonly Button _environmentButton;
+	private readonly HBoxContainer _toolRow;
+	private readonly Button _selectToolButton;
+	private readonly Button _buildToolButton;
+	private readonly Button _demolishToolButton;
 	private readonly ScrollContainer _brushScroll;
 	private readonly GridContainer _brushGrid;
 	private readonly Label _currentBrushLabel;
@@ -104,6 +108,10 @@ public sealed class MapEditorBarModule
 		_terrainButton = categoryRow.GetNode<Button>("TerrainBtn");
 		_fixtureButton = categoryRow.GetNode<Button>("FixtureBtn");
 		_environmentButton = categoryRow.GetNode<Button>("EnvironmentBtn");
+		_toolRow = root.GetNode<HBoxContainer>("ToolRow");
+		_selectToolButton = _toolRow.GetNode<Button>("SelectBtn");
+		_buildToolButton = _toolRow.GetNode<Button>("BuildBtn");
+		_demolishToolButton = _toolRow.GetNode<Button>("DemolishBtn");
 		_brushScroll = root.GetNode<ScrollContainer>("BrushScroll");
 		_brushGrid = root.GetNode<GridContainer>("BrushScroll/BrushGrid");
 		_currentBrushLabel = root.GetNode<Label>("CurrentBrush");
@@ -133,6 +141,9 @@ public sealed class MapEditorBarModule
 		_terrainButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Terrain);
 		_fixtureButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Fixture);
 		_environmentButton.Pressed += () => CategorySelected?.Invoke(MapEditorBrushCategory.Environment);
+		_selectToolButton.Pressed += () => ToolModeSelected?.Invoke(MapEditorToolMode.Select);
+		_buildToolButton.Pressed += () => ToolModeSelected?.Invoke(MapEditorToolMode.Build);
+		_demolishToolButton.Pressed += () => ToolModeSelected?.Invoke(MapEditorToolMode.Demolish);
 		_undoButton.Pressed += () => UndoRequested?.Invoke();
 		_redoButton.Pressed += () => RedoRequested?.Invoke();
 		_heightDownButton.Pressed += () => HeightChanged?.Invoke(1);
@@ -178,6 +189,7 @@ public sealed class MapEditorBarModule
 
 	// ── Events ──
 	public event Action<MapEditorBrushCategory>? CategorySelected;
+	public event Action<MapEditorToolMode>? ToolModeSelected;
 	public event Action<int>? BrushSelected;
 	public event Action? UndoRequested;
 	public event Action? RedoRequested;
@@ -209,6 +221,9 @@ public sealed class MapEditorBarModule
 		_terrainButton.Text = LocalizationService.T("ui.map_editor.category.terrain");
 		_fixtureButton.Text = LocalizationService.T("ui.map_editor.category.fixture");
 		_environmentButton.Text = LocalizationService.T("ui.map_editor.category.environment");
+		_selectToolButton.Text = LocalizationService.T("ui.map_editor.tool.select");
+		_buildToolButton.Text = LocalizationService.T("ui.map_editor.tool.build");
+		_demolishToolButton.Text = LocalizationService.T("ui.map_editor.tool.demolish");
 		_hintLabel.Text = LocalizationService.T("ui.map_editor.hint.v2");
 		_centerButton.Text = LocalizationService.T("ui.map_editor.center");
 		_saveButton.Text = LocalizationService.T("ui.map_editor.save");
@@ -223,6 +238,7 @@ public sealed class MapEditorBarModule
 
 	public void Render(
 		MapEditorBrushCategory category,
+		MapEditorToolMode toolMode,
 		IReadOnlyList<MapEditorBrush> brushes,
 		int selectedIndex)
 	{
@@ -231,9 +247,14 @@ public sealed class MapEditorBarModule
 		_terrainButton.ButtonPressed = category == MapEditorBrushCategory.Terrain;
 		_fixtureButton.ButtonPressed = category == MapEditorBrushCategory.Fixture;
 		_environmentButton.ButtonPressed = category == MapEditorBrushCategory.Environment;
+		_selectToolButton.ButtonPressed = toolMode == MapEditorToolMode.Select;
+		_buildToolButton.ButtonPressed = toolMode == MapEditorToolMode.Build;
+		_demolishToolButton.ButtonPressed = toolMode == MapEditorToolMode.Demolish;
 
 		var isBrushCategory = category is MapEditorBrushCategory.Terrain or MapEditorBrushCategory.Fixture;
+		_toolRow.Visible = isBrushCategory;
 		_brushScroll.Visible = isBrushCategory;
+		_currentBrushLabel.Visible = isBrushCategory;
 		_environmentControls.Visible = category == MapEditorBrushCategory.Environment;
 		_optionsRow.Visible = category == MapEditorBrushCategory.Terrain;
 
