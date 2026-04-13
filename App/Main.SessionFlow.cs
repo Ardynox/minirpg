@@ -37,7 +37,6 @@ public partial class Main
 		_multiplayerHub.Close();
 		_menu.EnterGame();
 		_inputModule.EnterActionMode();
-		_weatherLabPanelController.RefreshSessionState(autoOpen: true);
 		SyncTimelineAutoAdvanceState();
 		FlushMap();
 	}

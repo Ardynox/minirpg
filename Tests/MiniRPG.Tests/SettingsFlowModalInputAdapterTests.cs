@@ -136,8 +136,6 @@ public sealed class SettingsFlowModalInputAdapterTests
 				CanOpenSessionTab: true,
 				EnableKeyboardTargeting: false,
 				EnableDebugPanel: true,
-				CanOpenWeatherLab: false,
-				WeatherLabPanelOpen: false,
 				MapZoomMin: 0.6f,
 				MapZoomMax: 2.4f,
 				MapZoomCurrent: 1.0f));
@@ -254,11 +252,6 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? LoadRequested
-		{
-			add { }
-			remove { }
-		}
-		public event Action? WeatherLabToggleRequested
 		{
 			add { }
 			remove { }

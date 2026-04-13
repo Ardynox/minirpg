@@ -22,7 +22,7 @@
 [ext_resource type="PackedScene" path="res://Scene/WorldManager.tscn" id="18_worldmanager"]
 [ext_resource type="PackedScene" path="res://Scene/WorldSettingsDialog.tscn" id="19_worldsettings"]
 [ext_resource type="PackedScene" path="res://Scene/ConfirmDialog.tscn" id="20_confirmdialog"]
-[ext_resource type="PackedScene" path="res://Scene/WeatherLabPanel.tscn" id="21_weatherlab"]
+[ext_resource type="PackedScene" path="res://Scene/TurnControllerPanel.tscn" id="21_turncontroller"]
 [ext_resource type="PackedScene" path="res://Scene/LoadRecoveryDialog.tscn" id="22_loadrecovery"]
 [ext_resource type="PackedScene" path="res://Scene/MultiplayerHub.tscn" id="23_multiplayerhub"]
 [ext_resource type="PackedScene" path="res://Scene/MultiplayerRoomPanel.tscn" id="24_multiplayerroom"]
@@ -179,7 +179,7 @@ show_percentage = true
 
 [node name="MapEditorBar" parent="OverlayLayer" instance=ExtResource("14_mapeditorbar")]
 
-[node name="WeatherLabPanel" parent="OverlayLayer" instance=ExtResource("21_weatherlab")]
+[node name="TurnControllerPanel" parent="OverlayLayer" instance=ExtResource("21_turncontroller")]
 
 [node name="SaveNameDialog" parent="OverlayLayer" instance=ExtResource("16_savenamedialog")]
 

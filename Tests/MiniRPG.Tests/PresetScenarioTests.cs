@@ -17,8 +17,7 @@ public sealed class PresetScenarioTests
 	public void PresetScenarioManifest_Loads_And_AllTemplatesDeserialize()
 	{
 		var scenarios = PresetScenarioCatalog.List();
-		Assert.Equal(4, scenarios.Count);
-		Assert.Contains(scenarios, static scenario => string.Equals(scenario.Id, "weather_lab", StringComparison.Ordinal));
+		Assert.Equal(3, scenarios.Count);
 
 		foreach (var scenario in scenarios)
 		{
@@ -26,21 +25,6 @@ public sealed class PresetScenarioTests
 			var saveFile = SaveModule.DeserializeSaveFile(json);
 			Assert.NotNull(saveFile);
 		}
-	}
-
-	[Fact]
-	public void WeatherLabPresetScenario_LoadsSuccessfully()
-	{
-		EnsureTerrainRegistryLoaded();
-		var state = new GameState();
-		var session = new GameSessionModule(state, new FogOfWarTracker());
-
-		var status = session.LoadPresetScenario("weather_lab");
-
-		Assert.Equal(SaveLoadStatus.Success, status);
-		Assert.Equal("weather_lab", session.CurrentPresetScenarioId);
-		Assert.Equal(0, state.PlayerZ);
-		Assert.True(state.World?.IsWeatherExposed(state.PlayerX, state.PlayerY, state.PlayerZ));
 	}
 
 	[Fact]

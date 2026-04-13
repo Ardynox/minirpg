@@ -24,7 +24,7 @@ public partial class Main
 			}
 			_mainAppFlowCoordinator.ToggleMapEditor();
 		};
-		_settingsFlow.WeatherLabToggleRequested += _weatherLabPanelController.Toggle;
+
 		_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
 		_settingsFlow.SaveRequested += () =>
 		{
@@ -107,6 +107,7 @@ public partial class Main
 		_mapEditorBar.ExitRequested += () => ExitMapEditor();
 		_mapEditorBar.CenterRequested += () => _mapEditorCoordinator.CenterOnPlayer();
 		_mapEditorBar.HeightChanged += delta => _mapEditorCoordinator.HandleHeightChanged(delta);
+		_mapEditorBar.TurnControllerRequested += () => _mapEditorCoordinator.HandleTurnControllerRequested();
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
@@ -122,7 +123,7 @@ public partial class Main
 		_menu.OnWorlds += _mainAppFlowCoordinator.HandleMenuWorlds;
 		_menu.OnMapEditor += HandleMenuMapEditor;
 		_menu.OnMultiplayer += HandleMenuMultiplayer;
-		_menu.OnWeatherLab += HandleMenuWeatherLab;
+
 		_menu.OnAutoTest += HandleAutoTest;
 		_menu.OnQuit += () => GetTree().Quit();
 		_menu.OnOpenSettings += _mainAppFlowCoordinator.OpenMenuSettingsPanel;

@@ -48,14 +48,13 @@ public sealed class SettingsPanelModuleTests
 		model.ApplyState(CreateState(
 			context: SettingsEntryContext.InGamePause,
 			watchModeEnabled: true,
-			canOpenSessionTab: true,
-			canOpenWeatherLab: true));
+			canOpenSessionTab: true));
 
 		Assert.Equal(
 			[SettingsTab.General, SettingsTab.Controls, SettingsTab.Session],
 			model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.WatchMode],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
 			model.GetVisibleRows(SettingsTab.General));
 
 		model.SetTab(SettingsTab.Session);
@@ -98,13 +97,7 @@ public sealed class SettingsPanelModuleTests
 			mapEditorActive: true,
 			enableKeyboardTargeting: true,
 			enableDebugPanel: false,
-			canOpenSessionTab: true,
-			canOpenWeatherLab: true,
-			weatherLabPanelOpen: true);
-		var unavailableWeatherState = CreateState(
-			context: SettingsEntryContext.InGamePause,
-			canOpenSessionTab: true,
-			canOpenWeatherLab: false);
+			canOpenSessionTab: true);
 
 		Assert.True(SettingsPanelModule.ShouldShowWatchMode(readyState));
 		Assert.Equal("ui.settings.subtitle.in_game", SettingsPanelModule.GetSubtitleKey(readyState));
@@ -113,8 +106,6 @@ public sealed class SettingsPanelModuleTests
 		Assert.Equal("ui.settings.keyboard_targeting.status.on", SettingsPanelModule.GetKeyboardTargetingStatusKey(readyState));
 		Assert.Equal("ui.settings.debug_panel.status.off", SettingsPanelModule.GetDebugPanelStatusKey(readyState));
 		Assert.Equal("ui.settings.map_editor.status.active", SettingsPanelModule.GetMapEditorStatusKey(readyState));
-		Assert.Equal("ui.settings.weather_lab.status.active", SettingsPanelModule.GetWeatherLabStatusKey(readyState));
-		Assert.Equal("ui.settings.weather_lab.status.unavailable", SettingsPanelModule.GetWeatherLabStatusKey(unavailableWeatherState));
 		Assert.Equal("ui.settings.key_bindings.status.idle", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: false, isCapturing: false));
 		Assert.Equal("ui.settings.key_bindings.status.active", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: false));
 		Assert.Equal("ui.settings.key_bindings.status.capturing", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: true));
@@ -155,9 +146,7 @@ public sealed class SettingsPanelModuleTests
 		bool mapEditorActive = false,
 		bool canOpenSessionTab = false,
 		bool enableKeyboardTargeting = false,
-		bool enableDebugPanel = true,
-		bool canOpenWeatherLab = false,
-		bool weatherLabPanelOpen = false) =>
+		bool enableDebugPanel = true) =>
 		new(
 			context,
 			"en",
@@ -168,8 +157,6 @@ public sealed class SettingsPanelModuleTests
 			canOpenSessionTab,
 			enableKeyboardTargeting,
 			enableDebugPanel,
-			canOpenWeatherLab,
-			weatherLabPanelOpen,
 			0.6f,
 			2.4f,
 			1.0f);

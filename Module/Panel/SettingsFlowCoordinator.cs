@@ -35,8 +35,6 @@ public readonly record struct SettingsUiState(
 	bool CanOpenSessionTab,
 	bool EnableKeyboardTargeting,
 	bool EnableDebugPanel,
-	bool CanOpenWeatherLab,
-	bool WeatherLabPanelOpen,
 	float MapZoomMin,
 	float MapZoomMax,
 	float MapZoomCurrent);
@@ -103,7 +101,6 @@ public interface ISettingsOverlay : ISettingsFlowPanel
 	event Action? SaveRequested;
 	event Action? LoadRequested;
 	event Action? MapEditorToggleRequested;
-	event Action? WeatherLabToggleRequested;
 	event Action? LayoutEditRequested;
 	event Action<string>? LanguageChangedRequested;
 }
@@ -137,7 +134,6 @@ public sealed class SettingsFlowCoordinator
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? MapEditorToggleRequested;
-	public event Action? WeatherLabToggleRequested;
 	public event Action? LayoutEditRequested;
 	public event Action<string>? LanguageChangedRequested;
 
@@ -159,8 +155,6 @@ public sealed class SettingsFlowCoordinator
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
-			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f);
@@ -179,7 +173,6 @@ public sealed class SettingsFlowCoordinator
 		_settings.SaveRequested += () => SaveRequested?.Invoke();
 		_settings.LoadRequested += () => LoadRequested?.Invoke();
 		_settings.MapEditorToggleRequested += () => MapEditorToggleRequested?.Invoke();
-		_settings.WeatherLabToggleRequested += () => WeatherLabToggleRequested?.Invoke();
 		_settings.LayoutEditRequested += () => LayoutEditRequested?.Invoke();
 		_settings.LanguageChangedRequested += locale => LanguageChangedRequested?.Invoke(locale);
 	}

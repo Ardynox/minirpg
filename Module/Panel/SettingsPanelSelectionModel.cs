@@ -16,7 +16,6 @@ internal enum SettingsPanelRowId
 	Save,
 	Load,
 	MapEditor,
-	WeatherLab,
 	LayoutEdit,
 }
 
@@ -46,8 +45,6 @@ internal sealed class SettingsPanelSelectionModel
 		CanOpenSessionTab: false,
 		EnableKeyboardTargeting: false,
 		EnableDebugPanel: true,
-		CanOpenWeatherLab: false,
-		WeatherLabPanelOpen: false,
 		MapZoomMin: 0.6f,
 		MapZoomMax: 2.4f,
 		MapZoomCurrent: 1.0f);
@@ -222,7 +219,6 @@ internal sealed class SettingsPanelSelectionModel
 			SettingsPanelRowId.Save,
 			SettingsPanelRowId.Load,
 			SettingsPanelRowId.MapEditor,
-			SettingsPanelRowId.WeatherLab,
 			SettingsPanelRowId.LayoutEdit,
 		];
 }

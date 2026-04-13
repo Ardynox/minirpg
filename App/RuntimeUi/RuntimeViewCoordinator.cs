@@ -48,7 +48,7 @@ internal sealed class RuntimeViewCoordinator
 		markUiDirty();
 	}
 
-	public void MarkUiDirty(DebugPanelController debugPanelController, WeatherLabPanelController weatherLabPanelController, bool actorInspectVisible)
+	public void MarkUiDirty(DebugPanelController debugPanelController, bool actorInspectVisible)
 	{
 		if (_ui.StatusPanel != null)
 			_ui.StatusPanel.Dirty = true;
@@ -61,7 +61,6 @@ internal sealed class RuntimeViewCoordinator
 		if (_ui.TurnPanel != null)
 			_ui.TurnPanel.Dirty = true;
 		debugPanelController.MarkDirty();
-		weatherLabPanelController.MarkDirty();
 		if (actorInspectVisible && _ui.ActorInspectPanel != null)
 			_ui.ActorInspectPanel.Dirty = true;
 	}
@@ -73,8 +72,7 @@ internal sealed class RuntimeViewCoordinator
 		bool isometricMode,
 		Action refreshActorInspectPanel,
 		Action refreshPanelLauncherState,
-		DebugPanelController debugPanelController,
-		WeatherLabPanelController weatherLabPanelController)
+		DebugPanelController debugPanelController)
 	{
 		if (_ui.StatusPanel?.Dirty == true && _ui.StatusPanel.PanelNode.Visible)
 		{
@@ -99,7 +97,6 @@ internal sealed class RuntimeViewCoordinator
 			_ui.Ground.FlushIfDirty();
 
 		debugPanelController.FlushIfDirty();
-		weatherLabPanelController.FlushIfDirty();
 
 		if (_ui.ActorInspectPanel?.Visible == true && _ui.ActorInspectPanel.Dirty)
 			refreshActorInspectPanel();

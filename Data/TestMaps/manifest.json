@@ -20,13 +20,6 @@
       "descriptionKey": "ui.preset_scenario.qa_combat_arena.description",
       "sortOrder": 30,
       "templatePath": "res://Data/TestMaps/qa_combat_arena.json"
-    },
-    {
-      "id": "weather_lab",
-      "displayNameKey": "ui.preset_scenario.weather_lab.title",
-      "descriptionKey": "ui.preset_scenario.weather_lab.description",
-      "sortOrder": 40,
-      "templatePath": "res://Data/TestMaps/weather_lab.json"
     }
   ]
 }

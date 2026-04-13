@@ -70,11 +70,6 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.main_menu.map_editor"
 
-[node name="WeatherLabBtn" type="Button" parent="Content/Center/VBox"]
-layout_mode = 2
-theme_type_variation = "ActionButton"
-text = "ui.main_menu.weather_lab"
-
 [node name="SettingsBtn" type="Button" parent="Content/Center/VBox"]
 layout_mode = 2
 theme_type_variation = "ActionButton"

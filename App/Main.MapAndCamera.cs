@@ -150,7 +150,6 @@ public partial class Main
 		_skillBarDirty = true;
 		_runtimeViewCoordinator.MarkUiDirty(
 			_debugPanelController,
-			_weatherLabPanelController,
 			_actorInspectPanel?.Visible == true);
 	}
 
@@ -164,8 +163,7 @@ public partial class Main
 			_mapRender?.IsIsometricMode ?? true,
 			RefreshActorInspectPanel,
 			RefreshPanelLauncherState,
-			_debugPanelController,
-			_weatherLabPanelController);
+			_debugPanelController);
 	}
 
 	private void ToggleMinimap()

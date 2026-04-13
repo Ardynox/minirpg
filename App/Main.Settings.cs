@@ -58,8 +58,6 @@ public partial class Main
 			_session.GameStarted,
 			_enableKeyboardTargeting,
 			_enableDebugPanel,
-			_weatherLabPanelController?.CanUse == true,
-			_weatherLabPanelController?.Visible == true,
 			_mapZoomMin,
 			_mapZoomMax,
 			_mapRender?.Zoom ?? 1.0f);
@@ -186,7 +184,6 @@ public partial class Main
 		_multiplayerRoomPanel.RefreshTexts();
 		_multiplayerHubCoordinator.SetTemplates(BuildMultiplayerHubTemplates());
 		_settingsFlow.RefreshTexts();
-		_weatherLabPanelController.RefreshTexts();
 		SyncSettingsUiState();
 		_worldManager.RefreshTexts();
 		_worldSettingsDialog.RefreshTexts();

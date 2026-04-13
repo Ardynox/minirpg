@@ -131,7 +131,7 @@ public partial class Main
 			_mapRender = new IsometricVoxelRenderer(_state, _fogTracker, ViewW, ViewH);
 			_mapRender.Init(mapRoot, _loadedTileSetForFinalization!, viewportContainer, subViewport, playerCharacter, camera);
 			_mapRender.SetZoomRange(_mapZoomMin, _mapZoomMax);
-			_mapRender.SetWeatherScreenFxTuning(_weatherLabPanelController?.CurrentTuningSet ?? new WeatherScreenFxTuningSet());
+			_mapRender.SetWeatherScreenFxTuning(new WeatherScreenFxTuningSet());
 			_combatFxPlayer = new CombatFxPlayer(_mapRender, _mapRender.CombatFxWorldRoot, _combatFxTextRoot);
 			if (_runtime != null)
 				_runtime.UiRefs.MapRender = _mapRender;
@@ -314,7 +314,15 @@ public partial class Main
 		var mapEditorBarNode = GetNode<PanelContainer>($"{OverlayRootPath}/MapEditorBar");
 		mapEditorBarNode.Theme = _uiTheme;
 		_mapEditorBar = new MapEditorBarModule(mapEditorBarNode);
-		InitializeWeatherLabPanel(_uiTheme!);
+		var turnControllerNode = GetNode<PanelContainer>($"{OverlayRootPath}/TurnControllerPanel");
+		turnControllerNode.Theme = _uiTheme;
+		var turnControllerModule = new TurnControllerPanelModule(turnControllerNode);
+		_turnControllerPanelController = new TurnControllerPanelController(
+			turnControllerModule,
+			AdvanceTimelineAutoStep,
+			FlushMap,
+			() => _state.Turn);
+
 		var saveNameDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/SaveNameDialog");
 		saveNameDialogNode.Theme = _uiTheme;
 		_saveNameDialog = new SaveNameDialogModule(saveNameDialogNode);
@@ -463,8 +471,7 @@ public partial class Main
 			RefreshLocalizedUi,
 			SyncSettingsUiState,
 			() => SyncTimelineAutoAdvanceState(),
-			RefreshWeatherLabSessionStateForCoordinator,
-			CloseWeatherLabPanelForCoordinator,
+
 			DoSave,
 			BeginLayoutEditMode,
 			EnterMapEditorCore,
@@ -547,7 +554,7 @@ public partial class Main
 			_modalStateController,
 			_inputModule,
 			_panels,
-			_weatherLabPanelController,
+			_turnControllerPanelController,
 			() => SyncSettingsUiState(),
 			ShowMainMenuWithCurrentContinue,
 			CloseAllInGamePanels);

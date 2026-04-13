@@ -21,6 +21,7 @@ public sealed class MapEditorBarModule
 	private readonly OptionButton _weatherSelect;
 	private readonly OptionButton _intensitySelect;
 	private readonly OptionButton _lightingSelect;
+	private readonly Button _turnPlayButton;
 	private readonly Label _infoBar;
 	private readonly Button _undoButton;
 	private readonly Button _redoButton;
@@ -87,6 +88,7 @@ public sealed class MapEditorBarModule
 		_weatherSelect = _environmentControls.GetNode<OptionButton>("WeatherSelect");
 		_intensitySelect = _environmentControls.GetNode<OptionButton>("IntensitySelect");
 		_lightingSelect = _environmentControls.GetNode<OptionButton>("LightingSelect");
+		_turnPlayButton = _environmentControls.GetNode<Button>("TurnPlayBtn");
 		_infoBar = root.GetNode<Label>("InfoBar");
 		var undoRedoRow = root.GetNode<HBoxContainer>("UndoRedoRow");
 		_undoButton = undoRedoRow.GetNode<Button>("UndoBtn");
@@ -130,6 +132,8 @@ public sealed class MapEditorBarModule
 			if (!_suppressEvents) LightingProfileChanged?.Invoke((int)index);
 		};
 
+		_turnPlayButton.Pressed += () => TurnControllerRequested?.Invoke();
+
 		InitializeEnvironmentDropdowns();
 		RefreshTexts();
 	}
@@ -156,6 +160,7 @@ public sealed class MapEditorBarModule
 	public event Action<int>? WeatherTypeChanged;
 	public event Action<int>? WeatherIntensityChanged;
 	public event Action<int>? LightingProfileChanged;
+	public event Action? TurnControllerRequested;
 
 	public void Open(bool showCenterButton)
 	{
@@ -181,6 +186,7 @@ public sealed class MapEditorBarModule
 		_exitButton.Text = LocalizationService.T("ui.map_editor.exit");
 		_undoButton.Text = LocalizationService.TOrFallback("ui.map_editor.undo", "Undo");
 		_redoButton.Text = LocalizationService.TOrFallback("ui.map_editor.redo", "Redo");
+		_turnPlayButton.Text = LocalizationService.TOrFallback("ui.map_editor.turn_controller", "Turn Play");
 		UpdateCurrentBrushLabel();
 	}
 

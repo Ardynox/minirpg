@@ -60,8 +60,6 @@ internal sealed class MainAppFlowCoordinator
 	private readonly Action<bool> _refreshLocalizedUi;
 	private readonly Action<SettingsEntryContext?> _syncSettingsUiState;
 	private readonly Action _syncTimelineAutoAdvanceState;
-	private readonly Action<bool> _refreshWeatherLabSessionState;
-	private readonly Action<bool> _closeWeatherLabPanel;
 	private readonly Action<string, string> _doSave;
 	private readonly Action _beginLayoutEditMode;
 	private readonly Action<MapEditorEntryMode> _enterMapEditorCore;
@@ -143,8 +141,6 @@ internal sealed class MainAppFlowCoordinator
 		Action<bool> refreshLocalizedUi,
 		Action<SettingsEntryContext?> syncSettingsUiState,
 		Action syncTimelineAutoAdvanceState,
-		Action<bool> refreshWeatherLabSessionState,
-		Action<bool> closeWeatherLabPanel,
 		Action<string, string> doSave,
 		Action beginLayoutEditMode,
 		Action<MapEditorEntryMode> enterMapEditorCore,
@@ -200,8 +196,6 @@ internal sealed class MainAppFlowCoordinator
 		_refreshLocalizedUi = refreshLocalizedUi;
 		_syncSettingsUiState = syncSettingsUiState;
 		_syncTimelineAutoAdvanceState = syncTimelineAutoAdvanceState;
-		_refreshWeatherLabSessionState = refreshWeatherLabSessionState;
-		_closeWeatherLabPanel = closeWeatherLabPanel;
 		_doSave = doSave;
 		_beginLayoutEditMode = beginLayoutEditMode;
 		_enterMapEditorCore = enterMapEditorCore;
@@ -219,7 +213,7 @@ internal sealed class MainAppFlowCoordinator
 		_clearPlayerTargeting();
 		_resetThreatHud();
 		_modalStateController.Prepare(RuntimeUiResetReason.SessionTransition);
-		_closeWeatherLabPanel(true);
+
 		if (_session.GameStarted)
 		{
 			var path = _session.GetQuickSavePath();
@@ -244,7 +238,7 @@ internal sealed class MainAppFlowCoordinator
 		_clearPlayerTargeting();
 		_resetThreatHud();
 		_modalStateController.Prepare(RuntimeUiResetReason.SessionTransition);
-		_closeWeatherLabPanel(true);
+
 		if (clearLogs)
 			_clearLog();
 		_setPlayerDead(false);
@@ -538,7 +532,7 @@ internal sealed class MainAppFlowCoordinator
 					_refreshLocalizedUi(false);
 					LogRecoverySuccess(recoveredCandidate);
 					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-					_refreshWeatherLabSessionState(true);
+
 					_syncTimelineAutoAdvanceState();
 					_flushMap();
 				},
@@ -759,7 +753,7 @@ internal sealed class MainAppFlowCoordinator
 
 					LogRecoverySuccess(recoveredCandidate);
 					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-					_refreshWeatherLabSessionState(true);
+
 					_syncTimelineAutoAdvanceState();
 					_flushMap();
 				},

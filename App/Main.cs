@@ -96,7 +96,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MultiplayerHubModule _multiplayerHub = null!;
 	private MultiplayerRoomPanelModule _multiplayerRoomPanel = null!;
 	private DebugPanelController _debugPanelController = null!;
-	private WeatherLabPanelController _weatherLabPanelController = null!;
+	private TurnControllerPanelController _turnControllerPanelController = null!;
+
 	private LayoutEditBarModule _layoutEditBar = null!;
 	private WorldManagerModule _worldManager = null!;
 	private WorldSettingsDialogModule _worldSettingsDialog = null!;
@@ -288,6 +289,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessTimelineAutoAdvance(delta);
 		ProcessPlayerRestMode();
+		_turnControllerPanelController?.Process(delta);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

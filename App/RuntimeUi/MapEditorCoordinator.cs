@@ -26,7 +26,7 @@ internal sealed class MapEditorCoordinator
 	private readonly ModalStateController _modalStateController;
 	private readonly InputModule _inputModule;
 	private readonly PanelManager _panels;
-	private readonly WeatherLabPanelController _weatherLabPanelController;
+	private readonly TurnControllerPanelController _turnController;
 	private readonly Action _syncSettingsUiState;
 	private readonly Action _showMainMenuWithCurrentContinue;
 	private readonly Action _closeAllInGamePanels;
@@ -45,7 +45,7 @@ internal sealed class MapEditorCoordinator
 		ModalStateController modalStateController,
 		InputModule inputModule,
 		PanelManager panels,
-		WeatherLabPanelController weatherLabPanelController,
+		TurnControllerPanelController turnController,
 		Action syncSettingsUiState,
 		Action showMainMenuWithCurrentContinue,
 		Action closeAllInGamePanels)
@@ -63,7 +63,7 @@ internal sealed class MapEditorCoordinator
 		_modalStateController = modalStateController;
 		_inputModule = inputModule;
 		_panels = panels;
-		_weatherLabPanelController = weatherLabPanelController;
+		_turnController = turnController;
 		_syncSettingsUiState = syncSettingsUiState;
 		_showMainMenuWithCurrentContinue = showMainMenuWithCurrentContinue;
 		_closeAllInGamePanels = closeAllInGamePanels;
@@ -88,7 +88,6 @@ internal sealed class MapEditorCoordinator
 			_state.Turn = 36;
 
 		_bar.Open(_session.CanCenterOnPlayer);
-		_weatherLabPanelController.RefreshSessionState(autoOpen: false);
 		_syncSettingsUiState();
 		RefreshBar();
 		_flushMap();
@@ -102,7 +101,7 @@ internal sealed class MapEditorCoordinator
 		_session.Exit();
 		_bar.Close();
 		_closeSaveNameDialog();
-		_weatherLabPanelController.RefreshSessionState(autoOpen: true);
+		_turnController.Close();
 		_syncSettingsUiState();
 
 		if (startedFromMenu)
@@ -175,7 +174,8 @@ internal sealed class MapEditorCoordinator
 
 	public bool HandleMouseInput(InputEvent @event)
 	{
-		if (@event is InputEventMouse mouse && _bar.IsPointerOver(mouse.GlobalPosition))
+		if (@event is InputEventMouse mouse &&
+			(_bar.IsPointerOver(mouse.GlobalPosition) || _turnController.IsPointerOver(mouse.GlobalPosition)))
 			return false;
 
 		var renderer = _getRenderer();
@@ -316,6 +316,11 @@ internal sealed class MapEditorCoordinator
 		var renderer = _getRenderer();
 		renderer?.SetLightingProfile(index);
 		_flushMap();
+	}
+
+	public void HandleTurnControllerRequested()
+	{
+		_turnController.Toggle();
 	}
 
 	// ── Save ──

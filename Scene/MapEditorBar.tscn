@@ -102,6 +102,11 @@ text = "ui.map_editor.lighting_profile"
 [node name="LightingSelect" type="OptionButton" parent="Margin/VBox/EnvironmentControls"]
 layout_mode = 2
 
+[node name="TurnPlayBtn" type="Button" parent="Margin/VBox/EnvironmentControls"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.map_editor.turn_controller"
+
 [node name="InfoBar" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 text = "X: 0  Y: 0  Z: 0"

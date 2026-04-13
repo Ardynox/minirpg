@@ -355,7 +355,6 @@ public partial class Main
 		CloseDebugPanel();
 		CloseActorInspectPanel();
 		CloseLimbTargetPanel();
-		_weatherLabPanelController?.Close(resetRuntime: false);
 		_hideGroundAndLogPanelsIfVisible();
 	}
 

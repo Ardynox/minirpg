@@ -26,8 +26,6 @@ public sealed class SettingsFlowCoordinatorTests
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
-			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f));
@@ -65,8 +63,6 @@ public sealed class SettingsFlowCoordinatorTests
 			CanOpenSessionTab: true,
 			EnableKeyboardTargeting: true,
 			EnableDebugPanel: true,
-			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f));
@@ -95,37 +91,6 @@ public sealed class SettingsFlowCoordinatorTests
 
 		Assert.False(pause.Visible);
 		Assert.Null(focusHost.Focused);
-	}
-
-	[Fact]
-	public void WeatherLabToggle_ForwardedFromSettingsOverlay()
-	{
-		var focusHost = new FakeFocusHost();
-		var pause = new FakePauseMenuOverlay();
-		var settings = new FakeSettingsOverlay();
-		var coordinator = new SettingsFlowCoordinator(focusHost, pause, settings);
-		var toggleCount = 0;
-		coordinator.WeatherLabToggleRequested += () => toggleCount++;
-
-		coordinator.ApplyState(new SettingsUiState(
-			SettingsEntryContext.InGamePause,
-			"en",
-			RenderReady: true,
-			WatchModeEnabled: false,
-			FastTurnModeEnabled: true,
-			MapEditorActive: false,
-			CanOpenSessionTab: true,
-			EnableKeyboardTargeting: false,
-			EnableDebugPanel: true,
-			CanOpenWeatherLab: true,
-			WeatherLabPanelOpen: false,
-			MapZoomMin: 0.6f,
-			MapZoomMax: 2.4f,
-			MapZoomCurrent: 1.0f));
-
-		settings.TriggerWeatherLabToggle();
-
-		Assert.Equal(1, toggleCount);
 	}
 
 	[Fact]
@@ -196,7 +161,6 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? SaveRequested { add { } remove { } }
 		public event Action? LoadRequested { add { } remove { } }
 		public event Action? MapEditorToggleRequested { add { } remove { } }
-		public event Action? WeatherLabToggleRequested;
 		public event Action? LayoutEditRequested { add { } remove { } }
 		public event Action<string>? LanguageChangedRequested { add { } remove { } }
 
@@ -222,8 +186,6 @@ public sealed class SettingsFlowCoordinatorTests
 		public void TriggerBack() => BackRequested?.Invoke();
 
 		public void TriggerDebugPanelToggle() => DebugPanelToggleRequested?.Invoke();
-
-		public void TriggerWeatherLabToggle() => WeatherLabToggleRequested?.Invoke();
 	}
 
 	private sealed class FakeFocusHost : ISettingsFlowFocusHost

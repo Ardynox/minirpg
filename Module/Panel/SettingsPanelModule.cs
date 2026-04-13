@@ -24,7 +24,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string SaveRowPath = SessionPagePath + "/SaveLoadSection/Margin/VBox/SaveRow";
 	private const string LoadRowPath = SessionPagePath + "/SaveLoadSection/Margin/VBox/LoadRow";
 	private const string MapEditorRowPath = SessionPagePath + "/ToolsSection/Margin/VBox/MapEditorRow";
-	private const string WeatherLabRowPath = SessionPagePath + "/ToolsSection/Margin/VBox/WeatherLabRow";
 	private const string LayoutEditRowPath = SessionPagePath + "/ToolsSection/Margin/VBox/LayoutEditRow";
 
 	private readonly PanelContainer _panel;
@@ -68,8 +67,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _loadStatusLabel;
 	private readonly Label _mapEditorTitleLabel;
 	private readonly Label _mapEditorStatusLabel;
-	private readonly Label _weatherLabTitleLabel;
-	private readonly Label _weatherLabStatusLabel;
 	private readonly Label _layoutEditTitleLabel;
 	private readonly Label _layoutEditStatusLabel;
 	private readonly OptionButton _languageOption;
@@ -86,7 +83,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Button _saveButton;
 	private readonly Button _loadButton;
 	private readonly Button _mapEditorButton;
-	private readonly Button _weatherLabButton;
 	private readonly Button _layoutEditButton;
 	private readonly Button _backButton;
 	private readonly Control _keyBindingsRoot;
@@ -122,7 +118,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? MapEditorToggleRequested;
-	public event Action? WeatherLabToggleRequested;
 	public event Action? LayoutEditRequested;
 	public event Action<string>? LanguageChangedRequested;
 
@@ -181,18 +176,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			? "ui.settings.map_editor.status.active"
 			: "ui.settings.map_editor.status.inactive";
 
-	internal static string GetWeatherLabStatusKey(SettingsUiState state) =>
-		!state.CanOpenWeatherLab
-			? "ui.settings.weather_lab.status.unavailable"
-			: state.WeatherLabPanelOpen
-				? "ui.settings.weather_lab.status.active"
-				: "ui.settings.weather_lab.status.inactive";
-
 	internal static bool CanActivateRow(SettingsPanelRowId rowId, SettingsUiState state) =>
 		rowId switch
 		{
 			SettingsPanelRowId.Render or SettingsPanelRowId.MapZoomMin or SettingsPanelRowId.MapZoomMax => state.RenderReady,
-			SettingsPanelRowId.WeatherLab => state.CanOpenWeatherLab,
 			_ => true,
 		};
 
@@ -248,8 +235,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_loadStatusLabel = panel.GetNode<Label>(LoadRowPath + "/Margin/HBox/Content/Status");
 		_mapEditorTitleLabel = panel.GetNode<Label>(MapEditorRowPath + "/Margin/HBox/Content/Title");
 		_mapEditorStatusLabel = panel.GetNode<Label>(MapEditorRowPath + "/Margin/HBox/Content/Status");
-		_weatherLabTitleLabel = panel.GetNode<Label>(WeatherLabRowPath + "/Margin/HBox/Content/Title");
-		_weatherLabStatusLabel = panel.GetNode<Label>(WeatherLabRowPath + "/Margin/HBox/Content/Status");
 		_layoutEditTitleLabel = panel.GetNode<Label>(LayoutEditRowPath + "/Margin/HBox/Content/Title");
 		_layoutEditStatusLabel = panel.GetNode<Label>(LayoutEditRowPath + "/Margin/HBox/Content/Status");
 
@@ -267,7 +252,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_saveButton = panel.GetNode<Button>(SaveRowPath + "/Margin/HBox/SaveBtn");
 		_loadButton = panel.GetNode<Button>(LoadRowPath + "/Margin/HBox/LoadBtn");
 		_mapEditorButton = panel.GetNode<Button>(MapEditorRowPath + "/Margin/HBox/MapEditorBtn");
-		_weatherLabButton = panel.GetNode<Button>(WeatherLabRowPath + "/Margin/HBox/WeatherLabBtn");
 		_layoutEditButton = panel.GetNode<Button>(LayoutEditRowPath + "/Margin/HBox/LayoutEditBtn");
 		_backButton = panel.GetNode<Button>("Margin/VBox/Footer/BackBtn");
 		_keyBindingsRoot = panel.GetNode<Control>(KeyBindingsRootPath);
@@ -287,7 +271,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			[SettingsPanelRowId.Save] = panel.GetNode<PanelContainer>(SaveRowPath),
 			[SettingsPanelRowId.Load] = panel.GetNode<PanelContainer>(LoadRowPath),
 			[SettingsPanelRowId.MapEditor] = panel.GetNode<PanelContainer>(MapEditorRowPath),
-			[SettingsPanelRowId.WeatherLab] = panel.GetNode<PanelContainer>(WeatherLabRowPath),
 			[SettingsPanelRowId.LayoutEdit] = panel.GetNode<PanelContainer>(LayoutEditRowPath),
 		};
 
@@ -402,14 +385,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			SelectRow(SettingsPanelRowId.MapEditor);
 			MapEditorToggleRequested?.Invoke();
 		};
-		_weatherLabButton.Pressed += () =>
-		{
-			SelectRow(SettingsPanelRowId.WeatherLab);
-			if (!CanActivateRow(SettingsPanelRowId.WeatherLab, _state))
-				return;
-
-			WeatherLabToggleRequested?.Invoke();
-		};
 		_layoutEditButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.LayoutEdit);
@@ -431,7 +406,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		WireRowSelection(SettingsPanelRowId.Save);
 		WireRowSelection(SettingsPanelRowId.Load);
 		WireRowSelection(SettingsPanelRowId.MapEditor);
-		WireRowSelection(SettingsPanelRowId.WeatherLab);
 		WireRowSelection(SettingsPanelRowId.LayoutEdit);
 
 		_state = new SettingsUiState(
@@ -444,8 +418,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			CanOpenSessionTab: false,
 			EnableKeyboardTargeting: false,
 			EnableDebugPanel: true,
-			CanOpenWeatherLab: false,
-			WeatherLabPanelOpen: false,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f);
@@ -505,7 +477,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_saveTitleLabel.Text = LocalizationService.T("ui.settings.save.title");
 		_loadTitleLabel.Text = LocalizationService.T("ui.settings.load.title");
 		_mapEditorTitleLabel.Text = LocalizationService.T("ui.settings.map_editor.title");
-		_weatherLabTitleLabel.Text = LocalizationService.T("ui.settings.weather_lab.title");
 		_layoutEditTitleLabel.Text = LocalizationService.T("ui.settings.layout_edit.title");
 		_renderToggleButton.Text = LocalizationService.T("ui.settings.render.action");
 		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
@@ -681,7 +652,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_saveStatusLabel.Text = LocalizationService.T("ui.settings.save.status");
 		_loadStatusLabel.Text = LocalizationService.T("ui.settings.load.status");
 		_mapEditorStatusLabel.Text = LocalizationService.T(GetMapEditorStatusKey(_state));
-		_weatherLabStatusLabel.Text = LocalizationService.T(GetWeatherLabStatusKey(_state));
 		_layoutEditStatusLabel.Text = LocalizationService.T("ui.settings.layout_edit.status");
 
 		_renderToggleButton.Disabled = !CanActivateRow(SettingsPanelRowId.Render, _state);
@@ -697,11 +667,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			_state.MapEditorActive
 				? "ui.settings.map_editor.exit"
 				: "ui.settings.map_editor.enter");
-		_weatherLabButton.Text = LocalizationService.T(
-			_state.WeatherLabPanelOpen
-				? "ui.settings.weather_lab.close"
-				: "ui.settings.weather_lab.open");
-		_weatherLabButton.Disabled = !CanActivateRow(SettingsPanelRowId.WeatherLab, _state);
 		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
 		_keyBindingsRoot.Visible = _selectionModel.KeyBindingsMode;
 
@@ -791,9 +756,6 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				break;
 			case SettingsPanelRowId.MapEditor:
 				MapEditorToggleRequested?.Invoke();
-				break;
-			case SettingsPanelRowId.WeatherLab:
-				WeatherLabToggleRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.LayoutEdit:
 				LayoutEditRequested?.Invoke();
