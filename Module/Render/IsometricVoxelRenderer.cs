@@ -18,6 +18,9 @@ public partial class IsometricVoxelRenderer
 {
 	private const int DefaultViewDepthAbove = 4;
 	private const int DefaultViewDepthBelow = 2;
+	private const int VisibleDepthOverscanLayers = 1;
+	private const int MaxVisibleDepthAbove = 14;
+	private const int MaxVisibleDepthBelow = 14;
 	private const int VisibleWindowOverscanCells = 4;
 	private const int MaxVisibleWindowHalfExtent = 48;
 	private const int DefaultCharacterSheetFrameWidth = 128;
@@ -211,6 +214,18 @@ public partial class IsometricVoxelRenderer
 			fallback);
 	}
 
+	internal VisibleDepthWindow GetVisibleDepthWindow()
+	{
+		var fallback = new VisibleDepthWindow(DefaultViewDepthAbove, DefaultViewDepthBelow);
+		if (_subViewport == null || _camera == null)
+			return fallback;
+
+		return CalculateVisibleDepthWindow(
+			_subViewport.Size,
+			_camera.Zoom,
+			fallback);
+	}
+
 	internal static VisibleWorldWindow CalculateVisibleWorldWindow(
 		Vector2I viewportSize,
 		Vector2 zoom,
@@ -232,6 +247,22 @@ public partial class IsometricVoxelRenderer
 			Math.Max(fallback.HalfX, fallback.HalfY));
 		var clampedHalfExtent = Math.Clamp(expandedHalfExtent, 0, MaxVisibleWindowHalfExtent);
 		return new VisibleWorldWindow(clampedHalfExtent, clampedHalfExtent);
+	}
+
+	internal static VisibleDepthWindow CalculateVisibleDepthWindow(
+		Vector2I viewportSize,
+		Vector2 zoom,
+		VisibleDepthWindow fallback)
+	{
+		if (viewportSize.X <= 0 || viewportSize.Y <= 0)
+			return fallback;
+
+		var zoomY = Math.Max(0.001f, zoom.Y);
+		var localHalfHeight = viewportSize.Y * 0.5f / zoomY;
+		var requiredHalfDepth = Mathf.CeilToInt(localHalfHeight / IsoCoordUtil.ZStep) + VisibleDepthOverscanLayers;
+		var above = Math.Clamp(Math.Max(fallback.Above, requiredHalfDepth), fallback.Above, MaxVisibleDepthAbove);
+		var below = Math.Clamp(Math.Max(fallback.Below, requiredHalfDepth), fallback.Below, MaxVisibleDepthBelow);
+		return new VisibleDepthWindow(above, below);
 	}
 
 	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>
@@ -506,8 +537,9 @@ public partial class IsometricVoxelRenderer
 		if (_state.World == null) return false;
 
 		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
-		var zMin = cz - 4;
-		var zMax = cz + 2;
+		var visibleDepth = GetVisibleDepthWindow();
+		var zMin = cz - visibleDepth.Above;
+		var zMax = cz + visibleDepth.Below;
 		for (var z = zMax; z >= zMin; z--)
 		{
 			var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, z);
@@ -736,10 +768,11 @@ public partial class IsometricVoxelRenderer
 		var cy = _viewCenterY;
 		var cz = _viewCenterZ;
 		var visibleWindow = GetVisibleWorldWindow();
+		var visibleDepth = GetVisibleDepthWindow();
 		var halfW = visibleWindow.HalfX;
 		var halfH = visibleWindow.HalfY;
-		var zMin = cz - DefaultViewDepthAbove;
-		var zMax = cz + DefaultViewDepthBelow;
+		var zMin = cz - visibleDepth.Above;
+		var zMax = cz + visibleDepth.Below;
 		var highlightCell = ResolveHoverHighlightCell(_editorViewActive, HoverWorldCell, EditorHoverState);
 		_editorPerspective = _editorViewActive
 			? EditorPerspectiveResolver.Resolve(
@@ -2485,6 +2518,10 @@ public partial class IsometricVoxelRenderer
 	internal readonly record struct VisibleWorldWindow(
 		int HalfX,
 		int HalfY);
+
+	internal readonly record struct VisibleDepthWindow(
+		int Above,
+		int Below);
 
 	private readonly record struct FacilityRenderPlacement(
 		bool Visible,

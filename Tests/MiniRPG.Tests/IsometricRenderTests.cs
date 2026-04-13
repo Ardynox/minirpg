@@ -158,6 +158,17 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_GetVisibleDepthWindow_WithoutViewport_UsesFallbackBaseline()
+	{
+		var renderer = new IsometricVoxelRenderer(new GameState(), new FogOfWarTracker(), viewW: 20, viewH: 20);
+
+		var window = renderer.GetVisibleDepthWindow();
+
+		Assert.Equal(4, window.Above);
+		Assert.Equal(2, window.Below);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForDefaultZoom_IsNotSmallerThanLegacyBaseline()
 	{
 		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
@@ -205,6 +216,34 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForDefaultZoom_ExpandsBeyondLegacyDepth()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+			new Vector2I(1280, 960),
+			Vector2.One,
+			fallback);
+
+		Assert.Equal(9, window.Above);
+		Assert.Equal(9, window.Below);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForMinimumZoom_ReachesConfiguredCap()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+			new Vector2I(1280, 960),
+			new Vector2(0.6f, 0.6f),
+			fallback);
+
+		Assert.Equal(14, window.Above);
+		Assert.Equal(14, window.Below);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForMinimumZoom_CoversLargerSquareWindow()
 	{
 		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
@@ -230,6 +269,20 @@ public sealed class IsometricRenderTests
 
 		Assert.Equal(48, window.HalfX);
 		Assert.Equal(48, window.HalfY);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_CapsExtremeZoomOutCoverage()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+			new Vector2I(1280, 960),
+			new Vector2(0.2f, 0.2f),
+			fallback);
+
+		Assert.Equal(14, window.Above);
+		Assert.Equal(14, window.Below);
 	}
 
 	[Fact]
