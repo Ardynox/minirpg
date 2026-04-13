@@ -32,7 +32,6 @@ internal sealed class RuntimeViewCoordinator
 			return;
 
 		syncViewToActiveActor();
-		_ui.MapRender.XRayEnabled = mapEditorActive;
 		_ui.MapRender.InspectWorldCell = inspectModeActive ? inspectWorldCell : null;
 		var editorZ = mapEditorActive ? mapEditorCameraZ : _state.PlayerZ;
 		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : hoverWorldCell;
@@ -40,8 +39,7 @@ internal sealed class RuntimeViewCoordinator
 			mapEditorActive,
 			mapEditorActive ? mapEditorCameraX : _state.PlayerX,
 			mapEditorActive ? mapEditorCameraY : _state.PlayerY,
-			editorZ,
-			mapEditorActive ? mapEditorHoverWorld : null);
+			editorZ);
 		_ui.MapRender.Flush();
 		markUiDirty();
 	}

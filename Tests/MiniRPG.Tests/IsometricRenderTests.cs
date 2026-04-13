@@ -124,11 +124,60 @@ public sealed class IsometricRenderTests
 		Assert.Equal(expected, Assert.IsType<Vector3I>(args[2]));
 	}
 
+	[Fact]
+	public void IsometricVoxelRenderer_BuildHoverVolumeGeometry_UsesOneCellDepth()
+	{
+		var geometry = InvokeHoverVolumeGeometry(new Vector2(24f, 48f));
+		var left = GetGeometryPoint(geometry, "Left");
+		var bottom = GetGeometryPoint(geometry, "Bottom");
+		var right = GetGeometryPoint(geometry, "Right");
+		var lowerLeft = GetGeometryPoint(geometry, "LowerLeft");
+		var lowerBottom = GetGeometryPoint(geometry, "LowerBottom");
+		var lowerRight = GetGeometryPoint(geometry, "LowerRight");
+
+		AssertVector2Approx(new Vector2(24f - IsoCoordUtil.TileHalfW, 48f), left);
+		AssertVector2Approx(new Vector2(24f, 48f + IsoCoordUtil.TileHalfH), bottom);
+		AssertVector2Approx(new Vector2(24f + IsoCoordUtil.TileHalfW, 48f), right);
+		AssertVector2Approx(left + new Vector2(0f, IsoCoordUtil.ZStep), lowerLeft);
+		AssertVector2Approx(bottom + new Vector2(0f, IsoCoordUtil.ZStep), lowerBottom);
+		AssertVector2Approx(right + new Vector2(0f, IsoCoordUtil.ZStep), lowerRight);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_HoverTextureKeys_IncludeTopAndVolumeMarkers()
+	{
+		var method = typeof(IsometricVoxelRenderer).GetMethod("GetHoverTextureKeys", BindingFlags.NonPublic | BindingFlags.Static);
+
+		Assert.NotNull(method);
+
+		var keys = Assert.IsType<string[]>(method!.Invoke(null, null));
+
+		Assert.Contains("hover_diamond_outline", keys);
+		Assert.Contains("hover_diamond_fill", keys);
+		Assert.Contains("hover_side_left_fill", keys);
+		Assert.Contains("hover_side_right_fill", keys);
+		Assert.Contains("hover_edge_segment", keys);
+	}
+
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)
 	{
 		var method = typeof(IsometricVoxelRenderer).GetMethod("GetVisionTint", BindingFlags.NonPublic | BindingFlags.Instance);
 		Assert.NotNull(method);
 		return (Color)method!.Invoke(renderer, [x, y, z])!;
+	}
+
+	private static object InvokeHoverVolumeGeometry(Vector2 topCenter)
+	{
+		var method = typeof(IsometricVoxelRenderer).GetMethod("BuildHoverVolumeGeometry", BindingFlags.NonPublic | BindingFlags.Static);
+		Assert.NotNull(method);
+		return method!.Invoke(null, [topCenter])!;
+	}
+
+	private static Vector2 GetGeometryPoint(object geometry, string propertyName)
+	{
+		var property = geometry.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
+		Assert.NotNull(property);
+		return Assert.IsType<Vector2>(property!.GetValue(geometry));
 	}
 
 	private static void SetFogStateForTest(FogOfWarTracker fog)
@@ -166,6 +215,13 @@ public sealed class IsometricRenderTests
 		Assert.True(Mathf.Abs(expected.G - actual.G) < eps, $"G mismatch: expected {expected.G}, got {actual.G}");
 		Assert.True(Mathf.Abs(expected.B - actual.B) < eps, $"B mismatch: expected {expected.B}, got {actual.B}");
 		Assert.True(Mathf.Abs(expected.A - actual.A) < eps, $"A mismatch: expected {expected.A}, got {actual.A}");
+	}
+
+	private static void AssertVector2Approx(Vector2 expected, Vector2 actual)
+	{
+		const float eps = 0.0001f;
+		Assert.True(Mathf.Abs(expected.X - actual.X) < eps, $"X mismatch: expected {expected.X}, got {actual.X}");
+		Assert.True(Mathf.Abs(expected.Y - actual.Y) < eps, $"Y mismatch: expected {expected.Y}, got {actual.Y}");
 	}
 
 }
