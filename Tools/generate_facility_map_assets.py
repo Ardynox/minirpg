@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -8,6 +9,7 @@ from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DATA_PATH = ROOT / "Data" / "facilities.json"
 OUTPUT_ROOT = ROOT / "Assets" / "Art" / "Generated" / "facilities"
 ARTIFACTS_ROOT = ROOT / "Artifacts"
 
@@ -19,11 +21,18 @@ PREVIEW_ROWS = 2
 PREVIEW_SIZE = (FRAME_SIZE[0] * PREVIEW_COLUMNS, FRAME_SIZE[1] * PREVIEW_ROWS)
 ROTATIONS = ("north", "east", "south", "west")
 
+ORIGIN_X = 32
+ORIGIN_Y = 36
+CELL_HALF_W = 10
+CELL_HALF_H = 5
+BLOCK_HEIGHT = 6
+
 Color = tuple[int, int, int, int]
+Point = tuple[float, float]
 
 TRANSPARENT: Color = (0, 0, 0, 0)
 OUTLINE: Color = (44, 30, 24, 255)
-SHADOW: Color = (0, 0, 0, 64)
+SHADOW: Color = (0, 0, 0, 72)
 WHITE: Color = (242, 238, 232, 255)
 CREAM: Color = (228, 216, 186, 255)
 WOOD: Color = (140, 92, 56, 255)
@@ -38,10 +47,8 @@ IRON_DARK: Color = (95, 103, 119, 255)
 STEEL: Color = (172, 180, 194, 255)
 STEEL_DARK: Color = (112, 120, 136, 255)
 GOLD: Color = (214, 180, 82, 255)
-GOLD_DARK: Color = (142, 116, 54, 255)
 GREEN: Color = (84, 136, 86, 255)
 GREEN_DARK: Color = (54, 90, 55, 255)
-MOSS: Color = (112, 146, 92, 255)
 RED: Color = (168, 86, 78, 255)
 RED_DARK: Color = (108, 50, 48, 255)
 BLUE: Color = (82, 118, 168, 255)
@@ -65,11 +72,59 @@ CANVAS_DARK: Color = (168, 148, 108, 255)
 MEAT: Color = (172, 92, 82, 255)
 MEAT_DARK: Color = (110, 52, 52, 255)
 
+LONG_AXIS = {
+    "north": (CELL_HALF_W, CELL_HALF_H),
+    "east": (-CELL_HALF_W, CELL_HALF_H),
+    "south": (-CELL_HALF_W, -CELL_HALF_H),
+    "west": (CELL_HALF_W, -CELL_HALF_H),
+}
+
+CROSS_AXIS = {
+    "north": (-CELL_HALF_W, CELL_HALF_H),
+    "east": (-CELL_HALF_W, -CELL_HALF_H),
+    "south": (CELL_HALF_W, -CELL_HALF_H),
+    "west": (CELL_HALF_W, CELL_HALF_H),
+}
+
+FACILITY_DATA = {
+    entry["id"]: entry
+    for entry in json.loads(DATA_PATH.read_text(encoding="utf-8"))
+}
+
 
 @dataclass(frozen=True)
 class FacilitySpec:
     facility_id: str
-    drawer: Callable[[ImageDraw.ImageDraw, str], None]
+    drawer: Callable[[ImageDraw.ImageDraw, "FacilityLayout", str], None]
+
+
+@dataclass(frozen=True)
+class RenderCell:
+    index: int
+    grid_x: float
+    grid_y: float
+    screen_x: float
+    screen_y: float
+
+
+@dataclass(frozen=True)
+class FacilityLayout:
+    cells: list[RenderCell]
+    anchor: RenderCell
+    center_x: float
+    center_y: float
+    min_x: float
+    max_x: float
+    min_y: float
+    max_y: float
+
+    @property
+    def center(self) -> Point:
+        return (self.center_x, self.center_y)
+
+    @property
+    def anchor_screen(self) -> Point:
+        return (self.anchor.screen_x, self.anchor.screen_y)
 
 
 def new_canvas() -> Image.Image:
@@ -80,243 +135,427 @@ def upscale(image: Image.Image) -> Image.Image:
     return image.resize(FRAME_SIZE, Image.Resampling.NEAREST)
 
 
-def shadow(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int]) -> None:
-    draw.ellipse(box, fill=SHADOW)
-
-
 def rect(
     draw: ImageDraw.ImageDraw,
-    xy: tuple[int, int, int, int],
+    xy: tuple[float, float, float, float],
     fill: Color,
     outline: Color = OUTLINE,
 ) -> None:
-    draw.rectangle(xy, fill=fill, outline=outline)
+    draw.rectangle(tuple(round(v) for v in xy), fill=fill, outline=outline)
 
 
 def ellipse(
     draw: ImageDraw.ImageDraw,
-    xy: tuple[int, int, int, int],
+    xy: tuple[float, float, float, float],
     fill: Color,
-    outline: Color = OUTLINE,
+    outline: Color | None = OUTLINE,
 ) -> None:
-    draw.ellipse(xy, fill=fill, outline=outline)
+    if outline is None:
+        draw.ellipse(tuple(round(v) for v in xy), fill=fill)
+        return
+    draw.ellipse(tuple(round(v) for v in xy), fill=fill, outline=outline)
 
 
 def poly(
     draw: ImageDraw.ImageDraw,
-    points: list[tuple[int, int]],
+    points: list[Point],
     fill: Color,
     outline: Color = OUTLINE,
 ) -> None:
-    draw.polygon(points, fill=fill, outline=outline)
+    draw.polygon([(round(x), round(y)) for x, y in points], fill=fill, outline=outline)
 
 
 def line(
     draw: ImageDraw.ImageDraw,
-    points: tuple[int, int, int, int] | list[tuple[int, int]],
+    points: tuple[float, float, float, float] | list[Point],
     fill: Color,
     width: int = 1,
 ) -> None:
-    draw.line(points, fill=fill, width=width)
+    if isinstance(points, tuple):
+        draw.line(tuple(round(v) for v in points), fill=fill, width=width)
+        return
+    draw.line([(round(x), round(y)) for x, y in points], fill=fill, width=width)
 
 
-def hrect(draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int, fill: Color, outline: Color = OUTLINE) -> None:
-    rect(draw, (x, y, x + width, y + height), fill, outline)
+def add(a: Point, b: Point) -> Point:
+    return (a[0] + b[0], a[1] + b[1])
 
 
-def badge(draw: ImageDraw.ImageDraw, x: int, y: int, fill: Color, outline: Color = OUTLINE) -> None:
-    ellipse(draw, (x, y, x + 3, y + 3), fill, outline)
+def scale(v: Point, amount: float) -> Point:
+    return (v[0] * amount, v[1] * amount)
 
 
-def direction_shift(rotation: str) -> int:
+def shift(point: Point, dx: float = 0.0, dy: float = 0.0) -> Point:
+    return (point[0] + dx, point[1] + dy)
+
+
+def rotate_offset(x: int, y: int, rotation: str) -> tuple[int, int]:
     return {
-        "north": -2,
-        "east": 3,
-        "south": 1,
-        "west": -3,
-    }[rotation]
+        "east": (-y, x),
+        "south": (-x, -y),
+        "west": (y, -x),
+    }.get(rotation, (x, y))
 
 
-def direction_pair(rotation: str) -> tuple[int, int]:
-    shift = direction_shift(rotation)
-    return shift, -shift
+def project_local(x: float, y: float) -> Point:
+    return (
+        ORIGIN_X + (x - y) * CELL_HALF_W,
+        ORIGIN_Y + (x + y) * CELL_HALF_H,
+    )
 
 
-def draw_plank_stack(draw: ImageDraw.ImageDraw, x: int, y: int, count: int) -> None:
-    for index in range(count):
-        hrect(draw, x - index, y + index * 2, 10, 2, WOOD_LIGHT, WOOD_DARK)
+def build_layout(facility_id: str, rotation: str) -> FacilityLayout:
+    definition = FACILITY_DATA[facility_id]
+    footprint = definition["footprint"]
+    anchor_x = footprint[0]["x"]
+    anchor_y = footprint[0]["y"]
+
+    rotated: list[tuple[int, int, int]] = []
+    for index, cell in enumerate(footprint):
+        rx, ry = rotate_offset(cell["x"] - anchor_x, cell["y"] - anchor_y, rotation)
+        rotated.append((index, rx, ry))
+
+    min_x = min(x for _, x, _ in rotated)
+    max_x = max(x for _, x, _ in rotated)
+    min_y = min(y for _, _, y in rotated)
+    max_y = max(y for _, _, y in rotated)
+    center_x = (min_x + max_x) * 0.5
+    center_y = (min_y + max_y) * 0.5
+
+    cells: list[RenderCell] = []
+    for index, x, y in rotated:
+        sx, sy = project_local(x - center_x, y - center_y)
+        cells.append(RenderCell(index, x, y, sx, sy))
+
+    cells.sort(key=lambda cell: (cell.grid_x + cell.grid_y, cell.screen_y, cell.screen_x))
+    anchor = next(cell for cell in cells if cell.index == 0)
+    return FacilityLayout(
+        cells=cells,
+        anchor=anchor,
+        center_x=ORIGIN_X,
+        center_y=ORIGIN_Y,
+        min_x=min(cell.screen_x for cell in cells),
+        max_x=max(cell.screen_x for cell in cells),
+        min_y=min(cell.screen_y for cell in cells),
+        max_y=max(cell.screen_y for cell in cells),
+    )
 
 
-def draw_bottle_row(draw: ImageDraw.ImageDraw, x: int, y: int) -> None:
-    for offset, color in ((0, GLASS), (3, RED), (6, BLUE), (9, HERB)):
-        hrect(draw, x + offset, y + 1, 1, 3, color, WHITE)
-        draw.point((x + offset, y), fill=WHITE)
+def get_cell(layout: FacilityLayout, index: int) -> RenderCell:
+    return next(cell for cell in layout.cells if cell.index == index)
 
 
-def draw_crate(draw: ImageDraw.ImageDraw, x: int, y: int, width: int = 8, height: int = 6) -> None:
-    hrect(draw, x, y, width, height, WOOD, WOOD_DARK)
-    line(draw, (x + 1, y + 1, x + width - 1, y + height - 1), WOOD_LIGHT)
-    line(draw, (x + width - 1, y + 1, x + 1, y + height - 1), WOOD_LIGHT)
+def get_farthest_cell(layout: FacilityLayout) -> RenderCell:
+    farthest = layout.anchor
+    farthest_distance = -1.0
+    for cell in layout.cells:
+        distance = abs(cell.grid_x - layout.anchor.grid_x) + abs(cell.grid_y - layout.anchor.grid_y)
+        if distance > farthest_distance:
+            farthest = cell
+            farthest_distance = distance
+    return farthest
 
 
-def draw_hanging_sign(draw: ImageDraw.ImageDraw, x: int, y: int) -> None:
-    line(draw, (x + 3, y - 4, x + 3, y), WOOD_DARK)
-    hrect(draw, x, y, 6, 5, CANVAS_DARK, WOOD_DARK)
-    hrect(draw, x + 1, y + 1, 4, 3, CANVAS, WOOD_DARK)
+def prism_geometry(center: Point, height: float) -> tuple[list[Point], list[Point], list[Point]]:
+    cx, cy = center
+    top = (cx, cy - CELL_HALF_H)
+    right = (cx + CELL_HALF_W, cy)
+    bottom = (cx, cy + CELL_HALF_H)
+    left = (cx - CELL_HALF_W, cy)
+    lower_right = (right[0], right[1] + height)
+    lower_bottom = (bottom[0], bottom[1] + height)
+    lower_left = (left[0], left[1] + height)
+    top_face = [top, right, bottom, left]
+    left_face = [left, bottom, lower_bottom, lower_left]
+    right_face = [bottom, right, lower_right, lower_bottom]
+    return top_face, left_face, right_face
 
 
-def draw_flame(draw: ImageDraw.ImageDraw, x: int, y: int) -> None:
-    poly(draw, [(x, y + 8), (x + 4, y + 2), (x + 7, y + 8), (x + 4, y + 13)], FIRE_RED, RED_DARK)
-    poly(draw, [(x + 2, y + 8), (x + 4, y + 4), (x + 5, y + 8), (x + 4, y + 11)], FIRE_YELLOW, EMBER)
+def draw_prism(
+    draw: ImageDraw.ImageDraw,
+    center: Point,
+    height: float,
+    top_fill: Color,
+    left_fill: Color,
+    right_fill: Color,
+) -> None:
+    top_face, left_face, right_face = prism_geometry(center, height)
+    poly(draw, left_face, left_fill)
+    poly(draw, right_face, right_fill)
+    poly(draw, top_face, top_fill)
 
 
-def draw_shelf(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift, opposite = direction_pair(rotation)
-    shadow(draw, (18, 52, 46, 59))
-    hrect(draw, 20, 14, 24, 34, WOOD_DARK)
-    hrect(draw, 22, 16, 20, 5, WOOD_LIGHT)
-    hrect(draw, 22, 27, 20, 5, WOOD)
-    hrect(draw, 22, 38, 20, 5, WOOD_LIGHT)
-    hrect(draw, 21, 20, 3, 28, WOOD_DARK)
-    hrect(draw, 40, 20, 3, 28, WOOD_DARK)
-    draw_crate(draw, 24 + shift, 18, 7, 5)
-    draw_bottle_row(draw, 32 + opposite, 29)
-    draw_crate(draw, 30 + shift, 39, 8, 5)
-    hrect(draw, 15 + shift, 22, 4, 12, LEATHER, LEATHER_DARK)
-    hrect(draw, 16 + shift, 23, 2, 6, CANVAS, WOOD_DARK)
+def draw_layout_shadow(draw: ImageDraw.ImageDraw, layout: FacilityLayout, extra_width: float = 6.0) -> None:
+    ellipse(
+        draw,
+        (
+            layout.min_x - CELL_HALF_W - extra_width,
+            layout.max_y + BLOCK_HEIGHT + 5,
+            layout.max_x + CELL_HALF_W + extra_width,
+            layout.max_y + BLOCK_HEIGHT + 11,
+        ),
+        SHADOW,
+        outline=None,
+    )
 
 
-def draw_brazier(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (20, 50, 44, 58))
-    poly(draw, [(24, 46), (40, 46), (44, 52), (20, 52)], STONE_DARK)
-    poly(draw, [(22, 35), (42, 35), (46, 46), (18, 46)], STONE, STONE_DARK)
-    hrect(draw, 26, 22, 12, 7, STONE_LIGHT, STONE_DARK)
-    hrect(draw, 24, 29, 4, 15, STONE_DARK)
-    hrect(draw, 36, 29, 4, 15, STONE_DARK)
-    draw_flame(draw, 27 + shift, 24)
-    draw_flame(draw, 23 + shift // 2, 28)
-    draw_flame(draw, 31 - shift // 2, 29)
+def panel_points(
+    center: Point,
+    rotation: str,
+    along: float,
+    across: float,
+    lift: float = 0.0,
+) -> list[Point]:
+    long_vec = LONG_AXIS[rotation]
+    cross_vec = CROSS_AXIS[rotation]
+    lifted_center = shift(center, dy=-lift)
+    return [
+        add(add(lifted_center, scale(long_vec, -along)), scale(cross_vec, -across)),
+        add(add(lifted_center, scale(long_vec, along)), scale(cross_vec, -across)),
+        add(add(lifted_center, scale(long_vec, along)), scale(cross_vec, across)),
+        add(add(lifted_center, scale(long_vec, -along)), scale(cross_vec, across)),
+    ]
 
 
-def draw_bed(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (12, 52, 50, 58))
-    hrect(draw, 14, 20, 36, 24, WOOD_DARK)
-    hrect(draw, 16, 23, 32, 18, CLOTH, WOOD_DARK)
-    hrect(draw, 17, 24, 30, 6, WHITE, OUTLINE)
-    hrect(draw, 18 + shift, 31, 26, 8, RED, RED_DARK)
-    hrect(draw, 14, 16, 36, 4, WOOD, WOOD_DARK)
-    hrect(draw, 14, 44, 36, 3, WOOD, WOOD_DARK)
-    hrect(draw, 16, 45, 2, 6, WOOD_DARK)
-    hrect(draw, 46, 45, 2, 6, WOOD_DARK)
-    hrect(draw, 19 + shift, 24, 8, 4, BLUE, BLUE_DARK)
+def draw_panel(
+    draw: ImageDraw.ImageDraw,
+    center: Point,
+    rotation: str,
+    along: float,
+    across: float,
+    fill: Color,
+    outline: Color = OUTLINE,
+    lift: float = 0.0,
+) -> list[Point]:
+    points = panel_points(center, rotation, along, across, lift=lift)
+    poly(draw, points, fill, outline)
+    return points
 
 
-def draw_dormitory_bed(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (18, 52, 44, 58))
-    hrect(draw, 18, 24, 28, 16, IRON_DARK)
-    hrect(draw, 20, 25, 24, 12, CLOTH, IRON_DARK)
-    hrect(draw, 21 + shift, 26, 9, 3, WHITE, OUTLINE)
-    hrect(draw, 22 + shift, 31, 16, 4, BLUE, BLUE_DARK)
-    hrect(draw, 17, 22, 2, 22, IRON)
-    hrect(draw, 45, 22, 2, 22, IRON)
-    hrect(draw, 20, 40, 2, 7, IRON_DARK)
-    hrect(draw, 42, 40, 2, 7, IRON_DARK)
+def draw_post(
+    draw: ImageDraw.ImageDraw,
+    base: Point,
+    height: float,
+    fill: Color,
+    width: int = 2,
+) -> None:
+    x, y = base
+    rect(draw, (x - width * 0.5, y - height, x + width * 0.5, y), fill, OUTLINE)
 
 
-def draw_stove(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (15, 51, 49, 58))
-    hrect(draw, 18, 24, 28, 24, STONE, STONE_DARK)
-    hrect(draw, 24, 29, 16, 13, STONE_LIGHT, STONE_DARK)
-    hrect(draw, 28, 31, 8, 8, EMBER, STONE_DARK)
-    line(draw, (30, 42, 34, 42), STONE_DARK)
-    hrect(draw, 40 + shift, 10, 6, 20, STONE_DARK)
-    hrect(draw, 41 + shift, 8, 4, 3, STONE_LIGHT)
-    hrect(draw, 20 - shift, 19, 6, 4, IRON, IRON_DARK)
-    hrect(draw, 22 - shift, 17, 2, 2, WOOD_DARK)
-    hrect(draw, 13 + shift, 38, 5, 9, WOOD, WOOD_DARK)
+def draw_flame(draw: ImageDraw.ImageDraw, center: Point, size: float = 1.0) -> None:
+    x, y = center
+    poly(
+        draw,
+        [
+            (x - 2 * size, y + 5 * size),
+            (x, y - 4 * size),
+            (x + 2.5 * size, y + 5 * size),
+            (x, y + 8 * size),
+        ],
+        FIRE_RED,
+        RED_DARK,
+    )
+    poly(
+        draw,
+        [
+            (x - 1.0 * size, y + 5 * size),
+            (x, y - 1.5 * size),
+            (x + 1.2 * size, y + 5 * size),
+            (x, y + 6 * size),
+        ],
+        FIRE_YELLOW,
+        EMBER,
+    )
 
 
-def draw_butcher_table(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (14, 52, 50, 58))
-    hrect(draw, 16, 26, 32, 8, WOOD_LIGHT, WOOD_DARK)
-    hrect(draw, 18, 34, 4, 15, WOOD_DARK)
-    hrect(draw, 42, 34, 4, 15, WOOD_DARK)
-    hrect(draw, 23, 30, 18, 2, MEAT_DARK)
-    ellipse(draw, (24 + shift, 28, 31 + shift, 34), MEAT, MEAT_DARK)
-    line(draw, (38 - shift, 22, 44 - shift, 15), IRON_DARK, 2)
-    poly(draw, [(42 - shift, 14), (48 - shift, 17), (41 - shift, 20)], STEEL, STEEL_DARK)
-    hrect(draw, 12 + shift, 22, 2, 12, IRON, IRON_DARK)
-    badge(draw, 13 + shift, 21, GOLD)
+def draw_bottle(draw: ImageDraw.ImageDraw, center: Point, fill: Color) -> None:
+    x, y = center
+    rect(draw, (x - 1, y - 4, x + 1, y), fill, WHITE)
+    rect(draw, (x - 0.5, y - 5, x + 0.5, y - 4), WHITE, OUTLINE)
 
 
-def draw_smithy(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (12, 52, 50, 58))
-    hrect(draw, 18, 22, 26, 24, STONE_DARK)
-    hrect(draw, 20, 25, 22, 18, STONE, STONE_DARK)
-    hrect(draw, 24, 30, 14, 9, EMBER, STONE_DARK)
-    hrect(draw, 39 + shift, 9, 6, 21, STONE_DARK)
-    hrect(draw, 40 + shift, 7, 4, 3, STONE_LIGHT)
-    hrect(draw, 11 - shift, 34, 8, 6, STEEL, STEEL_DARK)
-    poly(draw, [(10 - shift, 40), (20 - shift, 40), (16 - shift, 45), (12 - shift, 45)], STEEL_DARK)
-    line(draw, (15 - shift, 28, 11 - shift, 22), WOOD_DARK, 2)
-    line(draw, (15 - shift, 28, 19 - shift, 23), WOOD_DARK, 2)
-    badge(draw, 29, 28, EMBER_BRIGHT, EMBER)
+def draw_crate(draw: ImageDraw.ImageDraw, center: Point, size: float = 4.0) -> None:
+    x, y = center
+    rect(draw, (x - size, y - size, x + size, y + size), WOOD, WOOD_DARK)
+    line(draw, (x - size + 1, y - size + 1, x + size - 1, y + size - 1), WOOD_LIGHT)
+    line(draw, (x - size + 1, y + size - 1, x + size - 1, y - size + 1), WOOD_LIGHT)
 
 
-def draw_loom(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (14, 52, 50, 58))
-    hrect(draw, 18, 16, 4, 32, WOOD_DARK)
-    hrect(draw, 42, 16, 4, 32, WOOD_DARK)
-    hrect(draw, 18, 16, 28, 4, WOOD)
-    hrect(draw, 18, 44, 28, 4, WOOD)
-    for row in range(22, 42, 3):
-        line(draw, (24, row, 40, row), CANVAS)
-    hrect(draw, 24, 21, 16, 18, PURPLE, PURPLE_DARK)
-    line(draw, (22, 19, 42, 43), ROPE)
-    line(draw, (42, 19, 22, 43), ROPE)
-    hrect(draw, 10 + shift, 30, 8, 3, WOOD_LIGHT, WOOD_DARK)
-    badge(draw, 17 + shift, 29, GOLD)
+def draw_worktable(
+    draw: ImageDraw.ImageDraw,
+    layout: FacilityLayout,
+    rotation: str,
+    top_fill: Color,
+    accent: Callable[[ImageDraw.ImageDraw], None] | None = None,
+) -> None:
+    draw_layout_shadow(draw, layout)
+    panel = draw_panel(draw, shift(layout.center, dy=2), rotation, 0.95, 0.42, top_fill, lift=4)
+    for base in (panel[2], panel[3]):
+        draw_post(draw, shift(base, dy=10), 10, WOOD_DARK)
+    if accent is not None:
+        accent(draw)
 
 
-def draw_herbal_bench(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (14, 52, 50, 58))
-    hrect(draw, 16, 27, 32, 8, WOOD_LIGHT, WOOD_DARK)
-    hrect(draw, 19, 35, 4, 13, WOOD_DARK)
-    hrect(draw, 41, 35, 4, 13, WOOD_DARK)
-    draw_bottle_row(draw, 20 - shift, 22)
-    poly(draw, [(29, 28), (34, 24), (38, 30), (33, 34)], HERB, HERB_DARK)
-    poly(draw, [(23 + shift, 34), (28 + shift, 31), (30 + shift, 37), (24 + shift, 39)], HERB, HERB_DARK)
-    ellipse(draw, (35 - shift, 33, 41 - shift, 38), STONE_LIGHT, STONE_DARK)
-    hrect(draw, 38 - shift, 28, 2, 7, WOOD_DARK)
-    hrect(draw, 11 + shift, 21, 5, 9, LEATHER, LEATHER_DARK)
+def draw_shelf(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout)
+    draw_prism(draw, layout.anchor_screen, 8, WOOD_LIGHT, WOOD_DARK, WOOD)
+    left_post = shift(layout.anchor_screen, dx=-6, dy=-1)
+    right_post = shift(layout.anchor_screen, dx=6, dy=-1)
+    draw_post(draw, shift(left_post, dy=4), 18, WOOD_DARK)
+    draw_post(draw, shift(right_post, dy=4), 18, WOOD_DARK)
+    for shelf_y in (-10, -5, 0):
+        line(draw, [(left_post[0], left_post[1] + shelf_y), (right_post[0], right_post[1] + shelf_y)], WOOD_LIGHT)
+    draw_crate(draw, shift(layout.anchor_screen, dx=-2, dy=-5), 3)
+    draw_bottle(draw, shift(layout.anchor_screen, dx=4, dy=-10), GLASS)
+    draw_bottle(draw, shift(layout.anchor_screen, dx=8, dy=-10), BLUE)
+    bag_shift = {"north": (-11, -2), "east": (-9, 2), "south": (11, 2), "west": (10, -2)}[rotation]
+    rect(
+        draw,
+        (
+            layout.anchor_screen[0] + bag_shift[0] - 2,
+            layout.anchor_screen[1] + bag_shift[1] - 5,
+            layout.anchor_screen[0] + bag_shift[0] + 2,
+            layout.anchor_screen[1] + bag_shift[1] + 4,
+        ),
+        LEATHER,
+        LEATHER_DARK,
+    )
 
 
-def draw_market_stall(draw: ImageDraw.ImageDraw, rotation: str) -> None:
-    shift = direction_shift(rotation)
-    shadow(draw, (8, 53, 56, 60))
-    hrect(draw, 10, 18, 4, 31, WOOD_DARK)
-    hrect(draw, 50, 18, 4, 31, WOOD_DARK)
-    hrect(draw, 13, 16, 38, 6, WOOD)
-    poly(draw, [(10, 20), (54, 20), (48, 31), (16, 31)], RED, RED_DARK)
-    for stripe_x in range(16, 49, 8):
-        hrect(draw, stripe_x, 21, 4, 9, CANVAS, OUTLINE)
-    hrect(draw, 14, 33, 36, 12, WOOD_LIGHT, WOOD_DARK)
-    hrect(draw, 16, 35, 8, 8, GLASS, WHITE)
-    hrect(draw, 26, 35, 7, 8, PURPLE, PURPLE_DARK)
-    hrect(draw, 35, 35, 10, 8, GREEN, GREEN_DARK)
-    draw_crate(draw, 8 + shift, 39, 7, 8)
-    draw_crate(draw, 49 - shift, 39, 7, 8)
-    draw_hanging_sign(draw, 28 + shift, 9)
-    line(draw, (18, 31, 18, 45), ROPE)
-    line(draw, (46, 31, 46, 45), ROPE)
+def draw_brazier(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    del rotation
+    draw_layout_shadow(draw, layout)
+    draw_prism(draw, layout.anchor_screen, 5, STONE_LIGHT, STONE_DARK, STONE)
+    bowl = draw_panel(draw, shift(layout.anchor_screen, dy=-1), "north", 0.36, 0.32, STONE, lift=5)
+    line(draw, [bowl[0], bowl[1]], STONE_DARK)
+    draw_flame(draw, shift(layout.anchor_screen, dx=-2, dy=-8), 1.0)
+    draw_flame(draw, shift(layout.anchor_screen, dx=3, dy=-7), 0.9)
+    draw_flame(draw, shift(layout.anchor_screen, dx=0, dy=-11), 1.05)
+
+
+def draw_bed(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout, extra_width=8)
+    far = get_farthest_cell(layout)
+    for cell in layout.cells:
+        draw_prism(draw, (cell.screen_x, cell.screen_y), 4, WOOD_LIGHT, WOOD_DARK, WOOD)
+    draw_panel(draw, shift(layout.center, dy=1), rotation, 0.98, 0.40, CLOTH, lift=5)
+    draw_panel(draw, shift((layout.anchor.screen_x, layout.anchor.screen_y), dy=-1), rotation, 0.26, 0.28, WHITE, lift=6)
+    draw_panel(draw, shift((far.screen_x, far.screen_y), dy=1), rotation, 0.26, 0.34, RED, lift=5)
+    head_panel = panel_points((layout.anchor.screen_x, layout.anchor.screen_y), rotation, 0.46, 0.44, lift=8)
+    for base in (head_panel[0], head_panel[3]):
+        draw_post(draw, shift(base, dy=2), 8, WOOD_DARK)
+
+
+def draw_dormitory_bed(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout)
+    draw_prism(draw, layout.anchor_screen, 3, IRON, IRON_DARK, IRON)
+    draw_panel(draw, shift(layout.anchor_screen, dy=1), rotation, 0.40, 0.28, CLOTH, lift=4)
+    draw_panel(draw, shift(layout.anchor_screen, dy=-1), rotation, 0.18, 0.18, WHITE, lift=5)
+    head_panel = panel_points(layout.anchor_screen, rotation, 0.34, 0.30, lift=8)
+    for base in (head_panel[0], head_panel[3]):
+        draw_post(draw, shift(base, dy=1), 7, IRON_DARK)
+
+
+def draw_stove(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout, extra_width=8)
+    far = get_farthest_cell(layout)
+    for cell in layout.cells:
+        draw_prism(draw, (cell.screen_x, cell.screen_y), 8, STONE_LIGHT, STONE_DARK, STONE)
+    draw_panel(draw, shift(layout.center, dy=1), rotation, 0.92, 0.34, STONE, lift=8)
+    draw_panel(draw, shift(layout.anchor_screen, dx=0, dy=0), rotation, 0.24, 0.18, EMBER, lift=9)
+    chimney_base = shift((far.screen_x, far.screen_y), dx=3 if rotation in {"north", "west"} else -3, dy=-2)
+    rect(draw, (chimney_base[0] - 2, chimney_base[1] - 18, chimney_base[0] + 2, chimney_base[1] + 2), STONE_DARK)
+    rect(draw, (chimney_base[0] - 1, chimney_base[1] - 20, chimney_base[0] + 1, chimney_base[1] - 18), STONE_LIGHT)
+    handle = shift(layout.anchor_screen, dx=-9 if rotation in {"north", "west"} else 9, dy=-2)
+    line(draw, (handle[0] - 2, handle[1] - 2, handle[0] + 2, handle[1] + 1), WOOD_DARK, 2)
+
+
+def draw_butcher_table(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    def accent(canvas: ImageDraw.ImageDraw) -> None:
+        draw_panel(canvas, shift(layout.center, dx=-3, dy=-2), rotation, 0.22, 0.14, MEAT, lift=6)
+        knife_base = shift(layout.center, dx=9 if rotation in {"north", "west"} else -9, dy=-9)
+        line(canvas, (knife_base[0] - 4, knife_base[1] + 6, knife_base[0] + 3, knife_base[1]), STEEL_DARK, 2)
+        poly(canvas, [(knife_base[0] + 3, knife_base[1]), (knife_base[0] + 8, knife_base[1] + 2), (knife_base[0] + 2, knife_base[1] + 5)], STEEL, STEEL_DARK)
+
+    draw_worktable(draw, layout, rotation, WOOD_LIGHT, accent)
+
+
+def draw_smithy(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout, extra_width=8)
+    far = get_farthest_cell(layout)
+    for cell in layout.cells:
+        draw_prism(draw, (cell.screen_x, cell.screen_y), 8, STONE, STONE_DARK, STONE_DARK)
+    draw_panel(draw, shift(layout.center, dy=1), rotation, 0.88, 0.30, EMBER, lift=8)
+    chimney_base = shift((far.screen_x, far.screen_y), dx=4 if rotation in {"north", "west"} else -4, dy=-3)
+    rect(draw, (chimney_base[0] - 2, chimney_base[1] - 20, chimney_base[0] + 2, chimney_base[1] + 2), STONE_DARK)
+    rect(draw, (chimney_base[0] - 1, chimney_base[1] - 22, chimney_base[0] + 1, chimney_base[1] - 20), STONE_LIGHT)
+    anvil = shift(layout.anchor_screen, dx=-10 if rotation in {"north", "west"} else 10, dy=-1)
+    poly(draw, [(anvil[0] - 4, anvil[1]), (anvil[0] + 4, anvil[1]), (anvil[0] + 1, anvil[1] + 3), (anvil[0] - 2, anvil[1] + 3)], STEEL_DARK)
+    rect(draw, (anvil[0] - 2, anvil[1] - 3, anvil[0] + 2, anvil[1]), STEEL, STEEL_DARK)
+    hammer = shift(layout.center, dx=8 if rotation in {"north", "west"} else -8, dy=-10)
+    line(draw, (hammer[0] - 1, hammer[1] + 5, hammer[0] + 3, hammer[1]), WOOD_DARK, 2)
+    rect(draw, (hammer[0] - 4, hammer[1] - 1, hammer[0] + 1, hammer[1] + 1), STEEL, STEEL_DARK)
+
+
+def draw_loom(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout, extra_width=7)
+    frame = draw_panel(draw, shift(layout.center, dy=1), rotation, 0.95, 0.34, WOOD_LIGHT, lift=3)
+    for base in frame:
+        draw_post(draw, shift(base, dy=12), 19 if base in (frame[0], frame[1]) else 14, WOOD_DARK)
+    top_bar = [shift(point, dy=-18) for point in frame[:2]]
+    line(draw, top_bar, WOOD)
+    cloth = panel_points(shift(layout.center, dy=-8), rotation, 0.50, 0.30, lift=8)
+    poly(draw, cloth, PURPLE, PURPLE_DARK)
+    line(draw, [shift(cloth[0], dx=1, dy=1), shift(cloth[2], dx=-1, dy=-1)], ROPE)
+    line(draw, [shift(cloth[1], dx=-1, dy=1), shift(cloth[3], dx=1, dy=-1)], ROPE)
+
+
+def draw_herbal_bench(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    def accent(canvas: ImageDraw.ImageDraw) -> None:
+        draw_bottle(canvas, shift(layout.center, dx=-7, dy=-8), GLASS)
+        draw_bottle(canvas, shift(layout.center, dx=-2, dy=-9), BLUE)
+        poly(
+            canvas,
+            [
+                shift(layout.center, dx=1, dy=-1),
+                shift(layout.center, dx=6, dy=-4),
+                shift(layout.center, dx=11, dy=0),
+                shift(layout.center, dx=5, dy=3),
+            ],
+            HERB,
+            HERB_DARK,
+        )
+        ellipse(canvas, (layout.center_x + 7, layout.center_y - 6, layout.center_x + 13, layout.center_y - 1), STONE_LIGHT, STONE_DARK)
+
+    draw_worktable(draw, layout, rotation, WOOD_LIGHT, accent)
+
+
+def draw_market_stall(draw: ImageDraw.ImageDraw, layout: FacilityLayout, rotation: str) -> None:
+    draw_layout_shadow(draw, layout, extra_width=12)
+    for cell in layout.cells:
+        draw_prism(draw, (cell.screen_x, cell.screen_y), 6, WOOD_LIGHT, WOOD_DARK, WOOD)
+    counter = draw_panel(draw, shift(layout.center, dy=2), rotation, 0.98, 0.98, WOOD, lift=7)
+    post_bases = [
+        shift(counter[0], dy=7),
+        shift(counter[1], dy=7),
+        shift(counter[2], dy=7),
+        shift(counter[3], dy=7),
+    ]
+    for base in post_bases:
+        draw_post(draw, shift(base, dy=12), 24, WOOD_DARK)
+    canopy = draw_panel(draw, shift(layout.center, dy=-18), rotation, 1.08, 1.10, RED, RED_DARK, lift=6)
+    line(draw, [canopy[0], canopy[1]], CANVAS, 2)
+    line(draw, [shift(canopy[0], dx=4, dy=2), shift(canopy[1], dx=-4, dy=2)], CANVAS, 2)
+    line(draw, [shift(canopy[0], dx=8, dy=4), shift(canopy[1], dx=-8, dy=4)], CANVAS, 2)
+    rect(draw, (layout.center_x - 10, layout.center_y - 1, layout.center_x - 4, layout.center_y + 5), GLASS, WHITE)
+    rect(draw, (layout.center_x - 1, layout.center_y - 1, layout.center_x + 5, layout.center_y + 5), PURPLE, PURPLE_DARK)
+    rect(draw, (layout.center_x + 8, layout.center_y - 1, layout.center_x + 15, layout.center_y + 5), GREEN, GREEN_DARK)
+    draw_crate(draw, shift((layout.min_x, layout.max_y), dx=-5, dy=9), 3)
+    draw_crate(draw, shift((layout.max_x, layout.max_y), dx=5, dy=9), 3)
+    sign_base = shift((layout.center_x, layout.center_y), dx=11 if rotation in {"north", "south"} else -11, dy=-23)
+    draw_post(draw, shift(sign_base, dy=6), 8, WOOD_DARK, width=1)
+    rect(draw, (sign_base[0] - 3, sign_base[1] - 2, sign_base[0] + 3, sign_base[1] + 2), CANVAS_DARK)
 
 
 SPECS = [
@@ -338,7 +577,8 @@ def build_sheet(spec: FacilitySpec) -> Image.Image:
     for index, rotation in enumerate(ROTATIONS):
         low_res = new_canvas()
         draw = ImageDraw.Draw(low_res)
-        spec.drawer(draw, rotation)
+        layout = build_layout(spec.facility_id, rotation)
+        spec.drawer(draw, layout, rotation)
         frame = upscale(low_res)
         sheet.alpha_composite(frame, (0, index * FRAME_SIZE[1]))
     return sheet
@@ -349,8 +589,8 @@ def build_preview(sheets: list[tuple[FacilitySpec, Image.Image]]) -> Image.Image
     for index, (spec, sheet) in enumerate(sheets):
         row = index // PREVIEW_COLUMNS
         col = index % PREVIEW_COLUMNS
-        y = row * FRAME_SIZE[1]
         x = col * FRAME_SIZE[0]
+        y = row * FRAME_SIZE[1]
         north_frame = sheet.crop((0, 0, FRAME_SIZE[0], FRAME_SIZE[1]))
         preview.alpha_composite(north_frame, (x, y))
 

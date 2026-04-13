@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using System.Runtime.Versioning;
 using Godot;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
@@ -145,6 +147,59 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_ResolveFacilityFootprintScreenCenter_UsesFootprintBoundsCenter()
+	{
+		var footprint = new List<ZoneCell>
+		{
+			new(0, 0, 0),
+			new(1, 0, 0),
+			new(0, 1, 0),
+			new(1, 1, 0),
+		};
+
+		var method = typeof(IsometricVoxelRenderer).GetMethod(
+			"ResolveFacilityFootprintScreenCenter",
+			BindingFlags.NonPublic | BindingFlags.Static);
+
+		Assert.NotNull(method);
+
+		var center = Assert.IsType<Vector2>(method!.Invoke(null, [footprint]));
+
+		AssertVector2Approx(new Vector2(0f, 32f), center);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_ResolveFacilitySpritePosition_UsesOpaqueBottomInsteadOfFullFrameBottom()
+	{
+		var method = typeof(IsometricVoxelRenderer).GetMethod(
+			"ResolveFacilitySpritePosition",
+			BindingFlags.NonPublic | BindingFlags.Static,
+			null,
+			[
+				typeof(Vector2),
+				typeof(Vector2),
+				typeof(Vector2),
+				typeof(Vector2),
+				typeof(int),
+			],
+			null);
+
+		Assert.NotNull(method);
+
+		var position = Assert.IsType<Vector2>(method!.Invoke(
+			null,
+			[
+				new Vector2(32f, 64f),
+				new Vector2(256f, 256f),
+				new Vector2(0.5f, 0.5f),
+				Vector2.Zero,
+				236,
+			]));
+
+		AssertVector2Approx(new Vector2(-32f, -54f), position);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_HoverTextureKeys_IncludeTopAndVolumeMarkers()
 	{
 		var method = typeof(IsometricVoxelRenderer).GetMethod("GetHoverTextureKeys", BindingFlags.NonPublic | BindingFlags.Static);
@@ -201,6 +256,30 @@ public sealed class IsometricRenderTests
 	public void IsometricVoxelRenderer_EditorPlacementGhost_UsesThirtyPercentAlpha()
 	{
 		Assert.True(Mathf.Abs(IsometricVoxelRenderer.EditorPlacementGhostAlpha - 0.30f) < 0.0001f);
+	}
+
+	[Fact]
+	[SupportedOSPlatform("windows")]
+	public void FacilityMapAssets_MultiTileFacilities_ProvideDistinctDirectionalFrames()
+	{
+		using var bedSheet = LoadFacilitySheet("facility_bed_4dir.png");
+		using var marketStallSheet = LoadFacilitySheet("facility_market_stall_4dir.png");
+
+		Assert.False(AreFramesIdentical(bedSheet, 0, 1));
+		Assert.False(AreFramesIdentical(bedSheet, 0, 2));
+		Assert.False(AreFramesIdentical(marketStallSheet, 0, 1));
+		Assert.False(AreFramesIdentical(marketStallSheet, 0, 3));
+	}
+
+	[Fact]
+	[SupportedOSPlatform("windows")]
+	public void FacilityMapAssets_DirectionalFrames_ShareConsistentGroundLine()
+	{
+		using var bedSheet = LoadFacilitySheet("facility_bed_4dir.png");
+		using var marketStallSheet = LoadFacilitySheet("facility_market_stall_4dir.png");
+
+		AssertGroundLineTolerance(bedSheet, tolerance: 2);
+		AssertGroundLineTolerance(marketStallSheet, tolerance: 2);
 	}
 
 	[Fact]
@@ -331,5 +410,66 @@ public sealed class IsometricRenderTests
 		Assert.True(Mathf.Abs(expected.X - actual.X) < eps, $"X mismatch: expected {expected.X}, got {actual.X}");
 		Assert.True(Mathf.Abs(expected.Y - actual.Y) < eps, $"Y mismatch: expected {expected.Y}, got {actual.Y}");
 	}
+
+	[SupportedOSPlatform("windows")]
+	private static System.Drawing.Bitmap LoadFacilitySheet(string fileName)
+	{
+		var path = GetRepoPath("Assets", "Art", "Generated", "facilities", fileName);
+		Assert.True(File.Exists(path), $"Missing facility sprite sheet: {path}");
+		return new System.Drawing.Bitmap(path);
+	}
+
+	[SupportedOSPlatform("windows")]
+	private static bool AreFramesIdentical(System.Drawing.Bitmap sheet, int frameA, int frameB)
+	{
+		for (var y = 0; y < 256; y++)
+		{
+			for (var x = 0; x < 256; x++)
+			{
+				if (sheet.GetPixel(x, frameA * 256 + y) != sheet.GetPixel(x, frameB * 256 + y))
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	[SupportedOSPlatform("windows")]
+	private static void AssertGroundLineTolerance(System.Drawing.Bitmap sheet, int tolerance)
+	{
+		var minBottom = int.MaxValue;
+		var maxBottom = int.MinValue;
+		for (var frame = 0; frame < 4; frame++)
+		{
+			var frameBottom = 0;
+			for (var y = 255; y >= 0; y--)
+			{
+				var hasVisiblePixel = false;
+				for (var x = 0; x < 256; x++)
+				{
+					if (sheet.GetPixel(x, frame * 256 + y).A == 0)
+						continue;
+
+					hasVisiblePixel = true;
+					break;
+				}
+
+				if (!hasVisiblePixel)
+					continue;
+
+				frameBottom = y + 1;
+				break;
+			}
+
+			Assert.True(frameBottom > 0, $"frame {frame} has no visible pixels");
+			minBottom = Math.Min(minBottom, frameBottom);
+			maxBottom = Math.Max(maxBottom, frameBottom);
+		}
+
+		Assert.True(maxBottom - minBottom <= tolerance, $"ground line mismatch: min={minBottom}, max={maxBottom}");
+	}
+
+	private static string GetRepoPath(params string[] parts) =>
+		Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", Path.Combine(parts)));
 
 }

@@ -1288,6 +1288,7 @@ public partial class IsometricVoxelRenderer
 	private static readonly Vector2 DefaultWorldEntitySpriteScale = new(0.62f, 0.62f);
 	private static readonly Vector2 WorldEntitySpriteBaseOffset = Vector2.Zero;
 	private readonly Dictionary<string, ImageTexture> _entityMarkerCache = new();
+	private readonly Dictionary<string, FacilityFrameBounds> _facilityFrameBoundsCache = new();
 
 	private void CollectEntityCommands(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
@@ -1315,51 +1316,10 @@ public partial class IsometricVoxelRenderer
 
 		foreach (var facility in _state.Facilities.Values)
 		{
-			if (facility.Z < zMin || facility.Z > zMax)
+			if (!TryBuildFacilityDrawCommand(facility, cx, cy, halfW, halfH, zMin, zMax, out var command))
 				continue;
 
-			var footprint = _state.World!.GetFootprintCells(facility);
-			if (footprint.Count == 0)
-				continue;
-
-			var inView = false;
-			var visible = false;
-			var sortKey = long.MinValue;
-			var screenPos = Vector2.Zero;
-			var tint = Colors.White;
-
-			for (var index = 0; index < footprint.Count; index++)
-			{
-				var cell = footprint[index];
-				screenPos += IsoCoordUtil.WorldToScreen(cell.X, cell.Y, cell.Z);
-				sortKey = Math.Max(sortKey, IsoCoordUtil.SortKey(cell.X, cell.Y, cell.Z));
-
-				if (Math.Abs(cell.X - cx) > halfW || Math.Abs(cell.Y - cy) > halfH)
-					continue;
-
-				inView = true;
-
-				if (_fogTracker.GetVisionBand(cell.X, cell.Y, cell.Z) == PlayerVisionBand.Unknown)
-					continue;
-
-				visible = true;
-				tint = GetVisionTint(cell.X, cell.Y, cell.Z);
-			}
-
-			if (!inView || !visible)
-				continue;
-
-			screenPos /= footprint.Count;
-			var def = FacilityRegistry.Get(facility.FacilityDefId);
-			var label = def?.Glyph is { Length: > 0 } glyph ? glyph : "#";
-			_entityCommands.Add(new EntityDrawCommand(
-				sortKey - 1,
-				screenPos,
-				null,
-				facility,
-				facility.FacilityDefId,
-				label,
-				tint));
+			_entityCommands.Add(command);
 		}
 
 		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
@@ -1650,9 +1610,7 @@ public partial class IsometricVoxelRenderer
 		sprite.Skew = 0f;
 		sprite.ZIndex = 1;
 		sprite.Modulate = tint * ResolveFacilityStageTint(facility.Stage);
-		sprite.Position = pos + FacilitySpriteBaseOffset + visual.Offset + new Vector2(
-			-(size.X * visual.Scale.X) / 2f,
-			-(size.Y * visual.Scale.Y));
+		sprite.Position = ResolveFacilitySpritePosition(pos, size, visual);
 		sprite.Visible = true;
 		return true;
 	}
@@ -1705,12 +1663,165 @@ public partial class IsometricVoxelRenderer
 		if (texture == null)
 			return false;
 
+		var region = ResolveFacilitySpriteRegion(entry, facility, texture);
 		visual = new FacilitySpriteVisual(
 			texture,
-			ResolveFacilitySpriteRegion(entry, facility, texture),
+			region,
 			ResolveFacilitySpriteScale(entry.Scale),
-			ResolveEntitySpriteOffset(entry.Offset));
+			ResolveEntitySpriteOffset(entry.Offset),
+			ResolveFacilityFrameBounds(texturePath, texture, region));
 		return true;
+	}
+
+	private bool TryBuildFacilityDrawCommand(
+		FacilityInstance facility,
+		int cx,
+		int cy,
+		int halfW,
+		int halfH,
+		int zMin,
+		int zMax,
+		out EntityDrawCommand command)
+	{
+		command = default;
+		if (facility.Z < zMin || facility.Z > zMax)
+			return false;
+
+		var footprint = _state.World!.GetFootprintCells(facility);
+		if (footprint.Count == 0)
+			return false;
+
+		var placement = ResolveFacilityRenderPlacement(footprint, cx, cy, halfW, halfH);
+		if (!placement.Visible)
+			return false;
+
+		var def = FacilityRegistry.Get(facility.FacilityDefId);
+		var label = def?.Glyph is { Length: > 0 } glyph ? glyph : "#";
+		command = new EntityDrawCommand(
+			placement.SortKey - 1,
+			placement.ScreenPos,
+			null,
+			facility,
+			facility.FacilityDefId,
+			label,
+			placement.Tint);
+		return true;
+	}
+
+	private FacilityRenderPlacement ResolveFacilityRenderPlacement(
+		IReadOnlyList<ZoneCell> footprint,
+		int cameraX,
+		int cameraY,
+		int halfW,
+		int halfH)
+	{
+		var inView = false;
+		var visible = false;
+		var sortKey = long.MinValue;
+		var tint = Colors.White;
+
+		for (var index = 0; index < footprint.Count; index++)
+		{
+			var cell = footprint[index];
+			sortKey = Math.Max(sortKey, IsoCoordUtil.SortKey(cell.X, cell.Y, cell.Z));
+
+			if (Math.Abs(cell.X - cameraX) > halfW || Math.Abs(cell.Y - cameraY) > halfH)
+				continue;
+
+			inView = true;
+
+			if (_fogTracker.GetVisionBand(cell.X, cell.Y, cell.Z) == PlayerVisionBand.Unknown)
+				continue;
+
+			visible = true;
+			tint = GetVisionTint(cell.X, cell.Y, cell.Z);
+		}
+
+		return new FacilityRenderPlacement(
+			inView && visible,
+			sortKey,
+			ResolveFacilityFootprintScreenCenter(footprint),
+			tint);
+	}
+
+	private static Vector2 ResolveFacilityFootprintScreenCenter(IReadOnlyList<ZoneCell> footprint)
+	{
+		if (footprint.Count == 0)
+			return Vector2.Zero;
+
+		var minX = float.MaxValue;
+		var minY = float.MaxValue;
+		var maxX = float.MinValue;
+		var maxY = float.MinValue;
+		for (var index = 0; index < footprint.Count; index++)
+		{
+			var cell = footprint[index];
+			var screen = IsoCoordUtil.WorldToScreen(cell.X, cell.Y, cell.Z);
+			minX = Math.Min(minX, screen.X);
+			minY = Math.Min(minY, screen.Y);
+			maxX = Math.Max(maxX, screen.X);
+			maxY = Math.Max(maxY, screen.Y);
+		}
+
+		return new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+	}
+
+	private static Vector2 ResolveFacilitySpritePosition(Vector2 pivot, Vector2 size, FacilitySpriteVisual visual)
+	{
+		return ResolveFacilitySpritePosition(
+			pivot,
+			size,
+			visual.Scale,
+			visual.Offset,
+			visual.FrameBounds.Bottom);
+	}
+
+	private static Vector2 ResolveFacilitySpritePosition(
+		Vector2 pivot,
+		Vector2 size,
+		Vector2 scale,
+		Vector2 offset,
+		int opaqueBottom)
+	{
+		var bottom = opaqueBottom > 0
+			? opaqueBottom * scale.Y
+			: size.Y * scale.Y;
+		return pivot + FacilitySpriteBaseOffset + offset + new Vector2(
+			-(size.X * scale.X) / 2f,
+			-bottom);
+	}
+
+	private FacilityFrameBounds ResolveFacilityFrameBounds(string texturePath, Texture2D texture, Rect2? region)
+	{
+		var frameRect = region is { } resolvedRegion
+			? new Rect2I(
+				(int)Math.Round(resolvedRegion.Position.X),
+				(int)Math.Round(resolvedRegion.Position.Y),
+				(int)Math.Round(resolvedRegion.Size.X),
+				(int)Math.Round(resolvedRegion.Size.Y))
+			: new Rect2I(0, 0, (int)texture.GetWidth(), (int)texture.GetHeight());
+		var cacheKey = $"{texturePath}|{frameRect.Position.X}|{frameRect.Position.Y}|{frameRect.Size.X}|{frameRect.Size.Y}";
+		if (_facilityFrameBoundsCache.TryGetValue(cacheKey, out var cached))
+			return cached;
+
+		var sourceImage = ExtractImage(texture);
+		if (sourceImage == null)
+			return CacheFacilityFrameBounds(cacheKey, new FacilityFrameBounds(frameRect.Size.X, frameRect.Size.Y));
+
+		var frameImage = sourceImage.GetRegion(frameRect);
+		var usedRect = frameImage.GetUsedRect();
+		if (usedRect.Size.X <= 0 || usedRect.Size.Y <= 0)
+			return CacheFacilityFrameBounds(cacheKey, new FacilityFrameBounds(frameRect.Size.X, frameRect.Size.Y));
+
+		return CacheFacilityFrameBounds(
+			cacheKey,
+			new FacilityFrameBounds(frameRect.Size.X, usedRect.End.Y));
+	}
+
+	private FacilityFrameBounds CacheFacilityFrameBounds(string cacheKey, FacilityFrameBounds bounds)
+	{
+		_facilityFrameBoundsCache[cacheKey] = bounds;
+		return bounds;
 	}
 
 	private bool TryDrawWorldEntitySprite(Vector2 pos, string entityId, Color tint)
@@ -2273,6 +2384,12 @@ public partial class IsometricVoxelRenderer
 		Vector2 LowerBottom,
 		Vector2 LowerLeft);
 
+	private readonly record struct FacilityRenderPlacement(
+		bool Visible,
+		long SortKey,
+		Vector2 ScreenPos,
+		Color Tint);
+
 	private readonly record struct ActorSpriteVisual(
 		Texture2D Texture,
 		Rect2? Region,
@@ -2283,7 +2400,12 @@ public partial class IsometricVoxelRenderer
 		Texture2D Texture,
 		Rect2? Region,
 		Vector2 Scale,
-		Vector2 Offset);
+		Vector2 Offset,
+		FacilityFrameBounds FrameBounds);
+
+	private readonly record struct FacilityFrameBounds(
+		int Width,
+		int Bottom);
 
 	private readonly record struct WorldEntitySpriteVisual(
 		Texture2D Texture,
