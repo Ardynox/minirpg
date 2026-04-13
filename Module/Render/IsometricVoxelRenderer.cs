@@ -18,8 +18,8 @@ public partial class IsometricVoxelRenderer
 {
 	private const int DefaultViewDepthAbove = 4;
 	private const int DefaultViewDepthBelow = 2;
-	private const int VisibleWindowOverscanCells = 2;
-	private const int MaxVisibleWindowHalfExtent = 32;
+	private const int VisibleWindowOverscanCells = 4;
+	private const int MaxVisibleWindowHalfExtent = 48;
 	private const int DefaultCharacterSheetFrameWidth = 128;
 	private const int DefaultCharacterSheetFrameHeight = 128;
 	private const float LeftDarken = 0.65f;
@@ -224,57 +224,14 @@ public partial class IsometricVoxelRenderer
 		var localHalfWidth = viewportSize.X * 0.5f / zoomX;
 		var localHalfHeight = viewportSize.Y * 0.5f / zoomY
 			+ Math.Max(DefaultViewDepthAbove, DefaultViewDepthBelow) * IsoCoordUtil.ZStep;
-		var requiredCoverageSum = Mathf.CeilToInt(Mathf.Max(
-			localHalfWidth / IsoCoordUtil.TileHalfW,
-			localHalfHeight / IsoCoordUtil.TileHalfH));
-		var baseCap = Math.Max(0, MaxVisibleWindowHalfExtent - VisibleWindowOverscanCells);
-		var expanded = ExpandVisibleWorldWindow(fallback, requiredCoverageSum, baseCap);
-		return new VisibleWorldWindow(
-			Math.Min(MaxVisibleWindowHalfExtent, expanded.HalfX + VisibleWindowOverscanCells),
-			Math.Min(MaxVisibleWindowHalfExtent, expanded.HalfY + VisibleWindowOverscanCells));
-	}
-
-	private static VisibleWorldWindow ExpandVisibleWorldWindow(
-		VisibleWorldWindow fallback,
-		int requiredCoverageSum,
-		int maxHalfExtent)
-	{
-		var halfX = Math.Clamp(fallback.HalfX, 0, maxHalfExtent);
-		var halfY = Math.Clamp(fallback.HalfY, 0, maxHalfExtent);
-		var currentCoverageSum = halfX + halfY;
-		if (requiredCoverageSum <= currentCoverageSum)
-			return new VisibleWorldWindow(halfX, halfY);
-
-		var remaining = requiredCoverageSum - currentCoverageSum;
-		var weightSum = Math.Max(1, currentCoverageSum);
-		var preferredXGrowth = Math.Min(
-			maxHalfExtent - halfX,
-			Mathf.RoundToInt(remaining * (halfX / (float)weightSum)));
-		halfX += preferredXGrowth;
-		remaining -= preferredXGrowth;
-
-		var preferredYGrowth = Math.Min(maxHalfExtent - halfY, remaining);
-		halfY += preferredYGrowth;
-		remaining -= preferredYGrowth;
-
-		while (remaining > 0 && (halfX < maxHalfExtent || halfY < maxHalfExtent))
-		{
-			if (halfX < maxHalfExtent)
-			{
-				halfX++;
-				remaining--;
-				if (remaining <= 0)
-					break;
-			}
-
-			if (halfY < maxHalfExtent)
-			{
-				halfY++;
-				remaining--;
-			}
-		}
-
-		return new VisibleWorldWindow(halfX, halfY);
+		var screenDiffRadius = localHalfWidth / IsoCoordUtil.TileHalfW;
+		var screenSumRadius = localHalfHeight / IsoCoordUtil.TileHalfH;
+		var requiredHalfExtent = Mathf.CeilToInt((screenDiffRadius + screenSumRadius) * 0.5f);
+		var expandedHalfExtent = Math.Max(
+			requiredHalfExtent + VisibleWindowOverscanCells,
+			Math.Max(fallback.HalfX, fallback.HalfY));
+		var clampedHalfExtent = Math.Clamp(expandedHalfExtent, 0, MaxVisibleWindowHalfExtent);
+		return new VisibleWorldWindow(clampedHalfExtent, clampedHalfExtent);
 	}
 
 	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>

@@ -173,6 +173,20 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_UsesCombinedScreenWidthAndHeightCoverage()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			Vector2.One,
+			fallback);
+
+		Assert.Equal(21, window.HalfX);
+		Assert.Equal(21, window.HalfY);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForZoomedOutView_ExpandsCoverage()
 	{
 		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
@@ -191,6 +205,20 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForMinimumZoom_CoversLargerSquareWindow()
+	{
+		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+
+		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+			new Vector2I(1280, 960),
+			new Vector2(0.6f, 0.6f),
+			fallback);
+
+		Assert.Equal(29, window.HalfX);
+		Assert.Equal(29, window.HalfY);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_CapsExtremeZoomOutCoverage()
 	{
 		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
@@ -200,8 +228,8 @@ public sealed class IsometricRenderTests
 			new Vector2(0.2f, 0.2f),
 			fallback);
 
-		Assert.Equal(32, window.HalfX);
-		Assert.Equal(32, window.HalfY);
+		Assert.Equal(48, window.HalfX);
+		Assert.Equal(48, window.HalfY);
 	}
 
 	[Fact]
