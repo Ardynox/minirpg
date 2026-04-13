@@ -179,7 +179,7 @@ public sealed class PlacementConnectivityTests
 	}
 
 	[Fact]
-	public void MapEditorSession_ResolveHoverState_SelectTerrainOnAir_UsesFirstOccupiedCellBelow()
+	public void MapEditorSession_ResolveHoverState_SelectTerrainOnAir_DoesNotCrossHeightLevels()
 	{
 		var state = CreateEditorState();
 		state.World!.SetTerrain(6, 6, 2, Terrains.WallStone);
@@ -191,10 +191,10 @@ public sealed class PlacementConnectivityTests
 
 		var resolved = Assert.IsType<MapEditorHoverState>(hoverState);
 		Assert.Equal(MapEditorToolMode.Select, resolved.ToolMode);
-		Assert.Equal(new Vector3I(6, 6, 2), resolved.ResolvedTargetCell);
-		Assert.True(resolved.CanApply);
+		Assert.Null(resolved.ResolvedTargetCell);
+		Assert.False(resolved.CanApply);
 		Assert.False(resolved.ShowGhost);
-		Assert.True(resolved.ShowInfoOverlay);
+		Assert.False(resolved.ShowInfoOverlay);
 	}
 
 	[Fact]
@@ -235,7 +235,7 @@ public sealed class PlacementConnectivityTests
 	}
 
 	[Fact]
-	public void MapEditorSession_DemolishTerrain_UsesResolvedOccupiedTargetInsteadOfRawHoverCell()
+	public void MapEditorSession_DemolishTerrain_DoesNotCrossHeightLevels()
 	{
 		var state = CreateEditorState();
 		state.World!.SetTerrain(4, 4, 2, Terrains.WallStone);
@@ -246,7 +246,7 @@ public sealed class PlacementConnectivityTests
 		session.EraseBrush(4, 4, 0);
 
 		Assert.Equal(Terrains.Air, state.World!.GetTerrain(4, 4, 0).StringId);
-		Assert.Equal(Terrains.Air, state.World.GetTerrain(4, 4, 2).StringId);
+		Assert.Equal(Terrains.WallStone, state.World.GetTerrain(4, 4, 2).StringId);
 	}
 
 	private static (GameState State, Actor Actor) CreatePlacementState()

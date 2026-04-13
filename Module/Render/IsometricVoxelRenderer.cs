@@ -67,9 +67,9 @@ public partial class IsometricVoxelRenderer
 		new Color(0.90f, 0.80f, 0.48f, 0.52f),
 		new Color(0.90f, 0.80f, 0.48f, 0.24f));
 	private static readonly HoverHighlightStyle EditorSelectHoverHighlightStyle = new(
-		new Color(0.95f, 0.83f, 0.52f, 0.14f),
-		new Color(0.96f, 0.84f, 0.54f, 0.84f),
-		new Color(0.95f, 0.83f, 0.52f, 0.44f));
+		new Color(0.78f, 0.88f, 0.96f, 0.16f),
+		new Color(0.80f, 0.90f, 0.98f, 0.86f),
+		new Color(0.78f, 0.88f, 0.96f, 0.46f));
 	private static readonly HoverHighlightStyle EditorDemolishHoverHighlightStyle = new(
 		new Color(0.96f, 0.72f, 0.40f, 0.12f),
 		new Color(0.97f, 0.74f, 0.42f, 0.82f),
@@ -89,6 +89,8 @@ public partial class IsometricVoxelRenderer
 	private WeatherFxController? _weatherFxController;
 	private Node2D? _combatFxWorldRoot;
 	private IAnimatable? _playerAnim;
+	private Vector2? _editorCameraTarget;
+	private const float EditorCameraLerpSpeed = 14f;
 
 	private readonly List<Sprite2D> _spritePool = [];
 	private int _spriteCount;
@@ -352,6 +354,22 @@ public partial class IsometricVoxelRenderer
 		_tileAnimationClockSeconds += delta;
 		_weatherFxController?.UpdateWeatherScreenFxOverlay(delta, _tileAnimationClockSeconds);
 		AdvancePlayerCorrectionSmoothing((float)delta);
+		AdvanceEditorCameraSmoothing((float)delta);
+	}
+
+	private void AdvanceEditorCameraSmoothing(float delta)
+	{
+		if (_camera == null || _editorCameraTarget is not { } target)
+			return;
+
+		var current = _camera.Position;
+		if (current.DistanceSquaredTo(target) < 0.5f)
+		{
+			_camera.Position = target;
+			return;
+		}
+
+		_camera.Position = current.Lerp(target, Mathf.Clamp(EditorCameraLerpSpeed * delta, 0f, 1f));
 	}
 
 	public bool IsWorldCellVisible(int wx, int wy, int wz)
@@ -1426,6 +1444,7 @@ public partial class IsometricVoxelRenderer
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
 		_highlightCommands.Add(new HoverHighlightCommand(
 			basePos,
+			hover,
 			ResolveHoverHighlightStyle(_editorViewActive, editorHoverState),
 			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000,
 			editorHoverState));
@@ -1442,9 +1461,15 @@ public partial class IsometricVoxelRenderer
 				DrawEditorPlacementGhost(command.ScreenPos, editorHoverState);
 
 			var geometry = BuildHoverVolumeGeometry(command.ScreenPos);
-			var fillTint = command.Style.FillTint * new Color(1f, 1f, 1f, pulse);
-			var sideTint = command.Style.SideTint * new Color(1f, 1f, 1f, 0.75f + pulse * 0.25f);
-			var edgeTint = command.Style.OutlineTint * new Color(1f, 1f, 1f, 0.65f + pulse * 0.35f);
+			var fillTint = ApplyEditorPerspectiveAlpha(
+				command.Style.FillTint * new Color(1f, 1f, 1f, pulse),
+				command.WorldCell.X, command.WorldCell.Y, command.WorldCell.Z);
+			var sideTint = ApplyEditorPerspectiveAlpha(
+				command.Style.SideTint * new Color(1f, 1f, 1f, 0.75f + pulse * 0.25f),
+				command.WorldCell.X, command.WorldCell.Y, command.WorldCell.Z);
+			var edgeTint = ApplyEditorPerspectiveAlpha(
+				command.Style.OutlineTint * new Color(1f, 1f, 1f, 0.65f + pulse * 0.35f),
+				command.WorldCell.X, command.WorldCell.Y, command.WorldCell.Z);
 			DrawHoverVolumeFaces(geometry.TopCenter, sideTint);
 			DrawHoverVolumeEdges(geometry, edgeTint);
 			DrawHoverDiamond(command.ScreenPos, edgeTint, HoverCellOutlineScale, zIndex: 3, textureKey: HoverDiamondOutlineTextureKey);
@@ -2107,8 +2132,22 @@ public partial class IsometricVoxelRenderer
 
 	private void UpdateCamera(int cx, int cy, int cz)
 	{
-		if (_camera != null)
-			_camera.Position = IsoCoordUtil.WorldToScreen(cx, cy, cz);
+		if (_camera == null) return;
+		var target = IsoCoordUtil.WorldToScreen(cx, cy, cz);
+		if (_editorViewActive)
+			_editorCameraTarget = target;
+		else
+			_camera.Position = target;
+	}
+
+	public void SetEditorCameraScreenTarget(Vector2 target)
+	{
+		_editorCameraTarget = target;
+	}
+
+	public void ClearEditorCameraSmoothing()
+	{
+		_editorCameraTarget = null;
 	}
 
 	// ── Types ──
@@ -2219,6 +2258,7 @@ public partial class IsometricVoxelRenderer
 
 	private readonly record struct HoverHighlightCommand(
 		Vector2 ScreenPos,
+		Vector3I WorldCell,
 		HoverHighlightStyle Style,
 		long SortKey,
 		MapEditorHoverState? EditorHoverState);

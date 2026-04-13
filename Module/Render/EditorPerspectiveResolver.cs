@@ -32,6 +32,9 @@ internal static class EditorPerspectiveResolver
 			? CollectIndoorFadeCells(state.World, room, targetZ, zMin)
 			: CollectGeometryFallbackCells(state.World, focusCell, targetZ, zMin);
 
+		if (hoverCell is { } hc)
+			AddSameLayerForegroundOccluders(state.World, hc.X, hc.Y, targetZ, fadedCells);
+
 		return new EditorPerspectiveResult(focusCell, room.IsIndoors, fadedCells);
 	}
 
@@ -121,6 +124,27 @@ internal static class EditorPerspectiveResolver
 	{
 		return !world.GetTerrain(worldX + 1, worldY, worldZ).IsOpaque
 			|| !world.GetTerrain(worldX, worldY + 1, worldZ).IsOpaque;
+	}
+
+	private static void AddSameLayerForegroundOccluders(
+		WorldMap world,
+		int hoverX,
+		int hoverY,
+		int targetZ,
+		HashSet<WorldCoord> fadedCells)
+	{
+		const int radius = 2;
+		for (var dx = 0; dx <= radius; dx++)
+		for (var dy = 0; dy <= radius; dy++)
+		{
+			if (dx == 0 && dy == 0)
+				continue;
+
+			var wx = hoverX + dx;
+			var wy = hoverY + dy;
+			if (world.GetTerrain(wx, wy, targetZ).IsOpaque)
+				fadedCells.Add(new WorldCoord(wx, wy, targetZ));
+		}
 	}
 }
 

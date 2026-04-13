@@ -34,6 +34,11 @@ internal sealed class MapEditorCoordinator
 	private readonly Action<Vector2> _positionWorldHoverOverlay;
 	private Vector2 _lastPointerGlobalPosition;
 	private bool _hasLastPointerGlobalPosition;
+	private bool _leftMouseHeld;
+	private Vector3I? _lastPaintedCell;
+	private bool _moveUp, _moveDown, _moveLeft, _moveRight;
+	private float _cameraFloatX, _cameraFloatY;
+	private const float CameraMoveSpeed = 8f;
 
 	public MapEditorCoordinator(
 		GameState state,
@@ -90,6 +95,7 @@ internal sealed class MapEditorCoordinator
 		_closeAllInGamePanels();
 		_session.Enter(entryMode, savePath);
 		ClearEditorHover(flushMap: false);
+		InitCameraSmoothing();
 
 		// Default to daytime if current turn is in night/dawn/dusk range
 		var phase = _state.Turn % 120;
@@ -113,6 +119,8 @@ internal sealed class MapEditorCoordinator
 		_closeSaveNameDialog();
 		_turnController.Close();
 		_syncSettingsUiState();
+		_moveUp = _moveDown = _moveLeft = _moveRight = false;
+		_getRenderer()?.ClearEditorCameraSmoothing();
 
 		if (startedFromMenu)
 		{
@@ -131,56 +139,123 @@ internal sealed class MapEditorCoordinator
 
 	public bool HandleKeyInput(InputEventKey key)
 	{
-		if (!key.Pressed) return false;
-
-		switch (key.Keycode)
+		if (key.Pressed)
 		{
-			case Key.Escape:
-				Exit();
-				return true;
-			case Key.Tab:
-				_session.ToggleCategory();
-				RefreshBar();
-				SyncEditorHoverPresentation(_session.HoverWorld);
-				_flushMap();
-				return true;
-			case Key.W or Key.Up:
-				_session.MoveCamera(0, -1);
-				RefreshBar();
-				_flushMap();
-				return true;
-			case Key.S or Key.Down:
-				_session.MoveCamera(0, 1);
-				RefreshBar();
-				_flushMap();
-				return true;
-			case Key.A or Key.Left:
-				_session.MoveCamera(-1, 0);
-				RefreshBar();
-				_flushMap();
-				return true;
-			case Key.D or Key.Right:
-				_session.MoveCamera(1, 0);
-				RefreshBar();
-				_flushMap();
-				return true;
-			case Key.Z when key.CtrlPressed:
-				if (_session.Undo())
-				{
+			switch (key.Keycode)
+			{
+				case Key.Escape:
+					Exit();
+					return true;
+				case Key.Tab:
+					_session.ToggleCategory();
 					RefreshBar();
+					SyncEditorHoverPresentation(_session.HoverWorld);
 					_flushMap();
-				}
-				return true;
-			case Key.Y when key.CtrlPressed:
-				if (_session.Redo())
-				{
-					RefreshBar();
-					_flushMap();
-				}
-				return true;
+					return true;
+				case Key.S when key.ShiftPressed:
+					SelectToolMode(MapEditorToolMode.Select);
+					return true;
+				case Key.B when key.ShiftPressed:
+					SelectToolMode(MapEditorToolMode.Build);
+					return true;
+				case Key.D when key.ShiftPressed:
+					SelectToolMode(MapEditorToolMode.Demolish);
+					return true;
+				case Key.W or Key.Up:
+					SetMoveFlag(key.Keycode, true);
+					return true;
+				case Key.S or Key.Down:
+					SetMoveFlag(key.Keycode, true);
+					return true;
+				case Key.A or Key.Left:
+					SetMoveFlag(key.Keycode, true);
+					return true;
+				case Key.D or Key.Right:
+					SetMoveFlag(key.Keycode, true);
+					return true;
+				case Key.Z when key.CtrlPressed:
+					if (_session.Undo())
+					{
+						RefreshBar();
+						_flushMap();
+					}
+					return true;
+				case Key.Y when key.CtrlPressed:
+					if (_session.Redo())
+					{
+						RefreshBar();
+						_flushMap();
+					}
+					return true;
+			}
+		}
+		else
+		{
+			switch (key.Keycode)
+			{
+				case Key.W or Key.Up:
+				case Key.S or Key.Down:
+				case Key.A or Key.Left:
+				case Key.D or Key.Right:
+					SetMoveFlag(key.Keycode, false);
+					return true;
+			}
 		}
 
 		return false;
+	}
+
+	private void SetMoveFlag(Key keycode, bool pressed)
+	{
+		switch (keycode)
+		{
+			case Key.W or Key.Up:
+				_moveUp = pressed;
+				break;
+			case Key.S or Key.Down:
+				_moveDown = pressed;
+				break;
+			case Key.A or Key.Left:
+				_moveLeft = pressed;
+				break;
+			case Key.D or Key.Right:
+				_moveRight = pressed;
+				break;
+		}
+	}
+
+	public void InitCameraSmoothing()
+	{
+		_cameraFloatX = _session.CameraX;
+		_cameraFloatY = _session.CameraY;
+		_moveUp = _moveDown = _moveLeft = _moveRight = false;
+	}
+
+	public void Tick(float delta)
+	{
+		if (!Active) return;
+
+		var dx = (_moveRight ? 1f : 0f) - (_moveLeft ? 1f : 0f);
+		var dy = (_moveDown ? 1f : 0f) - (_moveUp ? 1f : 0f);
+		if (dx == 0f && dy == 0f)
+			return;
+
+		_cameraFloatX += dx * CameraMoveSpeed * delta;
+		_cameraFloatY += dy * CameraMoveSpeed * delta;
+
+		var cellX = Mathf.RoundToInt(_cameraFloatX);
+		var cellY = Mathf.RoundToInt(_cameraFloatY);
+
+		if (cellX != _session.CameraX || cellY != _session.CameraY)
+		{
+			_session.MoveCamera(cellX - _session.CameraX, cellY - _session.CameraY);
+			RefreshBar();
+			_flushMap();
+		}
+
+		var renderer = _getRenderer();
+		renderer?.SetEditorCameraScreenTarget(
+			IsoCoordUtil.WorldToScreen(_cameraFloatX, _cameraFloatY, _session.CameraZ));
 	}
 
 	public bool HandleMouseInput(InputEvent @event)
@@ -189,6 +264,8 @@ internal sealed class MapEditorCoordinator
 			(_bar.IsPointerOver(mouse.GlobalPosition) || _turnController.IsPointerOver(mouse.GlobalPosition)))
 		{
 			ClearEditorHover();
+			_leftMouseHeld = false;
+			_lastPaintedCell = null;
 			return false;
 		}
 
@@ -197,6 +274,8 @@ internal sealed class MapEditorCoordinator
 		{
 			if (@event is InputEventMouseMotion)
 				ClearEditorHover();
+			_leftMouseHeld = false;
+			_lastPaintedCell = null;
 			return false;
 		}
 
@@ -205,6 +284,8 @@ internal sealed class MapEditorCoordinator
 			if (renderer.TryGetEditorWorldCellFromGlobalPosition(motion.GlobalPosition, _session.CameraZ, out var hovered))
 			{
 				UpdateEditorHover(hovered, motion.GlobalPosition);
+				if (_leftMouseHeld && hovered != _lastPaintedCell)
+					TryPaintCell(hovered);
 				return true;
 			}
 
@@ -212,36 +293,54 @@ internal sealed class MapEditorCoordinator
 			return false;
 		}
 
-		if (@event is not InputEventMouseButton mb || !mb.Pressed)
-			return false;
-
-		if (mb.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+		if (@event is InputEventMouseButton mb)
 		{
-			_session.CycleBrush(mb.ButtonIndex == MouseButton.WheelUp ? -1 : 1);
-			RefreshBar();
-			SyncEditorHoverPresentation(_session.HoverWorld);
-			_flushMap();
+			if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed)
+			{
+				_leftMouseHeld = false;
+				_lastPaintedCell = null;
+				return false;
+			}
+
+			if (!mb.Pressed)
+				return false;
+
+			if (mb.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+			{
+				_session.CycleBrush(mb.ButtonIndex == MouseButton.WheelUp ? -1 : 1);
+				RefreshBar();
+				SyncEditorHoverPresentation(_session.HoverWorld);
+				_flushMap();
+				return true;
+			}
+
+			if (mb.ButtonIndex is not MouseButton.Left and not MouseButton.Right)
+				return false;
+
+			if (!renderer.TryGetEditorWorldCellFromGlobalPosition(mb.GlobalPosition, _session.CameraZ, out var worldCell))
+			{
+				ClearEditorHover();
+				return false;
+			}
+
+			SetEditorHoverCell(worldCell, mb.GlobalPosition);
+			if (mb.ButtonIndex == MouseButton.Right)
+				return true;
+
+			_leftMouseHeld = true;
+			TryPaintCell(worldCell);
 			return true;
 		}
 
-		if (mb.ButtonIndex is not MouseButton.Left and not MouseButton.Right)
-			return false;
+		return false;
+	}
 
-		if (!renderer.TryGetEditorWorldCellFromGlobalPosition(mb.GlobalPosition, _session.CameraZ, out var worldCell))
-		{
-			ClearEditorHover();
-			return false;
-		}
-
-		SetEditorHoverCell(worldCell, mb.GlobalPosition);
-		if (mb.ButtonIndex == MouseButton.Right)
-			return true;
-
+	private void TryPaintCell(Vector3I worldCell)
+	{
 		if (_session.CurrentCategory == MapEditorBrushCategory.Environment)
-			return true;
-
+			return;
 		if (_session.CurrentToolMode == MapEditorToolMode.Select)
-			return true;
+			return;
 
 		if (_session.CurrentToolMode == MapEditorToolMode.Build)
 		{
@@ -255,9 +354,9 @@ internal sealed class MapEditorCoordinator
 		else
 			_session.EraseBrush(worldCell.X, worldCell.Y, worldCell.Z);
 
+		_lastPaintedCell = worldCell;
 		RefreshBar();
 		_flushMap();
-		return true;
 	}
 
 	// ── UI ──
@@ -312,6 +411,7 @@ internal sealed class MapEditorCoordinator
 	{
 		_session.CenterOnPlayer();
 		ClearEditorHover(flushMap: false);
+		InitCameraSmoothing();
 		RefreshBar();
 		_flushMap();
 	}

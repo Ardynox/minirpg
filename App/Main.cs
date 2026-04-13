@@ -284,6 +284,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessDirtyPanels();
 		_mapRender?.AdvanceAnimations(delta);
+		if (MapEditorActive) _mapEditorCoordinator.Tick((float)delta);
 		EmitPredictionMetricsIfDue();
 		if (snapshot.PausesGameplayLoop) return;
 

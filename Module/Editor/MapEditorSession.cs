@@ -516,14 +516,6 @@ public sealed class MapEditorSession
 		if (pickedTerrain is not (Terrains.Air or Terrains.Void))
 			return hoverCell;
 
-		var targetZ = hoverCell.Z + 1;
-		for (var scanned = 0; scanned < TerrainColumnScanDepth; scanned++, targetZ++)
-		{
-			var terrain = _state.World.GetTerrain(hoverCell.X, hoverCell.Y, targetZ).StringId;
-			if (terrain is not (Terrains.Air or Terrains.Void))
-				return new Vector3I(hoverCell.X, hoverCell.Y, targetZ);
-		}
-
 		return null;
 	}
 
