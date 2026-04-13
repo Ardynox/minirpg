@@ -18,9 +18,9 @@ public partial class IsometricVoxelRenderer
 {
 	private const int DefaultViewDepthAbove = 4;
 	private const int DefaultViewDepthBelow = 2;
-	private const int VisibleDepthOverscanLayers = 1;
-	private const int MaxVisibleDepthAbove = 14;
-	private const int MaxVisibleDepthBelow = 14;
+	private const int VisibleDepthOverscanLayers = 2;
+	private const int MaxVisibleDepthAbove = 48;
+	private const int MaxVisibleDepthBelow = 48;
 	private const int VisibleWindowOverscanCells = 4;
 	private const int MaxVisibleWindowHalfExtent = 48;
 	private const int DefaultCharacterSheetFrameWidth = 128;
@@ -214,15 +214,17 @@ public partial class IsometricVoxelRenderer
 			fallback);
 	}
 
-	internal VisibleDepthWindow GetVisibleDepthWindow()
+	internal VisibleDepthWindow GetVisibleDepthWindow(VisibleWorldWindow? visibleWorldWindow = null)
 	{
 		var fallback = new VisibleDepthWindow(DefaultViewDepthAbove, DefaultViewDepthBelow);
 		if (_subViewport == null || _camera == null)
 			return fallback;
 
+		var resolvedVisibleWorldWindow = visibleWorldWindow ?? GetVisibleWorldWindow();
 		return CalculateVisibleDepthWindow(
 			_subViewport.Size,
 			_camera.Zoom,
+			resolvedVisibleWorldWindow,
 			fallback);
 	}
 
@@ -252,6 +254,7 @@ public partial class IsometricVoxelRenderer
 	internal static VisibleDepthWindow CalculateVisibleDepthWindow(
 		Vector2I viewportSize,
 		Vector2 zoom,
+		VisibleWorldWindow visibleWorldWindow,
 		VisibleDepthWindow fallback)
 	{
 		if (viewportSize.X <= 0 || viewportSize.Y <= 0)
@@ -259,11 +262,52 @@ public partial class IsometricVoxelRenderer
 
 		var zoomY = Math.Max(0.001f, zoom.Y);
 		var localHalfHeight = viewportSize.Y * 0.5f / zoomY;
-		var requiredHalfDepth = Mathf.CeilToInt(localHalfHeight / IsoCoordUtil.ZStep) + VisibleDepthOverscanLayers;
+		var visibleDiagonalYOffset = (visibleWorldWindow.HalfX + visibleWorldWindow.HalfY) * IsoCoordUtil.TileHalfH;
+		var requiredHalfDepth = Mathf.CeilToInt(
+			(localHalfHeight + visibleDiagonalYOffset) / IsoCoordUtil.ZStep) + VisibleDepthOverscanLayers;
 		var above = Math.Clamp(Math.Max(fallback.Above, requiredHalfDepth), fallback.Above, MaxVisibleDepthAbove);
 		var below = Math.Clamp(Math.Max(fallback.Below, requiredHalfDepth), fallback.Below, MaxVisibleDepthBelow);
 		return new VisibleDepthWindow(above, below);
 	}
+
+	private Rect2? GetVisibleMapRect()
+	{
+		if (_subViewport == null || _camera == null)
+			return null;
+
+		return CalculateVisibleMapRect(
+			_subViewport.Size,
+			_camera.Position,
+			_camera.Zoom);
+	}
+
+	internal static Rect2 CalculateVisibleMapRect(
+		Vector2I viewportSize,
+		Vector2 cameraPosition,
+		Vector2 zoom)
+	{
+		var zoomX = Math.Max(0.001f, zoom.X);
+		var zoomY = Math.Max(0.001f, zoom.Y);
+		var halfWidth = viewportSize.X * 0.5f / zoomX + IsoCoordUtil.TileHalfW;
+		var halfHeight = viewportSize.Y * 0.5f / zoomY + IsoCoordUtil.ZStep;
+		return new Rect2(
+			cameraPosition.X - halfWidth,
+			cameraPosition.Y - halfHeight,
+			halfWidth * 2f,
+			halfHeight * 2f);
+	}
+
+	internal static Rect2 GetVoxelScreenBounds(Vector2 topCenter)
+	{
+		return new Rect2(
+			topCenter.X - IsoCoordUtil.TileHalfW,
+			topCenter.Y - IsoCoordUtil.TileHalfH,
+			IsoCoordUtil.TileHalfW * 2f,
+			IsoCoordUtil.TileHalfH + IsoCoordUtil.ZStep);
+	}
+
+	internal static bool IsVoxelScreenVisible(Vector2 topCenter, Rect2 visibleMapRect)
+		=> GetVoxelScreenBounds(topCenter).Intersects(visibleMapRect);
 
 	public static IReadOnlyList<string> EnumerateWeatherAssetPaths() =>
 		WeatherFxController.EnumerateWeatherAssetPaths();
@@ -537,7 +581,8 @@ public partial class IsometricVoxelRenderer
 		if (_state.World == null) return false;
 
 		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
-		var visibleDepth = GetVisibleDepthWindow();
+		var visibleWindow = GetVisibleWorldWindow();
+		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
 		var zMin = cz - visibleDepth.Above;
 		var zMax = cz + visibleDepth.Below;
 		for (var z = zMax; z >= zMin; z--)
@@ -768,7 +813,8 @@ public partial class IsometricVoxelRenderer
 		var cy = _viewCenterY;
 		var cz = _viewCenterZ;
 		var visibleWindow = GetVisibleWorldWindow();
-		var visibleDepth = GetVisibleDepthWindow();
+		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
+		var visibleMapRect = GetVisibleMapRect();
 		var halfW = visibleWindow.HalfX;
 		var halfH = visibleWindow.HalfY;
 		var zMin = cz - visibleDepth.Above;
@@ -792,6 +838,10 @@ public partial class IsometricVoxelRenderer
 		for (var wz = zMax; wz >= zMin; wz--)
 		{
 			if (ShouldHideEditorPreviewTerrain(_editorViewActive ? EditorHoverState : null, wx, wy, wz))
+				continue;
+
+			var screenPos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
+			if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(screenPos, mapRect))
 				continue;
 
 			var terrain = _state.World.GetTerrain(wx, wy, wz);
@@ -819,7 +869,7 @@ public partial class IsometricVoxelRenderer
 			_drawCommands.Add(new VoxelDrawCommand
 			{
 				WorldX = wx, WorldY = wy, WorldZ = wz,
-				ScreenPos = IsoCoordUtil.WorldToScreen(wx, wy, wz),
+				ScreenPos = screenPos,
 				SortKey = IsoCoordUtil.SortKey(wx, wy, wz),
 				Terrain = terrain,
 				DrawTop = drawTop, DrawLeftSide = drawLeft, DrawRightSide = drawRight,
@@ -830,7 +880,7 @@ public partial class IsometricVoxelRenderer
 		_drawCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
 		_lightMap.Rebuild(_state.World, cx, cy, cz, halfW, halfH, zMin, zMax);
 		CollectEntityCommands(cx, cy, cz, halfW, halfH, zMin, zMax);
-		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax);
+		CollectHoverHighlights(cx, cy, cz, halfW, halfH, zMin, zMax, visibleMapRect);
 		_lastDrawCommandCount = _drawCommands.Count + _entityCommands.Count + _highlightCommandCount;
 		RenderScene();
 		EndFrame();
@@ -1508,7 +1558,7 @@ public partial class IsometricVoxelRenderer
 		};
 	}
 
-	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
+	private void CollectHoverHighlights(int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax, Rect2? visibleMapRect)
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
@@ -1524,6 +1574,8 @@ public partial class IsometricVoxelRenderer
 			return;
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
+		if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(basePos, mapRect))
+			return;
 		_highlightCommands.Add(new HoverHighlightCommand(
 			basePos,
 			hover,

@@ -218,29 +218,33 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForDefaultZoom_ExpandsBeyondLegacyDepth()
 	{
+		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 21, HalfY: 21);
 		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
 
 		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			Vector2.One,
+			visibleWorldWindow,
 			fallback);
 
-		Assert.Equal(9, window.Above);
-		Assert.Equal(9, window.Below);
+		Assert.Equal(31, window.Above);
+		Assert.Equal(31, window.Below);
 	}
 
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForMinimumZoom_ReachesConfiguredCap()
 	{
+		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 29, HalfY: 29);
 		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
 
 		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.6f, 0.6f),
+			visibleWorldWindow,
 			fallback);
 
-		Assert.Equal(14, window.Above);
-		Assert.Equal(14, window.Below);
+		Assert.Equal(44, window.Above);
+		Assert.Equal(44, window.Below);
 	}
 
 	[Fact]
@@ -274,15 +278,41 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_CapsExtremeZoomOutCoverage()
 	{
+		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 48, HalfY: 48);
 		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
 
 		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.2f, 0.2f),
+			visibleWorldWindow,
 			fallback);
 
-		Assert.Equal(14, window.Above);
-		Assert.Equal(14, window.Below);
+		Assert.Equal(48, window.Above);
+		Assert.Equal(48, window.Below);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CalculateVisibleMapRect_ExpandsFromCameraByViewportAndOverscan()
+	{
+		var rect = IsometricVoxelRenderer.CalculateVisibleMapRect(
+			new Vector2I(1280, 960),
+			new Vector2(100f, 200f),
+			Vector2.One);
+
+		AssertVector2Approx(new Vector2(-604f, -344f), rect.Position);
+		AssertVector2Approx(new Vector2(1408f, 1088f), rect.Size);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_IsVoxelScreenVisible_CullsCellsOutsideVisibleMapRect()
+	{
+		var visibleRect = IsometricVoxelRenderer.CalculateVisibleMapRect(
+			new Vector2I(1280, 960),
+			Vector2.Zero,
+			Vector2.One);
+
+		Assert.True(IsometricVoxelRenderer.IsVoxelScreenVisible(Vector2.Zero, visibleRect));
+		Assert.False(IsometricVoxelRenderer.IsVoxelScreenVisible(new Vector2(0f, 1400f), visibleRect));
 	}
 
 	[Fact]
