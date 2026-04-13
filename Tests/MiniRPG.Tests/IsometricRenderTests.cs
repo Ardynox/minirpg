@@ -641,6 +641,124 @@ public sealed class IsometricRenderTests
 		Assert.False(IsometricVoxelRenderer.ShouldHideEditorPreviewTerrain(selectState, 4, 4, 0));
 	}
 
+	[Fact]
+	public void IsometricVoxelRenderer_BuildChunkTerrainSurfaceEntries_IncludesSingleVisibleBlock()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(10, 12, 0, Terrains.WallStone);
+		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(10, 12, 0));
+
+		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+			world,
+			chunk,
+			out var emptyCellCount,
+			out var occludedCellCount,
+			out var hiddenFaceCellCount);
+
+		var entry = Assert.Single(entries);
+		Assert.Equal(10, entry.WorldX);
+		Assert.Equal(12, entry.WorldY);
+		Assert.Equal(0, entry.WorldZ);
+		Assert.True(entry.DrawTop);
+		Assert.True(entry.DrawLeftSide);
+		Assert.True(entry.DrawRightSide);
+		Assert.False(entry.ShadowTop);
+		Assert.Equal(ChunkData.Area - 1, emptyCellCount);
+		Assert.Equal(0, occludedCellCount);
+		Assert.Equal(0, hiddenFaceCellCount);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_BuildChunkTerrainSurfaceEntries_OmitsFullyOccludedBlock()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(14, 9, 0, Terrains.WallStone);
+		world.SetTerrain(15, 9, 0, Terrains.WallStone);
+		world.SetTerrain(14, 10, 0, Terrains.WallStone);
+		world.SetTerrain(14, 9, -1, Terrains.WallStone);
+		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(14, 9, 0));
+
+		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+			world,
+			chunk,
+			out _,
+			out var occludedCellCount,
+			out _);
+
+		Assert.DoesNotContain(entries, entry => entry.WorldX == 14 && entry.WorldY == 9 && entry.WorldZ == 0);
+		Assert.True(occludedCellCount >= 1);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_BuildChunkTerrainSurfaceEntries_PreservesShadowTopRule()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(18, 6, 0, Terrains.WallStone);
+		world.SetTerrain(18, 6, -1, Terrains.WallStone);
+		world.SetTerrain(19, 6, 0, Terrains.WallStone);
+		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(18, 6, 0));
+
+		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+			world,
+			chunk,
+			out _,
+			out _,
+			out _);
+
+		var entry = Assert.Single(entries, item => item.WorldX == 18 && item.WorldY == 6 && item.WorldZ == 0);
+		Assert.True(entry.DrawTop);
+		Assert.True(entry.DrawLeftSide);
+		Assert.False(entry.DrawRightSide);
+		Assert.True(entry.ShadowTop);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_BuildChunkTerrainSurfaceEntries_HidesChunkBoundaryFacesAgainstNeighborChunk()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(31, 31, 0, Terrains.WallStone);
+		world.SetTerrain(32, 31, 0, Terrains.WallStone);
+		world.SetTerrain(31, 32, 0, Terrains.WallStone);
+		var chunk = world.Chunks.GetOrLoad(new ChunkCoord(0, 0, 0));
+
+		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+			world,
+			chunk,
+			out _,
+			out _,
+			out _);
+
+		var entry = Assert.Single(entries, item => item.WorldX == 31 && item.WorldY == 31 && item.WorldZ == 0);
+		Assert.False(entry.DrawLeftSide);
+		Assert.False(entry.DrawRightSide);
+		Assert.True(entry.DrawTop);
+	}
+
+	[Fact]
+	public void WorldMap_SetTerrain_BumpsCurrentAndNeighborChunkTerrainGeometryRevision()
+	{
+		var world = new WorldMap(9, new BlankFloorGenerator());
+		var centerCoord = new ChunkCoord(0, 0, 0);
+		var eastCoord = new ChunkCoord(1, 0, 0);
+		var southCoord = new ChunkCoord(0, 1, 0);
+		var aboveCoord = new ChunkCoord(0, 0, -1);
+		var currentChunk = world.Chunks.GetOrLoad(centerCoord);
+		var eastChunk = world.Chunks.GetOrLoad(eastCoord);
+		var southChunk = world.Chunks.GetOrLoad(southCoord);
+		var aboveChunk = world.Chunks.GetOrLoad(aboveCoord);
+		var currentRevision = currentChunk.TerrainGeometryRevision;
+		var eastRevision = eastChunk.TerrainGeometryRevision;
+		var southRevision = southChunk.TerrainGeometryRevision;
+		var aboveRevision = aboveChunk.TerrainGeometryRevision;
+
+		world.SetTerrain(5, 5, 0, Terrains.WallStone);
+
+		Assert.True(currentChunk.TerrainGeometryRevision > currentRevision);
+		Assert.True(eastChunk.TerrainGeometryRevision > eastRevision);
+		Assert.True(southChunk.TerrainGeometryRevision > southRevision);
+		Assert.True(aboveChunk.TerrainGeometryRevision > aboveRevision);
+	}
+
 	private static Color InvokeVisionTint(IsometricVoxelRenderer renderer, int x, int y, int z)
 	{
 		var method = typeof(IsometricVoxelRenderer).GetMethod("GetVisionTint", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -661,6 +779,9 @@ public sealed class IsometricRenderTests
 		Assert.NotNull(property);
 		return Assert.IsType<Vector2>(property!.GetValue(geometry));
 	}
+
+	private static WorldMap CreateAirOnlyWorld() =>
+		new(17, new AirOnlyGenerator());
 
 	private static void SetFogStateForTest(FogOfWarTracker fog)
 	{

@@ -105,6 +105,8 @@ public partial class IsometricVoxelRenderer
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
 	private readonly List<EntityDrawCommand> _entityCommands = [];
 	private readonly List<HoverHighlightCommand> _highlightCommands = [];
+	private readonly Dictionary<ChunkCoord, ChunkTerrainSurfaceCache> _terrainSurfaceCache = new();
+	private readonly List<ChunkCoord> _terrainSurfaceCachePruneBuffer = [];
 	private int _lastDrawCommandCount;
 	private int _highlightCommandCount;
 
@@ -979,67 +981,22 @@ public partial class IsometricVoxelRenderer
 		long emptyTerrainCells = 0;
 		long occludedTerrainCells = 0;
 		long hiddenFaceTerrainCells = 0;
-
-		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
-		for (var wx = cx - halfW; wx <= cx + halfW; wx++)
-		for (var wz = zMax; wz >= zMin; wz--)
-		{
-			scannedTerrainCells++;
-
-			if (ShouldHideEditorPreviewTerrain(_editorViewActive ? EditorHoverState : null, wx, wy, wz))
-			{
-				previewHiddenTerrainCells++;
-				continue;
-			}
-
-			var screenPos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
-			if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(screenPos, mapRect))
-			{
-				screenCulledTerrainCells++;
-				continue;
-			}
-
-			var terrain = _state.World.GetTerrain(wx, wy, wz);
-			if (terrain.StringId == Terrains.Air || terrain.StringId == Terrains.Void)
-			{
-				emptyTerrainCells++;
-				continue;
-			}
-			if (IsFullyOccluded(wx, wy, wz))
-			{
-				occludedTerrainCells++;
-				continue;
-			}
-
-			var topOccluded = _state.World.GetTerrain(wx, wy, wz - 1).IsOpaque;
-			var drawTop = !topOccluded;
-			var drawLeft = !_state.World.GetTerrain(wx, wy + 1, wz).IsOpaque;
-			var drawRight = !_state.World.GetTerrain(wx + 1, wy, wz).IsOpaque;
-
-			// 当侧面可见但顶面被遮挡时，强制绘制暗化顶面，避免"悬浮平行四边形"
-			var shadowTop = false;
-			if (topOccluded && (drawLeft || drawRight))
-			{
-				drawTop = true;
-				shadowTop = true;
-			}
-
-			if (!drawTop && !drawLeft && !drawRight)
-			{
-				hiddenFaceTerrainCells++;
-				continue;
-			}
-
-			_drawCommands.Add(new VoxelDrawCommand
-			{
-				WorldX = wx, WorldY = wy, WorldZ = wz,
-				ScreenPos = screenPos,
-				SortKey = IsoCoordUtil.SortKey(wx, wy, wz),
-				Terrain = terrain,
-				DrawTop = drawTop, DrawLeftSide = drawLeft, DrawRightSide = drawRight,
-				ShadowTop = shadowTop,
-			});
-		}
+		CollectTerrainDrawCommands(
+			_state.World,
+			cx,
+			cy,
+			halfW,
+			halfH,
+			zMin,
+			zMax,
+			visibleMapRect,
+			_editorViewActive ? EditorHoverState : null,
+			ref scannedTerrainCells,
+			ref previewHiddenTerrainCells,
+			ref screenCulledTerrainCells,
+			ref emptyTerrainCells,
+			ref occludedTerrainCells,
+			ref hiddenFaceTerrainCells);
 
 		_drawCommands.Sort(CompareVoxelDrawCommands);
 		var terrainStageMs = GetElapsedMs(terrainStageStart);
@@ -1079,6 +1036,219 @@ public partial class IsometricVoxelRenderer
 		EndFrame();
 		UpdateCamera(cx, cy, cz);
 	}
+
+	private void CollectTerrainDrawCommands(
+		WorldMap world,
+		int centerX,
+		int centerY,
+		int halfW,
+		int halfH,
+		int zMin,
+		int zMax,
+		Rect2? visibleMapRect,
+		MapEditorHoverState? editorHoverState,
+		ref long scannedTerrainCells,
+		ref long previewHiddenTerrainCells,
+		ref long screenCulledTerrainCells,
+		ref long emptyTerrainCells,
+		ref long occludedTerrainCells,
+		ref long hiddenFaceTerrainCells)
+	{
+		var minX = centerX - halfW;
+		var maxX = centerX + halfW;
+		var minY = centerY - halfH;
+		var maxY = centerY + halfH;
+
+		for (var wz = zMin; wz <= zMax; wz++)
+		{
+			var minChunk = CoordUtil.WorldToChunk(minX, minY, wz);
+			var maxChunk = CoordUtil.WorldToChunk(maxX, maxY, wz);
+			for (var chunkY = minChunk.Cy; chunkY <= maxChunk.Cy; chunkY++)
+			for (var chunkX = minChunk.Cx; chunkX <= maxChunk.Cx; chunkX++)
+			{
+				var chunk = world.Chunks.GetOrLoad(new ChunkCoord(chunkX, chunkY, wz));
+				var cache = GetOrBuildChunkTerrainSurfaceCache(world, chunk, out var rebuiltThisFrame);
+				if (rebuiltThisFrame)
+				{
+					emptyTerrainCells += cache.EmptyCellCount;
+					occludedTerrainCells += cache.OccludedCellCount;
+					hiddenFaceTerrainCells += cache.HiddenFaceCellCount;
+				}
+
+				for (var i = 0; i < cache.Entries.Length; i++)
+				{
+					var entry = cache.Entries[i];
+					if (entry.WorldX < minX || entry.WorldX > maxX || entry.WorldY < minY || entry.WorldY > maxY)
+						continue;
+
+					scannedTerrainCells++;
+
+					if (ShouldHideEditorPreviewTerrain(editorHoverState, entry.WorldX, entry.WorldY, entry.WorldZ))
+					{
+						previewHiddenTerrainCells++;
+						continue;
+					}
+
+					if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(entry.ScreenPos, mapRect))
+					{
+						screenCulledTerrainCells++;
+						continue;
+					}
+
+					_drawCommands.Add(new VoxelDrawCommand
+					{
+						WorldX = entry.WorldX,
+						WorldY = entry.WorldY,
+						WorldZ = entry.WorldZ,
+						ScreenPos = entry.ScreenPos,
+						SortKey = entry.SortKey,
+						Terrain = entry.Terrain,
+						DrawTop = entry.DrawTop,
+						DrawLeftSide = entry.DrawLeftSide,
+						DrawRightSide = entry.DrawRightSide,
+						ShadowTop = entry.ShadowTop,
+					});
+				}
+			}
+		}
+
+		PruneTerrainSurfaceCache(world.Chunks.LoadedChunks);
+	}
+
+	private ChunkTerrainSurfaceCache GetOrBuildChunkTerrainSurfaceCache(WorldMap world, ChunkData chunk, out bool rebuiltThisFrame)
+	{
+		if (_terrainSurfaceCache.TryGetValue(chunk.Coord, out var cache)
+			&& cache.TerrainGeometryRevision == chunk.TerrainGeometryRevision)
+		{
+			rebuiltThisFrame = false;
+			return cache;
+		}
+
+		var rebuilt = BuildChunkTerrainSurfaceCache(world, chunk);
+		_terrainSurfaceCache[chunk.Coord] = rebuilt;
+		rebuiltThisFrame = true;
+		return rebuilt;
+	}
+
+	private void PruneTerrainSurfaceCache(IReadOnlyDictionary<ChunkCoord, ChunkData> loadedChunks)
+	{
+		_terrainSurfaceCachePruneBuffer.Clear();
+		foreach (var coord in _terrainSurfaceCache.Keys)
+		{
+			if (!loadedChunks.ContainsKey(coord))
+				_terrainSurfaceCachePruneBuffer.Add(coord);
+		}
+
+		for (var i = 0; i < _terrainSurfaceCachePruneBuffer.Count; i++)
+			_terrainSurfaceCache.Remove(_terrainSurfaceCachePruneBuffer[i]);
+	}
+
+	private static ChunkTerrainSurfaceCache BuildChunkTerrainSurfaceCache(WorldMap world, ChunkData chunk)
+	{
+		var entries = BuildChunkTerrainSurfaceEntries(
+			world,
+			chunk,
+			out var emptyCellCount,
+			out var occludedCellCount,
+			out var hiddenFaceCellCount);
+		return new ChunkTerrainSurfaceCache(
+			chunk.TerrainGeometryRevision,
+			entries,
+			emptyCellCount,
+			occludedCellCount,
+			hiddenFaceCellCount);
+	}
+
+	internal static TerrainSurfaceEntry[] BuildChunkTerrainSurfaceEntries(
+		WorldMap world,
+		ChunkData chunk,
+		out int emptyCellCount,
+		out int occludedCellCount,
+		out int hiddenFaceCellCount)
+	{
+		var airId = TerrainRegistry.GetId(Terrains.Air);
+		var voidId = TerrainRegistry.GetId(Terrains.Void);
+		var baseX = chunk.Coord.Cx * ChunkData.Size;
+		var baseY = chunk.Coord.Cy * ChunkData.Size;
+		var entries = new List<TerrainSurfaceEntry>(ChunkData.Area);
+		ChunkData? aboveChunk = null;
+		ChunkData? eastChunk = null;
+		ChunkData? southChunk = null;
+		var neighborsResolved = false;
+
+		emptyCellCount = 0;
+		occludedCellCount = 0;
+		hiddenFaceCellCount = 0;
+
+		for (var ly = 0; ly < ChunkData.Size; ly++)
+		for (var lx = 0; lx < ChunkData.Size; lx++)
+		{
+			var index = CoordUtil.LocalIndex(lx, ly);
+			var terrainId = chunk.TerrainIds[index];
+			if (terrainId == airId || terrainId == voidId)
+			{
+				emptyCellCount++;
+				continue;
+			}
+
+			if (!neighborsResolved)
+			{
+				aboveChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx, chunk.Coord.Cy, chunk.Coord.Cz - 1));
+				eastChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx + 1, chunk.Coord.Cy, chunk.Coord.Cz));
+				southChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx, chunk.Coord.Cy + 1, chunk.Coord.Cz));
+				neighborsResolved = true;
+			}
+
+			var topOpaque = IsChunkTerrainOpaque(aboveChunk!, lx, ly);
+			var southOpaque = ly + 1 < ChunkData.Size
+				? TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx, ly + 1)]).IsOpaque
+				: IsChunkTerrainOpaque(southChunk!, lx, 0);
+			var eastOpaque = lx + 1 < ChunkData.Size
+				? TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx + 1, ly)]).IsOpaque
+				: IsChunkTerrainOpaque(eastChunk!, 0, ly);
+			if (topOpaque && southOpaque && eastOpaque)
+			{
+				occludedCellCount++;
+				continue;
+			}
+
+			var drawTop = !topOpaque;
+			var drawLeft = !southOpaque;
+			var drawRight = !eastOpaque;
+			var shadowTop = false;
+			if (topOpaque && (drawLeft || drawRight))
+			{
+				drawTop = true;
+				shadowTop = true;
+			}
+
+			if (!drawTop && !drawLeft && !drawRight)
+			{
+				hiddenFaceCellCount++;
+				continue;
+			}
+
+			var worldX = baseX + lx;
+			var worldY = baseY + ly;
+			var worldZ = chunk.Coord.Cz;
+			entries.Add(new TerrainSurfaceEntry(
+				worldX,
+				worldY,
+				worldZ,
+				IsoCoordUtil.WorldToScreen(worldX, worldY, worldZ),
+				IsoCoordUtil.SortKey(worldX, worldY, worldZ),
+				TerrainRegistry.Get(terrainId),
+				drawTop,
+				drawLeft,
+				drawRight,
+				shadowTop));
+		}
+
+		return [.. entries];
+	}
+
+	private static bool IsChunkTerrainOpaque(ChunkData chunk, int lx, int ly) =>
+		TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx, ly)]).IsOpaque;
 
 	private bool IsFullyOccluded(int wx, int wy, int wz)
 	{

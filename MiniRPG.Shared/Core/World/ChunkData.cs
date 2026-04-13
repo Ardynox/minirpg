@@ -20,6 +20,9 @@ public class ChunkData
 	/// <summary>最近一次被访问的回合数，用于 LRU 卸载。</summary>
 	public int LastAccessTurn { get; set; }
 
+	/// <summary>地形几何版本号。地形拓扑变更时递增，供渲染缓存失效使用。</summary>
+	internal int TerrainGeometryRevision { get; private set; }
+
 	/// <summary>地形 ID 层：terrainIds[ly * Size + lx]。</summary>
 	public ushort[] TerrainIds { get; set; } = new ushort[Area];
 
@@ -52,6 +55,7 @@ public class ChunkData
 	{
 		TerrainIds[ly * Size + lx] = id;
 		Dirty = true;
+		BumpTerrainGeometryRevision();
 	}
 
 	public byte GetHardness(int lx, int ly) =>
@@ -122,6 +126,7 @@ public class ChunkData
 			TerrainIds[i] = terrainId;
 			Hardness[i] = def.DefaultHardness;
 		}
+		BumpTerrainGeometryRevision();
 	}
 
 	/// <summary>设置地形并自动同步默认硬度。</summary>
@@ -131,5 +136,9 @@ public class ChunkData
 		TerrainIds[idx] = terrainId;
 		Hardness[idx] = TerrainRegistry.Get(terrainId).DefaultHardness;
 		Dirty = true;
+		BumpTerrainGeometryRevision();
 	}
+
+	internal void BumpTerrainGeometryRevision() =>
+		TerrainGeometryRevision++;
 }

@@ -32,7 +32,11 @@ public class TerrainAccess
 	public void SetTerrainId(int x, int y, int z, ushort terrainId)
 	{
 		var (chunk, lx, ly) = Resolve(x, y, z);
+		if (chunk.GetTerrainId(lx, ly) == terrainId)
+			return;
+
 		chunk.SetTerrain(lx, ly, terrainId);
+		MarkAdjacentTerrainGeometryDirty(chunk.Coord);
 	}
 
 	public void SetTerrain(int x, int y, int z, string terrainStringId)
@@ -51,5 +55,21 @@ public class TerrainAccess
 	{
 		var (chunk, lx, ly) = Resolve(x, y, z);
 		chunk.SetHardness(lx, ly, hardness);
+	}
+
+	private void MarkAdjacentTerrainGeometryDirty(ChunkCoord coord)
+	{
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx - 1, coord.Cy, coord.Cz));
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx + 1, coord.Cy, coord.Cz));
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx, coord.Cy - 1, coord.Cz));
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx, coord.Cy + 1, coord.Cz));
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx, coord.Cy, coord.Cz - 1));
+		MarkLoadedChunkTerrainGeometryDirty(new ChunkCoord(coord.Cx, coord.Cy, coord.Cz + 1));
+	}
+
+	private void MarkLoadedChunkTerrainGeometryDirty(ChunkCoord coord)
+	{
+		if (_chunks.LoadedChunks.TryGetValue(coord, out var chunk))
+			chunk.BumpTerrainGeometryRevision();
 	}
 }
