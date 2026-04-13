@@ -11,7 +11,7 @@ public partial class VoxelTilePreviewTool : Control
 	private const float RightDarken = 0.80f;
 	private const int SideTextureWidth = 64;
 	private const int SideTextureHeight = 160;
-	private const int SideFaceHeight = 80;
+	private const int SideFaceHeight = 64;
 
 	private readonly string[] _blockOrder = ["grass_block", "dirt", "stone"];
 	private readonly Dictionary<string, BlockPreviewTextures> _cache = new(StringComparer.OrdinalIgnoreCase);

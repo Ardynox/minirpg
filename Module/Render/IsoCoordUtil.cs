@@ -12,7 +12,7 @@ namespace MiniRPG.Module.Render;
 /// 其中：
 ///   TileHalfW = 64  (128/2，等距菱形宽度的一半)
 ///   TileHalfH = 32  (64/2，等距菱形高度的一半)
-///   ZStep     = 84  (每层 Z 的像素偏移 = 方块侧面高度)
+///   ZStep     = 64  (每层 Z 的像素偏移 = 方块侧面高度)
 ///
 /// Z 约定：Z=0 为基准地表，Z>0 为地下（屏幕上更低），Z&lt;0 为地上（屏幕上更高）。
 /// </summary>
@@ -25,7 +25,7 @@ public static class IsoCoordUtil
 	public const float TileHalfH = 32f;
 
 	/// <summary>每层 Z 的垂直像素偏移（= 方块侧面高度，保持正方体比例）。</summary>
-	public const float ZStep = 84f;
+	public const float ZStep = 64f;
 
 	/// <summary>
 	/// 世界坐标 → 屏幕坐标（等距投影）。
