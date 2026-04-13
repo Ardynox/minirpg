@@ -59,38 +59,14 @@ public sealed class LightMap
 
 		// Pass 1: collect light sources in visible region (+ margin for lights just outside view)
 		const int margin = 6;
-		for (var wy = cy - halfH - margin; wy <= cy + halfH + margin; wy++)
-		for (var wx = cx - halfW - margin; wx <= cx + halfW + margin; wx++)
-		for (var wz = zMax; wz >= zMin; wz--)
-		{
-			// Check terrain-based emitters
-			var terrain = world.GetTerrain(wx, wy, wz);
-			if (terrain.StringId == Terrains.Lava)
-			{
-				_lights.Add(new PointLight(wx, wy, wz, LavaLight.Radius, LavaLight.Intensity,
-					LavaLight.R, LavaLight.G, LavaLight.B));
-				continue;
-			}
-
-			// Check entity-based emitters
-			var entities = world.GetEntities(wx, wy, wz);
-			for (var i = 0; i < entities.Count; i++)
-			{
-				var e = entities[i];
-				if (e.Type != CellEntityType.Fixture) continue;
-
-				if (e.EntityId == Entities.Campfire)
-				{
-					_lights.Add(new PointLight(wx, wy, wz, CampfireLight.Radius, CampfireLight.Intensity,
-						CampfireLight.R, CampfireLight.G, CampfireLight.B));
-				}
-				else if (e.EntityId == Entities.Fire)
-				{
-					_lights.Add(new PointLight(wx, wy, wz, FireLight.Radius, FireLight.Intensity,
-						FireLight.R, FireLight.G, FireLight.B));
-				}
-			}
-		}
+		CollectLightsInVisibleWindow(
+			world,
+			cx - halfW - margin,
+			cx + halfW + margin,
+			cy - halfH - margin,
+			cy + halfH + margin,
+			zMin,
+			zMax);
 
 		if (_lights.Count == 0) return;
 
@@ -139,6 +115,101 @@ public sealed class LightMap
 
 	public bool TryGetLight(int wx, int wy, int wz, out CellLight light) =>
 		_cells.TryGetValue(CellKey(wx, wy, wz), out light);
+
+	private void CollectLightsInVisibleWindow(WorldMap world, int minX, int maxX, int minY, int maxY, int zMin, int zMax)
+	{
+		var lavaTerrainId = TerrainRegistry.GetId(Terrains.Lava);
+
+		for (var wz = zMin; wz <= zMax; wz++)
+		{
+			var minChunk = CoordUtil.WorldToChunk(minX, minY, wz);
+			var maxChunk = CoordUtil.WorldToChunk(maxX, maxY, wz);
+			for (var cy = minChunk.Cy; cy <= maxChunk.Cy; cy++)
+			for (var cx = minChunk.Cx; cx <= maxChunk.Cx; cx++)
+			{
+				var chunk = world.Chunks.GetOrLoad(new ChunkCoord(cx, cy, wz));
+				CollectTerrainLightsFromChunk(chunk, minX, maxX, minY, maxY, lavaTerrainId);
+				CollectEntityLightsFromChunk(chunk, minX, maxX, minY, maxY);
+			}
+		}
+	}
+
+	private void CollectTerrainLightsFromChunk(ChunkData chunk, int minX, int maxX, int minY, int maxY, ushort lavaTerrainId)
+	{
+		var baseX = chunk.Coord.Cx * ChunkData.Size;
+		var baseY = chunk.Coord.Cy * ChunkData.Size;
+		var localMinX = Math.Max(0, minX - baseX);
+		var localMaxX = Math.Min(ChunkData.Size - 1, maxX - baseX);
+		var localMinY = Math.Max(0, minY - baseY);
+		var localMaxY = Math.Min(ChunkData.Size - 1, maxY - baseY);
+		if (localMinX > localMaxX || localMinY > localMaxY)
+			return;
+
+		for (var ly = localMinY; ly <= localMaxY; ly++)
+		for (var lx = localMinX; lx <= localMaxX; lx++)
+		{
+			var index = CoordUtil.LocalIndex(lx, ly);
+			if (chunk.TerrainIds[index] != lavaTerrainId)
+				continue;
+
+			_lights.Add(new PointLight(
+				baseX + lx,
+				baseY + ly,
+				chunk.Coord.Cz,
+				LavaLight.Radius,
+				LavaLight.Intensity,
+				LavaLight.R,
+				LavaLight.G,
+				LavaLight.B));
+		}
+	}
+
+	private void CollectEntityLightsFromChunk(ChunkData chunk, int minX, int maxX, int minY, int maxY)
+	{
+		if (chunk.Entities.Count == 0)
+			return;
+
+		foreach (var (index, entities) in chunk.Entities)
+		{
+			var (lx, ly) = CoordUtil.IndexToLocal(index);
+			var worldX = chunk.Coord.Cx * ChunkData.Size + lx;
+			var worldY = chunk.Coord.Cy * ChunkData.Size + ly;
+			if (worldX < minX || worldX > maxX || worldY < minY || worldY > maxY)
+				continue;
+
+			for (var i = 0; i < entities.Count; i++)
+			{
+				var entity = entities[i];
+				if (entity.Type != CellEntityType.Fixture)
+					continue;
+
+				if (entity.EntityId == Entities.Campfire)
+				{
+					_lights.Add(new PointLight(
+						worldX,
+						worldY,
+						chunk.Coord.Cz,
+						CampfireLight.Radius,
+						CampfireLight.Intensity,
+						CampfireLight.R,
+						CampfireLight.G,
+						CampfireLight.B));
+				}
+				else if (entity.EntityId == Entities.Fire)
+				{
+					_lights.Add(new PointLight(
+						worldX,
+						worldY,
+						chunk.Coord.Cz,
+						FireLight.Radius,
+						FireLight.Intensity,
+						FireLight.R,
+						FireLight.G,
+						FireLight.B));
+				}
+			}
+		}
+	}
 
 	private static long CellKey(int x, int y, int z) =>
 		((long)(x + 32768) << 32) | ((long)(y + 32768) << 16) | (long)(z + 32768);

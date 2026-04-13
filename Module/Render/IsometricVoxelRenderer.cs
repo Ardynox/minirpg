@@ -1694,21 +1694,46 @@ public partial class IsometricVoxelRenderer
 			_entityCommands.Add(command);
 		}
 
-		for (var wy = cy - halfH; wy <= cy + halfH; wy++)
-		for (var wx = cx - halfW; wx <= cx + halfW; wx++)
-		for (var wz = zMax; wz >= zMin; wz--)
+		var world = _state.World!;
+		var minX = cx - halfW;
+		var maxX = cx + halfW;
+		var minY = cy - halfH;
+		var maxY = cy + halfH;
+
+		for (var wz = zMin; wz <= zMax; wz++)
 		{
-			var entities = _state.World!.GetEntities(wx, wy, wz);
-			if (entities.Count == 0) continue;
-			if (_fogTracker.GetVisionBand(wx, wy, wz) == PlayerVisionBand.Unknown) continue;
-			var tint = GetVisionTint(wx, wy, wz);
-			var pos = IsoCoordUtil.WorldToScreen(wx, wy, wz);
-			var key = IsoCoordUtil.SortKey(wx, wy, wz);
-			foreach (var e in entities)
+			var minChunk = CoordUtil.WorldToChunk(minX, minY, wz);
+			var maxChunk = CoordUtil.WorldToChunk(maxX, maxY, wz);
+			for (var chunkY = minChunk.Cy; chunkY <= maxChunk.Cy; chunkY++)
+			for (var chunkX = minChunk.Cx; chunkX <= maxChunk.Cx; chunkX++)
 			{
-				if (ShouldHideEditorPreviewFixture(_editorViewActive ? EditorHoverState : null, wx, wy, wz, e.EntityId))
+				var chunk = world.Chunks.GetOrLoad(new ChunkCoord(chunkX, chunkY, wz));
+				if (chunk.Entities.Count == 0)
 					continue;
-				_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, e.EntityId, e.Glyph, tint));
+
+				foreach (var (index, entities) in chunk.Entities)
+				{
+					var (localX, localY) = CoordUtil.IndexToLocal(index);
+					var worldX = chunk.Coord.Cx * ChunkData.Size + localX;
+					var worldY = chunk.Coord.Cy * ChunkData.Size + localY;
+					var worldZ = chunk.Coord.Cz;
+					if (worldX < minX || worldX > maxX || worldY < minY || worldY > maxY)
+						continue;
+					if (_fogTracker.GetVisionBand(worldX, worldY, worldZ) == PlayerVisionBand.Unknown)
+						continue;
+
+					var tint = GetVisionTint(worldX, worldY, worldZ);
+					var pos = IsoCoordUtil.WorldToScreen(worldX, worldY, worldZ);
+					var key = IsoCoordUtil.SortKey(worldX, worldY, worldZ);
+					for (var i = 0; i < entities.Count; i++)
+					{
+						var entity = entities[i];
+						if (ShouldHideEditorPreviewFixture(_editorViewActive ? EditorHoverState : null, worldX, worldY, worldZ, entity.EntityId))
+							continue;
+
+						_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, entity.EntityId, entity.Glyph, tint));
+					}
+				}
 			}
 		}
 
