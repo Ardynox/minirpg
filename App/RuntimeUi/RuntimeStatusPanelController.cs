@@ -11,7 +11,6 @@ namespace MiniRPG;
 internal sealed class RuntimeStatusPanelController
 {
 	private const string StatusPanelScenePath = "res://Scene/StatusPanel.tscn";
-	private static readonly Vector2 CascadeStep = new(36f, 28f);
 
 	private readonly GameState _state;
 	private readonly PanelContainer _templatePanel;
@@ -79,7 +78,7 @@ internal sealed class RuntimeStatusPanelController
 	public void OpenActor(Actor actor)
 	{
 		var key = BuildActorKey(actor.Id);
-		var entry = EnsureEntry(key, BuildPanelId("actor", actor.Id));
+		var entry = GetOrCreateEntry(key, BuildPanelId("actor", actor.Id));
 		entry.TargetKind = RuntimeStatusTargetKind.Actor;
 		entry.ActorId = actor.Id;
 		entry.ItemInstanceId = null;
@@ -94,7 +93,7 @@ internal sealed class RuntimeStatusPanelController
 			return;
 
 		var key = BuildCorpseKey(corpse.InstanceId);
-		var entry = EnsureEntry(key, BuildPanelId("corpse", corpse.InstanceId));
+		var entry = GetOrCreateEntry(key, BuildPanelId("corpse", corpse.InstanceId));
 		entry.TargetKind = RuntimeStatusTargetKind.Corpse;
 		entry.ActorId = null;
 		entry.ItemInstanceId = corpse.InstanceId;
@@ -167,6 +166,15 @@ internal sealed class RuntimeStatusPanelController
 			CloseByKey(key);
 	}
 
+	private PanelEntry GetOrCreateEntry(string key, string panelId)
+	{
+		if (_entries.TryGetValue(key, out var existing))
+			return existing;
+
+		CloseReplaceableDefaultSlot(key);
+		return EnsureEntry(key, panelId);
+	}
+
 	private PanelEntry EnsureEntry(string key, string panelId)
 	{
 		if (_entries.TryGetValue(key, out var existing))
@@ -203,9 +211,25 @@ internal sealed class RuntimeStatusPanelController
 			Dirty = false,
 		};
 		_entries[key] = entry;
-		node.GlobalPosition = ResolveDefaultPosition(_entries.Count - 1);
+		node.GlobalPosition = ResolveDefaultPosition();
 		NotifyPanelsChanged();
 		return entry;
+	}
+
+	private void CloseReplaceableDefaultSlot(string key)
+	{
+		var replaceableKey = RuntimeStatusPanelPlacementPolicy.ResolveReplaceableKey(
+			_entries.Values.Select(entry => new RuntimeStatusPanelPlacementCandidate(
+				entry.Key,
+				entry.Module.Visible,
+				entry.Module.PanelNode.GlobalPosition,
+				entry.Module.PanelNode.GetIndex())),
+			key,
+			ResolveDefaultPosition());
+		if (string.IsNullOrEmpty(replaceableKey))
+			return;
+
+		CloseByKey(replaceableKey);
 	}
 
 	private void RefreshEntry(PanelEntry entry)
@@ -310,8 +334,7 @@ internal sealed class RuntimeStatusPanelController
 		return entry;
 	}
 
-	private Vector2 ResolveDefaultPosition(int cascadeIndex) =>
-		_templatePanel.GlobalPosition + CascadeStep * cascadeIndex;
+	private Vector2 ResolveDefaultPosition() => _templatePanel.GlobalPosition;
 
 	private static string BuildActorKey(string actorId) => $"actor:{actorId}";
 
