@@ -8,6 +8,7 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 	private readonly PanelContainer _panel;
 	private readonly HBoxContainer _headerRow;
 	private readonly Label _titleLabel;
+	private readonly Button _centerButton;
 	private readonly HBoxContainer _controlRow;
 	private readonly Button _downButton;
 	private readonly Label _valueLabel;
@@ -21,7 +22,7 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 		_panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
 		_panel.OffsetLeft = 16f;
 		_panel.OffsetTop = 352f;
-		_panel.CustomMinimumSize = new Vector2(164f, 0f);
+		_panel.CustomMinimumSize = new Vector2(216f, 0f);
 
 		var margin = new MarginContainer();
 		margin.AddThemeConstantOverride("margin_left", 10);
@@ -44,6 +45,13 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 			HorizontalAlignment = HorizontalAlignment.Center,
 		};
 		_headerRow.AddChild(_titleLabel);
+
+		_centerButton = new Button
+		{
+			CustomMinimumSize = new Vector2(68f, 0f),
+			ThemeTypeVariation = "ActionButton",
+		};
+		_headerRow.AddChild(_centerButton);
 
 		_controlRow = new HBoxContainer();
 		_controlRow.AddThemeConstantOverride("separation", 8);
@@ -76,12 +84,14 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 
 		_downButton.Pressed += () => HeightChanged?.Invoke(-1);
 		_upButton.Pressed += () => HeightChanged?.Invoke(1);
+		_centerButton.Pressed += () => CenterRequested?.Invoke();
 
 		RefreshTexts();
 		Render(0);
 	}
 
 	public event Action<int>? HeightChanged;
+	public event Action? CenterRequested;
 
 	public PanelContainer PanelNode => _panel;
 	public Control DragHandle => _headerRow;
@@ -97,13 +107,12 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 
 	public void RefreshTexts()
 	{
-		_titleLabel.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.title", "Build Height");
+		_titleLabel.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.title", "View Layer");
+		_centerButton.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.center", "Player");
 	}
 
-	public void Render(int heightOffset)
+	public void Render(int cameraZ)
 	{
-		_valueLabel.Text = heightOffset >= 0
-			? $"Z +{heightOffset}"
-			: $"Z {heightOffset}";
+		_valueLabel.Text = $"Z: {cameraZ}";
 	}
 }

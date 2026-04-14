@@ -139,6 +139,7 @@ public partial class Main
 			FlushMap();
 		};
 		_runtimeWorldToolHeightPanel.HeightChanged += delta => AdjustRuntimeWorldToolHeight(delta);
+		_runtimeWorldToolHeightPanel.CenterRequested += CenterRuntimeWorldToolCameraOnPlayer;
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;

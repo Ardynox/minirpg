@@ -18,20 +18,22 @@ public sealed class RuntimeWorldToolSessionTests
 	}
 
 	[Fact]
-	public void ResetForSession_DefaultsToSelectTerrain_WithRuntimeTerrainBrushes()
+	public void ResetForSession_DefaultsToSelectTerrain_AndRecentersRuntimeCamera()
 	{
-		var session = new RuntimeWorldToolSession(CreateState(0, 1));
+		var session = new RuntimeWorldToolSession(CreateState(0, 1, playerX: 3, playerY: 4, playerZ: 5));
 
 		session.SetToolMode(WorldToolMode.Demolish);
 		session.SetCategory(WorldToolCategory.Facility);
 		session.SetHover(new Vector3I(4, 5, 0));
-		session.AdjustHeightOffset(3);
+		session.AdjustCameraZ(3);
 		session.ResetForSession();
 
 		Assert.Equal(WorldToolMode.Select, session.CurrentToolMode);
 		Assert.Equal(WorldToolCategory.Terrain, session.CurrentCategory);
 		Assert.Null(session.HoverWorld);
-		Assert.Equal(0, session.HeightOffset);
+		Assert.Equal(3, session.CameraX);
+		Assert.Equal(4, session.CameraY);
+		Assert.Equal(5, session.CameraZ);
 		Assert.NotEmpty(session.TerrainBrushes);
 		Assert.All(session.TerrainBrushes, brush => Assert.True(TerrainBuildRuleRegistry.IsAllowed(brush.Id)));
 		Assert.Equal(session.TerrainBrushes[0].Id, session.CurrentBrush.Id);
@@ -54,24 +56,23 @@ public sealed class RuntimeWorldToolSessionTests
 	}
 
 	[Fact]
-	public void ResolveHoverState_TerrainBuild_UsesHeightOffsetOnResolvedTarget()
+	public void ResolveHoverState_TerrainBuild_UsesHoveredCellAtCurrentLayer()
 	{
 		var state = CreateState(0, 1);
 		state.RuntimeFreeBuild = true;
 		var session = new RuntimeWorldToolSession(state);
 
 		session.SetToolMode(WorldToolMode.Build);
-		Assert.True(session.AdjustHeightOffset(2));
 
 		var preview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(4, 5, 1)));
+			session.ResolveHoverState(new Vector3I(4, 5, 3)));
 
 		Assert.Equal(WorldToolMode.Build, session.CurrentToolMode);
 		Assert.Equal(new Vector3I(4, 5, 3), preview.ResolvedTargetCell);
 	}
 
 	[Fact]
-	public void ResolveHoverState_TerrainSelectAndDemolish_UseHeightOffsetOnOccupiedCells()
+	public void ResolveHoverState_TerrainSelectAndDemolish_UseHoveredLayerExactly()
 	{
 		var state = CreateState(0, 1);
 		state.RuntimeFreeBuild = true;
@@ -79,23 +80,21 @@ public sealed class RuntimeWorldToolSessionTests
 		state.World.SetTerrain(2, 3, 2, Terrains.Dirt);
 		var session = new RuntimeWorldToolSession(state);
 
-		Assert.True(session.AdjustHeightOffset(1));
-
 		var selectPreview = Assert.IsType<WorldToolPreviewState>(
 			session.ResolveHoverState(new Vector3I(2, 3, 1)));
 		Assert.Equal(WorldToolMode.Select, selectPreview.ToolMode);
-		Assert.Equal(new Vector3I(2, 3, 2), selectPreview.ResolvedTargetCell);
+		Assert.Equal(new Vector3I(2, 3, 1), selectPreview.ResolvedTargetCell);
 		Assert.True(selectPreview.CanApply);
 
 		session.SetToolMode(WorldToolMode.Demolish);
 		var demolishPreview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(2, 3, 1)));
+			session.ResolveHoverState(new Vector3I(2, 3, 2)));
 		Assert.Equal(new Vector3I(2, 3, 2), demolishPreview.ResolvedTargetCell);
 		Assert.True(demolishPreview.CanApply);
 	}
 
 	[Fact]
-	public void ResolveHoverState_FacilityBuild_UsesHeightOffsetOnPlacementTarget()
+	public void ResolveHoverState_FacilityBuild_UsesHoveredCellAtCurrentLayer()
 	{
 		var state = CreateState(0, 1);
 		state.RuntimeFreeBuild = true;
@@ -103,10 +102,9 @@ public sealed class RuntimeWorldToolSessionTests
 
 		session.SetCategory(WorldToolCategory.Facility);
 		session.SetToolMode(WorldToolMode.Build);
-		Assert.True(session.AdjustHeightOffset(2));
 
 		var preview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(6, 7, 0)));
+			session.ResolveHoverState(new Vector3I(6, 7, 2)));
 
 		Assert.Equal(WorldToolCategory.Facility, preview.Category);
 		Assert.Equal(new Vector3I(6, 7, 2), preview.ResolvedTargetCell);
@@ -114,28 +112,43 @@ public sealed class RuntimeWorldToolSessionTests
 	}
 
 	[Fact]
-	public void ResolveHoverState_FacilitySelectAndDemolish_UseHeightOffsetOnOccupiedCells()
+	public void ResolveHoverState_FacilitySelectAndDemolish_UseHoveredLayerExactly()
 	{
 		var state = CreateState(0, 1);
 		AddFacility(state, "facility-under-test", FacilityIds.Bed, 8, 9, 2);
 		var session = new RuntimeWorldToolSession(state);
 
 		session.SetCategory(WorldToolCategory.Facility);
-		Assert.True(session.AdjustHeightOffset(2));
 
 		var selectPreview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(8, 9, 0)));
+			session.ResolveHoverState(new Vector3I(8, 9, 2)));
 		Assert.Equal(WorldToolMode.Select, selectPreview.ToolMode);
 		Assert.Equal(new Vector3I(8, 9, 2), selectPreview.ResolvedTargetCell);
 		Assert.Equal("facility-under-test", selectPreview.ResolvedEntityId);
 		Assert.True(selectPreview.CanApply);
 
+		var emptyLayerPreview = Assert.IsType<WorldToolPreviewState>(
+			session.ResolveHoverState(new Vector3I(8, 9, 0)));
+		Assert.Null(emptyLayerPreview.ResolvedTargetCell);
+		Assert.False(emptyLayerPreview.CanApply);
+
 		session.SetToolMode(WorldToolMode.Demolish);
 		var demolishPreview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(8, 9, 0)));
+			session.ResolveHoverState(new Vector3I(8, 9, 2)));
 		Assert.Equal(new Vector3I(8, 9, 2), demolishPreview.ResolvedTargetCell);
 		Assert.Equal("facility-under-test", demolishPreview.ResolvedEntityId);
 		Assert.True(demolishPreview.CanApply);
+	}
+
+	[Fact]
+	public void AdjustCameraZ_ClampsWithinRuntimeLayerRange()
+	{
+		var session = new RuntimeWorldToolSession(CreateState(0, 1, playerZ: 0));
+
+		Assert.True(session.AdjustCameraZ(99));
+		Assert.Equal(20, session.CameraZ);
+		Assert.True(session.AdjustCameraZ(-99));
+		Assert.Equal(-20, session.CameraZ);
 	}
 
 	[Fact]
@@ -158,24 +171,29 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Null(MapEditorBrushPreviewResolver.ResolveEntityPreview("runtime_tool_missing_preview"));
 	}
 
-	private static GameState CreateState(int facingX, int facingY)
+	private static GameState CreateState(
+		int facingX,
+		int facingY,
+		int playerX = 0,
+		int playerY = 0,
+		int playerZ = 0)
 	{
 		var state = new GameState
 		{
 			WorldSeed = 2468,
 			PlayerId = "player",
-			PlayerX = 0,
-			PlayerY = 0,
-			PlayerZ = 0,
+			PlayerX = playerX,
+			PlayerY = playerY,
+			PlayerZ = playerZ,
 			World = new WorldMap(2468, new AirGenerator()),
 			Actors = new Dictionary<string, Actor>(StringComparer.Ordinal),
 		};
 		var player = new Actor
 		{
 			Id = state.PlayerId,
-			X = 0,
-			Y = 0,
-			Z = 0,
+			X = playerX,
+			Y = playerY,
+			Z = playerZ,
 			FacingX = facingX,
 			FacingY = facingY,
 			Faction = Factions.Player,

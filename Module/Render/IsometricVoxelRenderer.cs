@@ -125,6 +125,7 @@ public partial class IsometricVoxelRenderer
 	private float _maxCameraZoom = 2.4f;
 	private const float CameraZoomStep = 0.1f;
 	private bool _editorViewActive;
+	private bool _runtimeViewActive;
 	private int _viewCenterX;
 	private int _viewCenterY;
 	private int _viewCenterZ;
@@ -428,6 +429,17 @@ public partial class IsometricVoxelRenderer
 		_viewCenterZ = centerZ;
 	}
 
+	public void SetRuntimeView(bool active, int centerX, int centerY, int centerZ)
+	{
+		_runtimeViewActive = active;
+		if (!active)
+			return;
+
+		_viewCenterX = centerX;
+		_viewCenterY = centerY;
+		_viewCenterZ = centerZ;
+	}
+
 	internal static Vector3I? ResolveHoverHighlightCell(
 		Vector3I? hoverWorldCell,
 		WorldToolPreviewState? previewState)
@@ -562,9 +574,12 @@ public partial class IsometricVoxelRenderer
 			_fogTracker.RevealAll = false;
 			_fogTracker.Update(_state);
 			_weatherFxController?.RefreshWeatherScreenFxTarget(editorViewActive: false);
-			_viewCenterX = _state.PlayerX;
-			_viewCenterY = _state.PlayerY;
-			_viewCenterZ = _state.PlayerZ;
+			if (!_runtimeViewActive)
+			{
+				_viewCenterX = _state.PlayerX;
+				_viewCenterY = _state.PlayerY;
+				_viewCenterZ = _state.PlayerZ;
+			}
 		}
 
 		Render();
@@ -649,6 +664,13 @@ public partial class IsometricVoxelRenderer
 	{
 		worldCell = Vector3I.Zero;
 		if (_state.World == null) return false;
+
+		if (_runtimeViewActive)
+		{
+			var (runtimeX, runtimeY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _viewCenterZ);
+			worldCell = new Vector3I(runtimeX, runtimeY, _viewCenterZ);
+			return true;
+		}
 
 		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
 		var visibleWindow = GetVisibleWorldWindow();
@@ -2034,7 +2056,9 @@ public partial class IsometricVoxelRenderer
 			return;
 		if (hover.Z < zMin || hover.Z > zMax)
 			return;
-		if (_fogTracker.GetVisionBand(hover.X, hover.Y, hover.Z) == PlayerVisionBand.Unknown)
+		var allowHighlightWithoutVision = !_editorViewActive && previewState != null;
+		if (!allowHighlightWithoutVision
+			&& _fogTracker.GetVisionBand(hover.X, hover.Y, hover.Z) == PlayerVisionBand.Unknown)
 			return;
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);

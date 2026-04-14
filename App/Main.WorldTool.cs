@@ -94,7 +94,7 @@ public partial class Main
 			_runtimeWorldToolSession.BuildSummary(previewState),
 			_runtimeWorldToolSession.FacilityRotation,
 			showRotationControls: _runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Facility);
-		_runtimeWorldToolHeightPanel.Render(_runtimeWorldToolSession.HeightOffset);
+		_runtimeWorldToolHeightPanel.Render(_runtimeWorldToolSession.CameraZ);
 	}
 
 	private WorldToolPreviewState? ResolveRuntimeWorldToolPreviewState()
@@ -129,10 +129,25 @@ public partial class Main
 		if (_runtimeWorldToolSession == null || _runtimeWorldToolSession.CurrentToolMode != WorldToolMode.Select)
 			return null;
 
-		if (previewState is { ShowInfoOverlay: true, ResolvedTargetCell: { } targetCell })
-			return targetCell;
+		return IsometricVoxelRenderer.ResolveHoverHighlightCell(hoveredCell, previewState);
+	}
 
-		return hoveredCell;
+	private void RefreshRuntimeWorldToolHoverFromLastPointer()
+	{
+		if (_runtimeWorldToolSession == null)
+			return;
+
+		if (_mapRender != null
+			&& _runtimeWorldToolHasLastPointerGlobalPosition
+			&& _mapRender.TryGetWorldCellFromGlobalPosition(_runtimeWorldToolLastPointerGlobalPosition, out var worldCell))
+		{
+			_runtimeWorldToolSession.SetHover(worldCell);
+			RefreshRuntimeWorldHoverPresentation(worldCell);
+			return;
+		}
+
+		_runtimeWorldToolSession.SetHover(null);
+		RefreshRuntimeWorldHoverPresentation(null);
 	}
 
 	private bool TryApplyRuntimeWorldToolAtCell(Vector3I worldCell)
@@ -210,10 +225,26 @@ public partial class Main
 
 	private void AdjustRuntimeWorldToolHeight(int delta)
 	{
-		if (_runtimeWorldToolSession == null || !_runtimeWorldToolSession.AdjustHeightOffset(delta))
+		if (_runtimeWorldToolSession == null || !_runtimeWorldToolSession.AdjustCameraZ(delta))
 			return;
 
-		RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+		_runtimeWorldToolDragActive = false;
+		_runtimeWorldToolLastAppliedCell = null;
+		FlushMap();
+		RefreshRuntimeWorldToolHoverFromLastPointer();
+		FlushMap();
+	}
+
+	private void CenterRuntimeWorldToolCameraOnPlayer()
+	{
+		if (_runtimeWorldToolSession == null)
+			return;
+
+		_runtimeWorldToolSession.CenterOnActiveActor();
+		_runtimeWorldToolDragActive = false;
+		_runtimeWorldToolLastAppliedCell = null;
+		FlushMap();
+		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
 	}
 

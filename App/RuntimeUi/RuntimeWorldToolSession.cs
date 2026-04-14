@@ -19,8 +19,7 @@ internal readonly record struct RuntimeWorldToolBrush(
 
 internal sealed class RuntimeWorldToolSession
 {
-	private const int TerrainColumnScanDepth = 16;
-	private const int MaxHeightOffset = 20;
+	private const int MaxCameraLayer = 20;
 
 	private readonly GameState _state;
 	private readonly List<RuntimeWorldToolBrush> _terrainBrushes = [];
@@ -34,13 +33,16 @@ internal sealed class RuntimeWorldToolSession
 	{
 		_state = state;
 		RefreshBrushes();
+		CenterOnActiveActor();
 	}
 
 	public WorldToolMode CurrentToolMode { get; private set; } = WorldToolMode.Select;
 	public WorldToolCategory CurrentCategory { get; private set; } = WorldToolCategory.Terrain;
 	public Vector3I? HoverWorld { get; private set; }
 	public FacilityRotation FacilityRotation { get; private set; } = FacilityRotation.South;
-	public int HeightOffset { get; private set; }
+	public int CameraX { get; private set; }
+	public int CameraY { get; private set; }
+	public int CameraZ { get; private set; }
 
 	public IReadOnlyList<RuntimeWorldToolBrush> TerrainBrushes => _terrainBrushes;
 	public IReadOnlyList<RuntimeWorldToolBrush> FacilityBrushes => _facilityBrushes;
@@ -63,7 +65,7 @@ internal sealed class RuntimeWorldToolSession
 		CurrentCategory = WorldToolCategory.Terrain;
 		HoverWorld = null;
 		_reverseStack = false;
-		HeightOffset = 0;
+		CenterOnActiveActor();
 		_facilityRotationSeeded = false;
 		_facilityBrushIndex = _facilityBrushes.Count > 0 ? Math.Clamp(_facilityBrushIndex, 0, _facilityBrushes.Count - 1) : -1;
 		_terrainBrushIndex = _terrainBrushes.Count > 0 ? Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1) : -1;
@@ -138,16 +140,24 @@ internal sealed class RuntimeWorldToolSession
 		return true;
 	}
 
-	public bool AdjustHeightOffset(int delta)
+	public void CenterOnActiveActor()
+	{
+		var actor = ResolveActiveActor();
+		CameraX = actor?.X ?? _state.PlayerX;
+		CameraY = actor?.Y ?? _state.PlayerY;
+		CameraZ = actor?.Z ?? _state.PlayerZ;
+	}
+
+	public bool AdjustCameraZ(int delta)
 	{
 		if (delta == 0)
 			return false;
 
-		var next = Math.Clamp(HeightOffset + delta, -MaxHeightOffset, MaxHeightOffset);
-		if (next == HeightOffset)
+		var next = Math.Clamp(CameraZ + delta, -MaxCameraLayer, MaxCameraLayer);
+		if (next == CameraZ)
 			return false;
 
-		HeightOffset = next;
+		CameraZ = next;
 		return true;
 	}
 
@@ -213,9 +223,10 @@ internal sealed class RuntimeWorldToolSession
 
 	private WorldToolPreviewState ResolveTerrainBuildPreview(Vector3I hoverCell, bool reverseStack)
 	{
+		_ = reverseStack;
 		var world = _state.World!;
 		var brush = CurrentBrush;
-		var targetCell = ApplyHeightOffset(ResolveTerrainBuildTargetCell(hoverCell, reverseStack));
+		var targetCell = ResolveTerrainBuildTargetCell(hoverCell);
 		var targetTerrain = targetCell is { } resolvedTarget
 			? world.GetTerrain(resolvedTarget.X, resolvedTarget.Y, resolvedTarget.Z).StringId
 			: null;
@@ -245,7 +256,7 @@ internal sealed class RuntimeWorldToolSession
 	private WorldToolPreviewState ResolveTerrainOccupiedPreview(Vector3I hoverCell)
 	{
 		var brush = CurrentBrush;
-		var targetCell = ApplyHeightOffset(ResolveTerrainOccupiedTargetCell(hoverCell));
+		var targetCell = ResolveTerrainOccupiedTargetCell(hoverCell);
 		var existingTerrainId = targetCell is { } resolvedTarget
 			? _state.World!.GetTerrain(resolvedTarget.X, resolvedTarget.Y, resolvedTarget.Z).StringId
 			: null;
@@ -278,7 +289,7 @@ internal sealed class RuntimeWorldToolSession
 		var brush = CurrentBrush;
 		var def = FacilityRegistry.Get(brush.Id);
 		var costs = RuntimeBuildActionModule.GetFacilityCosts(brush.Id);
-		var targetCell = ApplyHeightOffset(hoverCell);
+		var targetCell = hoverCell;
 		var canApply = def != null
 			&& _state.World != null
 			&& _state.World.GetFacilityBlockers(def, targetCell.X, targetCell.Y, targetCell.Z, FacilityRotation).Count == 0
@@ -300,7 +311,7 @@ internal sealed class RuntimeWorldToolSession
 	private WorldToolPreviewState ResolveFacilityOccupiedPreview(Vector3I hoverCell)
 	{
 		var brush = CurrentBrush;
-		var targetCell = ApplyHeightOffset(hoverCell);
+		var targetCell = hoverCell;
 		FacilityInstance? facility = null;
 		_state.World!.TryGetFacilityAt(targetCell.X, targetCell.Y, targetCell.Z, out facility);
 		var canApply = facility != null;
@@ -320,22 +331,10 @@ internal sealed class RuntimeWorldToolSession
 			ghostFacility: showGhost ? facility : null);
 	}
 
-	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell, bool reverseStack)
+	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell)
 	{
 		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
-		if (pickedTerrain is Terrains.Air or Terrains.Void)
-			return hoverCell;
-
-		var zStep = reverseStack ? 1 : -1;
-		var placeZ = hoverCell.Z + zStep;
-		for (var scanned = 0; scanned < TerrainColumnScanDepth; scanned++, placeZ += zStep)
-		{
-			var terrain = _state.World.GetTerrain(hoverCell.X, hoverCell.Y, placeZ).StringId;
-			if (terrain is Terrains.Air or Terrains.Void)
-				return new Vector3I(hoverCell.X, hoverCell.Y, placeZ);
-		}
-
-		return null;
+		return pickedTerrain is Terrains.Air or Terrains.Void ? hoverCell : null;
 	}
 
 	private Vector3I? ResolveTerrainOccupiedTargetCell(Vector3I hoverCell)
@@ -399,14 +398,6 @@ internal sealed class RuntimeWorldToolSession
 			ghostFacility);
 
 	private Actor? ResolveActiveActor() => PartyModule.GetActiveActor(_state) ?? ActorModule.GetPlayer(_state);
-
-	private Vector3I? ApplyHeightOffset(Vector3I? cell) =>
-		cell is { } resolvedCell
-			? new Vector3I(resolvedCell.X, resolvedCell.Y, resolvedCell.Z + HeightOffset)
-			: null;
-
-	private Vector3I ApplyHeightOffset(Vector3I cell) =>
-		new(cell.X, cell.Y, cell.Z + HeightOffset);
 
 	private void EnsureFacilityRotationSeeded()
 	{

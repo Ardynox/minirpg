@@ -26,6 +26,9 @@ internal sealed class RuntimeViewCoordinator
 		int mapEditorCameraX,
 		int mapEditorCameraY,
 		int mapEditorCameraZ,
+		int runtimeCameraX,
+		int runtimeCameraY,
+		int runtimeCameraZ,
 		Vector3I? mapEditorHoverWorld,
 		MapEditorHoverState? mapEditorHoverState,
 		Action syncViewToActiveActor,
@@ -36,16 +39,20 @@ internal sealed class RuntimeViewCoordinator
 
 		syncViewToActiveActor();
 		var editorPreviewState = MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(mapEditorHoverState);
-		var editorZ = mapEditorActive ? mapEditorCameraZ : _state.PlayerZ;
 		_ui.MapRender.TargetCursorWorldCell = targetCursorWorldCell;
 		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : gameplayHoverWorldCell;
 		_ui.MapRender.EditorHoverState = mapEditorActive ? mapEditorHoverState : null;
 		_ui.MapRender.WorldToolPreviewState = mapEditorActive ? editorPreviewState : runtimeWorldToolPreviewState;
 		_ui.MapRender.SetEditorView(
 			mapEditorActive,
-			mapEditorActive ? mapEditorCameraX : _state.PlayerX,
-			mapEditorActive ? mapEditorCameraY : _state.PlayerY,
-			editorZ);
+			mapEditorCameraX,
+			mapEditorCameraY,
+			mapEditorCameraZ);
+		_ui.MapRender.SetRuntimeView(
+			!mapEditorActive,
+			runtimeCameraX,
+			runtimeCameraY,
+			runtimeCameraZ);
 		_ui.MapRender.Flush();
 		markUiDirty();
 	}

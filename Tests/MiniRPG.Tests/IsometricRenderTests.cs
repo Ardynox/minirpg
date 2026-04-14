@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Versioning;
 using Godot;
@@ -481,6 +483,83 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_SetRuntimeView_UpdatesRuntimeViewCenter()
+	{
+		var state = new GameState
+		{
+			PlayerX = 1,
+			PlayerY = 2,
+			PlayerZ = 0,
+			World = CreateAirOnlyWorld(),
+		};
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker(), viewW: 20, viewH: 20);
+
+		renderer.SetEditorView(active: false, centerX: 0, centerY: 0, centerZ: 0);
+		renderer.SetRuntimeView(active: true, centerX: 7, centerY: 8, centerZ: 9);
+
+		Assert.Equal(7, GetPrivateField<int>(renderer, "_viewCenterX"));
+		Assert.Equal(8, GetPrivateField<int>(renderer, "_viewCenterY"));
+		Assert.Equal(9, GetPrivateField<int>(renderer, "_viewCenterZ"));
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_TryPickIsometricCell_RuntimeViewUsesCurrentLayerCell()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(5, 6, 0, Terrains.Stone);
+		world.SetTerrain(5, 6, 3, Terrains.Dirt);
+		var state = new GameState { World = world };
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker(), viewW: 20, viewH: 20);
+		renderer.SetRuntimeView(active: true, centerX: 5, centerY: 6, centerZ: 2);
+
+		var method = typeof(IsometricVoxelRenderer).GetMethod("TryPickIsometricCell", BindingFlags.NonPublic | BindingFlags.Instance);
+		Assert.NotNull(method);
+
+		var screen = IsoCoordUtil.WorldToScreen(5, 6, 2);
+		object?[] args = [screen, null];
+
+		var picked = (bool)method!.Invoke(renderer, args)!;
+
+		Assert.True(picked);
+		Assert.Equal(new Vector3I(5, 6, 2), Assert.IsType<Vector3I>(args[1]));
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_CollectHoverHighlights_RuntimePreviewIgnoresUnknownFog()
+	{
+		var hoverCell = new Vector3I(3, 4, 2);
+		var renderer = new IsometricVoxelRenderer(
+			new GameState { World = CreateAirOnlyWorld() },
+			new FogOfWarTracker(),
+			viewW: 20,
+			viewH: 20)
+		{
+			HoverWorldCell = hoverCell,
+		};
+		var previewState = new WorldToolPreviewState(
+			WorldToolMode.Select,
+			WorldToolCategory.Terrain,
+			WorldToolPreviewKind.Terrain,
+			hoverCell,
+			ResolvedTargetCell: hoverCell,
+			BrushId: Terrains.Floor,
+			BrushGlyph: "#",
+			CanApply: true,
+			ShowGhost: false,
+			ShowInfoOverlay: true,
+			GhostRenderId: null,
+			GhostGlyph: null,
+			ResolvedEntityId: null,
+			HideResolvedTargetInWorld: false,
+			GhostFacility: null);
+
+		InvokeCollectHoverHighlights(renderer, hoverCell, previewState);
+
+		Assert.Single(GetPrivateField<IList>(renderer, "_highlightCommands").Cast<object>());
+		Assert.Equal(1, GetPrivateField<int>(renderer, "_highlightCommandCount"));
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_EditorPlacementGhost_UsesThirtyPercentAlpha()
 	{
 		Assert.True(Mathf.Abs(IsometricVoxelRenderer.EditorPlacementGhostAlpha - 0.30f) < 0.0001f);
@@ -807,6 +886,23 @@ public sealed class IsometricRenderTests
 		var method = typeof(IsometricVoxelRenderer).GetMethod("BuildHoverVolumeGeometry", BindingFlags.NonPublic | BindingFlags.Static);
 		Assert.NotNull(method);
 		return method!.Invoke(null, [topCenter])!;
+	}
+
+	private static void InvokeCollectHoverHighlights(
+		IsometricVoxelRenderer renderer,
+		Vector3I hoverCell,
+		WorldToolPreviewState previewState)
+	{
+		var method = typeof(IsometricVoxelRenderer).GetMethod("CollectHoverHighlights", BindingFlags.NonPublic | BindingFlags.Instance);
+		Assert.NotNull(method);
+		method!.Invoke(renderer, [hoverCell.X, hoverCell.Y, hoverCell.Z, 10, 10, hoverCell.Z - 2, hoverCell.Z + 2, null, previewState]);
+	}
+
+	private static T GetPrivateField<T>(object target, string fieldName)
+	{
+		var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+		Assert.NotNull(field);
+		return Assert.IsAssignableFrom<T>(field!.GetValue(target));
 	}
 
 	private static Vector2 GetGeometryPoint(object geometry, string propertyName)
