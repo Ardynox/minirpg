@@ -144,6 +144,16 @@ public sealed class InputBindingServiceTests
 		Assert.Equal(3, changedCount);
 	}
 
+	[Fact]
+	public void GetActions_CameraReturnAction_KeepsDefaultVBinding()
+	{
+		using var harness = new Harness();
+
+		var action = GetAction(InputBindingContext.Action, "camera_toggle_mode", harness.Service);
+
+		Assert.Equal(Key.V, action.Primary.Keycode);
+	}
+
 	private static BindingActionView GetAction(InputBindingContext context, string actionId, InputBindingService service) =>
 		Assert.Single(service.GetActions(context), action => action.Id == actionId);
 

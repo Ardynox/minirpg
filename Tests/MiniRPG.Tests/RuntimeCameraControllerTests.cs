@@ -28,11 +28,11 @@ public sealed class RuntimeCameraControllerTests
 	}
 
 	[Fact]
-	public void ToggleMode_FirstPanSnapshot_SeedsFromActiveActor()
+	public void BeginPanDragFromCurrentView_FollowMode_SeedsFromActiveActor()
 	{
 		var controller = new RuntimeCameraController(CreateState(playerX: 6, playerY: 7, playerZ: 2));
 
-		controller.ToggleMode();
+		Assert.True(controller.BeginPanDragFromCurrentView());
 		var snapshot = controller.BuildSnapshot();
 
 		Assert.Equal(RuntimeCameraMode.LayerPan, snapshot.Mode);
@@ -45,8 +45,7 @@ public sealed class RuntimeCameraControllerTests
 	public void PanDrag_MovesPanCameraByScreenSpaceDelta()
 	{
 		var controller = new RuntimeCameraController(CreateState(playerX: 10, playerY: 20, playerZ: 5));
-		controller.ToggleMode();
-		Assert.True(controller.BeginPanDrag());
+		Assert.True(controller.BeginPanDragFromCurrentView());
 
 		var changed = controller.PanByScreenDelta(new Vector2(64f, 32f));
 		controller.EndPanDrag();
@@ -60,35 +59,60 @@ public sealed class RuntimeCameraControllerTests
 	}
 
 	[Fact]
-	public void ToggleMode_ReturningToPan_RestoresPreviousPanPosition()
+	public void BeginPanDragFromCurrentView_LayerPan_PreservesExistingPanPosition()
 	{
 		var state = CreateState(playerX: 2, playerY: 3, playerZ: 1);
 		var controller = new RuntimeCameraController(state);
 
-		controller.ToggleMode();
-		controller.BeginPanDrag();
+		controller.BeginPanDragFromCurrentView();
 		controller.PanByScreenDelta(new Vector2(-64f, -32f));
 		controller.EndPanDrag();
 		var panSnapshot = controller.BuildSnapshot();
 
-		controller.ToggleMode();
 		var actor = Assert.IsType<Actor>(ActorModule.GetPlayer(state));
 		actor.X = 30;
 		actor.Y = 40;
 		actor.Z = 6;
 
-		var followSnapshot = controller.BuildSnapshot();
-		controller.ToggleMode();
+		controller.BeginPanDragFromCurrentView();
 		var restoredPanSnapshot = controller.BuildSnapshot();
 
-		Assert.Equal(RuntimeCameraMode.FollowActor, followSnapshot.Mode);
-		Assert.Equal(30, followSnapshot.CenterX);
-		Assert.Equal(40, followSnapshot.CenterY);
-		Assert.Equal(6, followSnapshot.CenterZ);
 		Assert.Equal(RuntimeCameraMode.LayerPan, restoredPanSnapshot.Mode);
 		Assert.Equal(panSnapshot.CenterX, restoredPanSnapshot.CenterX);
 		Assert.Equal(panSnapshot.CenterY, restoredPanSnapshot.CenterY);
 		Assert.Equal(panSnapshot.CenterZ, restoredPanSnapshot.CenterZ);
+	}
+
+	[Fact]
+	public void ReturnToFollowActor_EndsDragAndReseedsNextPanFromActiveActor()
+	{
+		var state = CreateState(playerX: 4, playerY: 5, playerZ: 1);
+		var controller = new RuntimeCameraController(state);
+		var actor = Assert.IsType<Actor>(ActorModule.GetPlayer(state));
+
+		controller.BeginPanDragFromCurrentView();
+		controller.PanByScreenDelta(new Vector2(-64f, -32f));
+
+		actor.X = 12;
+		actor.Y = 14;
+		actor.Z = 3;
+
+		Assert.True(controller.ReturnToFollowActor());
+		var followSnapshot = controller.BuildSnapshot();
+
+		Assert.Equal(RuntimeCameraMode.FollowActor, followSnapshot.Mode);
+		Assert.Equal(12, followSnapshot.CenterX);
+		Assert.Equal(14, followSnapshot.CenterY);
+		Assert.Equal(3, followSnapshot.CenterZ);
+		Assert.False(controller.IsPanDragActive);
+
+		controller.BeginPanDragFromCurrentView();
+		var resumedPanSnapshot = controller.BuildSnapshot();
+
+		Assert.Equal(RuntimeCameraMode.LayerPan, resumedPanSnapshot.Mode);
+		Assert.Equal(12, resumedPanSnapshot.CenterX);
+		Assert.Equal(14, resumedPanSnapshot.CenterY);
+		Assert.Equal(3, resumedPanSnapshot.CenterZ);
 	}
 
 	[Fact]
@@ -98,7 +122,7 @@ public sealed class RuntimeCameraControllerTests
 
 		Assert.False(controller.AdjustPanZ(1));
 
-		controller.ToggleMode();
+		controller.BeginPanDragFromCurrentView();
 		Assert.True(controller.AdjustPanZ(99));
 		Assert.Equal(20, controller.BuildSnapshot().CenterZ);
 		Assert.True(controller.AdjustPanZ(-99));

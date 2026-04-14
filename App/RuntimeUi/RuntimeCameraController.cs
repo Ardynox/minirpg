@@ -52,14 +52,25 @@ internal sealed class RuntimeCameraController
 		CenterOnActiveActor();
 	}
 
-	public bool ToggleMode()
+	public bool BeginPanDragFromCurrentView()
 	{
-		Mode = Mode == RuntimeCameraMode.FollowActor
-			? RuntimeCameraMode.LayerPan
-			: RuntimeCameraMode.FollowActor;
-		EnsurePanCameraInitialized();
-		_panDragActive = false;
+		if (Mode == RuntimeCameraMode.FollowActor)
+			CenterOnActiveActor();
+		else
+			EnsurePanCameraInitialized();
+
+		Mode = RuntimeCameraMode.LayerPan;
+		_panDragActive = true;
 		return true;
+	}
+
+	public bool ReturnToFollowActor()
+	{
+		var changed = Mode != RuntimeCameraMode.FollowActor || _panDragActive;
+		CenterOnActiveActor();
+		Mode = RuntimeCameraMode.FollowActor;
+		_panDragActive = false;
+		return changed;
 	}
 
 	public void CenterOnActiveActor()
@@ -85,16 +96,6 @@ internal sealed class RuntimeCameraController
 			return false;
 
 		_panCameraZ = next;
-		return true;
-	}
-
-	public bool BeginPanDrag()
-	{
-		if (Mode != RuntimeCameraMode.LayerPan)
-			return false;
-
-		EnsurePanCameraInitialized();
-		_panDragActive = true;
 		return true;
 	}
 

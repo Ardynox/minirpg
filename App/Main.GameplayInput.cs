@@ -4,6 +4,8 @@ namespace MiniRPG;
 
 public partial class Main
 {
+	private const float RuntimeCameraRightDragStartThreshold = 4f;
+
 	private bool _zoomHintShown;
 	private ulong _lastZoomLimitLogAtMsec;
 
@@ -25,20 +27,17 @@ public partial class Main
 		if (HandleWorldHoverInput(@event, snapshot))
 			return true;
 
-		if (@event is InputEventMouseButton releasedButton
-			&& releasedButton.ButtonIndex == MouseButton.Left
-			&& !releasedButton.Pressed)
+		if (@event is InputEventMouseButton releasedButton && !releasedButton.Pressed)
 		{
-			_runtimeWorldToolDragActive = false;
-			_runtimeWorldToolLastDraggedHoverCell = null;
-			return false;
-		}
+			if (releasedButton.ButtonIndex == MouseButton.Left)
+			{
+				_runtimeWorldToolDragActive = false;
+				_runtimeWorldToolLastDraggedHoverCell = null;
+				return false;
+			}
 
-		if (@event is InputEventMouseButton releasedMiddleButton
-			&& releasedMiddleButton.ButtonIndex == MouseButton.Middle
-			&& !releasedMiddleButton.Pressed)
-		{
-			return _runtimeCameraController.EndPanDrag();
+			if (releasedButton.ButtonIndex == MouseButton.Right)
+				return HandleGameplayRightMouseRelease();
 		}
 
 		if (@event is not InputEventMouseButton mb || !mb.Pressed)
@@ -49,6 +48,9 @@ public partial class Main
 		if (HandleGameplayMouseWheelInput(mb, snapshot))
 			return true;
 
+		if (mb.ButtonIndex == MouseButton.Middle)
+			return ReturnRuntimeCameraToPlayer();
+
 		if ((_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(mb.GlobalPosition))
 			|| (_runtimeWorldToolHeightPanel.Visible && _runtimeWorldToolHeightPanel.IsPointerOver(mb.GlobalPosition)))
 			return false;
@@ -58,41 +60,12 @@ public partial class Main
 
 		var hit = _panels.HitTest(mb.GlobalPosition);
 
-		if (mb.ButtonIndex == MouseButton.Middle)
-		{
-			if (_runtimeCameraController == null)
-				return false;
-			if (hit != null && hit.PanelId != "map")
-				return false;
-			if (_mapRender == null || !_mapRender.TryGetWorldCellFromGlobalPosition(mb.GlobalPosition, out _))
-				return false;
-			if (!_runtimeCameraController.BeginPanDrag())
-				return false;
-
-			_panels.SetFocus("map");
-			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld, mb.GlobalPosition);
-			return true;
-		}
-
 		if (mb.ButtonIndex == MouseButton.Right)
 		{
-			if (GetArmedSkill() != null)
-			{
-				if (TryCastArmedSkillAtMouse(mb.GlobalPosition))
-					return true;
-				return false;
-			}
-
-			if (TryOpenActorInspectPanelAtMouse(mb.GlobalPosition))
+			if (TryBeginPendingRuntimeCameraRightDrag(mb.GlobalPosition, hit))
 				return true;
 
-			if (_panels.CloseFocused())
-			{
-				FlushMap();
-				return true;
-			}
-
-			return false;
+			return ExecuteGameplayRightClick(mb.GlobalPosition);
 		}
 
 		if (mb.ButtonIndex != MouseButton.Left)
@@ -143,6 +116,102 @@ public partial class Main
 		_panels.FocusFromPointer(hit, clearFocusStack);
 		return false;
 	}
+
+	private bool ExecuteGameplayRightClick(Vector2 globalPosition)
+	{
+		if (GetArmedSkill() != null)
+		{
+			if (TryCastArmedSkillAtMouse(globalPosition))
+				return true;
+			return false;
+		}
+
+		if (TryOpenActorInspectPanelAtMouse(globalPosition))
+			return true;
+
+		if (_panels.CloseFocused())
+		{
+			FlushMap();
+			return true;
+		}
+
+		return false;
+	}
+
+	private bool HandleGameplayRightMouseRelease()
+	{
+		if (!_runtimeCameraRightClickPending && !_runtimeCameraRightClickPromotedToPan)
+			return false;
+
+		var clickPosition = _runtimeCameraRightClickPressGlobalPosition;
+		var promotedToPan = _runtimeCameraRightClickPromotedToPan;
+		ResetPendingRuntimeCameraRightDrag(endPanDrag: promotedToPan);
+		if (promotedToPan)
+			return true;
+
+		if (!_session.GameStarted || _menu.InMenu || MapEditorActive || LayoutEditActive || _busyOperationActive)
+			return false;
+
+		return ExecuteGameplayRightClick(clickPosition);
+	}
+
+	private bool TryBeginPendingRuntimeCameraRightDrag(Vector2 globalPosition, Module.Panel.IPanel? hit)
+	{
+		if (_mapRender == null)
+			return false;
+		if (hit != null && hit.PanelId != "map")
+			return false;
+		if (!_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out _))
+			return false;
+
+		_runtimeCameraRightClickPending = true;
+		_runtimeCameraRightClickStartedOnMap = true;
+		_runtimeCameraRightClickPromotedToPan = false;
+		_runtimeCameraRightClickPressGlobalPosition = globalPosition;
+		return true;
+	}
+
+	private bool TryPromotePendingRuntimeCameraRightDrag(InputEventMouseMotion motion)
+	{
+		if (_runtimeCameraController == null
+			|| !_runtimeCameraRightClickPending
+			|| !_runtimeCameraRightClickStartedOnMap
+			|| _runtimeCameraRightClickPromotedToPan)
+		{
+			return false;
+		}
+
+		if (!IsRightMouseButtonPressed(motion.ButtonMask)
+			&& !Input.IsMouseButtonPressed(MouseButton.Right))
+		{
+			return false;
+		}
+
+		if (motion.GlobalPosition.DistanceSquaredTo(_runtimeCameraRightClickPressGlobalPosition)
+			< RuntimeCameraRightDragStartThreshold * RuntimeCameraRightDragStartThreshold)
+		{
+			return false;
+		}
+
+		_runtimeCameraRightClickPromotedToPan = _runtimeCameraController.BeginPanDragFromCurrentView();
+		if (_runtimeCameraRightClickPromotedToPan)
+			_panels.SetFocus("map");
+		return _runtimeCameraRightClickPromotedToPan;
+	}
+
+	private void ResetPendingRuntimeCameraRightDrag(bool endPanDrag = false)
+	{
+		if (endPanDrag)
+			_runtimeCameraController?.EndPanDrag();
+
+		_runtimeCameraRightClickPending = false;
+		_runtimeCameraRightClickStartedOnMap = false;
+		_runtimeCameraRightClickPromotedToPan = false;
+		_runtimeCameraRightClickPressGlobalPosition = Vector2.Zero;
+	}
+
+	private static bool IsRightMouseButtonPressed(MouseButtonMask buttonMask) =>
+		(buttonMask & MouseButtonMask.Right) != 0;
 
 	private bool HandleGameplayMouseWheelInput(InputEventMouseButton mb, RuntimeUiModeSnapshot snapshot)
 	{

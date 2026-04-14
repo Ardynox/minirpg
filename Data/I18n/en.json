@@ -821,7 +821,7 @@
   "input.action.skill_next": "Next Skill",
   "input.action.toggle_status": "Status Panel",
   "input.action.quests": "Quest Panel",
-  "input.action.camera_toggle_mode": "Toggle Camera Mode",
+  "input.action.camera_toggle_mode": "Return Camera to Player",
   "input.action.minimap": "Minimap",
   "input.action.fogmap": "World Map",
   "input.action.fogmap_center": "Center World Map",

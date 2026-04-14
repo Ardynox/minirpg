@@ -277,7 +277,7 @@ public partial class Main
 
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
-			_runtimeCameraController?.EndPanDrag();
+			ResetPendingRuntimeCameraRightDrag(endPanDrag: true);
 			_runtimeWorldToolDragActive = false;
 			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
@@ -287,6 +287,7 @@ public partial class Main
 		}
 
 		var cameraChanged = false;
+		var promotedRightDrag = TryPromotePendingRuntimeCameraRightDrag(motion);
 		if (_runtimeCameraController != null
 			&& _runtimeCameraController.IsPanDragActive
 			&& _mapRender.TryGetMapLocalDeltaFromGlobalMotion(motion.Relative, out var cameraPanDelta))
@@ -303,7 +304,7 @@ public partial class Main
 			_runtimeWorldToolSession.SetHover(null);
 			RefreshRuntimeWorldHoverPresentation(null);
 			SetWorldHoverCell(null);
-			if (cameraChanged && _session.GameStarted && !_menu.InMenu && RenderReady)
+			if ((cameraChanged || promotedRightDrag) && _session.GameStarted && !_menu.InMenu && RenderReady)
 				FlushMap();
 			return false;
 		}
@@ -325,7 +326,7 @@ public partial class Main
 					_runtimeWorldToolLastDraggedHoverCell = worldCell;
 				}
 			}
-			if ((cameraChanged || hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
+			if ((cameraChanged || promotedRightDrag || hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
 				FlushMap();
 			return false;
 		}
@@ -334,7 +335,7 @@ public partial class Main
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldHoverPresentation(null);
 		SetWorldHoverCell(null);
-		if (cameraChanged && _session.GameStarted && !_menu.InMenu && RenderReady)
+		if ((cameraChanged || promotedRightDrag) && _session.GameStarted && !_menu.InMenu && RenderReady)
 			FlushMap();
 		return false;
 	}

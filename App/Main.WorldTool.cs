@@ -64,6 +64,7 @@ public partial class Main
 			return;
 
 		_runtimeCameraController.ResetForSession();
+		ResetPendingRuntimeCameraRightDrag();
 		_runtimeWorldToolSession.ResetForSession();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
@@ -272,6 +273,7 @@ public partial class Main
 			return;
 
 		_runtimeCameraController.CenterOnActiveActor();
+		ResetPendingRuntimeCameraRightDrag();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldToolHoverFromLastPointer();
@@ -289,7 +291,7 @@ public partial class Main
 		_mapRender.SetRuntimeView(!MapEditorActive, _runtimeCameraController.BuildSnapshot());
 	}
 
-	private void ToggleRuntimeCameraMode()
+	private bool ReturnRuntimeCameraToPlayer()
 	{
 		if (_runtimeCameraController == null
 			|| !_session.GameStarted
@@ -298,14 +300,16 @@ public partial class Main
 			|| LayoutEditActive
 			|| _busyOperationActive)
 		{
-			return;
+			return false;
 		}
 
-		_runtimeCameraController.ToggleMode();
+		_runtimeCameraController.ReturnToFollowActor();
+		ResetPendingRuntimeCameraRightDrag();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
+		return true;
 	}
 
 	private void HandleRuntimeWorldToolSelection(Vector3I worldCell)
