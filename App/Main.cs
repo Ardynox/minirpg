@@ -28,6 +28,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private const string TradePanelScenePath = "res://Scene/TradePanel.tscn";
 	private const string QuestPanelScenePath = "res://Scene/QuestPanel.tscn";
 	private const string DebugPanelScenePath = "res://Scene/DebugPanel.tscn";
+	private const string StatusPanelScenePath = "res://Scene/StatusPanel.tscn";
 	private const string ActorInspectPanelScenePath = "res://Scene/ActorInspectPanel.tscn";
 	private static readonly string[] LayoutEditablePanelIds =
 		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "dialog", "trade", "quest", "debug", "actor_inspect", "limb_target"];
@@ -103,6 +104,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private WorldManagerModule _worldManager = null!;
 	private WorldSettingsDialogModule _worldSettingsDialog = null!;
 	private StatusPanelModule _statusPanelModule = null!;
+	private RuntimeStatusPanelController _statusPanelController = null!;
 	private SkillBarModule _skillBar = null!;
 	private SkillManagerModule _skillMgr = null!;
 	private InventoryPanelModule _inventoryPanel = null!;
@@ -142,7 +144,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private float _hoverDwell;
 	private Vector2 _hoverLastMousePos;
 	private string? _skillTargetPreviousFocusId;
-	private string? _inspectActorId;
 	private bool _playerRestModeActive;
 	private bool _enableKeyboardTargeting;
 	private bool _enableDebugPanel = true;

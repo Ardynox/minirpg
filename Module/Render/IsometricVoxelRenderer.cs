@@ -4,6 +4,7 @@ using System.Diagnostics;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Health;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 using MiniRPG.Module.Editor;
@@ -629,6 +630,15 @@ public partial class IsometricVoxelRenderer
 		return TryPickIsometricCell(mapLocal, out worldCell);
 	}
 
+	public bool TryGetInspectWorldCellFromGlobalPosition(Vector2 globalPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (!TryGetMapLocalFromGlobalPosition(globalPos, out var mapLocal))
+			return false;
+
+		return TryPickInspectCell(mapLocal, out worldCell);
+	}
+
 	public bool TryGetEditorWorldCellFromGlobalPosition(Vector2 globalPos, int targetZ, out Vector3I worldCell)
 	{
 		worldCell = Vector3I.Zero;
@@ -673,8 +683,7 @@ public partial class IsometricVoxelRenderer
 		}
 
 		var cz = _editorViewActive ? _viewCenterZ : _state.PlayerZ;
-		var visibleWindow = GetVisibleWorldWindow();
-		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
+		var visibleDepth = GetVisibleDepthWindow();
 		var zMin = cz - visibleDepth.Above;
 		var zMax = cz + visibleDepth.Below;
 		for (var z = zMax; z >= zMin; z--)
@@ -708,6 +717,73 @@ public partial class IsometricVoxelRenderer
 		var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, targetZ);
 		worldCell = new Vector3I(wx, wy, targetZ);
 		return true;
+	}
+
+	private bool TryPickInspectCell(Vector2 screenPos, out Vector3I worldCell)
+	{
+		worldCell = Vector3I.Zero;
+		if (_state.World == null)
+			return false;
+
+		if (!_runtimeViewActive)
+			return TryPickIsometricCell(screenPos, out worldCell);
+
+		var visibleWindow = GetVisibleWorldWindow();
+		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
+		var zMin = _viewCenterZ - visibleDepth.Below;
+		var zMax = _viewCenterZ + visibleDepth.Above;
+		Vector3I? bestNonEmptyCell = null;
+		for (var z = zMax; z >= zMin; z--)
+		{
+			var (wx, wy) = IsoCoordUtil.ScreenToWorldCell(screenPos, z);
+			if (!IsWorldCellVisible(wx, wy, z))
+				continue;
+
+			var cell = new Vector3I(wx, wy, z);
+			if (ActorModule.GetAllAt(_state, wx, wy, z).Count > 0)
+			{
+				worldCell = cell;
+				return true;
+			}
+
+			var items = _state.World.PeekGroundItems(wx, wy, z);
+			if (items.Exists(static item => item.IsCorpse))
+			{
+				worldCell = cell;
+				return true;
+			}
+
+			if (bestNonEmptyCell == null && HasInspectableCellContent(wx, wy, z))
+				bestNonEmptyCell = cell;
+		}
+
+		if (bestNonEmptyCell is { } resolvedCell)
+		{
+			worldCell = resolvedCell;
+			return true;
+		}
+
+		var (fallbackX, fallbackY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _viewCenterZ);
+		worldCell = new Vector3I(fallbackX, fallbackY, _viewCenterZ);
+		return true;
+	}
+
+	private bool HasInspectableCellContent(int wx, int wy, int wz)
+	{
+		if (_state.World == null)
+			return false;
+
+		var terrain = _state.World.GetTerrain(wx, wy, wz).StringId;
+		if (terrain is not (Terrains.Air or Terrains.Void))
+			return true;
+		if (!string.IsNullOrWhiteSpace(_state.World.GetFixtureId(wx, wy, wz)))
+			return true;
+		if (_state.World.GetEntities(wx, wy, wz).Count > 0)
+			return true;
+		if (FireSystem.GetFireIntensityAt(_state, wx, wy, wz) > 0)
+			return true;
+
+		return false;
 	}
 
 	public bool TryGetWorldEffectPosition(int wx, int wy, int wz, out Vector2 position)

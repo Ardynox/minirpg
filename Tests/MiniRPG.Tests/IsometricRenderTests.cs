@@ -525,6 +525,63 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_TryPickInspectCell_RuntimeViewPrefersVisibleActorLayer()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(5, 6, 0, Terrains.Floor);
+		world.SetTerrain(5, 6, 3, Terrains.Floor);
+		var player = new Actor
+		{
+			Id = "player",
+			DisplayName = "Hero",
+			Faction = Factions.Player,
+			X = 5,
+			Y = 5,
+			Z = 0,
+		};
+		var hawk = new Actor
+		{
+			Id = "hawk",
+			DisplayName = "Hawk",
+			Faction = Factions.Hostile,
+			X = 5,
+			Y = 6,
+			Z = 3,
+		};
+		var state = new GameState
+		{
+			PlayerId = player.Id,
+			PlayerX = player.X,
+			PlayerY = player.Y,
+			PlayerZ = player.Z,
+			World = world,
+			Actors = new Dictionary<string, Actor>
+			{
+				[player.Id] = player,
+				[hawk.Id] = hawk,
+			},
+		};
+		state.World.RebuildLoadedActorIndex(state.Actors);
+		var fog = new FogOfWarTracker
+		{
+			RevealAll = true,
+		};
+		var renderer = new IsometricVoxelRenderer(state, fog, viewW: 20, viewH: 20);
+		renderer.SetRuntimeView(active: true, centerX: 5, centerY: 6, centerZ: 0);
+
+		var method = typeof(IsometricVoxelRenderer).GetMethod("TryPickInspectCell", BindingFlags.NonPublic | BindingFlags.Instance);
+		Assert.NotNull(method);
+
+		var screen = IsoCoordUtil.WorldToScreen(5, 6, 3);
+		object?[] args = [screen, null];
+
+		var picked = (bool)method!.Invoke(renderer, args)!;
+
+		Assert.True(picked);
+		Assert.Equal(new Vector3I(5, 6, 3), Assert.IsType<Vector3I>(args[1]));
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_CollectHoverHighlights_RuntimePreviewIgnoresUnknownFog()
 	{
 		var hoverCell = new Vector3I(3, 4, 2);

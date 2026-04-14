@@ -108,6 +108,27 @@ public sealed class PanelHoverChromeService
 			titleBindings);
 	}
 
+	public void Unregister(string panelId)
+	{
+		if (!_states.Remove(panelId, out var state))
+			return;
+
+		state.DragZone.GuiInput -= state.DragZoneHandler;
+		foreach (var binding in state.TitleHandleBindings)
+		{
+			if (!GodotObject.IsInstanceValid(binding.Handle))
+				continue;
+
+			binding.Handle.GuiInput -= binding.Handler;
+		}
+
+		if (ActiveSettingsPanelId == panelId)
+			CloseSettingsPopup();
+
+		state.TopBar.GetParent()?.RemoveChild(state.TopBar);
+		state.TopBar.QueueFree();
+	}
+
 	public void Update(Vector2 mousePosition, bool enabled)
 	{
 		_interactionEnabled = enabled;

@@ -1,6 +1,7 @@
 using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Facility;
+using MiniRPG.Module;
 using MiniRPG.Module.Panel;
 using MiniRPG.Module.WorldTool;
 
@@ -126,8 +127,31 @@ public partial class Main
 		Vector3I? hoveredCell,
 		WorldToolPreviewState? previewState)
 	{
+		if (_runtimeWorldToolSession.CurrentToolMode == WorldToolMode.Select)
+			return ResolveRuntimeInspectHoverCell() ?? RuntimeWorldToolInteractionLogic.ResolveInfoOverlayCell(previewState) ?? hoveredCell;
+
 		_ = hoveredCell;
 		return RuntimeWorldToolInteractionLogic.ResolveInfoOverlayCell(previewState);
+	}
+
+	private Vector3I? ResolveRuntimeRenderHoverCell(
+		Vector3I? hoveredCell,
+		WorldToolPreviewState? previewState)
+	{
+		if (_runtimeWorldToolSession.CurrentToolMode == WorldToolMode.Select)
+			return ResolveRuntimeInspectHoverCell() ?? hoveredCell;
+
+		return hoveredCell;
+	}
+
+	private Vector3I? ResolveRuntimeInspectHoverCell()
+	{
+		if (_mapRender == null || !_runtimeWorldToolHasLastPointerGlobalPosition)
+			return null;
+
+		return _mapRender.TryGetInspectWorldCellFromGlobalPosition(_runtimeWorldToolLastPointerGlobalPosition, out var inspectCell)
+			? inspectCell
+			: null;
 	}
 
 	private void RefreshRuntimeWorldToolHoverFromLastPointer()
@@ -247,15 +271,14 @@ public partial class Main
 
 	private void HandleRuntimeWorldToolSelection(Vector3I worldCell)
 	{
-		var actor = LookModule.TryGetInspectableActor(_state, _fogTracker, worldCell.X, worldCell.Y, worldCell.Z);
-		if (actor != null)
+		var target = ResolveInspectTargetFromRuntimePointerOrCell(worldCell);
+		if (target.Kind is LookInspectTargetKind.Actor or LookInspectTargetKind.CorpseItem)
 		{
-			OpenActorInspectPanel(actor);
+			OpenStatusPanelForInspectTarget(target);
 			return;
 		}
 
-		var info = LookModule.DescribeCell(_state, _fogTracker, worldCell.X, worldCell.Y, worldCell.Z);
-		_log.Add(info.Text);
+		_log.Add(target.Text);
 		_panels.SetFocus("map");
 	}
 

@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using MiniRPG.Core.Data;
+using MiniRPG.Module;
 
 namespace MiniRPG;
 
@@ -8,14 +9,13 @@ public partial class Main
 {
 	private bool TryOpenActorInspectPanelAtMouse(Vector2 globalPosition)
 	{
-		if (_mapRender == null || !_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out var worldCell))
+		if (!TryResolveInspectTargetAtMouse(globalPosition, out var target))
 			return false;
 
-		var actor = LookModule.TryGetInspectableActor(_state, _fogTracker, worldCell.X, worldCell.Y, worldCell.Z);
-		if (actor == null)
+		if (target.Kind is not (LookInspectTargetKind.Actor or LookInspectTargetKind.CorpseItem))
 			return false;
 
-		OpenActorInspectPanel(actor);
+		OpenStatusPanelForInspectTarget(target);
 		return true;
 	}
 
@@ -24,7 +24,7 @@ public partial class Main
 		if (!_skillTargetCursorActive || !key.Pressed)
 			return false;
 
-		if (_actorInspectPanel?.Visible == true && _panels.FocusedId == _actorInspectPanel.PanelId)
+		if (_statusPanelController.HasFocusedPanel)
 			return false;
 
 		if (key.Keycode is Key.Enter or Key.KpEnter)
@@ -76,7 +76,7 @@ public partial class Main
 		_skillTargetCursorActive = true;
 		_skillTargetWorldCell = ResolveSkillCursorOriginCell(player);
 		_skillTargetPreviousFocusId = _panels.FocusedId;
-		CloseActorInspectPanel();
+		_statusPanelController.CloseFocusedPanel();
 		_panels.SetFocus("map");
 		_log.Add(LocalizationService.T("ui.skill.targeting.entered", ("skill", skill.Name)));
 		FlushMap();
@@ -118,44 +118,48 @@ public partial class Main
 		FlushMap();
 	}
 
-	private void RefreshActorInspectPanel()
-	{
-		if (_actorInspectPanel == null || !_actorInspectPanel.Visible)
-			return;
+	private void RefreshStatusPanels() => _statusPanelController.RefreshVisiblePanels();
 
-		if (string.IsNullOrEmpty(_inspectActorId))
+	private void OpenActorInspectPanel(Actor actor) => _statusPanelController.OpenActor(actor);
+
+	private void OpenStatusPanelForCorpse(Item corpse, Vector3I cell) =>
+		_statusPanelController.OpenCorpse(corpse, cell);
+
+	private void OpenStatusPanelForInspectTarget(LookInspectTarget target) =>
+		_statusPanelController.OpenInspectTarget(target);
+
+	private void CloseActorInspectPanel() => _statusPanelController.CloseFocusedPanel();
+
+	private bool TryResolveInspectTargetAtMouse(Vector2 globalPosition, out LookInspectTarget target)
+	{
+		target = default;
+		if (_mapRender == null)
+			return false;
+
+		if (_mapRender.TryGetInspectWorldCellFromGlobalPosition(globalPosition, out var inspectCell))
 		{
-			CloseActorInspectPanel();
-			return;
+			target = LookModule.ResolveInspectTarget(_state, _fogTracker, inspectCell.X, inspectCell.Y, inspectCell.Z);
+			return true;
 		}
 
-		var actor = ActorModule.GetById(_state, _inspectActorId);
-		if (actor == null)
+		if (_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out var fallbackCell))
 		{
-			CloseActorInspectPanel();
-			return;
+			target = LookModule.ResolveInspectTarget(_state, _fogTracker, fallbackCell.X, fallbackCell.Y, fallbackCell.Z);
+			return true;
 		}
 
-		ActorDerivedStateUpdater.SyncInspectActor(_state, actor);
-		_actorInspectPanel.Refresh(_state, actor);
+		return false;
 	}
 
-	private void OpenActorInspectPanel(Actor actor)
+	private LookInspectTarget ResolveInspectTargetFromRuntimePointerOrCell(Vector3I fallbackCell)
 	{
-		var panel = EnsureActorInspectPanel();
-		_inspectActorId = actor.Id;
-		ActorDerivedStateUpdater.SyncInspectActor(_state, actor);
-		panel.Open(_state, actor);
-		_panels.PushFocus(panel);
-	}
+		if (_mapRender != null
+			&& _runtimeWorldToolHasLastPointerGlobalPosition
+			&& _mapRender.TryGetInspectWorldCellFromGlobalPosition(_runtimeWorldToolLastPointerGlobalPosition, out var inspectCell))
+		{
+			return LookModule.ResolveInspectTarget(_state, _fogTracker, inspectCell.X, inspectCell.Y, inspectCell.Z);
+		}
 
-	private void CloseActorInspectPanel()
-	{
-		_inspectActorId = null;
-		if (_actorInspectPanel == null || !_actorInspectPanel.Visible)
-			return;
-
-		_actorInspectPanel.Close();
-		_panels.OnPanelClosed(_actorInspectPanel);
+		return LookModule.ResolveInspectTarget(_state, _fogTracker, fallbackCell.X, fallbackCell.Y, fallbackCell.Z);
 	}
 }

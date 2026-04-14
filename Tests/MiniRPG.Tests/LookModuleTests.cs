@@ -190,6 +190,61 @@ public sealed class LookModuleTests
 		Assert.Contains("Dur", info.Text, StringComparison.Ordinal);
 	}
 
+	[Fact]
+	public void ResolveInspectTarget_PrefersCorpseItem_AndHoverSummaryIncludesItems()
+	{
+		EnsureTestRegistriesLoaded();
+
+		var player = CreateActor("player", "Hero", Factions.Player, 1, 1, 0);
+		player.FacingX = 1;
+		player.FacingY = 0;
+		var state = new GameState
+		{
+			WorldSeed = 456,
+			PlayerId = player.Id,
+			PlayerX = player.X,
+			PlayerY = player.Y,
+			PlayerZ = player.Z,
+			Actors = new Dictionary<string, Actor>
+			{
+				[player.Id] = player,
+			},
+			World = new WorldMap(456, new StubGenerator()),
+		};
+		state.World.SetTerrain(player.X, player.Y, player.Z, Terrains.Floor);
+		state.World.SetTerrain(2, 1, 0, Terrains.Floor);
+		state.World.RebuildLoadedActorIndex(state.Actors);
+
+		var corpse = new Item
+		{
+			Id = "corpse",
+			Name = "corpse",
+			Category = ItemCategories.Misc,
+			MaxDurability = 10,
+			Durability = 10,
+			Corpse = new ItemCorpseMetadata
+			{
+				SourceActorName = "Goblin",
+			},
+		};
+		corpse.InitializeRuntimeState("corpse-1", maxDurability: 10);
+		state.World.PlaceItem(2, 1, 0, corpse);
+
+		var fog = new FogOfWarTracker();
+		fog.Update(state);
+
+		var target = LookModule.ResolveInspectTarget(state, fog, 2, 1, 0);
+		var itemSummary = LookModule.BuildHoverItemSummary(state, 2, 1, 0);
+		var actorSummary = LookModule.BuildHoverActorSummary(state, 2, 1, 0);
+
+		Assert.Equal(LookInspectTargetKind.CorpseItem, target.Kind);
+		Assert.NotNull(target.Item);
+		Assert.Null(actorSummary);
+		Assert.NotNull(itemSummary);
+		Assert.Contains("Goblin", itemSummary, StringComparison.Ordinal);
+		Assert.Contains("Items:", target.Text, StringComparison.Ordinal);
+	}
+
 	private static Actor CreateActor(string id, string name, string faction, int x, int y, int z) =>
 		new()
 		{

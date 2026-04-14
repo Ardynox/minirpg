@@ -42,6 +42,11 @@ public sealed class PanelButtonScaleService
 		TrackButtonsRecursive(panelId, panel);
 	}
 
+	public void UnregisterPanel(string panelId)
+	{
+		_states.Remove(panelId);
+	}
+
 	public void TrackButton(string panelId, Button button)
 	{
 		if (!GodotObject.IsInstanceValid(button) || button.HasMeta(IgnoreMeta))

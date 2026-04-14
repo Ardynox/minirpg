@@ -9,7 +9,7 @@ public partial class Main
 	{
 		_runtimeViewCoordinator.RefreshVisiblePanels(
 			_debugPanelController,
-			RefreshActorInspectPanel,
+			_statusPanelController,
 			() => _mainAppFlowCoordinator.RefreshWorldManagerContents(),
 			RefreshMultiplayerRoomPanelState);
 
@@ -190,31 +190,18 @@ public partial class Main
 
 	private void ToggleStatusPanel()
 	{
-		var node = _statusPanelModule.PanelNode;
-		if (node.Visible)
-		{
-			CloseStatusPanel();
-		}
-		else
-		{
-			node.Visible = true;
-			_panels.PushFocus(_statusPanelModule);
-		}
-
-		if (node.Visible && _statusPanelModule.Dirty)
-		{
-			var player = ActorModule.GetPlayer(_state);
-			_statusPanelModule.Refresh(_state, player, _state.PlayerZ, _state.Turn);
-		}
+		_statusPanelController.ToggleActiveActorPanel();
 	}
 
 	private void CloseStatusPanel()
 	{
-		if (!_statusPanelModule.PanelNode.Visible)
+		var actor = PartyModule.GetActiveActor(_state);
+		if (actor == null)
+			return;
+		if (!_statusPanelController.IsActiveActorPanelVisible)
 			return;
 
-		_statusPanelModule.PanelNode.Visible = false;
-		_panels.OnPanelClosed(_statusPanelModule);
+		_statusPanelController.ToggleActiveActorPanel();
 	}
 
 	private void ToggleSkillBarPanel()
@@ -346,14 +333,13 @@ public partial class Main
 	{
 		CloseChestPanel();
 		CloseInventoryPanel();
-		CloseStatusPanel();
+		_statusPanelController.CloseAll();
 		CloseSkillBarPanel();
 		CloseSkillManagerPanel();
 		CloseQuestPanel();
 		CloseDialogPanel();
 		CloseTradePanel();
 		CloseDebugPanel();
-		CloseActorInspectPanel();
 		CloseLimbTargetPanel();
 		_hideGroundAndLogPanelsIfVisible();
 	}

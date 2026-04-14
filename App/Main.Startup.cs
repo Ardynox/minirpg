@@ -25,7 +25,7 @@ public partial class Main
 	private const float StartupThreadedLoadTimeoutSeconds = 10f;
 	private const float StartupSyncFallbackProgress = 0.90f;
 	private static readonly string[] DeferredUiScenePaths =
-		[ChestPanelScenePath, DialogPanelScenePath, TradePanelScenePath, QuestPanelScenePath, DebugPanelScenePath, ActorInspectPanelScenePath];
+		[ChestPanelScenePath, DialogPanelScenePath, TradePanelScenePath, QuestPanelScenePath, DebugPanelScenePath, StatusPanelScenePath];
 	private static readonly StartupHeavyLoadStep[] StartupHeavyLoadSteps =
 	[
 		new(HeavyTileSetPath, 0.00f, 0.80f, "ui.startup.status.tileset"),
@@ -362,23 +362,30 @@ public partial class Main
 		_panels.SetFloatingCheck(_panelDrag.IsFloating);
 		_panelDrag.LayoutChanged += RefreshAllBorders;
 		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
-		_panels.Register(_statusPanelModule);
 		_panels.Register(_skillBar);
 		_panels.Register(_skillMgr);
 		_panels.Register(_inventoryPanel);
 		_panels.Register(_groundPanel);
 		_panels.RegisterPassive(_logPanelNode, "log", canFocus: false);
 
-		RegisterAlwaysDirectDraggable(_statusPanelModule);
 		RegisterAlwaysDirectDraggable(_skillBar);
 		RegisterAlwaysDirectDraggable(_skillMgr);
 		RegisterAlwaysDirectDraggable(_inventoryPanel);
 		RegisterEditModeOnly("ground", groundNode, defaultFloating: false, groundNode.GetNode<Control>("MarginContainer/VBox/Header"));
 		RegisterEditModeOnly("log", _logPanelNode, defaultFloating: false, _logContent);
-		RegisterCommonPanelChrome(_statusPanelModule, "MarginContainer/VBox/HeaderBar/NameInfo", CloseStatusPanel);
 		RegisterCommonPanelChrome(_skillBar, "MarginContainer/VBox/HeaderBar/Header", CloseSkillBarPanel);
 		RegisterCommonPanelChrome(_skillMgr, "MarginContainer/VBox/HeaderBar/Header", CloseSkillManagerPanel);
 		RegisterCommonPanelChrome(_inventoryPanel, "MarginContainer/VBox/HeaderBar/Header", CloseInventoryPanel);
+		_statusPanelController = new RuntimeStatusPanelController(
+			_state,
+			_statusPanelModule.PanelNode,
+			_uiTheme,
+			TopRow,
+			_panels,
+			_panelLayouts,
+			_panelDrag,
+			_panelChrome);
+		_statusPanelController.PanelsChanged += RefreshPanelLauncherState;
 
 		_inputModule = new InputModule(_inputBar, _inputBindings);
 		_panels.Register(_pauseMenuPanelModule);

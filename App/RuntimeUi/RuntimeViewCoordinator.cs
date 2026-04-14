@@ -57,10 +57,8 @@ internal sealed class RuntimeViewCoordinator
 		markUiDirty();
 	}
 
-	public void MarkUiDirty(DebugPanelController debugPanelController, bool actorInspectVisible)
+	public void MarkUiDirty(DebugPanelController debugPanelController, RuntimeStatusPanelController statusPanelController)
 	{
-		if (_ui.StatusPanel != null)
-			_ui.StatusPanel.Dirty = true;
 		if (_ui.SkillManager != null)
 			_ui.SkillManager.Dirty = true;
 		if (_ui.Inventory?.Visible == true)
@@ -70,8 +68,7 @@ internal sealed class RuntimeViewCoordinator
 		if (_ui.TurnPanel != null)
 			_ui.TurnPanel.Dirty = true;
 		debugPanelController.MarkDirty();
-		if (actorInspectVisible && _ui.ActorInspectPanel != null)
-			_ui.ActorInspectPanel.Dirty = true;
+		statusPanelController.MarkDirty();
 	}
 
 	public void ProcessDirtyPanels(
@@ -79,16 +76,10 @@ internal sealed class RuntimeViewCoordinator
 		bool playerDead,
 		bool watchModeEnabled,
 		bool isometricMode,
-		Action refreshActorInspectPanel,
+		RuntimeStatusPanelController statusPanelController,
 		Action refreshPanelLauncherState,
 		DebugPanelController debugPanelController)
 	{
-		if (_ui.StatusPanel?.Dirty == true && _ui.StatusPanel.PanelNode.Visible)
-		{
-			var player = ActorModule.GetPlayer(_state);
-			_ui.StatusPanel.Refresh(_state, player, _state.PlayerZ, _state.Turn);
-		}
-
 		if (_ui.TurnPanel?.Dirty == true && _ui.TurnPanel.PanelNode.Visible)
 			_ui.TurnPanel.FlushIfDirty(_state, playerDead, watchModeEnabled, isometricMode);
 
@@ -106,23 +97,19 @@ internal sealed class RuntimeViewCoordinator
 			_ui.Ground.FlushIfDirty();
 
 		debugPanelController.FlushIfDirty();
-
-		if (_ui.ActorInspectPanel?.Visible == true && _ui.ActorInspectPanel.Dirty)
-			refreshActorInspectPanel();
+		statusPanelController.FlushDirtyPanels();
 
 		refreshPanelLauncherState();
 	}
 
 	public void RefreshVisiblePanels(
 		DebugPanelController debugPanelController,
-		Action refreshActorInspectPanel,
+		RuntimeStatusPanelController statusPanelController,
 		Action refreshWorldManagerContents,
 		Action refreshMultiplayerRoomPanelState)
 	{
 		var player = ActorModule.GetPlayer(_state);
 
-		if (_ui.StatusPanel?.PanelNode.Visible == true)
-			_ui.StatusPanel.Refresh(_state, player, _state.PlayerZ, _state.Turn);
 		if (_ui.SkillBar?.Visible == true)
 			_ui.SkillBar.Refresh(player);
 		if (_ui.SkillManager?.Visible == true)
@@ -139,8 +126,7 @@ internal sealed class RuntimeViewCoordinator
 			_ui.QuestPanel.Refresh();
 		debugPanelController.MarkDirty();
 		debugPanelController.FlushIfDirty();
-		if (_ui.ActorInspectPanel?.Visible == true)
-			refreshActorInspectPanel();
+		statusPanelController.RefreshVisiblePanels();
 
 		if (_services.Session != null && _services.Session.GameStarted)
 		{

@@ -109,8 +109,8 @@ public partial class Main
 			case ":quests": ToggleQuestPanel(); return;
 			case ":render" or "render": ToggleRender(); return;
 			case ":lighting" or "lighting": CycleLightingProfile(); return;
-			case ":status_prev": _statusPanelModule.CycleTab(-1); return;
-			case ":status_next": _statusPanelModule.CycleTab(1); return;
+			case ":status_prev": _statusPanelController.TryCycleFocusedPanelTab(-1); return;
+			case ":status_next": _statusPanelController.TryCycleFocusedPanelTab(1); return;
 			case ":minimap": ToggleMinimap(); return;
 			case ":fogmap": ToggleFogMap(); return;
 			case ":fogmap_center": CenterFogMap(); return;

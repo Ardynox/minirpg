@@ -26,7 +26,7 @@ public partial class Main
 		if (_tradePanel != null) _tradePanel.Close();
 		if (_questPanel != null) _questPanel.Close();
 		_debugPanelController.Close();
-		if (_actorInspectPanel != null) _actorInspectPanel.Close();
+		_statusPanelController.CloseAll();
 		_panels.ClearFocus();
 	}
 

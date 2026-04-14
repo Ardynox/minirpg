@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using Godot;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
@@ -11,7 +12,23 @@ namespace MiniRPG.Module;
 public readonly record struct LookCellInfo(
 	PlayerVisionBand VisionBand,
 	string Text,
-	Actor? InspectableActor);
+	Actor? InspectableActor,
+	Item? InspectableCorpseItem = null);
+
+public enum LookInspectTargetKind
+{
+	Actor,
+	CorpseItem,
+	CellOnly,
+}
+
+public readonly record struct LookInspectTarget(
+	LookInspectTargetKind Kind,
+	PlayerVisionBand VisionBand,
+	Vector3I Cell,
+	string Text,
+	Actor? Actor = null,
+	Item? Item = null);
 
 /// <summary>
 /// 查看/观察模块：提供玩家周边与任意坐标格子的只读描述。
@@ -124,11 +141,50 @@ public static class LookModule
 		var actor = band is PlayerVisionBand.Focused or PlayerVisionBand.Peripheral
 			? GetInspectableActor(state, x, y, z)
 			: null;
-		return new LookCellInfo(band, text, actor);
+		var corpse = band is PlayerVisionBand.Focused or PlayerVisionBand.Peripheral
+			? GetInspectableCorpseItem(state, x, y, z)
+			: null;
+		return new LookCellInfo(band, text, actor, corpse);
 	}
 
 	public static Actor? TryGetInspectableActor(GameState state, FogOfWarTracker fogTracker, int x, int y, int z) =>
 		DescribeCell(state, fogTracker, x, y, z).InspectableActor;
+
+	public static Item? TryGetInspectableCorpseItem(GameState state, FogOfWarTracker fogTracker, int x, int y, int z) =>
+		DescribeCell(state, fogTracker, x, y, z).InspectableCorpseItem;
+
+	public static LookInspectTarget ResolveInspectTarget(GameState state, FogOfWarTracker fogTracker, int x, int y, int z)
+	{
+		var info = DescribeCell(state, fogTracker, x, y, z);
+		var cell = new Vector3I(x, y, z);
+		if (info.InspectableActor != null)
+			return new LookInspectTarget(LookInspectTargetKind.Actor, info.VisionBand, cell, info.Text, Actor: info.InspectableActor);
+		if (info.InspectableCorpseItem != null)
+			return new LookInspectTarget(LookInspectTargetKind.CorpseItem, info.VisionBand, cell, info.Text, Item: info.InspectableCorpseItem);
+
+		return new LookInspectTarget(LookInspectTargetKind.CellOnly, info.VisionBand, cell, info.Text);
+	}
+
+	public static string? BuildHoverActorSummary(GameState state, int x, int y, int z)
+	{
+		var actors = ActorModule.GetAllAt(state, x, y, z);
+		if (actors.Count == 0)
+			return null;
+
+		return string.Join(", ", actors.ConvertAll(actor => IdentificationModule.GetActorDisplayName(state, actor)));
+	}
+
+	public static string? BuildHoverItemSummary(GameState state, int x, int y, int z)
+	{
+		if (state.World == null)
+			return null;
+
+		var items = state.World.PeekGroundItems(x, y, z);
+		if (items.Count == 0)
+			return null;
+
+		return string.Join(", ", items.ConvertAll(item => FormatLookItem(state, item)));
+	}
 
 	private static string BuildInspectCellText(GameState state, PlayerVisionBand band, int x, int y, int z)
 	{
@@ -197,15 +253,9 @@ public static class LookModule
 		if (actors.Count > 0)
 			parts.Add(LocalizationService.T("look.inspect.actors", ("actors", string.Join(", ", actors.ConvertAll(actor => IdentificationModule.GetActorDisplayName(state, actor))))));
 
-		var items = state.World!.PeekGroundItems(x, y, state.PlayerZ);
-		if (z == state.PlayerZ && items.Count > 0)
+		var items = state.World!.PeekGroundItems(x, y, z);
+		if (items.Count > 0)
 			parts.Add(LocalizationService.T("look.inspect.items", ("items", string.Join(", ", items.ConvertAll(item => FormatLookItem(state, item))))));
-		else if (state.World != null)
-		{
-			var worldItems = state.World.PeekGroundItems(x, y, z);
-			if (worldItems.Count > 0)
-				parts.Add(LocalizationService.T("look.inspect.items", ("items", string.Join(", ", worldItems.ConvertAll(item => FormatLookItem(state, item))))));
-		}
 
 		if (parts.Count == 2)
 			parts.Add(LocalizationService.T("look.inspect.empty"));
@@ -224,6 +274,21 @@ public static class LookModule
 		}
 
 		return actors[0];
+	}
+
+	private static Item? GetInspectableCorpseItem(GameState state, int x, int y, int z)
+	{
+		if (state.World == null)
+			return null;
+
+		var items = state.World.PeekGroundItems(x, y, z);
+		foreach (var item in items)
+		{
+			if (item.IsCorpse)
+				return item;
+		}
+
+		return null;
 	}
 
 	private static string GetVisionBandKey(PlayerVisionBand band) => band switch
@@ -336,7 +401,7 @@ public static class LookModule
 	}
 
 	private static string FormatLookItem(GameState state, Item item) =>
-		$"{GameLocalizer.LocalizeItemName(item.Id, item.Name)} ({ItemConditionFormatter.BuildInlineDurability(item)})";
+		$"{(item.IsCorpse ? ItemFormatHelper.BuildCorpseDisplayName(item) : GameLocalizer.LocalizeItemName(item.Id, item.Name))} ({ItemConditionFormatter.BuildInlineDurability(item)})";
 
 	private static WeatherSample GetDisplayWeatherSample(GameState state, int x, int y, int z)
 	{

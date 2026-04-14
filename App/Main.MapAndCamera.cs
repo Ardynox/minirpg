@@ -1,5 +1,6 @@
 using Godot;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -146,7 +147,7 @@ public partial class Main
 	{
 		var runtimePreviewState = ResolveRuntimeWorldToolPreviewState();
 		_runtimeViewCoordinator.FlushMap(
-			_runtimeWorldToolSession.HoverWorld,
+			ResolveRuntimeRenderHoverCell(_runtimeWorldToolSession.HoverWorld, runtimePreviewState),
 			runtimePreviewState,
 			_skillTargetCursorActive ? _skillTargetWorldCell : null,
 			MapEditorActive,
@@ -168,7 +169,7 @@ public partial class Main
 		_skillBarDirty = true;
 		_runtimeViewCoordinator.MarkUiDirty(
 			_debugPanelController,
-			_actorInspectPanel?.Visible == true);
+			_statusPanelController);
 	}
 
 	/// <summary>在 _Process 中统一驱动脏面板刷新，避免单帧重复刷新。</summary>
@@ -179,7 +180,7 @@ public partial class Main
 			PlayerDead,
 			_watchModeEnabled,
 			_mapRender?.IsIsometricMode ?? true,
-			RefreshActorInspectPanel,
+			_statusPanelController,
 			RefreshPanelLauncherState,
 			_debugPanelController);
 	}
@@ -401,7 +402,8 @@ public partial class Main
 		var terrain = _state.World.GetTerrain(cell.X, cell.Y, cell.Z);
 		var terrainName = GameLocalizer.LocalizeTerrainName(terrain.StringId);
 		var isWalkable = _state.World.IsWalkable(cell.X, cell.Y, cell.Z);
-		var actors = ActorModule.GetAllAt(_state, cell.X, cell.Y, cell.Z);
+		var actorSummary = LookModule.BuildHoverActorSummary(_state, cell.X, cell.Y, cell.Z);
+		var itemSummary = LookModule.BuildHoverItemSummary(_state, cell.X, cell.Y, cell.Z);
 
 		var header = $"[color={UIColors.HexHeader}]{terrainName}[/color]  " +
 		             $"[color={UIColors.HexDim}]({cell.X}, {cell.Y}, {cell.Z})[/color]";
@@ -412,20 +414,18 @@ public partial class Main
 		var walkableColor = isWalkable ? UIColors.HexSuccess : UIColors.HexWarning;
 
 		var actorLabel = LocalizationService.T("ui.world_hover.label.actor");
-		string actorValue;
-		if (actors.Count > 0)
-		{
-			var names = actors.ConvertAll(a => IdentificationModule.GetActorDisplayName(_state, a));
-			actorValue = $"[color={UIColors.HexNormal}]{string.Join(", ", names)}[/color]";
-		}
-		else
-		{
-			actorValue = $"[color={UIColors.HexDim}]{LocalizationService.T("ui.common.none")}[/color]";
-		}
+		var actorValue = actorSummary != null
+			? $"[color={UIColors.HexNormal}]{actorSummary}[/color]"
+			: $"[color={UIColors.HexDim}]{LocalizationService.T("ui.common.none")}[/color]";
+		var itemLabel = LocalizationService.T("ui.world_hover.label.item");
+		var itemValue = itemSummary != null
+			? $"[color={UIColors.HexNormal}]{itemSummary}[/color]"
+			: $"[color={UIColors.HexDim}]{LocalizationService.T("ui.common.none")}[/color]";
 
 		var detail = $"[color={UIColors.HexDim}]{walkableLabel}:[/color] " +
-		             $"[color={walkableColor}]{walkableText}[/color]  " +
-		             $"[color={UIColors.HexDim}]{actorLabel}:[/color] {actorValue}";
+		             $"[color={walkableColor}]{walkableText}[/color]\n" +
+		             $"[color={UIColors.HexDim}]{actorLabel}:[/color] {actorValue}\n" +
+		             $"[color={UIColors.HexDim}]{itemLabel}:[/color] {itemValue}";
 
 		_worldHoverRtl.Text = $"{header}\n{detail}";
 	}

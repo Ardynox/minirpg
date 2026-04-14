@@ -916,6 +916,8 @@
     "ui.status.empty.limbs":  "无肢体 - 致命状态",
     "ui.status.limb.capacity_value":  "{name}{value}%",
     "ui.common.none":  "无",
+    "ui.common.yes":  "是",
+    "ui.common.no":  "否",
     "ui.status.capacity.effect.death_instant":  "致命",
     "ui.status.capacity.effect.incapacitate":  "昏迷",
     "ui.status.capacity.effect.death_slow":  "濒死",
@@ -1742,8 +1744,14 @@
     , "ui.multiplayer.room_panel.actor_row":  "{actor} | \u5f52\u5c5e\uff1a{owner} | \u63a7\u5236\uff1a{controller}"
     , "ui.world_hover.label.walkable":  "\u53ef\u901a\u884c"
     , "ui.world_hover.label.actor":  "\u89d2\u8272"
+    , "ui.world_hover.label.item":  "\u7269\u54c1"
     , "ui.world_hover.walkable.yes":  "\u662f"
     , "ui.world_hover.walkable.no":  "\u5426"
+    , "ui.status.corpse.header":  "{name}\n\u5c38\u4f53  ({x}, {y}, {floor})"
+    , "ui.status.corpse.profile":  "\u7c7b\u578b: {profile}"
+    , "ui.status.corpse.state":  "\u72b6\u6001: \u5df2\u525d\u53d6={stripped} \u5df2\u80a2\u89e3={butchered}"
+    , "ui.status.corpse.harvestable":  "\u53ef\u6458\u53d6: {value}"
+    , "ui.status.corpse.contents":  "\u643a\u5e26\u7269: {value}"
     , "ui.ground.context.butcher":  "\u80a2\u89e3"
     , "ui.ground.context.harvest":  "\u91c7\u96c6"
     , "ui.ground.context.open":  "\u6253\u5f00"

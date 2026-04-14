@@ -23,6 +23,12 @@ public sealed class PanelLayoutService(PanelLayoutStore store, PanelButtonScaleS
 		ApplyAppearance(panelId);
 	}
 
+	public void UnregisterPanel(string panelId)
+	{
+		_panels.Remove(panelId);
+		_buttonScaleService.UnregisterPanel(panelId);
+	}
+
 	public PanelAppearance GetResolvedAppearance(string panelId)
 	{
 		var state = GetRegisteredPanel(panelId);

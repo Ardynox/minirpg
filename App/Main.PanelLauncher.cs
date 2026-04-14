@@ -64,7 +64,7 @@ public partial class Main
 		if (_statusLauncherBtn == null || _settingsFlow == null || _debugPanelController == null)
 			return;
 
-		ConfigureLauncherButton(_statusLauncherBtn, _statusPanelModule.PanelNode.Visible);
+		ConfigureLauncherButton(_statusLauncherBtn, _statusPanelController.IsActiveActorPanelVisible);
 		ConfigureLauncherButton(_skillBarLauncherBtn, _skillBar.Visible);
 		ConfigureLauncherButton(_skillMgrLauncherBtn, _skillMgr.Visible);
 		ConfigureLauncherButton(_inventoryLauncherBtn, _inventoryPanel.Visible);

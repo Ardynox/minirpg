@@ -15,7 +15,8 @@ public readonly record struct DraggablePanelRegistration(
 	PanelContainer Panel,
 	PanelDragAvailability Availability,
 	IReadOnlyList<Control> DragHandles,
-	bool DefaultFloating = true
+	bool DefaultFloating = true,
+	bool PersistPosition = true
 );
 
 public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoot)
@@ -238,7 +239,8 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 
 	private void ApplyPersistedLayout(DragState state)
 	{
-		if (_store.TryGetPosition(state.Registration.PanelId, out var saved))
+		if (state.Registration.PersistPosition
+			&& _store.TryGetPosition(state.Registration.PanelId, out var saved))
 		{
 			EnsureFloating(state);
 			state.Registration.Panel.GlobalPosition = saved;
@@ -402,6 +404,9 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 
 	private void PersistCurrentPosition(DragState state)
 	{
+		if (!state.Registration.PersistPosition)
+			return;
+
 		var panel = state.Registration.Panel;
 		var isFloating = IsFloating(state);
 
@@ -528,6 +533,9 @@ public sealed class PanelDragService(PanelLayoutStore store, Control floatingRoo
 
 	private void PersistPanelPosition(DragState state)
 	{
+		if (!state.Registration.PersistPosition)
+			return;
+
 		var panel = state.Registration.Panel;
 		if (!state.Registration.DefaultFloating)
 		{

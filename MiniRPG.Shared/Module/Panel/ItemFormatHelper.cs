@@ -18,6 +18,29 @@ public static class ItemFormatHelper
 			? GetDisplayName(item)
 			: IdentificationModule.GetItemDisplayName(state, item);
 
+	public static string GetInspectDisplayName(GameState? state, Item item)
+	{
+		if (item.IsCorpse)
+			return BuildCorpseDisplayName(item);
+
+		return GetDisplayName(state, item);
+	}
+
+	public static string BuildCorpseDisplayName(Item item)
+	{
+		var corpse = item.Corpse;
+		var baseName = string.IsNullOrWhiteSpace(item.Name)
+			? GameLocalizer.LocalizeItemName(item.Id, item.Name)
+			: item.Name;
+		if (corpse == null || string.IsNullOrWhiteSpace(corpse.SourceActorName))
+			return baseName;
+
+		if (baseName.Contains(corpse.SourceActorName, StringComparison.Ordinal))
+			return baseName;
+
+		return $"{corpse.SourceActorName} {baseName}".Trim();
+	}
+
 	public static string InlineStats(Item item)
 	{
 		var parts = new List<string>();

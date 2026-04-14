@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Godot;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Health;
 
 namespace MiniRPG.Module.Panel;
 
@@ -63,6 +66,62 @@ internal static class ActorStatusTextBuilder
 	public static string BuildInspectHeader(GameState state, Actor actor) =>
 		BuildInspectHeaderCore(state as GameState, actor);
 
+	public static string BuildCorpseHeader(GameState state, Item corpse, Vector3I cell)
+	{
+		var name = ItemFormatHelper.GetInspectDisplayName(state, corpse);
+		return LocalizationService.TOrFallback(
+			"ui.status.corpse.header",
+			"{name}\nCorpse  ({x}, {y}, {floor})",
+			("name", name),
+			("x", cell.X),
+			("y", cell.Y),
+			("floor", cell.Z));
+	}
+
+	public static void BuildCorpseLines(List<string> lines, GameState state, Item corpse)
+	{
+		lines.Clear();
+		if (!corpse.IsCorpse || corpse.Corpse == null)
+		{
+			lines.Add(LocalizationService.T("ui.common.none"));
+			return;
+		}
+
+		var corpseProfileName = CorpseProfileRegistry.Get(corpse.Corpse.CorpseProfileId)?.Name
+			?? corpse.SubCategory
+			?? corpse.Id;
+		lines.Add(LocalizationService.TOrFallback(
+			"ui.status.corpse.profile",
+			"Profile: {profile}",
+			("profile", corpseProfileName)));
+		lines.Add(LocalizationService.TOrFallback(
+			"ui.status.corpse.state",
+			"State: stripped={stripped} butchered={butchered}",
+			("stripped", LocalizeBool(corpse.Corpse.Stripped)),
+			("butchered", LocalizeBool(corpse.Corpse.Butchered))));
+
+		var harvestable = SurgeryModule.GetCorpseHarvestableLimbIds(corpse)
+			.Select(ResolveLimbName)
+			.ToArray();
+		lines.Add(LocalizationService.TOrFallback(
+			"ui.status.corpse.harvestable",
+			"Harvestable: {value}",
+			("value", harvestable.Length > 0
+				? string.Join(", ", harvestable)
+				: LocalizationService.T("ui.common.none"))));
+
+		var contents = corpse.Contents?
+			.Select(item => ItemFormatHelper.GetInspectDisplayName(state, item))
+			.Where(static name => !string.IsNullOrWhiteSpace(name))
+			.ToArray() ?? [];
+		lines.Add(LocalizationService.TOrFallback(
+			"ui.status.corpse.contents",
+			"Contents: {value}",
+			("value", contents.Length > 0
+				? string.Join(", ", contents)
+				: LocalizationService.T("ui.common.none"))));
+	}
+
 	public static string LocalizeFaction(string faction) => faction switch
 	{
 		Factions.Player => LocalizationService.T("ui.actor_inspect.faction.player"),
@@ -123,6 +182,22 @@ internal static class ActorStatusTextBuilder
 			("gold", identified ? actor.Gold : "--"))}");
 		return sb.ToString();
 	}
+
+	private static string ResolveLimbName(string limbId)
+	{
+		if (string.IsNullOrWhiteSpace(limbId))
+			return LocalizationService.T("ui.common.none");
+
+		if (PresetDB.Limbs.TryGetValue(limbId, out var limb))
+			return limb.Name;
+
+		return limbId;
+	}
+
+	private static string LocalizeBool(bool value) =>
+		value
+			? LocalizationService.TOrFallback("ui.common.yes", "Yes")
+			: LocalizationService.TOrFallback("ui.common.no", "No");
 
 	private static void BuildLimbLines(List<string> lines, Actor actor)
 	{

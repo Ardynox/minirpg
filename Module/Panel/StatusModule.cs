@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Godot;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
 
@@ -9,19 +10,46 @@ public enum StatusTab { Limb, Capacity, Tag, Buff, Equip, Needs, Health }
 
 public class StatusPanelModule : IPanel
 {
-	public string PanelId => "status";
+	private enum StatusContentMode
+	{
+		Actor,
+		Corpse,
+	}
+
+	public string PanelId { get; }
 	public PanelContainer PanelNode => _panel;
-	bool IPanel.Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	public bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
+	bool IPanel.Visible { get => Visible; set => Visible = value; }
+
+	public event Action? CloseRequested;
 
 	bool IPanel.HandleCommand(string cmd)
 	{
 		switch (cmd)
 		{
-			case "up": MoveCursor(-1); return true;
-			case "down": MoveCursor(1); return true;
-			case "left" or "tab_prev": CycleTab(-1); return true;
-			case "right" or "tab_next": CycleTab(1); return true;
-			case "close": _panel.Visible = false; return true;
+			case "up":
+				MoveCursor(-1);
+				return true;
+			case "down":
+				MoveCursor(1);
+				return true;
+			case "left" or "tab_prev":
+				if (_contentMode == StatusContentMode.Actor)
+				{
+					CycleTab(-1);
+					return true;
+				}
+				return false;
+			case "right" or "tab_next":
+				if (_contentMode == StatusContentMode.Actor)
+				{
+					CycleTab(1);
+					return true;
+				}
+				return false;
+			case "close":
+				RequestClose();
+				return true;
 		}
 
 		return false;
@@ -32,6 +60,8 @@ public class StatusPanelModule : IPanel
 
 	private readonly PanelContainer _panel;
 	private readonly Label _nameInfo;
+	private readonly HBoxContainer _tabBar;
+	private readonly Label _hintBar;
 	private readonly List<Button> _tabButtons;
 	private readonly RichTextLabel _contentText;
 	private readonly List<string> _lines = [];
@@ -39,26 +69,32 @@ public class StatusPanelModule : IPanel
 	private StatusTab _currentTab = StatusTab.Limb;
 	private int _cursor;
 	private GameState? _cachedState;
-	private Actor? _cachedPlayer;
-
-	public bool Dirty { get; set; }
+	private Actor? _cachedActor;
+	private Item? _cachedCorpse;
+	private Vector3I _cachedCorpseCell;
 	private int _cachedFloor;
 	private int _cachedTurn;
+	private bool _cachedUsePlayerHeader = true;
+	private StatusContentMode _contentMode = StatusContentMode.Actor;
 
-	public StatusPanelModule(PanelContainer panel)
+	public bool Dirty { get; set; }
+
+	public StatusPanelModule(PanelContainer panel, string panelId = "status")
 	{
+		PanelId = panelId;
 		_panel = panel;
 		var vbox = panel.GetNode("MarginContainer/VBox");
 		_nameInfo = vbox.GetNode<Label>("HeaderBar/NameInfo");
-		var tabBar = vbox.GetNode<HBoxContainer>("TabBar");
+		_tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
+		_hintBar = vbox.GetNode<Label>("HintBar");
 
 		var tabLabels = new string[Tabs.Length];
 		for (var i = 0; i < Tabs.Length; i++)
 			tabLabels[i] = ActorStatusTextBuilder.GetTabLabel(Tabs[i]);
 
-		_tabButtons = TabHelper.BuildTabButtons(tabBar, tabLabels, Tabs, SetTab, "status");
-		TabHelper.UpdateTabHighlight(_tabButtons, Tabs, _currentTab);
+		_tabButtons = TabHelper.BuildTabButtons(_tabBar, tabLabels, Tabs, SetTab, panelId);
+		UpdateTabHighlight();
 	}
 
 	public void FlushIfDirty()
@@ -67,12 +103,23 @@ public class StatusPanelModule : IPanel
 			return;
 
 		Dirty = false;
-		if (_cachedState != null)
-			Refresh(_cachedState, _cachedPlayer, _cachedFloor, _cachedTurn);
+		if (_cachedState == null)
+			return;
+
+		if (_contentMode == StatusContentMode.Corpse)
+		{
+			RefreshCorpse(_cachedState, _cachedCorpse, _cachedCorpseCell);
+			return;
+		}
+
+		Refresh(_cachedState, _cachedActor, _cachedFloor, _cachedTurn, _cachedUsePlayerHeader);
 	}
 
 	public void SetTab(StatusTab tab)
 	{
+		if (_contentMode != StatusContentMode.Actor)
+			return;
+
 		_currentTab = tab;
 		_cursor = 0;
 		UpdateTabHighlight();
@@ -82,32 +129,12 @@ public class StatusPanelModule : IPanel
 
 	public void CycleTab(int dir)
 	{
+		if (_contentMode != StatusContentMode.Actor)
+			return;
+
 		var idx = Array.IndexOf(Tabs, _currentTab);
 		idx = (idx + dir + Tabs.Length) % Tabs.Length;
 		SetTab(Tabs[idx]);
-	}
-
-	public void HandleCommand(string cmd, Action? onClose = null)
-	{
-		switch (cmd)
-		{
-			case "up":
-				MoveCursor(-1);
-				break;
-			case "down":
-				MoveCursor(1);
-				break;
-			case "prev":
-				CycleTab(-1);
-				break;
-			case "next":
-				CycleTab(1);
-				break;
-			case "close":
-				_panel.Visible = false;
-				onClose?.Invoke();
-				break;
-		}
 	}
 
 	public void MoveCursor(int delta)
@@ -121,23 +148,49 @@ public class StatusPanelModule : IPanel
 			RenderContent();
 	}
 
-	public void Refresh(GameState state, Actor? player, int floor, int turn = 0)
+	public void Refresh(GameState state, Actor? actor, int floor, int turn = 0, bool usePlayerHeader = true)
 	{
 		_cachedState = state;
-		_cachedPlayer = player;
+		_cachedActor = actor;
 		_cachedFloor = floor;
 		_cachedTurn = turn;
+		_cachedUsePlayerHeader = usePlayerHeader;
+		_cachedCorpse = null;
+		_contentMode = StatusContentMode.Actor;
 		Dirty = false;
-		if (player == null)
+		_tabBar.Visible = true;
+		_hintBar.Visible = true;
+		if (actor == null)
 		{
-			_nameInfo.Text = string.Empty;
-			_contentText.Clear();
-			_lines.Clear();
+			ClearContent();
 			return;
 		}
 
-		_nameInfo.Text = ActorStatusTextBuilder.BuildPlayerHeader(state, player, floor, turn);
+		_nameInfo.Text = usePlayerHeader
+			? ActorStatusTextBuilder.BuildPlayerHeader(state, actor, floor, turn)
+			: ActorStatusTextBuilder.BuildInspectHeader(state, actor);
 		UpdateTabHighlight();
+		BuildLines();
+		RenderContent();
+	}
+
+	public void RefreshCorpse(GameState state, Item? corpse, Vector3I cell)
+	{
+		_cachedState = state;
+		_cachedCorpse = corpse;
+		_cachedCorpseCell = cell;
+		_cachedActor = null;
+		_contentMode = StatusContentMode.Corpse;
+		Dirty = false;
+		_tabBar.Visible = false;
+		_hintBar.Visible = false;
+		if (corpse == null)
+		{
+			ClearContent();
+			return;
+		}
+
+		_nameInfo.Text = ActorStatusTextBuilder.BuildCorpseHeader(state, corpse, cell);
 		BuildLines();
 		RenderContent();
 	}
@@ -153,17 +206,25 @@ public class StatusPanelModule : IPanel
 	private void BuildLines()
 	{
 		_lines.Clear();
-		if (_cachedPlayer == null)
+		if (_contentMode == StatusContentMode.Corpse)
+		{
+			if (_cachedState != null && _cachedCorpse != null)
+				ActorStatusTextBuilder.BuildCorpseLines(_lines, _cachedState, _cachedCorpse);
+			return;
+		}
+
+		if (_cachedActor == null)
 			return;
 
 		if (_cachedState == null)
 		{
-			ActorStatusTextBuilder.BuildLines(_lines, _currentTab, _cachedPlayer);
+			ActorStatusTextBuilder.BuildLines(_lines, _currentTab, _cachedActor);
 		}
 		else
 		{
-			ActorStatusTextBuilder.BuildLines(_lines, _currentTab, _cachedState, _cachedPlayer);
+			ActorStatusTextBuilder.BuildLines(_lines, _currentTab, _cachedState, _cachedActor);
 		}
+
 		if (_cursor >= _lines.Count)
 			_cursor = Math.Max(0, _lines.Count - 1);
 	}
@@ -187,5 +248,20 @@ public class StatusPanelModule : IPanel
 		}
 
 		_contentText.AppendText(sb.ToString());
+	}
+
+	private void ClearContent()
+	{
+		_nameInfo.Text = string.Empty;
+		_contentText.Clear();
+		_lines.Clear();
+	}
+
+	private void RequestClose()
+	{
+		if (CloseRequested != null)
+			CloseRequested.Invoke();
+		else
+			_panel.Visible = false;
 	}
 }
