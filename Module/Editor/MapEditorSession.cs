@@ -65,7 +65,6 @@ internal readonly record struct MapEditorHoverState(
 
 public sealed class MapEditorSession
 {
-	private const int TerrainColumnScanDepth = 16;
 	private readonly GameState _state;
 	private readonly MapEditorHistory _history = new();
 	private readonly List<MapEditorBrush> _terrainBrushes = [];
@@ -542,22 +541,7 @@ public sealed class MapEditorSession
 	}
 
 	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell, bool reverseStack)
-	{
-		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
-		if (pickedTerrain is Terrains.Air or Terrains.Void)
-			return hoverCell;
-
-		var zStep = reverseStack ? 1 : -1;
-		var placeZ = hoverCell.Z + zStep;
-		for (var scanned = 0; scanned < TerrainColumnScanDepth; scanned++, placeZ += zStep)
-		{
-			var terrain = _state.World.GetTerrain(hoverCell.X, hoverCell.Y, placeZ).StringId;
-			if (terrain is Terrains.Air or Terrains.Void)
-				return new Vector3I(hoverCell.X, hoverCell.Y, placeZ);
-		}
-
-		return null;
-	}
+		=> TerrainBuildTargetResolver.ResolveBuildTargetCell(_state.World, hoverCell, reverseStack);
 
 	private Vector3I? ResolveTerrainOccupiedTargetCell(Vector3I hoverCell)
 	{

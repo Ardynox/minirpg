@@ -240,6 +240,13 @@ public static class TimelineTurnManager
 	public const float ActionThreshold = 100f;
 	private const float MinimumActiveSpeed = 0.05f;
 
+	private enum PlayerActionOutcome
+	{
+		Failed,
+		AppliedWithoutTurnCost,
+		ConsumedTurn,
+	}
+
 	/// <summary>
 	/// 单步性能剖析计数器。由 <see cref="EnableStepProfiling"/> 启用，
 	/// <see cref="AdvanceAutoSingleStep"/> 中各阶段累加 tick 数。
@@ -487,9 +494,17 @@ public static class TimelineTurnManager
 		}
 
 		result.ActingActorId = actor.Id;
-		if (!TryExecutePlayerAction(state, actor, action, result.Events))
+		var outcome = TryExecutePlayerAction(state, actor, action, result.Events);
+		if (outcome == PlayerActionOutcome.Failed)
 		{
 			result.PlayerTurnReady = true;
+			return result;
+		}
+
+		if (outcome == PlayerActionOutcome.AppliedWithoutTurnCost)
+		{
+			result.PlayerTurnReady = true;
+			result.HasPendingAutoStep = false;
 			return result;
 		}
 
@@ -615,7 +630,7 @@ public static class TimelineTurnManager
 		return result;
 	}
 
-	private static bool TryExecutePlayerAction(
+	private static PlayerActionOutcome TryExecutePlayerAction(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
@@ -650,11 +665,11 @@ public static class TimelineTurnManager
 			case TimelinePlayerActionType.Climb:
 				return TryExecuteClimb(state, player, action, events);
 			default:
-				return false;
+				return PlayerActionOutcome.Failed;
 		}
 	}
 
-	private static bool TryExecuteMove(
+	private static PlayerActionOutcome TryExecuteMove(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
@@ -672,17 +687,17 @@ public static class TimelineTurnManager
 		{
 			var attackEvents = ActionModule.TryAttack(state, player, hostile);
 			if (attackEvents.Count == 0)
-				return false;
+				return PlayerActionOutcome.Failed;
 
 			events.AddRange(attackEvents);
-			return true;
+			return PlayerActionOutcome.ConsumedTurn;
 		}
 
 		events.AddRange(ActionModule.TryMove(state, player, action.Dx, action.Dy));
-		return true;
+		return PlayerActionOutcome.ConsumedTurn;
 	}
 
-	private static bool TryExecuteDig(
+	private static PlayerActionOutcome TryExecuteDig(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
@@ -697,7 +712,7 @@ public static class TimelineTurnManager
 		return TryExecuteCastSkill(state, player, castAction, events);
 	}
 
-	private static bool TryExecuteAttack(
+	private static PlayerActionOutcome TryExecuteAttack(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
@@ -711,14 +726,14 @@ public static class TimelineTurnManager
 		return TryExecuteCastSkill(state, player, castAction, events);
 	}
 
-	private static bool TryExecuteCastSkill(
+	private static PlayerActionOutcome TryExecuteCastSkill(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
 		List<GameEvent> events)
 	{
 		if (string.IsNullOrEmpty(action.SkillId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		var result = ActionModule.TryCastSkill(
 			state,
@@ -732,10 +747,10 @@ public static class TimelineTurnManager
 			targetY: action.TargetY,
 			targetZ: action.TargetZ);
 		events.AddRange(result.Events);
-		return result.Consumed;
+		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteEat(
+	private static PlayerActionOutcome TryExecuteEat(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
@@ -743,10 +758,10 @@ public static class TimelineTurnManager
 	{
 		var result = NeedActionModule.TryConsumeFood(state, player, action.InventoryIndex);
 		events.AddRange(result.Events);
-		return result.Consumed;
+		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteRest(
+	private static PlayerActionOutcome TryExecuteRest(
 		GameState state,
 		Actor player,
 		List<GameEvent> events)
@@ -754,7 +769,7 @@ public static class TimelineTurnManager
 		if (NeedBehaviorModule.HasNearbyThreat(state, player))
 		{
 			NeedSystem.ApplyThought(player, "sleep_interrupted", state.Turn, NeedThoughtSources.Sleep, events, state);
-			return true;
+			return PlayerActionOutcome.ConsumedTurn;
 		}
 
 		var result = NeedActionModule.TryRest(
@@ -762,16 +777,16 @@ public static class TimelineTurnManager
 			player,
 			RestContext.ForPlayerBedroll(NeedActionModule.GetBedrollQuality(player)));
 		events.AddRange(result.Events);
-		return result.Consumed;
+		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteTerrainBuild(
+	private static PlayerActionOutcome TryExecuteTerrainBuild(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action)
 	{
 		if (string.IsNullOrWhiteSpace(action.TerrainId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		return RuntimeBuildActionModule.TryExecuteTerrainBuild(
 			state,
@@ -780,10 +795,12 @@ public static class TimelineTurnManager
 			action.TargetX,
 			action.TargetY,
 			action.TargetZ,
-			state.RuntimeFreeBuild);
+			state.RuntimeFreeBuild)
+			? PlayerActionOutcome.AppliedWithoutTurnCost
+			: PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteTerrainDemolish(
+	private static PlayerActionOutcome TryExecuteTerrainDemolish(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action) =>
@@ -793,15 +810,17 @@ public static class TimelineTurnManager
 			action.TargetX,
 			action.TargetY,
 			action.TargetZ,
-			state.RuntimeFreeBuild);
+			state.RuntimeFreeBuild)
+			? PlayerActionOutcome.AppliedWithoutTurnCost
+			: PlayerActionOutcome.Failed;
 
-	private static bool TryExecuteFacilityPlaceBlueprint(
+	private static PlayerActionOutcome TryExecuteFacilityPlaceBlueprint(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action)
 	{
 		if (string.IsNullOrWhiteSpace(action.FacilityDefId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		return RuntimeBuildActionModule.TryExecuteFacilityPlaceBlueprint(
 			state,
@@ -811,58 +830,62 @@ public static class TimelineTurnManager
 			action.TargetY,
 			action.TargetZ,
 			action.FacilityRotation,
-			state.RuntimeFreeBuild);
+			state.RuntimeFreeBuild)
+			? PlayerActionOutcome.AppliedWithoutTurnCost
+			: PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteFacilityDemolish(
+	private static PlayerActionOutcome TryExecuteFacilityDemolish(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action)
 	{
 		if (string.IsNullOrWhiteSpace(action.FacilityId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		return RuntimeBuildActionModule.TryExecuteFacilityDemolish(
 			state,
 			player,
 			action.FacilityId,
-			state.RuntimeFreeBuild);
+			state.RuntimeFreeBuild)
+			? PlayerActionOutcome.AppliedWithoutTurnCost
+			: PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteFacilityDeliver(
+	private static PlayerActionOutcome TryExecuteFacilityDeliver(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
 		List<GameEvent> events)
 	{
 		if (string.IsNullOrWhiteSpace(action.FacilityId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		var result = FacilityConstructionModule.TryDeliverMaterials(state, player, action.FacilityId);
-		return result.Consumed;
+		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteFacilityConstruct(
+	private static PlayerActionOutcome TryExecuteFacilityConstruct(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
 		List<GameEvent> events)
 	{
 		if (string.IsNullOrWhiteSpace(action.FacilityId))
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		var result = FacilityConstructionModule.TryConstructFacility(state, player, action.FacilityId);
-		return result.Consumed;
+		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
-	private static bool TryExecuteClimb(
+	private static PlayerActionOutcome TryExecuteClimb(
 		GameState state,
 		Actor player,
 		TimelinePlayerAction action,
 		List<GameEvent> events)
 	{
 		if (state.World == null || action.Dz == 0)
-			return false;
+			return PlayerActionOutcome.Failed;
 
 		var world = state.World;
 		var x = player.X;
@@ -878,7 +901,7 @@ public static class TimelineTurnManager
 				InitiatorId = player.Id,
 				Damage = action.Dz,
 			});
-			return true;
+			return PlayerActionOutcome.ConsumedTurn;
 		}
 
 		if (ClimbingService.CanAttemptClimb(world, x, y, z, action.Dz))
@@ -901,10 +924,10 @@ public static class TimelineTurnManager
 					InitiatorId = player.Id,
 				});
 			}
-			return true;
+			return PlayerActionOutcome.ConsumedTurn;
 		}
 
-		return false;
+		return PlayerActionOutcome.Failed;
 	}
 
 	private static void FinalizeConsumedAction(

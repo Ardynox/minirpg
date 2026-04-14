@@ -72,6 +72,74 @@ public sealed class RuntimeWorldToolSessionTests
 	}
 
 	[Fact]
+	public void ResolveHoverState_TerrainBuild_OnSolidCell_UsesFirstAirInDefaultDirection()
+	{
+		var state = CreateState(0, 1);
+		state.RuntimeFreeBuild = true;
+		state.World!.SetTerrain(4, 5, 3, Terrains.Stone);
+		var session = new RuntimeWorldToolSession(state);
+
+		session.SetToolMode(WorldToolMode.Build);
+
+		var preview = Assert.IsType<WorldToolPreviewState>(
+			session.ResolveHoverState(new Vector3I(4, 5, 3)));
+
+		Assert.Equal(new Vector3I(4, 5, 2), preview.ResolvedTargetCell);
+		Assert.True(preview.CanApply);
+	}
+
+	[Fact]
+	public void ResolveHoverState_TerrainBuild_OnSolidCell_WithReverseStack_UsesFirstAirInReverseDirection()
+	{
+		var state = CreateState(0, 1);
+		state.RuntimeFreeBuild = true;
+		state.World!.SetTerrain(4, 5, 3, Terrains.Stone);
+		var session = new RuntimeWorldToolSession(state);
+
+		session.SetToolMode(WorldToolMode.Build);
+
+		var preview = Assert.IsType<WorldToolPreviewState>(
+			session.ResolveHoverState(new Vector3I(4, 5, 3), reverseStack: true));
+
+		Assert.Equal(new Vector3I(4, 5, 4), preview.ResolvedTargetCell);
+		Assert.True(preview.CanApply);
+	}
+
+	[Fact]
+	public void ResolveHoverState_TerrainBuild_OnAir_WithReverseStack_KeepsHoveredCell()
+	{
+		var state = CreateState(0, 1);
+		state.RuntimeFreeBuild = true;
+		var session = new RuntimeWorldToolSession(state);
+
+		session.SetToolMode(WorldToolMode.Build);
+
+		var preview = Assert.IsType<WorldToolPreviewState>(
+			session.ResolveHoverState(new Vector3I(4, 5, 3), reverseStack: true));
+
+		Assert.Equal(new Vector3I(4, 5, 3), preview.ResolvedTargetCell);
+		Assert.True(preview.CanApply);
+	}
+
+	[Fact]
+	public void ResolveHoverState_TerrainBuild_WithReverseStackWithoutOpenAir_IsBlocked()
+	{
+		var state = CreateState(0, 1);
+		state.RuntimeFreeBuild = true;
+		for (var z = 3; z <= 19; z++)
+			state.World!.SetTerrain(4, 5, z, Terrains.Stone);
+		var session = new RuntimeWorldToolSession(state);
+
+		session.SetToolMode(WorldToolMode.Build);
+
+		var preview = Assert.IsType<WorldToolPreviewState>(
+			session.ResolveHoverState(new Vector3I(4, 5, 3), reverseStack: true));
+
+		Assert.Null(preview.ResolvedTargetCell);
+		Assert.False(preview.CanApply);
+	}
+
+	[Fact]
 	public void ResolveHoverState_TerrainSelectAndDemolish_UseHoveredLayerExactly()
 	{
 		var state = CreateState(0, 1);
@@ -104,7 +172,7 @@ public sealed class RuntimeWorldToolSessionTests
 		session.SetToolMode(WorldToolMode.Build);
 
 		var preview = Assert.IsType<WorldToolPreviewState>(
-			session.ResolveHoverState(new Vector3I(6, 7, 2)));
+			session.ResolveHoverState(new Vector3I(6, 7, 2), reverseStack: true));
 
 		Assert.Equal(WorldToolCategory.Facility, preview.Category);
 		Assert.Equal(new Vector3I(6, 7, 2), preview.ResolvedTargetCell);

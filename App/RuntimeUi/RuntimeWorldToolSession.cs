@@ -223,10 +223,9 @@ internal sealed class RuntimeWorldToolSession
 
 	private WorldToolPreviewState ResolveTerrainBuildPreview(Vector3I hoverCell, bool reverseStack)
 	{
-		_ = reverseStack;
 		var world = _state.World!;
 		var brush = CurrentBrush;
-		var targetCell = ResolveTerrainBuildTargetCell(hoverCell);
+		var targetCell = ResolveTerrainBuildTargetCell(hoverCell, reverseStack);
 		var targetTerrain = targetCell is { } resolvedTarget
 			? world.GetTerrain(resolvedTarget.X, resolvedTarget.Y, resolvedTarget.Z).StringId
 			: null;
@@ -331,11 +330,8 @@ internal sealed class RuntimeWorldToolSession
 			ghostFacility: showGhost ? facility : null);
 	}
 
-	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell)
-	{
-		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
-		return pickedTerrain is Terrains.Air or Terrains.Void ? hoverCell : null;
-	}
+	private Vector3I? ResolveTerrainBuildTargetCell(Vector3I hoverCell, bool reverseStack) =>
+		TerrainBuildTargetResolver.ResolveBuildTargetCell(_state.World, hoverCell, reverseStack);
 
 	private Vector3I? ResolveTerrainOccupiedTargetCell(Vector3I hoverCell)
 	{
