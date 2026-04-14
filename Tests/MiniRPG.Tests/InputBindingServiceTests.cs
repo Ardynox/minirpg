@@ -73,7 +73,7 @@ public sealed class InputBindingServiceTests
 	{
 		var legacyJson = $$"""
 		{
-		  "version": 1,
+		  "version": 3,
 		  "bindings": [
 		    {
 		      "context": "Action",

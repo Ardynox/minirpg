@@ -114,6 +114,7 @@ public partial class Main
 			case ":minimap": ToggleMinimap(); return;
 			case ":fogmap": ToggleFogMap(); return;
 			case ":fogmap_center": CenterFogMap(); return;
+			case ":camera_toggle_mode": ToggleRuntimeCameraMode(); return;
 		}
 
 		if (_settingsFlow.SettingsVisible) return;

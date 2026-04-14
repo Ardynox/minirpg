@@ -3,6 +3,7 @@ using MiniRPG.Core.Combat;
 using MiniRPG.Core.Facility;
 using MiniRPG.Module;
 using MiniRPG.Module.Panel;
+using MiniRPG.Module.Render;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -11,6 +12,7 @@ public partial class Main
 {
 	private void InitializeRuntimeWorldToolUi()
 	{
+		_runtimeCameraController = new RuntimeCameraController(_state);
 		_runtimeWorldToolSession = new RuntimeWorldToolSession(_state);
 		_runtimeWorldToolHasLastPointerGlobalPosition = false;
 
@@ -58,9 +60,10 @@ public partial class Main
 
 	private void ResetRuntimeWorldToolSession()
 	{
-		if (_runtimeWorldToolSession == null)
+		if (_runtimeWorldToolSession == null || _runtimeCameraController == null)
 			return;
 
+		_runtimeCameraController.ResetForSession();
 		_runtimeWorldToolSession.ResetForSession();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
@@ -71,7 +74,10 @@ public partial class Main
 
 	private void RefreshRuntimeWorldToolBar(RuntimeUiModeSnapshot? snapshot = null)
 	{
-		if (_runtimeWorldToolBar == null || _runtimeWorldToolHeightPanel == null || _runtimeWorldToolSession == null)
+		if (_runtimeWorldToolBar == null
+			|| _runtimeWorldToolHeightPanel == null
+			|| _runtimeWorldToolSession == null
+			|| _runtimeCameraController == null)
 			return;
 
 		var resolvedSnapshot = snapshot ?? CaptureRuntimeUiMode();
@@ -87,6 +93,7 @@ public partial class Main
 			return;
 
 		var previewState = ResolveRuntimeWorldToolPreviewState();
+		var runtimeCameraSnapshot = _runtimeCameraController.BuildSnapshot();
 		_runtimeWorldToolBar.Render(
 			_runtimeWorldToolSession.CurrentToolMode,
 			_runtimeWorldToolSession.CurrentCategory,
@@ -95,7 +102,10 @@ public partial class Main
 			_runtimeWorldToolSession.BuildSummary(previewState),
 			_runtimeWorldToolSession.FacilityRotation,
 			showRotationControls: _runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Facility);
-		_runtimeWorldToolHeightPanel.Render(_runtimeWorldToolSession.CameraZ);
+		_runtimeWorldToolHeightPanel.Render(
+			runtimeCameraSnapshot.Mode,
+			runtimeCameraSnapshot.CenterZ,
+			canAdjustLayer: runtimeCameraSnapshot.Mode == RuntimeCameraMode.LayerPan);
 	}
 
 	private WorldToolPreviewState? ResolveRuntimeWorldToolPreviewState()
@@ -159,6 +169,7 @@ public partial class Main
 		if (_runtimeWorldToolSession == null)
 			return;
 
+		SyncRuntimeCameraPreview();
 		if (_mapRender != null
 			&& _runtimeWorldToolHasLastPointerGlobalPosition
 			&& _mapRender.TryGetWorldCellFromGlobalPosition(_runtimeWorldToolLastPointerGlobalPosition, out var worldCell))
@@ -246,25 +257,53 @@ public partial class Main
 
 	private void AdjustRuntimeWorldToolHeight(int delta)
 	{
-		if (_runtimeWorldToolSession == null || !_runtimeWorldToolSession.AdjustCameraZ(delta))
+		if (_runtimeCameraController == null || !_runtimeCameraController.AdjustPanZ(delta))
 			return;
 
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
-		FlushMap();
 		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
 	}
 
 	private void CenterRuntimeWorldToolCameraOnPlayer()
 	{
-		if (_runtimeWorldToolSession == null)
+		if (_runtimeCameraController == null)
 			return;
 
-		_runtimeWorldToolSession.CenterOnActiveActor();
+		_runtimeCameraController.CenterOnActiveActor();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
+		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
+	}
+
+	private RuntimeCameraSnapshot ResolveRuntimeCameraSnapshot() =>
+		_runtimeCameraController.BuildSnapshot();
+
+	private void SyncRuntimeCameraPreview()
+	{
+		if (_mapRender == null || _runtimeCameraController == null)
+			return;
+
+		_mapRender.SetRuntimeView(!MapEditorActive, _runtimeCameraController.BuildSnapshot());
+	}
+
+	private void ToggleRuntimeCameraMode()
+	{
+		if (_runtimeCameraController == null
+			|| !_session.GameStarted
+			|| _menu.InMenu
+			|| MapEditorActive
+			|| LayoutEditActive
+			|| _busyOperationActive)
+		{
+			return;
+		}
+
+		_runtimeCameraController.ToggleMode();
+		_runtimeWorldToolDragActive = false;
+		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
 	}

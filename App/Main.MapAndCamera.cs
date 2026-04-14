@@ -1,6 +1,7 @@
 using Godot;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module;
+using MiniRPG.Module.Render;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -146,6 +147,7 @@ public partial class Main
 	private void FlushMap()
 	{
 		var runtimePreviewState = ResolveRuntimeWorldToolPreviewState();
+		var runtimeCameraSnapshot = ResolveRuntimeCameraSnapshot();
 		_runtimeViewCoordinator.FlushMap(
 			ResolveRuntimeRenderHoverCell(_runtimeWorldToolSession.HoverWorld, runtimePreviewState),
 			runtimePreviewState,
@@ -154,9 +156,7 @@ public partial class Main
 			_mapEditor.CameraX,
 			_mapEditor.CameraY,
 			_mapEditor.CameraZ,
-			_runtimeWorldToolSession.CameraX,
-			_runtimeWorldToolSession.CameraY,
-			_runtimeWorldToolSession.CameraZ,
+			runtimeCameraSnapshot,
 			_mapEditor.HoverWorld,
 			_mapEditor.ResolveHoverState(_mapEditor.HoverWorld),
 			SyncViewToActiveActor,
@@ -277,12 +277,23 @@ public partial class Main
 
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
+			_runtimeCameraController?.EndPanDrag();
 			_runtimeWorldToolDragActive = false;
 			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
 			SetWorldHoverCell(null);
 			RefreshRuntimeWorldToolBar(snapshot);
 			return false;
+		}
+
+		var cameraChanged = false;
+		if (_runtimeCameraController != null
+			&& _runtimeCameraController.IsPanDragActive
+			&& _mapRender.TryGetMapLocalDeltaFromGlobalMotion(motion.Relative, out var cameraPanDelta))
+		{
+			cameraChanged = _runtimeCameraController.PanByScreenDelta(cameraPanDelta);
+			if (cameraChanged)
+				SyncRuntimeCameraPreview();
 		}
 
 		if ((_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(motion.GlobalPosition))
@@ -292,6 +303,8 @@ public partial class Main
 			_runtimeWorldToolSession.SetHover(null);
 			RefreshRuntimeWorldHoverPresentation(null);
 			SetWorldHoverCell(null);
+			if (cameraChanged && _session.GameStarted && !_menu.InMenu && RenderReady)
+				FlushMap();
 			return false;
 		}
 
@@ -312,7 +325,7 @@ public partial class Main
 					_runtimeWorldToolLastDraggedHoverCell = worldCell;
 				}
 			}
-			if ((hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
+			if ((cameraChanged || hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
 				FlushMap();
 			return false;
 		}
@@ -321,6 +334,8 @@ public partial class Main
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldHoverPresentation(null);
 		SetWorldHoverCell(null);
+		if (cameraChanged && _session.GameStarted && !_menu.InMenu && RenderReady)
+			FlushMap();
 		return false;
 	}
 

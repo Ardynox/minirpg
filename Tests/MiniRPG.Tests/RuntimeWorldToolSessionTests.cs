@@ -18,22 +18,18 @@ public sealed class RuntimeWorldToolSessionTests
 	}
 
 	[Fact]
-	public void ResetForSession_DefaultsToSelectTerrain_AndRecentersRuntimeCamera()
+	public void ResetForSession_DefaultsToSelectTerrain_AndRefreshesBrushState()
 	{
 		var session = new RuntimeWorldToolSession(CreateState(0, 1, playerX: 3, playerY: 4, playerZ: 5));
 
 		session.SetToolMode(WorldToolMode.Demolish);
 		session.SetCategory(WorldToolCategory.Facility);
 		session.SetHover(new Vector3I(4, 5, 0));
-		session.AdjustCameraZ(3);
 		session.ResetForSession();
 
 		Assert.Equal(WorldToolMode.Select, session.CurrentToolMode);
 		Assert.Equal(WorldToolCategory.Terrain, session.CurrentCategory);
 		Assert.Null(session.HoverWorld);
-		Assert.Equal(3, session.CameraX);
-		Assert.Equal(4, session.CameraY);
-		Assert.Equal(5, session.CameraZ);
 		Assert.NotEmpty(session.TerrainBrushes);
 		Assert.All(session.TerrainBrushes, brush => Assert.True(TerrainBuildRuleRegistry.IsAllowed(brush.Id)));
 		Assert.Equal(session.TerrainBrushes[0].Id, session.CurrentBrush.Id);
@@ -213,17 +209,6 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Equal("facility-under-test", demolishPreview.ResolvedEntityId);
 		Assert.True(demolishPreview.CanApply);
 		Assert.True(demolishPreview.ShowInfoOverlay);
-	}
-
-	[Fact]
-	public void AdjustCameraZ_ClampsWithinRuntimeLayerRange()
-	{
-		var session = new RuntimeWorldToolSession(CreateState(0, 1, playerZ: 0));
-
-		Assert.True(session.AdjustCameraZ(99));
-		Assert.Equal(20, session.CameraZ);
-		Assert.True(session.AdjustCameraZ(-99));
-		Assert.Equal(-20, session.CameraZ);
 	}
 
 	[Fact]

@@ -94,14 +94,13 @@ public sealed class NestModuleTests
 			});
 
 			session.StartWorldCharacter(manifest.WorldId, PlayerCreationOptions.CreateDefault());
-			AddReadyNest(state, state.PlayerX + 3, state.PlayerY, state.PlayerZ);
+			var resetProbe = CreateStateWithNest();
+			NestModule.Tick(resetProbe);
 
-			NestModule.Tick(state);
-
-			var spawned = Assert.Single(state.Actors.Values, actor =>
+			var spawned = Assert.Single(resetProbe.Actors.Values, actor =>
 				actor.Faction == Factions.Hostile
 				&& string.Equals(actor.Id, "nest_0", StringComparison.Ordinal));
-			Assert.Equal(state.PlayerZ, spawned.Z);
+			Assert.Equal(0, spawned.Z);
 		}
 		finally
 		{

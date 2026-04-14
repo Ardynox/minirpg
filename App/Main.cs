@@ -130,6 +130,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private OpenContainerContext? _openChestContext;
 	private string? _armedSkillId;
 	private RuntimeWorldToolSession _runtimeWorldToolSession = null!;
+	private RuntimeCameraController _runtimeCameraController = null!;
 	private RuntimeWorldToolBarModule _runtimeWorldToolBar = null!;
 	private RuntimeWorldToolHeightPanelModule _runtimeWorldToolHeightPanel = null!;
 	private bool _runtimeWorldToolDragActive;

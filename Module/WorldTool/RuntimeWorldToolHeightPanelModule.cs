@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG.Module.WorldTool;
 
@@ -105,7 +106,7 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 		_centerButton.Pressed += () => CenterRequested?.Invoke();
 
 		RefreshTexts();
-		Render(0);
+		Render(RuntimeCameraMode.FollowActor, 0, canAdjustLayer: false);
 	}
 
 	public event Action<int>? HeightChanged;
@@ -125,12 +126,22 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 
 	public void RefreshTexts()
 	{
-		_titleLabel.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.title", "View Layer");
-		_centerButton.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.center", "Player");
+		_titleLabel.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.title", "View Camera");
+		_centerButton.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.center", "Center");
 	}
 
-	public void Render(int cameraZ)
+	public void Render(RuntimeCameraMode mode, int cameraZ, bool canAdjustLayer)
 	{
+		var modeKey = mode == RuntimeCameraMode.FollowActor
+			? "ui.runtime_tool.height.mode.follow"
+			: "ui.runtime_tool.height.mode.pan";
+		var modeFallback = mode == RuntimeCameraMode.FollowActor ? "Follow" : "Pan";
+		_titleLabel.Text = string.Concat(
+			LocalizationService.TOrFallback("ui.runtime_tool.height.title", "View Camera"),
+			" · ",
+			LocalizationService.TOrFallback(modeKey, modeFallback));
 		_valueLabel.Text = $"Z: {cameraZ}";
+		_downButton.Disabled = !canAdjustLayer;
+		_upButton.Disabled = !canAdjustLayer;
 	}
 }

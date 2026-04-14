@@ -127,6 +127,7 @@ public partial class IsometricVoxelRenderer
 	private const float CameraZoomStep = 0.1f;
 	private bool _editorViewActive;
 	private bool _runtimeViewActive;
+	private RuntimeCameraSnapshot _runtimeCameraView = RuntimeCameraSnapshot.Create(RuntimeCameraMode.FollowActor, 0, 0, 0);
 	private int _viewCenterX;
 	private int _viewCenterY;
 	private int _viewCenterZ;
@@ -430,15 +431,16 @@ public partial class IsometricVoxelRenderer
 		_viewCenterZ = centerZ;
 	}
 
-	public void SetRuntimeView(bool active, int centerX, int centerY, int centerZ)
+	internal void SetRuntimeView(bool active, RuntimeCameraSnapshot snapshot)
 	{
 		_runtimeViewActive = active;
 		if (!active)
 			return;
 
-		_viewCenterX = centerX;
-		_viewCenterY = centerY;
-		_viewCenterZ = centerZ;
+		_runtimeCameraView = snapshot;
+		_viewCenterX = snapshot.CenterX;
+		_viewCenterY = snapshot.CenterY;
+		_viewCenterZ = snapshot.CenterZ;
 	}
 
 	internal static Vector3I? ResolveHoverHighlightCell(
@@ -580,6 +582,11 @@ public partial class IsometricVoxelRenderer
 				_viewCenterX = _state.PlayerX;
 				_viewCenterY = _state.PlayerY;
 				_viewCenterZ = _state.PlayerZ;
+				_runtimeCameraView = RuntimeCameraSnapshot.Create(
+					RuntimeCameraMode.FollowActor,
+					_viewCenterX,
+					_viewCenterY,
+					_viewCenterZ);
 			}
 		}
 
@@ -664,10 +671,35 @@ public partial class IsometricVoxelRenderer
 			localInContainer.Y * _subViewport.Size.Y / rect.Size.Y);
 		var viewportSize = new Vector2(_subViewport.Size.X, _subViewport.Size.Y);
 		var screenOffset = viewportPos - viewportSize / 2f;
-		mapLocal = _camera.Position + new Vector2(
+		mapLocal = ResolveMapCameraPosition() + new Vector2(
 			screenOffset.X / _camera.Zoom.X,
 			screenOffset.Y / _camera.Zoom.Y);
 		return true;
+	}
+
+	public bool TryGetMapLocalDeltaFromGlobalMotion(Vector2 globalMotion, out Vector2 mapLocalDelta)
+	{
+		mapLocalDelta = Vector2.Zero;
+		if (_viewportContainer == null || _subViewport == null || _camera == null)
+			return false;
+
+		var rect = _viewportContainer.GetGlobalRect();
+		if (rect.Size.X <= 0f || rect.Size.Y <= 0f || _camera.Zoom.X == 0f || _camera.Zoom.Y == 0f)
+			return false;
+
+		mapLocalDelta = new Vector2(
+			globalMotion.X * _subViewport.Size.X / rect.Size.X / _camera.Zoom.X,
+			globalMotion.Y * _subViewport.Size.Y / rect.Size.Y / _camera.Zoom.Y);
+		return true;
+	}
+
+	private Vector2 ResolveMapCameraPosition()
+	{
+		if (_editorViewActive && _camera != null)
+			return _camera.Position;
+		if (_runtimeViewActive)
+			return _runtimeCameraView.ScreenCenterTarget;
+		return _camera?.Position ?? Vector2.Zero;
 	}
 
 	private bool TryPickIsometricCell(Vector2 screenPos, out Vector3I worldCell)
@@ -677,8 +709,8 @@ public partial class IsometricVoxelRenderer
 
 		if (_runtimeViewActive)
 		{
-			var (runtimeX, runtimeY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _viewCenterZ);
-			worldCell = new Vector3I(runtimeX, runtimeY, _viewCenterZ);
+			var (runtimeX, runtimeY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _runtimeCameraView.CenterZ);
+			worldCell = new Vector3I(runtimeX, runtimeY, _runtimeCameraView.CenterZ);
 			return true;
 		}
 
@@ -730,8 +762,8 @@ public partial class IsometricVoxelRenderer
 
 		var visibleWindow = GetVisibleWorldWindow();
 		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
-		var zMin = _viewCenterZ - visibleDepth.Below;
-		var zMax = _viewCenterZ + visibleDepth.Above;
+		var zMin = _runtimeCameraView.CenterZ - visibleDepth.Below;
+		var zMax = _runtimeCameraView.CenterZ + visibleDepth.Above;
 		Vector3I? bestNonEmptyCell = null;
 		for (var z = zMax; z >= zMin; z--)
 		{
@@ -763,8 +795,8 @@ public partial class IsometricVoxelRenderer
 			return true;
 		}
 
-		var (fallbackX, fallbackY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _viewCenterZ);
-		worldCell = new Vector3I(fallbackX, fallbackY, _viewCenterZ);
+		var (fallbackX, fallbackY) = IsoCoordUtil.ScreenToWorldCell(screenPos, _runtimeCameraView.CenterZ);
+		worldCell = new Vector3I(fallbackX, fallbackY, _runtimeCameraView.CenterZ);
 		return true;
 	}
 
@@ -3015,7 +3047,9 @@ public partial class IsometricVoxelRenderer
 	private void UpdateCamera(int cx, int cy, int cz)
 	{
 		if (_camera == null) return;
-		var target = IsoCoordUtil.WorldToScreen(cx, cy, cz);
+		var target = _runtimeViewActive
+			? _runtimeCameraView.ScreenCenterTarget
+			: IsoCoordUtil.WorldToScreen(cx, cy, cz);
 		if (_editorViewActive)
 			_editorCameraTarget = target;
 		else

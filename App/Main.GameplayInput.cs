@@ -34,6 +34,13 @@ public partial class Main
 			return false;
 		}
 
+		if (@event is InputEventMouseButton releasedMiddleButton
+			&& releasedMiddleButton.ButtonIndex == MouseButton.Middle
+			&& !releasedMiddleButton.Pressed)
+		{
+			return _runtimeCameraController.EndPanDrag();
+		}
+
 		if (@event is not InputEventMouseButton mb || !mb.Pressed)
 			return false;
 		if (!snapshot.AllowGameplayInput)
@@ -50,6 +57,22 @@ public partial class Main
 			return false;
 
 		var hit = _panels.HitTest(mb.GlobalPosition);
+
+		if (mb.ButtonIndex == MouseButton.Middle)
+		{
+			if (_runtimeCameraController == null)
+				return false;
+			if (hit != null && hit.PanelId != "map")
+				return false;
+			if (_mapRender == null || !_mapRender.TryGetWorldCellFromGlobalPosition(mb.GlobalPosition, out _))
+				return false;
+			if (!_runtimeCameraController.BeginPanDrag())
+				return false;
+
+			_panels.SetFocus("map");
+			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld, mb.GlobalPosition);
+			return true;
+		}
 
 		if (mb.ButtonIndex == MouseButton.Right)
 		{

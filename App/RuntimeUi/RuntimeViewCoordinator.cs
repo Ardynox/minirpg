@@ -1,6 +1,7 @@
 using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.Render;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -26,9 +27,7 @@ internal sealed class RuntimeViewCoordinator
 		int mapEditorCameraX,
 		int mapEditorCameraY,
 		int mapEditorCameraZ,
-		int runtimeCameraX,
-		int runtimeCameraY,
-		int runtimeCameraZ,
+		RuntimeCameraSnapshot runtimeCameraSnapshot,
 		Vector3I? mapEditorHoverWorld,
 		MapEditorHoverState? mapEditorHoverState,
 		Action syncViewToActiveActor,
@@ -48,11 +47,7 @@ internal sealed class RuntimeViewCoordinator
 			mapEditorCameraX,
 			mapEditorCameraY,
 			mapEditorCameraZ);
-		_ui.MapRender.SetRuntimeView(
-			!mapEditorActive,
-			runtimeCameraX,
-			runtimeCameraY,
-			runtimeCameraZ);
+		_ui.MapRender.SetRuntimeView(!mapEditorActive, runtimeCameraSnapshot);
 		_ui.MapRender.Flush();
 		markUiDirty();
 	}

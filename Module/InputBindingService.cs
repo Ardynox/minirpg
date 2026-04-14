@@ -430,6 +430,7 @@ public sealed class InputBindingService
 			new("toggle_status", "input.action.toggle_status", InputBindingContext.Action, ":toggle_status", InputGesture.FromKey(Key.H), default),
 			new("cycle_party", "input.action.cycle_party", InputBindingContext.Action, ":cycle_party", InputGesture.FromKey(Key.P), default),
 			new("quests", "input.action.quests", InputBindingContext.Action, ":quests", InputGesture.FromKey(Key.J), default),
+			new("camera_toggle_mode", "input.action.camera_toggle_mode", InputBindingContext.Action, ":camera_toggle_mode", InputGesture.FromKey(Key.V), default),
 			new("minimap", "input.action.minimap", InputBindingContext.Action, ":minimap", InputGesture.FromKey(Key.Tab), default),
 			new("fogmap", "input.action.fogmap", InputBindingContext.Action, ":fogmap", InputGesture.FromKey(Key.M), default),
 			new("fogmap_center", "input.action.fogmap_center", InputBindingContext.Action, ":fogmap_center", InputGesture.FromKey(Key.C), default),

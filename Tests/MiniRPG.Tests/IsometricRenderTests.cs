@@ -495,7 +495,9 @@ public sealed class IsometricRenderTests
 		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker(), viewW: 20, viewH: 20);
 
 		renderer.SetEditorView(active: false, centerX: 0, centerY: 0, centerZ: 0);
-		renderer.SetRuntimeView(active: true, centerX: 7, centerY: 8, centerZ: 9);
+		renderer.SetRuntimeView(
+			active: true,
+			RuntimeCameraSnapshot.Create(RuntimeCameraMode.LayerPan, centerX: 7, centerY: 8, centerZ: 9));
 
 		Assert.Equal(7, GetPrivateField<int>(renderer, "_viewCenterX"));
 		Assert.Equal(8, GetPrivateField<int>(renderer, "_viewCenterY"));
@@ -510,7 +512,9 @@ public sealed class IsometricRenderTests
 		world.SetTerrain(5, 6, 3, Terrains.Dirt);
 		var state = new GameState { World = world };
 		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker(), viewW: 20, viewH: 20);
-		renderer.SetRuntimeView(active: true, centerX: 5, centerY: 6, centerZ: 2);
+		renderer.SetRuntimeView(
+			active: true,
+			RuntimeCameraSnapshot.Create(RuntimeCameraMode.LayerPan, centerX: 5, centerY: 6, centerZ: 2));
 
 		var method = typeof(IsometricVoxelRenderer).GetMethod("TryPickIsometricCell", BindingFlags.NonPublic | BindingFlags.Instance);
 		Assert.NotNull(method);
@@ -567,7 +571,9 @@ public sealed class IsometricRenderTests
 			RevealAll = true,
 		};
 		var renderer = new IsometricVoxelRenderer(state, fog, viewW: 20, viewH: 20);
-		renderer.SetRuntimeView(active: true, centerX: 5, centerY: 6, centerZ: 0);
+		renderer.SetRuntimeView(
+			active: true,
+			RuntimeCameraSnapshot.Create(RuntimeCameraMode.LayerPan, centerX: 5, centerY: 6, centerZ: 0));
 
 		var method = typeof(IsometricVoxelRenderer).GetMethod("TryPickInspectCell", BindingFlags.NonPublic | BindingFlags.Instance);
 		Assert.NotNull(method);

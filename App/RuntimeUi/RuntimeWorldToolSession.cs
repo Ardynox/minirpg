@@ -19,8 +19,6 @@ internal readonly record struct RuntimeWorldToolBrush(
 
 internal sealed class RuntimeWorldToolSession
 {
-	private const int MaxCameraLayer = 20;
-
 	private readonly GameState _state;
 	private readonly List<RuntimeWorldToolBrush> _terrainBrushes = [];
 	private readonly List<RuntimeWorldToolBrush> _facilityBrushes = [];
@@ -33,16 +31,12 @@ internal sealed class RuntimeWorldToolSession
 	{
 		_state = state;
 		RefreshBrushes();
-		CenterOnActiveActor();
 	}
 
 	public WorldToolMode CurrentToolMode { get; private set; } = WorldToolMode.Select;
 	public WorldToolCategory CurrentCategory { get; private set; } = WorldToolCategory.Terrain;
 	public Vector3I? HoverWorld { get; private set; }
 	public FacilityRotation FacilityRotation { get; private set; } = FacilityRotation.South;
-	public int CameraX { get; private set; }
-	public int CameraY { get; private set; }
-	public int CameraZ { get; private set; }
 
 	public IReadOnlyList<RuntimeWorldToolBrush> TerrainBrushes => _terrainBrushes;
 	public IReadOnlyList<RuntimeWorldToolBrush> FacilityBrushes => _facilityBrushes;
@@ -65,7 +59,6 @@ internal sealed class RuntimeWorldToolSession
 		CurrentCategory = WorldToolCategory.Terrain;
 		HoverWorld = null;
 		_reverseStack = false;
-		CenterOnActiveActor();
 		_facilityRotationSeeded = false;
 		_facilityBrushIndex = _facilityBrushes.Count > 0 ? Math.Clamp(_facilityBrushIndex, 0, _facilityBrushes.Count - 1) : -1;
 		_terrainBrushIndex = _terrainBrushes.Count > 0 ? Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1) : -1;
@@ -137,27 +130,6 @@ internal sealed class RuntimeWorldToolSession
 			return false;
 
 		_reverseStack = reverseStack;
-		return true;
-	}
-
-	public void CenterOnActiveActor()
-	{
-		var actor = ResolveActiveActor();
-		CameraX = actor?.X ?? _state.PlayerX;
-		CameraY = actor?.Y ?? _state.PlayerY;
-		CameraZ = actor?.Z ?? _state.PlayerZ;
-	}
-
-	public bool AdjustCameraZ(int delta)
-	{
-		if (delta == 0)
-			return false;
-
-		var next = Math.Clamp(CameraZ + delta, -MaxCameraLayer, MaxCameraLayer);
-		if (next == CameraZ)
-			return false;
-
-		CameraZ = next;
 		return true;
 	}
 
