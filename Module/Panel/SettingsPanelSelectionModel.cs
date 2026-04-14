@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+using MiniRPG.Core.Config;
+
 namespace MiniRPG.Module.Panel;
 
 internal enum SettingsPanelRowId
@@ -11,6 +13,7 @@ internal enum SettingsPanelRowId
 	WatchMode,
 	FastTurnMode,
 	KeyboardTargeting,
+	AutoNavigationInterruptPolicy,
 	DebugPanel,
 	KeyBindings,
 	Save,
@@ -47,7 +50,8 @@ internal sealed class SettingsPanelSelectionModel
 		EnableDebugPanel: true,
 		MapZoomMin: 0.6f,
 		MapZoomMax: 2.4f,
-		MapZoomCurrent: 1.0f);
+		MapZoomCurrent: 1.0f,
+		AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 	public SettingsTab CurrentTab { get; private set; } = SettingsTab.General;
 	public bool KeyBindingsMode { get; private set; }
@@ -210,6 +214,7 @@ internal sealed class SettingsPanelSelectionModel
 	private static List<SettingsPanelRowId> GetControlsRows() =>
 		[
 			SettingsPanelRowId.KeyboardTargeting,
+			SettingsPanelRowId.AutoNavigationInterruptPolicy,
 			SettingsPanelRowId.DebugPanel,
 			SettingsPanelRowId.KeyBindings,
 		];

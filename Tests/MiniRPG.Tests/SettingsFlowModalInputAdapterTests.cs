@@ -1,4 +1,5 @@
 using System;
+using MiniRPG.Core.Config;
 using MiniRPG.Module.Panel;
 using Xunit;
 
@@ -138,7 +139,8 @@ public sealed class SettingsFlowModalInputAdapterTests
 				EnableDebugPanel: true,
 				MapZoomMin: 0.6f,
 				MapZoomMax: 2.4f,
-				MapZoomCurrent: 1.0f));
+				MapZoomCurrent: 1.0f,
+				AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, new PanelManager(), () => FlushMapCalls++);
 		}
@@ -217,6 +219,11 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? KeyboardTargetingToggleRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? AutoNavigationInterruptPolicyCycleRequested
 		{
 			add { }
 			remove { }

@@ -60,7 +60,8 @@ public partial class Main
 			_enableDebugPanel,
 			_mapZoomMin,
 			_mapZoomMax,
-			_mapRender?.Zoom ?? 1.0f);
+			_mapRender?.Zoom ?? 1.0f,
+			_autoNavigationInterruptPolicy);
 	}
 
 	private void SyncSettingsUiState(SettingsEntryContext? context = null)
@@ -93,6 +94,7 @@ public partial class Main
 			ResourcesReady,
 			_session.BuildContinueButtonText(continueTarget));
 		SetWorldHoverCell(null, flushMap: false);
+		CancelAutoNavigation(AutoNavigationStopReason.SessionReset, emitLog: false);
 		RefreshRuntimeWorldToolBar();
 	}
 

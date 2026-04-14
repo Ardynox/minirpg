@@ -151,7 +151,7 @@ public partial class Main
 		_runtimeViewCoordinator.FlushMap(
 			ResolveRuntimeRenderHoverCell(_runtimeWorldToolSession.HoverWorld, runtimePreviewState),
 			runtimePreviewState,
-			_skillTargetCursorActive ? _skillTargetWorldCell : null,
+			ResolvePrimaryTargetCursorWorldCell(),
 			MapEditorActive,
 			_mapEditor.CameraX,
 			_mapEditor.CameraY,

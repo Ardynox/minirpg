@@ -68,6 +68,8 @@ internal sealed class MultiplayerRuntimeCoordinator
 	public MultiplayerSessionBackend? Backend => _backend;
 	public bool HasBackend => _backend != null;
 	public long TotalRollbackCount => _clientPrediction.TotalRollbackCount;
+	public int PendingPredictionCount => _clientPrediction.PendingCount;
+	public long ActivityVersion { get; private set; }
 
 	public void Poll() => _backend?.Poll();
 
@@ -85,6 +87,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		_backend.RosterChanged += HandleMultiplayerRosterChanged;
 		_backend.ReconnectClaimed += HandleMultiplayerReconnectClaimed;
 		_backend.Trace += HandleMultiplayerTrace;
+		ActivityVersion = 0;
 		_clientPrediction.Configure(_predictionConfigProvider());
 
 		var status = _session.ApplyMultiplayerRoomSnapshot(result.JoinTicket, result.InitialSnapshot.Snapshot);
@@ -180,6 +183,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		}
 		finally
 		{
+			ActivityVersion = 0;
 			_suppressDisconnectHandling = false;
 		}
 	}
@@ -244,6 +248,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 			_flow.CurrentSettings.DisplayName,
 			primaryActorId: null,
 			envelope.Snapshot);
+		ActivityVersion++;
 		ApplyPredictionReconciliation(envelope.RequestId);
 		_refreshVisiblePanels();
 		_refreshPlayerCharacterVisual();
@@ -256,6 +261,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 	{
 		if (envelope.Events.Count == 0)
 			return;
+		ActivityVersion++;
 		_dispatch([.. envelope.Events]);
 		_log.Add($"[MP] inbound events requestId={envelope.RequestId ?? ""} serverTick={envelope.ServerTick} seq={envelope.SnapshotSequence} count={envelope.Events.Count}");
 		_markUiDirty();
@@ -269,6 +275,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 
 	private void HandleMultiplayerRosterChanged(RoomRuntimeState room)
 	{
+		ActivityVersion++;
 		_state.Room = room.Clone();
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
 		_refreshVisiblePanels();
@@ -278,6 +285,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 
 	private void HandleMultiplayerCommandRejected(string reason)
 	{
+		ActivityVersion++;
 		if (!string.IsNullOrWhiteSpace(reason))
 			_log.Add(reason);
 	}
@@ -296,6 +304,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		_state.PlayerX = actor.X;
 		_state.PlayerY = actor.Y;
 		_state.PlayerZ = actor.Z;
+		ActivityVersion++;
 		_clientPrediction.Configure(_predictionConfigProvider());
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
 		_refreshPlayerCharacterVisual();

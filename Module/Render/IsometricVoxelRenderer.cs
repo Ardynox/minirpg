@@ -2154,33 +2154,77 @@ public partial class IsometricVoxelRenderer
 	{
 		_highlightCommands.Clear();
 		_highlightCommandCount = 0;
-		var highlightCell = ResolveHoverHighlightCell(HoverWorldCell, previewState);
 		var targetCursorCell = TargetCursorWorldCell;
-		if (targetCursorCell is { } cursorCell)
-			highlightCell ??= cursorCell;
-		if (highlightCell is not { } hover)
+		var allowHighlightWithoutVision = !_editorViewActive && previewState != null;
+		var hoverCell = ResolveHoverHighlightCell(HoverWorldCell, previewState);
+		TryAddHoverHighlightCommand(
+			hoverCell,
+			targetCursorCell is { } cursor && cursor == hoverCell
+				? EditorSelectHoverHighlightStyle
+				: ResolveHoverHighlightStyle(_editorViewActive, previewState),
+			previewState,
+			allowHighlightWithoutVision,
+			cx,
+			cy,
+			halfW,
+			halfH,
+			zMin,
+			zMax,
+			visibleMapRect);
+		if (targetCursorCell is { } targetCell && targetCell != hoverCell)
+		{
+			TryAddHoverHighlightCommand(
+				targetCell,
+				EditorSelectHoverHighlightStyle,
+				previewState: null,
+				allowHighlightWithoutVision: false,
+				cx,
+				cy,
+				halfW,
+				halfH,
+				zMin,
+				zMax,
+				visibleMapRect);
+		}
+
+		_highlightCommandCount = _highlightCommands.Count + GetPlacementGhostCommandCount(previewState);
+	}
+
+	private void TryAddHoverHighlightCommand(
+		Vector3I? cell,
+		HoverHighlightStyle style,
+		WorldToolPreviewState? previewState,
+		bool allowHighlightWithoutVision,
+		int cx,
+		int cy,
+		int halfW,
+		int halfH,
+		int zMin,
+		int zMax,
+		Rect2? visibleMapRect)
+	{
+		if (cell is not { } hover)
 			return;
 		if (Math.Abs(hover.X - cx) > halfW || Math.Abs(hover.Y - cy) > halfH)
 			return;
 		if (hover.Z < zMin || hover.Z > zMax)
 			return;
-		var allowHighlightWithoutVision = !_editorViewActive && previewState != null;
 		if (!allowHighlightWithoutVision
 			&& _fogTracker.GetVisionBand(hover.X, hover.Y, hover.Z) == PlayerVisionBand.Unknown)
+		{
 			return;
+		}
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
 		if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(basePos, mapRect))
 			return;
+
 		_highlightCommands.Add(new HoverHighlightCommand(
 			basePos,
 			hover,
-			targetCursorCell is { } cursor && cursor == hover
-				? EditorSelectHoverHighlightStyle
-				: ResolveHoverHighlightStyle(_editorViewActive, previewState),
-			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000,
+			style,
+			IsoCoordUtil.SortKey(hover.X, hover.Y, hover.Z) + 9000 + _highlightCommands.Count,
 			previewState));
-		_highlightCommandCount = _highlightCommands.Count + GetPlacementGhostCommandCount(previewState);
 	}
 
 	private void RenderHoverHighlights()

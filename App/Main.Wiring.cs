@@ -11,6 +11,7 @@ public partial class Main
 		_settingsFlow.WatchModeToggleRequested += ToggleWatchMode;
 		_settingsFlow.FastTurnModeToggleRequested += ToggleFastTurnMode;
 		_settingsFlow.KeyboardTargetingToggleRequested += ToggleKeyboardTargeting;
+		_settingsFlow.AutoNavigationInterruptPolicyCycleRequested += CycleAutoNavigationInterruptPolicy;
 		_settingsFlow.DebugPanelToggleRequested += ToggleDebugPanelSetting;
 		_settingsFlow.MapZoomMinDecreaseRequested += DecreaseMapZoomMin;
 		_settingsFlow.MapZoomMinIncreaseRequested += IncreaseMapZoomMin;

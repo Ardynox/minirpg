@@ -216,6 +216,7 @@ public partial class Main
 		LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
 		_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
 		_fastTurnModeEnabled = AppSettingsStore.LoadFastTurnMode();
+		_autoNavigationInterruptPolicy = AppSettingsStore.LoadAutoNavigationInterruptPolicy();
 		_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
 		_mapZoomMin = AppSettingsStore.LoadMapZoomMin();
 		_mapZoomMax = AppSettingsStore.LoadMapZoomMax();

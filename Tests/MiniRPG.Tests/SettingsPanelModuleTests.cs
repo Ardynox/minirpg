@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using MiniRPG.Core.Config;
 using MiniRPG.Module.Panel;
 using Xunit;
 
@@ -15,12 +16,14 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Contains("private const string ContentScrollPath = \"Margin/VBox/ContentScroll\";", moduleSource);
 		Assert.Contains("private const string LanguageRowPath = GeneralPagePath + \"/DisplaySection/Margin/VBox/LanguageRow\";", moduleSource);
+		Assert.Contains("private const string AutoNavigationInterruptPolicyRowPath = ControlsPagePath + \"/ControlOptionsSection/Margin/VBox/AutoNavigationInterruptPolicyRow\";", moduleSource);
 		Assert.Contains("private const string BindingsRowPath = ControlsPagePath + \"/BindingsSection/Margin/VBox/BindingsRow\";", moduleSource);
 		Assert.Contains("private const string KeyBindingsRootPath = ControlsPagePath + \"/BindingsSection/Margin/VBox/KeyBindingsView\";", moduleSource);
 		Assert.Contains("private const string LayoutEditRowPath = SessionPagePath + \"/ToolsSection/Margin/VBox/LayoutEditRow\";", moduleSource);
 
 		Assert.Contains("[node name=\"ContentScroll\" type=\"ScrollContainer\" parent=\"Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"LanguageRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox\"]", sceneSource);
+		Assert.Contains("[node name=\"AutoNavigationInterruptPolicyRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"BindingsRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"KeyBindingsView\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox\" instance=ExtResource(\"1_keybindings\")]", sceneSource);
 		Assert.Contains("[node name=\"LayoutEditRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/SessionPage/ToolsSection/Margin/VBox\"]", sceneSource);
@@ -56,6 +59,9 @@ public sealed class SettingsPanelModuleTests
 		Assert.Equal(
 			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
 			model.GetVisibleRows(SettingsTab.General));
+		Assert.Equal(
+			[SettingsPanelRowId.KeyboardTargeting, SettingsPanelRowId.AutoNavigationInterruptPolicy, SettingsPanelRowId.DebugPanel, SettingsPanelRowId.KeyBindings],
+			model.GetVisibleRows(SettingsTab.Controls));
 
 		model.SetTab(SettingsTab.Session);
 		model.MoveSelection(10);
@@ -96,6 +102,7 @@ public sealed class SettingsPanelModuleTests
 			watchModeEnabled: true,
 			mapEditorActive: true,
 			enableKeyboardTargeting: true,
+			autoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.HostileProximityStop,
 			enableDebugPanel: false,
 			canOpenSessionTab: true);
 
@@ -104,6 +111,7 @@ public sealed class SettingsPanelModuleTests
 		Assert.Equal("ui.settings.render.status.ready", SettingsPanelModule.GetRenderStatusKey(readyState));
 		Assert.Equal("ui.settings.watch_mode.status.on", SettingsPanelModule.GetWatchModeStatusKey(readyState));
 		Assert.Equal("ui.settings.keyboard_targeting.status.on", SettingsPanelModule.GetKeyboardTargetingStatusKey(readyState));
+		Assert.Equal("ui.settings.auto_navigation_interrupt_policy.status.hostile_proximity_stop", SettingsPanelModule.GetAutoNavigationInterruptPolicyStatusKey(readyState));
 		Assert.Equal("ui.settings.debug_panel.status.off", SettingsPanelModule.GetDebugPanelStatusKey(readyState));
 		Assert.Equal("ui.settings.map_editor.status.active", SettingsPanelModule.GetMapEditorStatusKey(readyState));
 		Assert.Equal("ui.settings.key_bindings.status.idle", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: false, isCapturing: false));
@@ -146,6 +154,7 @@ public sealed class SettingsPanelModuleTests
 		bool mapEditorActive = false,
 		bool canOpenSessionTab = false,
 		bool enableKeyboardTargeting = false,
+		AutoNavigationInterruptPolicy autoNavigationInterruptPolicy = AutoNavigationInterruptPolicy.ConservativeStop,
 		bool enableDebugPanel = true) =>
 		new(
 			context,
@@ -159,7 +168,8 @@ public sealed class SettingsPanelModuleTests
 			enableDebugPanel,
 			0.6f,
 			2.4f,
-			1.0f);
+			1.0f,
+			autoNavigationInterruptPolicy);
 
 	private static string ResolveRepoRoot()
 	{

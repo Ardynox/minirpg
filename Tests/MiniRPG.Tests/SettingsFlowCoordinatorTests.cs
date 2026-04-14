@@ -1,4 +1,5 @@
 using System;
+using MiniRPG.Core.Config;
 using MiniRPG.Module.Panel;
 using Xunit;
 
@@ -28,7 +29,8 @@ public sealed class SettingsFlowCoordinatorTests
 			EnableDebugPanel: true,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
-			MapZoomCurrent: 1.0f));
+			MapZoomCurrent: 1.0f,
+			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenSettings(SettingsEntryContext.MainMenu, SettingsTab.Controls);
 
@@ -65,7 +67,8 @@ public sealed class SettingsFlowCoordinatorTests
 			EnableDebugPanel: true,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
-			MapZoomCurrent: 1.0f));
+			MapZoomCurrent: 1.0f,
+			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenPauseMenu();
 
@@ -153,6 +156,7 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? WatchModeToggleRequested { add { } remove { } }
 		public event Action? FastTurnModeToggleRequested { add { } remove { } }
 		public event Action? KeyboardTargetingToggleRequested { add { } remove { } }
+		public event Action? AutoNavigationInterruptPolicyCycleRequested { add { } remove { } }
 		public event Action? DebugPanelToggleRequested;
 		public event Action? MapZoomMinDecreaseRequested { add { } remove { } }
 		public event Action? MapZoomMinIncreaseRequested { add { } remove { } }

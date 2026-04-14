@@ -89,6 +89,9 @@ public partial class Main
 
 	private void SubmitPlayerAction(TimelinePlayerAction action)
 	{
+		if (!_autoNavigationExecutingStep)
+			InterruptAutoNavigationForManualInput();
+
 		if (TrySubmitMultiplayerTimelineAction(action))
 			return;
 
@@ -97,6 +100,9 @@ public partial class Main
 
 	private TimelineStepResult SubmitPlayerActionWithResult(TimelinePlayerAction action)
 	{
+		if (!_autoNavigationExecutingStep)
+			InterruptAutoNavigationForManualInput();
+
 		if (TrySubmitMultiplayerTimelineAction(action))
 			return new TimelineStepResult();
 
@@ -310,6 +316,7 @@ public partial class Main
 		ClearArmedSkill(restoreFocus: false);
 		EndSkillTargetCursorMode(restoreFocus: false);
 		ClearPlayerTargeting();
+		CancelAutoNavigation(AutoNavigationStopReason.SessionReset, emitLog: false);
 		_playerRestModeActive = false;
 		ResetThreatHud();
 		_timelineAutoAdvancePending = false;

@@ -12,12 +12,19 @@ internal sealed class ClientPredictionState
 	public long NextClientTick { get; private set; }
 	public long TotalRollbackCount { get; private set; }
 	public long LastRollbackDistanceManhattan { get; private set; }
+	public int PendingCount => _orderedPredictions.Count;
 
 	public PredictionConfig Config { get; private set; } = PredictionConfig.Default;
 
 	public void Configure(PredictionConfig config)
 	{
 		Config = config;
+		_predictedByRequestId.Clear();
+		_orderedPredictions.Clear();
+		_rollbackCountByReason.Clear();
+		NextClientTick = 0;
+		TotalRollbackCount = 0;
+		LastRollbackDistanceManhattan = 0;
 	}
 
 	public PredictedMove CreateMovePrediction(string requestId, int dx, int dy, int predictedX, int predictedY, int predictedZ)

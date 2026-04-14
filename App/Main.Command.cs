@@ -70,6 +70,9 @@ public partial class Main
 			return;
 		}
 
+		if (ShouldInterruptAutoNavigationForCommand(cmd))
+			InterruptAutoNavigationForManualInput();
+
 		if (IsTimelineInputLocked())
 			return;
 

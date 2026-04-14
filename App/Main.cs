@@ -294,16 +294,27 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		TickWorldHoverOverlay((float)delta);
 		TickAltLabelOverlay(snapshot);
 		RefreshRuntimeWorldToolBar(snapshot);
-		if (snapshot.InMenu) return;
+		if (snapshot.InMenu)
+		{
+			if (IsAutoNavigationActive)
+				CancelAutoNavigation(AutoNavigationStopReason.GameplayBlocked, emitLog: false);
+			return;
+		}
 
 		ProcessDirtyPanels();
 		_mapRender?.AdvanceAnimations(delta);
 		if (MapEditorActive) _mapEditorCoordinator.Tick((float)delta);
 		EmitPredictionMetricsIfDue();
-		if (snapshot.PausesGameplayLoop) return;
+		if (snapshot.PausesGameplayLoop)
+		{
+			if (IsAutoNavigationActive)
+				CancelAutoNavigation(AutoNavigationStopReason.GameplayBlocked, emitLog: false);
+			return;
+		}
 
 		ProcessTimelineAutoAdvance(delta);
 		ProcessPlayerRestMode();
+		ProcessAutoNavigation(snapshot);
 		_turnControllerPanelController?.Process(delta);
 	}
 

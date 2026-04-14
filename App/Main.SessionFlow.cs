@@ -9,6 +9,7 @@ public partial class Main
 		ClearArmedSkill(restoreFocus: false);
 		EndSkillTargetCursorMode(restoreFocus: false);
 		ClearPlayerTargeting();
+		CancelAutoNavigation(AutoNavigationStopReason.SessionReset, emitLog: false);
 		ResetRuntimeWorldToolSession();
 		ResetThreatHud();
 		RefreshPlayerCharacterVisual();

@@ -1,4 +1,5 @@
 using System;
+using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
@@ -37,7 +38,8 @@ public readonly record struct SettingsUiState(
 	bool EnableDebugPanel,
 	float MapZoomMin,
 	float MapZoomMax,
-	float MapZoomCurrent);
+	float MapZoomCurrent,
+	AutoNavigationInterruptPolicy AutoNavigationInterruptPolicy);
 
 public interface ISettingsFlowPanel
 {
@@ -93,6 +95,7 @@ public interface ISettingsOverlay : ISettingsFlowPanel
 	event Action? WatchModeToggleRequested;
 	event Action? FastTurnModeToggleRequested;
 	event Action? KeyboardTargetingToggleRequested;
+	event Action? AutoNavigationInterruptPolicyCycleRequested;
 	event Action? DebugPanelToggleRequested;
 	event Action? MapZoomMinDecreaseRequested;
 	event Action? MapZoomMinIncreaseRequested;
@@ -126,6 +129,7 @@ public sealed class SettingsFlowCoordinator
 	public event Action? WatchModeToggleRequested;
 	public event Action? FastTurnModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
+	public event Action? AutoNavigationInterruptPolicyCycleRequested;
 	public event Action? DebugPanelToggleRequested;
 	public event Action? MapZoomMinDecreaseRequested;
 	public event Action? MapZoomMinIncreaseRequested;
@@ -157,7 +161,8 @@ public sealed class SettingsFlowCoordinator
 			EnableDebugPanel: true,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
-			MapZoomCurrent: 1.0f);
+			MapZoomCurrent: 1.0f,
+			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 		_pauseMenu.ActionRequested += HandlePauseAction;
 		_settings.BackRequested += CloseActiveOverlay;
@@ -165,6 +170,7 @@ public sealed class SettingsFlowCoordinator
 		_settings.WatchModeToggleRequested += () => WatchModeToggleRequested?.Invoke();
 		_settings.FastTurnModeToggleRequested += () => FastTurnModeToggleRequested?.Invoke();
 		_settings.KeyboardTargetingToggleRequested += () => KeyboardTargetingToggleRequested?.Invoke();
+		_settings.AutoNavigationInterruptPolicyCycleRequested += () => AutoNavigationInterruptPolicyCycleRequested?.Invoke();
 		_settings.DebugPanelToggleRequested += () => DebugPanelToggleRequested?.Invoke();
 		_settings.MapZoomMinDecreaseRequested += () => MapZoomMinDecreaseRequested?.Invoke();
 		_settings.MapZoomMinIncreaseRequested += () => MapZoomMinIncreaseRequested?.Invoke();

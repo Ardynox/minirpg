@@ -192,7 +192,7 @@ public partial class Main
 		if (_runtimeWorldToolSession.CurrentToolMode == WorldToolMode.Select)
 		{
 			var selectionPreviewState = _runtimeWorldToolSession.ResolveHoverState(worldCell);
-			HandleRuntimeWorldToolSelection(selectionPreviewState?.ResolvedTargetCell ?? worldCell);
+			StartOrRetargetAutoNavigation(selectionPreviewState?.ResolvedTargetCell ?? worldCell);
 			return true;
 		}
 
@@ -203,6 +203,7 @@ public partial class Main
 		if (!TryBuildRuntimeWorldToolAction(preview, targetCell, out var action))
 			return false;
 
+		InterruptAutoNavigationForManualInput();
 		SubmitPlayerAction(action);
 		FlushMap();
 		return true;

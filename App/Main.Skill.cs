@@ -23,6 +23,7 @@ public partial class Main
 		if (IsTimelineInputLocked())
 			return;
 
+		InterruptAutoNavigationForManualInput();
 		ArmSkill(skill.Id);
 	}
 
@@ -271,6 +272,8 @@ public partial class Main
 		var player = ActorModule.GetPlayer(_state);
 		if (player == null)
 			return false;
+
+		InterruptAutoNavigationForManualInput();
 
 		var targetType = ActionModule.ResolveSkillTargetType(skill);
 		var targetActor = targetType == SkillTargetType.Actor

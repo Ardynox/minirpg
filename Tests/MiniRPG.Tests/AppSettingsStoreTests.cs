@@ -68,6 +68,24 @@ public sealed class AppSettingsStoreTests
 	}
 
 	[Fact]
+	public void AutoNavigationInterruptPolicy_CanRoundTripThroughSettingsStore()
+	{
+		var original = AppSettingsStore.LoadAutoNavigationInterruptPolicy();
+		try
+		{
+			AppSettingsStore.SaveAutoNavigationInterruptPolicy(AutoNavigationInterruptPolicy.ManualOnly);
+			Assert.Equal(AutoNavigationInterruptPolicy.ManualOnly, AppSettingsStore.LoadAutoNavigationInterruptPolicy());
+
+			AppSettingsStore.SaveAutoNavigationInterruptPolicy(AutoNavigationInterruptPolicy.HostileProximityStop);
+			Assert.Equal(AutoNavigationInterruptPolicy.HostileProximityStop, AppSettingsStore.LoadAutoNavigationInterruptPolicy());
+		}
+		finally
+		{
+			AppSettingsStore.SaveAutoNavigationInterruptPolicy(original);
+		}
+	}
+
+	[Fact]
 	public void MultiplayerSettings_CanRoundTripIncludingReconnectTicket()
 	{
 		var original = AppSettingsStore.LoadMultiplayerSettings();

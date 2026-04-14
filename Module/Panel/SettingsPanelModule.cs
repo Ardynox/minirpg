@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Module;
 
 namespace MiniRPG.Module.Panel;
@@ -18,6 +19,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string WatchModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/WatchModeRow";
 	private const string FastTurnModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/FastTurnModeRow";
 	private const string KeyboardTargetingRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow";
+	private const string AutoNavigationInterruptPolicyRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/AutoNavigationInterruptPolicyRow";
 	private const string DebugPanelRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/DebugPanelRow";
 	private const string BindingsRowPath = ControlsPagePath + "/BindingsSection/Margin/VBox/BindingsRow";
 	private const string KeyBindingsRootPath = ControlsPagePath + "/BindingsSection/Margin/VBox/KeyBindingsView";
@@ -57,6 +59,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _fastTurnModeStatusLabel;
 	private readonly Label _keyboardTargetingTitleLabel;
 	private readonly Label _keyboardTargetingStatusLabel;
+	private readonly Label _autoNavigationInterruptPolicyTitleLabel;
+	private readonly Label _autoNavigationInterruptPolicyStatusLabel;
 	private readonly Label _debugPanelTitleLabel;
 	private readonly Label _debugPanelStatusLabel;
 	private readonly Label _bindingsTitleLabel;
@@ -78,6 +82,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly CheckButton _watchModeButton;
 	private readonly CheckButton _fastTurnModeButton;
 	private readonly CheckButton _keyboardTargetingButton;
+	private readonly Button _autoNavigationInterruptPolicyButton;
 	private readonly CheckButton _debugPanelToggleButton;
 	private readonly Button _bindingsButton;
 	private readonly Button _saveButton;
@@ -110,6 +115,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	public event Action? WatchModeToggleRequested;
 	public event Action? FastTurnModeToggleRequested;
 	public event Action? KeyboardTargetingToggleRequested;
+	public event Action? AutoNavigationInterruptPolicyCycleRequested;
 	public event Action? DebugPanelToggleRequested;
 	public event Action? MapZoomMinDecreaseRequested;
 	public event Action? MapZoomMinIncreaseRequested;
@@ -153,6 +159,14 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		state.EnableKeyboardTargeting
 			? "ui.settings.keyboard_targeting.status.on"
 			: "ui.settings.keyboard_targeting.status.off";
+
+	internal static string GetAutoNavigationInterruptPolicyStatusKey(SettingsUiState state) =>
+		state.AutoNavigationInterruptPolicy switch
+		{
+			AutoNavigationInterruptPolicy.ManualOnly => "ui.settings.auto_navigation_interrupt_policy.status.manual_only",
+			AutoNavigationInterruptPolicy.HostileProximityStop => "ui.settings.auto_navigation_interrupt_policy.status.hostile_proximity_stop",
+			_ => "ui.settings.auto_navigation_interrupt_policy.status.conservative_stop",
+		};
 
 	internal static string GetDebugPanelStatusKey(SettingsUiState state) =>
 		state.EnableDebugPanel
@@ -225,6 +239,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_fastTurnModeStatusLabel = panel.GetNode<Label>(FastTurnModeRowPath + "/Margin/HBox/Content/Status");
 		_keyboardTargetingTitleLabel = panel.GetNode<Label>(KeyboardTargetingRowPath + "/Margin/HBox/Content/Title");
 		_keyboardTargetingStatusLabel = panel.GetNode<Label>(KeyboardTargetingRowPath + "/Margin/HBox/Content/Status");
+		_autoNavigationInterruptPolicyTitleLabel = panel.GetNode<Label>(AutoNavigationInterruptPolicyRowPath + "/Margin/HBox/Content/Title");
+		_autoNavigationInterruptPolicyStatusLabel = panel.GetNode<Label>(AutoNavigationInterruptPolicyRowPath + "/Margin/HBox/Content/Status");
 		_debugPanelTitleLabel = panel.GetNode<Label>(DebugPanelRowPath + "/Margin/HBox/Content/Title");
 		_debugPanelStatusLabel = panel.GetNode<Label>(DebugPanelRowPath + "/Margin/HBox/Content/Status");
 		_bindingsTitleLabel = panel.GetNode<Label>(BindingsRowPath + "/Margin/HBox/Content/Title");
@@ -247,6 +263,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_watchModeButton = panel.GetNode<CheckButton>(WatchModeRowPath + "/Margin/HBox/WatchModeToggle");
 		_fastTurnModeButton = panel.GetNode<CheckButton>(FastTurnModeRowPath + "/Margin/HBox/FastTurnModeToggle");
 		_keyboardTargetingButton = panel.GetNode<CheckButton>(KeyboardTargetingRowPath + "/Margin/HBox/KeyboardTargetingToggle");
+		_autoNavigationInterruptPolicyButton = panel.GetNode<Button>(AutoNavigationInterruptPolicyRowPath + "/Margin/HBox/AutoNavigationInterruptPolicyBtn");
 		_debugPanelToggleButton = panel.GetNode<CheckButton>(DebugPanelRowPath + "/Margin/HBox/DebugPanelToggle");
 		_bindingsButton = panel.GetNode<Button>(BindingsRowPath + "/Margin/HBox/BindingsBtn");
 		_saveButton = panel.GetNode<Button>(SaveRowPath + "/Margin/HBox/SaveBtn");
@@ -266,6 +283,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			[SettingsPanelRowId.WatchMode] = panel.GetNode<PanelContainer>(WatchModeRowPath),
 			[SettingsPanelRowId.FastTurnMode] = panel.GetNode<PanelContainer>(FastTurnModeRowPath),
 			[SettingsPanelRowId.KeyboardTargeting] = panel.GetNode<PanelContainer>(KeyboardTargetingRowPath),
+			[SettingsPanelRowId.AutoNavigationInterruptPolicy] = panel.GetNode<PanelContainer>(AutoNavigationInterruptPolicyRowPath),
 			[SettingsPanelRowId.DebugPanel] = panel.GetNode<PanelContainer>(DebugPanelRowPath),
 			[SettingsPanelRowId.KeyBindings] = panel.GetNode<PanelContainer>(BindingsRowPath),
 			[SettingsPanelRowId.Save] = panel.GetNode<PanelContainer>(SaveRowPath),
@@ -360,6 +378,11 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			SelectRow(SettingsPanelRowId.KeyboardTargeting);
 			KeyboardTargetingToggleRequested?.Invoke();
 		};
+		_autoNavigationInterruptPolicyButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.AutoNavigationInterruptPolicy);
+			AutoNavigationInterruptPolicyCycleRequested?.Invoke();
+		};
 		_debugPanelToggleButton.Pressed += () => SelectRow(SettingsPanelRowId.DebugPanel);
 		_debugPanelToggleButton.Toggled += _ =>
 		{
@@ -401,6 +424,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		WireRowSelection(SettingsPanelRowId.WatchMode);
 		WireRowSelection(SettingsPanelRowId.FastTurnMode);
 		WireRowSelection(SettingsPanelRowId.KeyboardTargeting);
+		WireRowSelection(SettingsPanelRowId.AutoNavigationInterruptPolicy);
 		WireRowSelection(SettingsPanelRowId.DebugPanel);
 		WireRowSelection(SettingsPanelRowId.KeyBindings);
 		WireRowSelection(SettingsPanelRowId.Save);
@@ -420,7 +444,8 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			EnableDebugPanel: true,
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
-			MapZoomCurrent: 1.0f);
+			MapZoomCurrent: 1.0f,
+			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 		_selectionModel.ApplyState(_state);
 		_panel.Visible = false;
@@ -472,6 +497,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_watchModeTitleLabel.Text = LocalizationService.T("ui.settings.watch_mode.title");
 		_fastTurnModeTitleLabel.Text = LocalizationService.T("ui.settings.fast_turn_mode.title");
 		_keyboardTargetingTitleLabel.Text = LocalizationService.T("ui.settings.keyboard_targeting.title");
+		_autoNavigationInterruptPolicyTitleLabel.Text = LocalizationService.T("ui.settings.auto_navigation_interrupt_policy.title");
 		_debugPanelTitleLabel.Text = LocalizationService.T("ui.settings.debug_panel.title");
 		_bindingsTitleLabel.Text = LocalizationService.T("ui.settings.key_bindings.title");
 		_saveTitleLabel.Text = LocalizationService.T("ui.settings.save.title");
@@ -479,6 +505,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapEditorTitleLabel.Text = LocalizationService.T("ui.settings.map_editor.title");
 		_layoutEditTitleLabel.Text = LocalizationService.T("ui.settings.layout_edit.title");
 		_renderToggleButton.Text = LocalizationService.T("ui.settings.render.action");
+		_autoNavigationInterruptPolicyButton.Text = LocalizationService.T("ui.settings.auto_navigation_interrupt_policy.action");
 		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
 		_saveButton.Text = LocalizationService.T("ui.settings.save");
 		_loadButton.Text = LocalizationService.T("ui.settings.load");
@@ -647,6 +674,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_watchModeStatusLabel.Text = LocalizationService.T(GetWatchModeStatusKey(_state));
 		_fastTurnModeStatusLabel.Text = LocalizationService.T(GetFastTurnModeStatusKey(_state));
 		_keyboardTargetingStatusLabel.Text = LocalizationService.T(GetKeyboardTargetingStatusKey(_state));
+		_autoNavigationInterruptPolicyStatusLabel.Text = LocalizationService.T(GetAutoNavigationInterruptPolicyStatusKey(_state));
 		_debugPanelStatusLabel.Text = LocalizationService.T(GetDebugPanelStatusKey(_state));
 		_bindingsStatusLabel.Text = LocalizationService.T(GetBindingsStatusKey(_selectionModel.KeyBindingsMode, _keyBindingsView.IsCapturing));
 		_saveStatusLabel.Text = LocalizationService.T("ui.settings.save.status");
@@ -741,6 +769,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 				break;
 			case SettingsPanelRowId.KeyboardTargeting:
 				KeyboardTargetingToggleRequested?.Invoke();
+				break;
+			case SettingsPanelRowId.AutoNavigationInterruptPolicy:
+				AutoNavigationInterruptPolicyCycleRequested?.Invoke();
 				break;
 			case SettingsPanelRowId.DebugPanel:
 				DebugPanelToggleRequested?.Invoke();

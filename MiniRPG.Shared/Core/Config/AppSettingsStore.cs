@@ -7,7 +7,7 @@ namespace MiniRPG.Core.Config;
 
 public static class AppSettingsStore
 {
-	private const int SchemaVersion = 7;
+	private const int SchemaVersion = 8;
 
 	public static string LoadLocale()
 	{
@@ -59,9 +59,22 @@ public static class AppSettingsStore
 		return settings.EnableDebugPanel ?? true;
 	}
 
+	public static AutoNavigationInterruptPolicy LoadAutoNavigationInterruptPolicy()
+	{
+		var settings = LoadSettings();
+		return ParseAutoNavigationInterruptPolicy(settings.AutoNavigationInterruptPolicy);
+	}
+
 	public static void SaveEnableDebugPanel(bool enabled)
 	{
 		SaveSettings(settings => settings.EnableDebugPanel = enabled, "debug panel setting");
+	}
+
+	public static void SaveAutoNavigationInterruptPolicy(AutoNavigationInterruptPolicy policy)
+	{
+		SaveSettings(
+			settings => settings.AutoNavigationInterruptPolicy = SerializeAutoNavigationInterruptPolicy(policy),
+			"auto-navigation interrupt policy setting");
 	}
 
 	public static float LoadMapZoomMin()
@@ -225,6 +238,20 @@ public static class AppSettingsStore
 
 	private static float ClampZoomValue(float value) => Math.Clamp(value, 0.2f, 4.0f);
 
+	private static AutoNavigationInterruptPolicy ParseAutoNavigationInterruptPolicy(string? value) => value switch
+	{
+		"manual_only" => AutoNavigationInterruptPolicy.ManualOnly,
+		"hostile_proximity_stop" => AutoNavigationInterruptPolicy.HostileProximityStop,
+		_ => AutoNavigationInterruptPolicy.ConservativeStop,
+	};
+
+	private static string SerializeAutoNavigationInterruptPolicy(AutoNavigationInterruptPolicy policy) => policy switch
+	{
+		AutoNavigationInterruptPolicy.ManualOnly => "manual_only",
+		AutoNavigationInterruptPolicy.HostileProximityStop => "hostile_proximity_stop",
+		_ => "conservative_stop",
+	};
+
 	private sealed class AppSettingsDto
 	{
 		[JsonPropertyName("version")]
@@ -238,6 +265,9 @@ public static class AppSettingsStore
 
 		[JsonPropertyName("enableDebugPanel")]
 		public bool? EnableDebugPanel { get; set; }
+
+		[JsonPropertyName("autoNavigationInterruptPolicy")]
+		public string? AutoNavigationInterruptPolicy { get; set; }
 
 		[JsonPropertyName("fastTurnMode")]
 		public bool? FastTurnMode { get; set; }
@@ -324,6 +354,7 @@ public static class AppSettingsStore
 		Locale = LocalizationService.DefaultLocale,
 		EnableKeyboardTargeting = false,
 		EnableDebugPanel = true,
+		AutoNavigationInterruptPolicy = "conservative_stop",
 		FastTurnMode = true,
 		MapZoomMin = 0.6f,
 		MapZoomMax = 2.4f,
