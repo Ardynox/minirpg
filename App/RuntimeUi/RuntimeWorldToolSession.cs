@@ -277,7 +277,8 @@ internal sealed class RuntimeWorldToolSession
 			brush,
 			canApply,
 			showGhost,
-			showInfoOverlay: CurrentToolMode == WorldToolMode.Select && targetCell != null,
+			showInfoOverlay: (CurrentToolMode == WorldToolMode.Select || CurrentToolMode == WorldToolMode.Demolish)
+				&& targetCell != null,
 			ghostRenderId: showGhost ? existingTerrainId : null,
 			ghostGlyph: showGhost && existingTerrainId != null ? TerrainRegistry.Get(existingTerrainId)?.Glyph : null,
 			hideResolvedTargetInWorld: CurrentToolMode == WorldToolMode.Demolish && canApply);
@@ -324,7 +325,8 @@ internal sealed class RuntimeWorldToolSession
 			brush,
 			canApply,
 			showGhost,
-			showInfoOverlay: CurrentToolMode == WorldToolMode.Select && canApply,
+			showInfoOverlay: (CurrentToolMode == WorldToolMode.Select || CurrentToolMode == WorldToolMode.Demolish)
+				&& canApply,
 			resolvedEntityId: facility?.Id,
 			hideResolvedTargetInWorld: CurrentToolMode == WorldToolMode.Demolish && canApply,
 			ghostFacility: showGhost ? facility : null);

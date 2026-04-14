@@ -62,7 +62,7 @@ public partial class Main
 
 		_runtimeWorldToolSession.ResetForSession();
 		_runtimeWorldToolDragActive = false;
-		_runtimeWorldToolLastAppliedCell = null;
+		_runtimeWorldToolLastDraggedHoverCell = null;
 		_runtimeWorldToolHasLastPointerGlobalPosition = false;
 		RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
 		RefreshRuntimeWorldToolBar();
@@ -126,10 +126,8 @@ public partial class Main
 		Vector3I? hoveredCell,
 		WorldToolPreviewState? previewState)
 	{
-		if (_runtimeWorldToolSession == null || _runtimeWorldToolSession.CurrentToolMode != WorldToolMode.Select)
-			return null;
-
-		return IsometricVoxelRenderer.ResolveHoverHighlightCell(hoveredCell, previewState);
+		_ = hoveredCell;
+		return RuntimeWorldToolInteractionLogic.ResolveInfoOverlayCell(previewState);
 	}
 
 	private void RefreshRuntimeWorldToolHoverFromLastPointer()
@@ -170,7 +168,6 @@ public partial class Main
 			return false;
 
 		SubmitPlayerAction(action);
-		_runtimeWorldToolLastAppliedCell = targetCell;
 		FlushMap();
 		return true;
 	}
@@ -229,7 +226,7 @@ public partial class Main
 			return;
 
 		_runtimeWorldToolDragActive = false;
-		_runtimeWorldToolLastAppliedCell = null;
+		_runtimeWorldToolLastDraggedHoverCell = null;
 		FlushMap();
 		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();
@@ -242,7 +239,7 @@ public partial class Main
 
 		_runtimeWorldToolSession.CenterOnActiveActor();
 		_runtimeWorldToolDragActive = false;
-		_runtimeWorldToolLastAppliedCell = null;
+		_runtimeWorldToolLastDraggedHoverCell = null;
 		FlushMap();
 		RefreshRuntimeWorldToolHoverFromLastPointer();
 		FlushMap();

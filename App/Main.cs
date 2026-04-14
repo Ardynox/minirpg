@@ -131,7 +131,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private RuntimeWorldToolBarModule _runtimeWorldToolBar = null!;
 	private RuntimeWorldToolHeightPanelModule _runtimeWorldToolHeightPanel = null!;
 	private bool _runtimeWorldToolDragActive;
-	private Vector3I? _runtimeWorldToolLastAppliedCell;
+	private Vector3I? _runtimeWorldToolLastDraggedHoverCell;
 	private bool _runtimeWorldToolHasLastPointerGlobalPosition;
 	private Vector2 _runtimeWorldToolLastPointerGlobalPosition;
 	private bool _skillTargetCursorActive;

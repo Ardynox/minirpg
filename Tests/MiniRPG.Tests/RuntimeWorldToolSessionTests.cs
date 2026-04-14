@@ -69,6 +69,7 @@ public sealed class RuntimeWorldToolSessionTests
 
 		Assert.Equal(WorldToolMode.Build, session.CurrentToolMode);
 		Assert.Equal(new Vector3I(4, 5, 3), preview.ResolvedTargetCell);
+		Assert.False(preview.ShowInfoOverlay);
 	}
 
 	[Fact]
@@ -153,12 +154,14 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Equal(WorldToolMode.Select, selectPreview.ToolMode);
 		Assert.Equal(new Vector3I(2, 3, 1), selectPreview.ResolvedTargetCell);
 		Assert.True(selectPreview.CanApply);
+		Assert.True(selectPreview.ShowInfoOverlay);
 
 		session.SetToolMode(WorldToolMode.Demolish);
 		var demolishPreview = Assert.IsType<WorldToolPreviewState>(
 			session.ResolveHoverState(new Vector3I(2, 3, 2)));
 		Assert.Equal(new Vector3I(2, 3, 2), demolishPreview.ResolvedTargetCell);
 		Assert.True(demolishPreview.CanApply);
+		Assert.True(demolishPreview.ShowInfoOverlay);
 	}
 
 	[Fact]
@@ -177,6 +180,7 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Equal(WorldToolCategory.Facility, preview.Category);
 		Assert.Equal(new Vector3I(6, 7, 2), preview.ResolvedTargetCell);
 		Assert.True(preview.CanApply);
+		Assert.False(preview.ShowInfoOverlay);
 	}
 
 	[Fact]
@@ -194,11 +198,13 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Equal(new Vector3I(8, 9, 2), selectPreview.ResolvedTargetCell);
 		Assert.Equal("facility-under-test", selectPreview.ResolvedEntityId);
 		Assert.True(selectPreview.CanApply);
+		Assert.True(selectPreview.ShowInfoOverlay);
 
 		var emptyLayerPreview = Assert.IsType<WorldToolPreviewState>(
 			session.ResolveHoverState(new Vector3I(8, 9, 0)));
 		Assert.Null(emptyLayerPreview.ResolvedTargetCell);
 		Assert.False(emptyLayerPreview.CanApply);
+		Assert.False(emptyLayerPreview.ShowInfoOverlay);
 
 		session.SetToolMode(WorldToolMode.Demolish);
 		var demolishPreview = Assert.IsType<WorldToolPreviewState>(
@@ -206,6 +212,7 @@ public sealed class RuntimeWorldToolSessionTests
 		Assert.Equal(new Vector3I(8, 9, 2), demolishPreview.ResolvedTargetCell);
 		Assert.Equal("facility-under-test", demolishPreview.ResolvedEntityId);
 		Assert.True(demolishPreview.CanApply);
+		Assert.True(demolishPreview.ShowInfoOverlay);
 	}
 
 	[Fact]

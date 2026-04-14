@@ -1,5 +1,6 @@
 using Godot;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
 
@@ -266,7 +267,7 @@ public partial class Main
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
 			_runtimeWorldToolDragActive = false;
-			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
 			SetWorldHoverCell(null);
 			RefreshRuntimeWorldToolBar(snapshot);
@@ -277,7 +278,7 @@ public partial class Main
 			|| (_runtimeWorldToolHeightPanel.Visible && _runtimeWorldToolHeightPanel.IsPointerOver(motion.GlobalPosition)))
 		{
 			_runtimeWorldToolDragActive = false;
-			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
 			RefreshRuntimeWorldHoverPresentation(null);
 			SetWorldHoverCell(null);
@@ -293,10 +294,13 @@ public partial class Main
 				&& SupportsRuntimeWorldToolDrag()
 				&& (motion.ButtonMask & MouseButtonMask.Left) != 0)
 			{
-				var previewState = ResolveRuntimeWorldToolPreviewState();
-				var dragTargetCell = previewState?.ResolvedTargetCell ?? worldCell;
-				if (_runtimeWorldToolLastAppliedCell != dragTargetCell)
+				if (RuntimeWorldToolInteractionLogic.ShouldProcessDragHoverCell(
+					worldCell,
+					_runtimeWorldToolLastDraggedHoverCell))
+				{
 					TryApplyRuntimeWorldToolAtCell(worldCell);
+					_runtimeWorldToolLastDraggedHoverCell = worldCell;
+				}
 			}
 			if ((hoverChanged || reverseStackChanged) && _session.GameStarted && !_menu.InMenu && RenderReady)
 				FlushMap();
@@ -305,7 +309,7 @@ public partial class Main
 
 		_runtimeWorldToolSession.SetHover(null);
 		_runtimeWorldToolDragActive = false;
-		_runtimeWorldToolLastAppliedCell = null;
+		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldHoverPresentation(null);
 		SetWorldHoverCell(null);
 		return false;

@@ -30,7 +30,7 @@ public partial class Main
 			&& !releasedButton.Pressed)
 		{
 			_runtimeWorldToolDragActive = false;
-			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolLastDraggedHoverCell = null;
 			return false;
 		}
 
@@ -95,10 +95,12 @@ public partial class Main
 			_runtimeWorldToolSession.SetReverseStack(mb.CtrlPressed);
 			_runtimeWorldToolSession.SetHover(worldCell);
 			_runtimeWorldToolDragActive = SupportsRuntimeWorldToolDrag();
-			_runtimeWorldToolLastAppliedCell = null;
+			_runtimeWorldToolLastDraggedHoverCell = null;
 			RefreshRuntimeWorldHoverPresentation(worldCell, mb.GlobalPosition);
 			_panels.SetFocus("map");
 			TryApplyRuntimeWorldToolAtCell(worldCell);
+			if (_runtimeWorldToolDragActive)
+				_runtimeWorldToolLastDraggedHoverCell = worldCell;
 			return true;
 		}
 
