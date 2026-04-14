@@ -138,6 +138,7 @@ public partial class Main
 			RefreshRuntimeWorldToolBar();
 			FlushMap();
 		};
+		_runtimeWorldToolHeightPanel.HeightChanged += delta => AdjustRuntimeWorldToolHeight(delta);
 		_saveNameDialog.ConfirmRequested += HandleSaveNameConfirmed;
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;

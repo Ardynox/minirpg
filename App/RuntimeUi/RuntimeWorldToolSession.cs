@@ -6,6 +6,7 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Editor;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -13,11 +14,13 @@ namespace MiniRPG;
 internal readonly record struct RuntimeWorldToolBrush(
 	string Id,
 	string Label,
-	string? Glyph = null);
+	string? Glyph = null,
+	MapEditorBrushPreview? Preview = null);
 
 internal sealed class RuntimeWorldToolSession
 {
 	private const int TerrainColumnScanDepth = 16;
+	private const int MaxHeightOffset = 20;
 
 	private readonly GameState _state;
 	private readonly List<RuntimeWorldToolBrush> _terrainBrushes = [];
@@ -37,6 +40,7 @@ internal sealed class RuntimeWorldToolSession
 	public WorldToolCategory CurrentCategory { get; private set; } = WorldToolCategory.Terrain;
 	public Vector3I? HoverWorld { get; private set; }
 	public FacilityRotation FacilityRotation { get; private set; } = FacilityRotation.South;
+	public int HeightOffset { get; private set; }
 
 	public IReadOnlyList<RuntimeWorldToolBrush> TerrainBrushes => _terrainBrushes;
 	public IReadOnlyList<RuntimeWorldToolBrush> FacilityBrushes => _facilityBrushes;
@@ -59,6 +63,7 @@ internal sealed class RuntimeWorldToolSession
 		CurrentCategory = WorldToolCategory.Terrain;
 		HoverWorld = null;
 		_reverseStack = false;
+		HeightOffset = 0;
 		_facilityRotationSeeded = false;
 		_facilityBrushIndex = _facilityBrushes.Count > 0 ? Math.Clamp(_facilityBrushIndex, 0, _facilityBrushes.Count - 1) : -1;
 		_terrainBrushIndex = _terrainBrushes.Count > 0 ? Math.Clamp(_terrainBrushIndex, 0, _terrainBrushes.Count - 1) : -1;
@@ -133,6 +138,19 @@ internal sealed class RuntimeWorldToolSession
 		return true;
 	}
 
+	public bool AdjustHeightOffset(int delta)
+	{
+		if (delta == 0)
+			return false;
+
+		var next = Math.Clamp(HeightOffset + delta, -MaxHeightOffset, MaxHeightOffset);
+		if (next == HeightOffset)
+			return false;
+
+		HeightOffset = next;
+		return true;
+	}
+
 	public void RotateFacility(int delta)
 	{
 		if (delta == 0)
@@ -197,7 +215,7 @@ internal sealed class RuntimeWorldToolSession
 	{
 		var world = _state.World!;
 		var brush = CurrentBrush;
-		var targetCell = ResolveTerrainBuildTargetCell(hoverCell, reverseStack);
+		var targetCell = ApplyHeightOffset(ResolveTerrainBuildTargetCell(hoverCell, reverseStack));
 		var targetTerrain = targetCell is { } resolvedTarget
 			? world.GetTerrain(resolvedTarget.X, resolvedTarget.Y, resolvedTarget.Z).StringId
 			: null;
@@ -227,15 +245,16 @@ internal sealed class RuntimeWorldToolSession
 	private WorldToolPreviewState ResolveTerrainOccupiedPreview(Vector3I hoverCell)
 	{
 		var brush = CurrentBrush;
-		var targetCell = ResolveTerrainOccupiedTargetCell(hoverCell);
+		var targetCell = ApplyHeightOffset(ResolveTerrainOccupiedTargetCell(hoverCell));
 		var existingTerrainId = targetCell is { } resolvedTarget
 			? _state.World!.GetTerrain(resolvedTarget.X, resolvedTarget.Y, resolvedTarget.Z).StringId
 			: null;
+		var hasOccupiedTerrain = existingTerrainId is not (null or Terrains.Air or Terrains.Void);
 		var demolishAllowed = existingTerrainId != null
 			&& (_state.RuntimeFreeBuild || RuntimeBuildActionModule.GetTerrainCosts(existingTerrainId).Count > 0);
 		var canApply = CurrentToolMode == WorldToolMode.Demolish
 			? targetCell != null && demolishAllowed
-			: targetCell != null;
+			: targetCell != null && hasOccupiedTerrain;
 		var showGhost = CurrentToolMode == WorldToolMode.Demolish
 			&& canApply
 			&& existingTerrainId is not (null or Terrains.Air or Terrains.Void);
@@ -259,17 +278,18 @@ internal sealed class RuntimeWorldToolSession
 		var brush = CurrentBrush;
 		var def = FacilityRegistry.Get(brush.Id);
 		var costs = RuntimeBuildActionModule.GetFacilityCosts(brush.Id);
+		var targetCell = ApplyHeightOffset(hoverCell);
 		var canApply = def != null
 			&& _state.World != null
-			&& _state.World.GetFacilityBlockers(def, hoverCell.X, hoverCell.Y, hoverCell.Z, FacilityRotation).Count == 0
+			&& _state.World.GetFacilityBlockers(def, targetCell.X, targetCell.Y, targetCell.Z, FacilityRotation).Count == 0
 			&& (_state.RuntimeFreeBuild || RuntimeBuildActionModule.CanAffordMaterials(ResolveActiveActor(), costs));
-		var previewFacility = BuildPreviewFacility(brush.Id, hoverCell);
+		var previewFacility = canApply ? BuildPreviewFacility(brush.Id, targetCell) : null;
 		return CreatePreviewState(
 			WorldToolMode.Build,
 			WorldToolCategory.Facility,
 			WorldToolPreviewKind.Facility,
 			hoverCell,
-			hoverCell,
+			targetCell,
 			brush,
 			canApply,
 			showGhost: canApply,
@@ -280,7 +300,9 @@ internal sealed class RuntimeWorldToolSession
 	private WorldToolPreviewState ResolveFacilityOccupiedPreview(Vector3I hoverCell)
 	{
 		var brush = CurrentBrush;
-		_state.World!.TryGetFacilityAt(hoverCell.X, hoverCell.Y, hoverCell.Z, out var facility);
+		var targetCell = ApplyHeightOffset(hoverCell);
+		FacilityInstance? facility = null;
+		_state.World!.TryGetFacilityAt(targetCell.X, targetCell.Y, targetCell.Z, out facility);
 		var canApply = facility != null;
 		var showGhost = CurrentToolMode == WorldToolMode.Demolish && canApply;
 		return CreatePreviewState(
@@ -288,7 +310,7 @@ internal sealed class RuntimeWorldToolSession
 			WorldToolCategory.Facility,
 			WorldToolPreviewKind.Facility,
 			hoverCell,
-			canApply ? hoverCell : null,
+			canApply ? targetCell : null,
 			brush,
 			canApply,
 			showGhost,
@@ -378,6 +400,14 @@ internal sealed class RuntimeWorldToolSession
 
 	private Actor? ResolveActiveActor() => PartyModule.GetActiveActor(_state) ?? ActorModule.GetPlayer(_state);
 
+	private Vector3I? ApplyHeightOffset(Vector3I? cell) =>
+		cell is { } resolvedCell
+			? new Vector3I(resolvedCell.X, resolvedCell.Y, resolvedCell.Z + HeightOffset)
+			: null;
+
+	private Vector3I ApplyHeightOffset(Vector3I cell) =>
+		new(cell.X, cell.Y, cell.Z + HeightOffset);
+
 	private void EnsureFacilityRotationSeeded()
 	{
 		if (_facilityRotationSeeded)
@@ -426,7 +456,8 @@ internal sealed class RuntimeWorldToolSession
 			_facilityBrushes.Add(new RuntimeWorldToolBrush(
 				def.Id,
 				GameLocalizer.HumanizeId(def.Id),
-				def.Glyph));
+				def.Glyph,
+				MapEditorBrushPreviewResolver.ResolveFacilityPreview(def.Id)));
 		}
 
 		_facilityBrushIndex = ResolveBrushIndex(_facilityBrushes, selectedId);

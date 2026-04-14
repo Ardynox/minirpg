@@ -530,6 +530,7 @@
   "ui.runtime_tool.tool.demolish": "Demolish",
   "ui.runtime_tool.category.terrain": "Terrain",
   "ui.runtime_tool.category.facility": "Facility",
+  "ui.runtime_tool.height.title": "Build Height",
   "ui.runtime_tool.current.none": "No brush selected",
   "ui.runtime_tool.summary.select": "Select mode: inspect actors or cells.",
   "ui.runtime_tool.summary.free_build": "Free Build",

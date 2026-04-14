@@ -1,0 +1,109 @@
+using System;
+using Godot;
+
+namespace MiniRPG.Module.WorldTool;
+
+internal sealed class RuntimeWorldToolHeightPanelModule
+{
+	private readonly PanelContainer _panel;
+	private readonly HBoxContainer _headerRow;
+	private readonly Label _titleLabel;
+	private readonly HBoxContainer _controlRow;
+	private readonly Button _downButton;
+	private readonly Label _valueLabel;
+	private readonly Button _upButton;
+
+	public RuntimeWorldToolHeightPanelModule(PanelContainer panel)
+	{
+		_panel = panel;
+		_panel.Visible = false;
+		_panel.MouseFilter = Control.MouseFilterEnum.Stop;
+		_panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+		_panel.OffsetLeft = 16f;
+		_panel.OffsetTop = 352f;
+		_panel.CustomMinimumSize = new Vector2(164f, 0f);
+
+		var margin = new MarginContainer();
+		margin.AddThemeConstantOverride("margin_left", 10);
+		margin.AddThemeConstantOverride("margin_top", 8);
+		margin.AddThemeConstantOverride("margin_right", 10);
+		margin.AddThemeConstantOverride("margin_bottom", 8);
+		_panel.AddChild(margin);
+
+		var root = new VBoxContainer();
+		root.AddThemeConstantOverride("separation", 6);
+		margin.AddChild(root);
+
+		_headerRow = new HBoxContainer();
+		_headerRow.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+		root.AddChild(_headerRow);
+
+		_titleLabel = new Label
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			HorizontalAlignment = HorizontalAlignment.Center,
+		};
+		_headerRow.AddChild(_titleLabel);
+
+		_controlRow = new HBoxContainer();
+		_controlRow.AddThemeConstantOverride("separation", 8);
+		_controlRow.Alignment = BoxContainer.AlignmentMode.Center;
+		root.AddChild(_controlRow);
+
+		_downButton = new Button
+		{
+			CustomMinimumSize = new Vector2(36f, 0f),
+			ThemeTypeVariation = "ActionButton",
+			Text = "▼",
+		};
+		_controlRow.AddChild(_downButton);
+
+		_valueLabel = new Label
+		{
+			CustomMinimumSize = new Vector2(72f, 0f),
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center,
+		};
+		_controlRow.AddChild(_valueLabel);
+
+		_upButton = new Button
+		{
+			CustomMinimumSize = new Vector2(36f, 0f),
+			ThemeTypeVariation = "ActionButton",
+			Text = "▲",
+		};
+		_controlRow.AddChild(_upButton);
+
+		_downButton.Pressed += () => HeightChanged?.Invoke(-1);
+		_upButton.Pressed += () => HeightChanged?.Invoke(1);
+
+		RefreshTexts();
+		Render(0);
+	}
+
+	public event Action<int>? HeightChanged;
+
+	public PanelContainer PanelNode => _panel;
+	public Control DragHandle => _headerRow;
+
+	public bool Visible
+	{
+		get => _panel.Visible;
+		set => _panel.Visible = value;
+	}
+
+	public bool IsPointerOver(Vector2 globalPosition) =>
+		_panel.Visible && _panel.GetGlobalRect().HasPoint(globalPosition);
+
+	public void RefreshTexts()
+	{
+		_titleLabel.Text = LocalizationService.TOrFallback("ui.runtime_tool.height.title", "Build Height");
+	}
+
+	public void Render(int heightOffset)
+	{
+		_valueLabel.Text = heightOffset >= 0
+			? $"Z +{heightOffset}"
+			: $"Z {heightOffset}";
+	}
+}

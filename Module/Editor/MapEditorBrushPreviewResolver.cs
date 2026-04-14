@@ -19,10 +19,24 @@ internal static class MapEditorBrushPreviewResolver
 
 	public static MapEditorBrushPreview? ResolveFixturePreview(string fixtureId)
 	{
-		if (string.IsNullOrWhiteSpace(fixtureId))
+		return ResolveEntityPreview(fixtureId);
+	}
+
+	public static MapEditorBrushPreview? ResolveFacilityPreview(string facilityId)
+	{
+		if (string.IsNullOrWhiteSpace(facilityId))
 			return null;
 
-		if (!TryGetEntry(fixtureId, out var entry))
+		return ResolveEntityPreview($"facility_{facilityId}")
+			?? ResolveEntityPreview(facilityId);
+	}
+
+	public static MapEditorBrushPreview? ResolveEntityPreview(string entityId)
+	{
+		if (string.IsNullOrWhiteSpace(entityId))
+			return null;
+
+		if (!TryGetEntry(entityId, out var entry))
 			return null;
 
 		if (string.Equals(entry.Type, "texture", StringComparison.OrdinalIgnoreCase) &&

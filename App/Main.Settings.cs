@@ -192,6 +192,7 @@ public partial class Main
 		_mapEditorBar.RefreshTexts();
 		_runtimeWorldToolSession.RefreshBrushes();
 		_runtimeWorldToolBar.RefreshTexts();
+		_runtimeWorldToolHeightPanel.RefreshTexts();
 		_threatHud.RefreshTexts();
 		_targetSummaryHud.RefreshTexts();
 		_needsHud.RefreshTexts(ActorModule.GetPlayer(_state), _state.Turn);

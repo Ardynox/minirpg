@@ -42,7 +42,8 @@ public partial class Main
 		if (HandleGameplayMouseWheelInput(mb, snapshot))
 			return true;
 
-		if (_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(mb.GlobalPosition))
+		if ((_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(mb.GlobalPosition))
+			|| (_runtimeWorldToolHeightPanel.Visible && _runtimeWorldToolHeightPanel.IsPointerOver(mb.GlobalPosition)))
 			return false;
 
 		if (snapshot.AllowPanelChrome && _panelChrome.IsPointerOverInteractiveChrome(mb.GlobalPosition))

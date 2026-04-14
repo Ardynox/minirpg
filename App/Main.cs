@@ -129,8 +129,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private string? _armedSkillId;
 	private RuntimeWorldToolSession _runtimeWorldToolSession = null!;
 	private RuntimeWorldToolBarModule _runtimeWorldToolBar = null!;
+	private RuntimeWorldToolHeightPanelModule _runtimeWorldToolHeightPanel = null!;
 	private bool _runtimeWorldToolDragActive;
 	private Vector3I? _runtimeWorldToolLastAppliedCell;
+	private bool _runtimeWorldToolHasLastPointerGlobalPosition;
+	private Vector2 _runtimeWorldToolLastPointerGlobalPosition;
 	private bool _skillTargetCursorActive;
 	private Vector3I? _skillTargetWorldCell;
 	private Vector3I? _hoverWorldCell;

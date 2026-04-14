@@ -1,6 +1,7 @@
 using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Facility;
+using MiniRPG.Module.Panel;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -10,17 +11,48 @@ public partial class Main
 	private void InitializeRuntimeWorldToolUi()
 	{
 		_runtimeWorldToolSession = new RuntimeWorldToolSession(_state);
+		_runtimeWorldToolHasLastPointerGlobalPosition = false;
 
-		var panel = new PanelContainer
+		var toolPanel = new PanelContainer
 		{
 			Name = "RuntimeWorldToolBar",
 			Theme = _uiTheme,
 			Visible = false,
 			ZIndex = 70,
 		};
-		_overlayLayer.AddChild(panel);
-		_runtimeWorldToolBar = new RuntimeWorldToolBarModule(panel);
+		_overlayLayer.AddChild(toolPanel);
+		_runtimeWorldToolBar = new RuntimeWorldToolBarModule(toolPanel);
+		RegisterRuntimeWorldToolPanel(
+			"runtime_world_tool",
+			_runtimeWorldToolBar.PanelNode,
+			_runtimeWorldToolBar.DragHandle);
+
+		var heightPanel = new PanelContainer
+		{
+			Name = "RuntimeWorldToolHeightPanel",
+			Theme = _uiTheme,
+			Visible = false,
+			ZIndex = 70,
+		};
+		_overlayLayer.AddChild(heightPanel);
+		_runtimeWorldToolHeightPanel = new RuntimeWorldToolHeightPanelModule(heightPanel);
+		RegisterRuntimeWorldToolPanel(
+			"runtime_world_tool_height",
+			_runtimeWorldToolHeightPanel.PanelNode,
+			_runtimeWorldToolHeightPanel.DragHandle);
+
 		RefreshRuntimeWorldToolBar();
+	}
+
+	private void RegisterRuntimeWorldToolPanel(string panelId, PanelContainer panelNode, Control dragHandle)
+	{
+		_panelLayouts.RegisterPanel(panelId, panelNode);
+		_panelDrag.Register(new DraggablePanelRegistration(
+			panelId,
+			panelNode,
+			PanelDragAvailability.Always,
+			[dragHandle],
+			DefaultFloating: true));
 	}
 
 	private void ResetRuntimeWorldToolSession()
@@ -31,13 +63,14 @@ public partial class Main
 		_runtimeWorldToolSession.ResetForSession();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastAppliedCell = null;
+		_runtimeWorldToolHasLastPointerGlobalPosition = false;
 		RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
 		RefreshRuntimeWorldToolBar();
 	}
 
 	private void RefreshRuntimeWorldToolBar(RuntimeUiModeSnapshot? snapshot = null)
 	{
-		if (_runtimeWorldToolBar == null || _runtimeWorldToolSession == null)
+		if (_runtimeWorldToolBar == null || _runtimeWorldToolHeightPanel == null || _runtimeWorldToolSession == null)
 			return;
 
 		var resolvedSnapshot = snapshot ?? CaptureRuntimeUiMode();
@@ -48,6 +81,7 @@ public partial class Main
 			&& !resolvedSnapshot.HasVisibleModalLayer
 			&& !resolvedSnapshot.BusyOperationActive;
 		_runtimeWorldToolBar.Visible = visible;
+		_runtimeWorldToolHeightPanel.Visible = visible;
 		if (!visible)
 			return;
 
@@ -60,6 +94,7 @@ public partial class Main
 			_runtimeWorldToolSession.BuildSummary(previewState),
 			_runtimeWorldToolSession.FacilityRotation,
 			showRotationControls: _runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Facility);
+		_runtimeWorldToolHeightPanel.Render(_runtimeWorldToolSession.HeightOffset);
 	}
 
 	private WorldToolPreviewState? ResolveRuntimeWorldToolPreviewState()
@@ -72,9 +107,17 @@ public partial class Main
 
 	private void RefreshRuntimeWorldHoverPresentation(Vector3I? hoveredCell, Vector2? pointerGlobalPosition = null)
 	{
+		if (pointerGlobalPosition is { } pointerPosition)
+		{
+			_runtimeWorldToolLastPointerGlobalPosition = pointerPosition;
+			_runtimeWorldToolHasLastPointerGlobalPosition = true;
+		}
+
 		var overlayCell = ResolveRuntimeWorldHoverOverlayCell(hoveredCell, ResolveRuntimeWorldToolPreviewState());
 		SetWorldHoverCell(overlayCell, flushMap: false);
-		if (overlayCell != null && pointerGlobalPosition is { } position)
+		var resolvedPointerPosition = pointerGlobalPosition
+			?? (_runtimeWorldToolHasLastPointerGlobalPosition ? _runtimeWorldToolLastPointerGlobalPosition : (Vector2?)null);
+		if (overlayCell != null && resolvedPointerPosition is { } position)
 			PositionWorldHoverOverlay(position);
 		RefreshRuntimeWorldToolBar();
 	}
@@ -99,7 +142,8 @@ public partial class Main
 
 		if (_runtimeWorldToolSession.CurrentToolMode == WorldToolMode.Select)
 		{
-			HandleRuntimeWorldToolSelection(worldCell);
+			var selectionPreviewState = _runtimeWorldToolSession.ResolveHoverState(worldCell);
+			HandleRuntimeWorldToolSelection(selectionPreviewState?.ResolvedTargetCell ?? worldCell);
 			return true;
 		}
 
@@ -162,6 +206,15 @@ public partial class Main
 		}
 
 		return false;
+	}
+
+	private void AdjustRuntimeWorldToolHeight(int delta)
+	{
+		if (_runtimeWorldToolSession == null || !_runtimeWorldToolSession.AdjustHeightOffset(delta))
+			return;
+
+		RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+		FlushMap();
 	}
 
 	private void HandleRuntimeWorldToolSelection(Vector3I worldCell)

@@ -270,7 +270,8 @@ public partial class Main
 			return false;
 		}
 
-		if (_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(motion.GlobalPosition))
+		if ((_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(motion.GlobalPosition))
+			|| (_runtimeWorldToolHeightPanel.Visible && _runtimeWorldToolHeightPanel.IsPointerOver(motion.GlobalPosition)))
 		{
 			_runtimeWorldToolDragActive = false;
 			_runtimeWorldToolLastAppliedCell = null;
