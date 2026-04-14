@@ -59,6 +59,33 @@ public sealed class DebugModuleTests
 	}
 
 	[Fact]
+	public void SetTurn_WritesAbsoluteTurn_AndRequestsRefresh()
+	{
+		var (state, _) = CreateDebugState();
+
+		var result = DebugModule.SetTurn(state, 245);
+
+		Assert.Equal(245, state.Turn);
+		Assert.True(result.NeedsFlush);
+		Assert.True(result.NeedsUiRefresh);
+		Assert.Contains("turn set to 245", result.Logs[0], StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
+	public void SetTimeOfDay_PreservesCurrentDayIndex()
+	{
+		var (state, _) = CreateDebugState();
+		state.Turn = DayNightCycle.TurnsPerDay * 3 + 41;
+
+		var result = DebugModule.SetTimeOfDay(state, 7);
+
+		Assert.Equal(DayNightCycle.TurnsPerDay * 3 + 7, state.Turn);
+		Assert.True(result.NeedsFlush);
+		Assert.True(result.NeedsUiRefresh);
+		Assert.Equal(7, DebugModule.GetCurrentTimeOfDay(state));
+	}
+
+	[Fact]
 	public void PlaceFacility_CreatesBlueprint_AndStatusSummaryReflectsIt()
 	{
 		var (state, player) = CreateDebugState();

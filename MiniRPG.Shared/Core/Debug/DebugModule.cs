@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG.Core.Debug;
 
@@ -103,6 +104,45 @@ public static class DebugModule
 		];
 	}
 
+	public static int GetCurrentTimeOfDay(GameState state)
+	{
+		var normalizedTurn = Math.Max(0, state.Turn);
+		return normalizedTurn % DayNightCycle.TurnsPerDay;
+	}
+
+	public static IReadOnlyList<string> BuildTurnStatusLines(GameState state)
+	{
+		var normalizedTurn = Math.Max(0, state.Turn);
+		var dayIndex = normalizedTurn / DayNightCycle.TurnsPerDay;
+		var timeOfDay = GetCurrentTimeOfDay(state);
+		return
+		[
+			LocalizationService.TOrFallback(
+				"debug.turn.status",
+				"[debug] turn={turn} day={day} time_of_day={time}",
+				("turn", normalizedTurn),
+				("day", dayIndex),
+				("time", timeOfDay)),
+		];
+	}
+
+	public static IReadOnlyList<string> BuildTimeOfDayStatusLines(GameState state)
+	{
+		var normalizedTurn = Math.Max(0, state.Turn);
+		var dayIndex = normalizedTurn / DayNightCycle.TurnsPerDay;
+		var timeOfDay = GetCurrentTimeOfDay(state);
+		return
+		[
+			LocalizationService.TOrFallback(
+				"debug.time.status",
+				"[debug] time_of_day={time}/{max} day={day} turn={turn}",
+				("time", timeOfDay),
+				("max", DayNightCycle.TurnsPerDay - 1),
+				("day", dayIndex),
+				("turn", normalizedTurn)),
+		];
+	}
+
 	public static IReadOnlyList<string> BuildFacilityStatusLines(GameState state)
 	{
 		var player = ActorModule.GetPlayer(state);
@@ -152,6 +192,37 @@ public static class DebugModule
 		player.Gold += gold;
 		return CreateResult(
 			$"[debug] +{gold} gold (total: {player.Gold})",
+			needsUiRefresh: true);
+	}
+
+	public static Result SetTurn(GameState state, int turn)
+	{
+		var normalizedTurn = Math.Max(0, turn);
+		state.Turn = normalizedTurn;
+		return CreateResult(
+			LocalizationService.TOrFallback(
+				"debug.turn.set",
+				"[debug] turn set to {turn} (day={day} time={time})",
+				("turn", normalizedTurn),
+				("day", normalizedTurn / DayNightCycle.TurnsPerDay),
+				("time", GetCurrentTimeOfDay(state))),
+			needsFlush: true,
+			needsUiRefresh: true);
+	}
+
+	public static Result SetTimeOfDay(GameState state, int timeOfDay)
+	{
+		var normalizedTurn = Math.Max(0, state.Turn);
+		var dayIndex = normalizedTurn / DayNightCycle.TurnsPerDay;
+		var normalizedTimeOfDay = Math.Clamp(timeOfDay, 0, DayNightCycle.TurnsPerDay - 1);
+		state.Turn = dayIndex * DayNightCycle.TurnsPerDay + normalizedTimeOfDay;
+		return CreateResult(
+			LocalizationService.TOrFallback(
+				"debug.time.set",
+				"[debug] time of day set to {time} (turn={turn})",
+				("time", normalizedTimeOfDay),
+				("turn", state.Turn)),
+			needsFlush: true,
 			needsUiRefresh: true);
 	}
 

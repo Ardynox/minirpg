@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG.Module.Panel;
 
@@ -19,6 +21,8 @@ public sealed class DebugPanelModule : IPanel
 		DebugModule.Result ExecuteMoveDownFloor();
 		DebugModule.Result ExecuteSpawnDialogTestNpcs();
 		DebugModule.Result ExecuteSpawnActor(string templateId);
+		DebugModule.Result ExecuteSetTurn(int turn);
+		DebugModule.Result ExecuteSetTimeOfDay(int timeOfDay);
 		DebugModule.Result ExecuteQueryWeatherStatus();
 		DebugModule.Result ExecuteLockWeather(WeatherType type, WeatherIntensity intensity);
 		DebugModule.Result ExecuteUnlockWeather();
@@ -60,6 +64,12 @@ public sealed class DebugPanelModule : IPanel
 	private readonly OptionButton _spawnFilterOption;
 	private readonly OptionButton _spawnTemplateOption;
 	private readonly Button _spawnButton;
+	private readonly RichTextLabel _turnStatus;
+	private readonly LineEdit _turnValueEdit;
+	private readonly Button _turnApplyButton;
+	private readonly RichTextLabel _timeStatus;
+	private readonly Label _timeValueLabel;
+	private readonly HSlider _timeSlider;
 	private readonly RichTextLabel _weatherStatus;
 	private readonly OptionButton _weatherTypeOption;
 	private readonly OptionButton _weatherIntensityOption;
@@ -83,6 +93,7 @@ public sealed class DebugPanelModule : IPanel
 	private readonly List<string> _spawnTemplateIds = [];
 	private readonly List<string> _facilityIds = [];
 	private readonly List<string> _recentLogs = [];
+	private bool _suppressEvents;
 
 	public DebugPanelModule(PanelContainer panel, IHost host)
 	{
@@ -105,6 +116,12 @@ public sealed class DebugPanelModule : IPanel
 		_spawnFilterOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/FilterRow/SpawnFilterOption");
 		_spawnTemplateOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/TemplateRow/SpawnTemplateOption");
 		_spawnButton = vbox.GetNode<Button>("ContentScroll/Content/SpawnSection/ActionsRow/SpawnBtn");
+		_turnStatus = vbox.GetNode<RichTextLabel>("ContentScroll/Content/TurnSection/TurnStatus");
+		_turnValueEdit = vbox.GetNode<LineEdit>("ContentScroll/Content/TurnSection/TurnRow/TurnValueEdit");
+		_turnApplyButton = vbox.GetNode<Button>("ContentScroll/Content/TurnSection/TurnRow/TurnApplyBtn");
+		_timeStatus = vbox.GetNode<RichTextLabel>("ContentScroll/Content/TimeSection/TimeStatus");
+		_timeValueLabel = vbox.GetNode<Label>("ContentScroll/Content/TimeSection/TimeValueRow/TimeValueLabel");
+		_timeSlider = vbox.GetNode<HSlider>("ContentScroll/Content/TimeSection/TimeSlider");
 		_weatherStatus = vbox.GetNode<RichTextLabel>("ContentScroll/Content/WeatherSection/WeatherStatus");
 		_weatherTypeOption = vbox.GetNode<OptionButton>("ContentScroll/Content/WeatherSection/TypeRow/WeatherTypeOption");
 		_weatherIntensityOption = vbox.GetNode<OptionButton>("ContentScroll/Content/WeatherSection/IntensityRow/WeatherIntensityOption");
@@ -123,10 +140,14 @@ public sealed class DebugPanelModule : IPanel
 		_facilityBuildButton = vbox.GetNode<Button>("ContentScroll/Content/FacilitySection/ActionsRow/FacilityBuildBtn");
 		_exportPresetEdit = vbox.GetNode<LineEdit>("ContentScroll/Content/ExportSection/ExportRow/ExportPresetEdit");
 		_exportPresetButton = vbox.GetNode<Button>("ContentScroll/Content/ExportSection/ExportRow/ExportPresetBtn");
-		_resultsText = vbox.GetNode<RichTextLabel>("ResultsSection/ResultsText");
+		_resultsText = vbox.GetNode<RichTextLabel>("ContentScroll/Content/ResultsSection/ResultsText");
 
 		_goldAmountEdit.Text = "1000";
+		_turnValueEdit.Text = Math.Max(0, _host.State.Turn).ToString(CultureInfo.InvariantCulture);
 		_weatherStepEdit.Text = "1";
+		_timeSlider.MinValue = 0;
+		_timeSlider.MaxValue = DayNightCycle.TurnsPerDay - 1;
+		_timeSlider.Step = 1;
 
 		_addGoldButton.Pressed += OnAddGoldPressed;
 		_goldPreset100Button.Pressed += () => ApplyHostResult(_host.ExecuteAddGold(100));
@@ -141,6 +162,8 @@ public sealed class DebugPanelModule : IPanel
 		_freeBuildButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleFreeBuild());
 		_spawnFilterOption.ItemSelected += _ => RefreshSpawnTemplateOptions();
 		_spawnButton.Pressed += OnSpawnPressed;
+		_turnApplyButton.Pressed += OnSetTurnPressed;
+		_timeSlider.ValueChanged += OnTimeSliderValueChanged;
 		_weatherStatusButton.Pressed += () => ApplyHostResult(_host.ExecuteQueryWeatherStatus());
 		_weatherLockButton.Pressed += OnWeatherLockPressed;
 		_weatherUnlockButton.Pressed += () => ApplyHostResult(_host.ExecuteUnlockWeather());
@@ -212,6 +235,8 @@ public sealed class DebugPanelModule : IPanel
 		RenderHeader();
 		RefreshSpawnFilterOptions();
 		RefreshSpawnTemplateOptions();
+		RefreshTurnState();
+		RefreshTimeState();
 		RefreshWeatherOptions();
 		RefreshWeatherStatus();
 		RefreshFacilityOptions();
@@ -250,6 +275,30 @@ public sealed class DebugPanelModule : IPanel
 		}
 
 		ApplyHostResult(_host.ExecuteSpawnActor(templateId));
+	}
+
+	private void OnSetTurnPressed()
+	{
+		var raw = _turnValueEdit.Text.Trim();
+		if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var turn) || turn < 0)
+		{
+			SetLocalResult(LocalizationService.TOrFallback(
+				"ui.debug_panel.validation.turn",
+				"Enter a valid non-negative turn value."));
+			return;
+		}
+
+		ApplyHostResult(_host.ExecuteSetTurn(turn));
+	}
+
+	private void OnTimeSliderValueChanged(double value)
+	{
+		var timeOfDay = Math.Clamp((int)Math.Round(value, MidpointRounding.AwayFromZero), 0, DayNightCycle.TurnsPerDay - 1);
+		UpdateTimeValueLabel(timeOfDay);
+		if (_suppressEvents)
+			return;
+
+		ApplyHostResult(_host.ExecuteSetTimeOfDay(timeOfDay));
 	}
 
 	private void OnWeatherLockPressed()
@@ -396,6 +445,22 @@ public sealed class DebugPanelModule : IPanel
 	private void RefreshWeatherStatus() =>
 		RenderLines(_weatherStatus, DebugModule.BuildWeatherStatusLines(_host.State), "ui.debug_panel.weather.empty");
 
+	private void RefreshTurnState()
+	{
+		RenderLines(_turnStatus, DebugModule.BuildTurnStatusLines(_host.State), "ui.debug_panel.turn.empty");
+		_turnValueEdit.Text = Math.Max(0, _host.State.Turn).ToString(CultureInfo.InvariantCulture);
+	}
+
+	private void RefreshTimeState()
+	{
+		RenderLines(_timeStatus, DebugModule.BuildTimeOfDayStatusLines(_host.State), "ui.debug_panel.time.empty");
+		var timeOfDay = DebugModule.GetCurrentTimeOfDay(_host.State);
+		_suppressEvents = true;
+		_timeSlider.Value = timeOfDay;
+		_suppressEvents = false;
+		UpdateTimeValueLabel(timeOfDay);
+	}
+
 	private void RefreshFacilityOptions()
 	{
 		var selectedId = GetSelectedId(_facilityOption, _facilityIds);
@@ -441,6 +506,15 @@ public sealed class DebugPanelModule : IPanel
 			merged.Add("----------------");
 		merged.AddRange(_recentLogs);
 		RenderLines(_resultsText, merged, "ui.debug_panel.results.empty");
+	}
+
+	private void UpdateTimeValueLabel(int timeOfDay)
+	{
+		_timeValueLabel.Text = LocalizationService.TOrFallback(
+			"ui.debug_panel.time.value_current",
+			"{value} / {max}",
+			("value", timeOfDay),
+			("max", DayNightCycle.TurnsPerDay - 1));
 	}
 
 	private static void RenderLines(RichTextLabel label, IEnumerable<string> lines, string emptyKey)
@@ -531,8 +605,10 @@ public sealed class DebugPanelModule : IPanel
 		yield return _toggleGodModeButton;
 		yield return _downFloorButton;
 		yield return _spawnNpcButton;
+		yield return _revealAllButton;
 		yield return _freeBuildButton;
 		yield return _spawnButton;
+		yield return _turnApplyButton;
 		yield return _weatherStatusButton;
 		yield return _weatherLockButton;
 		yield return _weatherUnlockButton;

@@ -1579,6 +1579,8 @@
     "ui.debug_panel.title":  "调试工具",
     "ui.debug_panel.section.quick":  "快捷操作",
     "ui.debug_panel.section.spawn":  "刷怪",
+    "ui.debug_panel.section.turn":  "回合",
+    "ui.debug_panel.section.time":  "时间",
     "ui.debug_panel.section.weather":  "天气",
     "ui.debug_panel.section.facility":  "设施",
     "ui.debug_panel.section.export":  "导出",
@@ -1605,6 +1607,12 @@
     "ui.debug_panel.spawn.filter.friendly":  "友方",
     "ui.debug_panel.spawn.template":  "模板",
     "ui.debug_panel.spawn.execute":  "生成",
+    "ui.debug_panel.turn.value":  "回合",
+    "ui.debug_panel.turn.apply":  "应用",
+    "ui.debug_panel.turn.empty":  "暂无回合状态",
+    "ui.debug_panel.time.value":  "时间槽",
+    "ui.debug_panel.time.value_current":  "{value} / {max}",
+    "ui.debug_panel.time.empty":  "暂无时间状态",
     "ui.debug_panel.weather.type":  "类型",
     "ui.debug_panel.weather.intensity":  "强度",
     "ui.debug_panel.weather.status":  "状态",
@@ -1640,10 +1648,15 @@
     "ui.debug_panel.export.execute":  "导出",
     "ui.debug_panel.results.empty":  "还未执行调试操作",
     "ui.debug_panel.validation.gold":  "请输入合法的整数金额。",
+    "ui.debug_panel.validation.turn":  "请输入合法的非负回合值。",
     "ui.debug_panel.validation.spawn_template":  "请先选择一个刷怪模板。",
     "ui.debug_panel.validation.weather":  "请选择合法的天气类型和强度。",
     "ui.debug_panel.validation.step":  "请输入大于 0 的整数回合数。",
-    "ui.debug_panel.validation.facility":  "请先选择一个设施蓝图。"
+    "ui.debug_panel.validation.facility":  "请先选择一个设施蓝图。",
+    "debug.turn.status":  "[debug] 回合={turn} 天={day} 时间槽={time}",
+    "debug.turn.set":  "[debug] 已将回合设为 {turn}（天={day} 时间槽={time}）",
+    "debug.time.status":  "[debug] 时间槽={time}/{max} 天={day} 回合={turn}",
+    "debug.time.set":  "[debug] 已将时间槽设为 {time}（回合={turn}）"
     , "enum.damage_type.fire":  "\u706b\u7130"
     , "enum.effect_type.extinguish_fire":  "\u706d\u706b"
     , "enum.effect_type.light_fire":  "\u70b9\u706b"

@@ -87,10 +87,13 @@ public partial class Main
 	{
 		var continueTarget = _session.ResolveContinueTarget();
 		_multiplayerHub?.Close();
+		CloseAllInGamePanels();
 		_menu.ShowMainMenu(
 			continueTarget.Kind != ContinueTargetKind.None,
 			ResourcesReady,
 			_session.BuildContinueButtonText(continueTarget));
+		SetWorldHoverCell(null, flushMap: false);
+		RefreshRuntimeWorldToolBar();
 	}
 
 	private void ToggleKeyboardTargeting()

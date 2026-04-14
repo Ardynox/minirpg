@@ -1,14 +1,22 @@
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Debug;
+using MiniRPG.Module.Panel;
 using Xunit;
 
 namespace MiniRPG.Tests;
 
 public sealed class DebugPanelControllerTests
 {
+	public DebugPanelControllerTests()
+	{
+		LocalizationService.Initialize();
+		LocalizationService.SetLocale("en", notify: false);
+	}
+
 	[Fact]
 	public void BuildRenderPerfStatus_FormatsPerfLines()
 	{
@@ -30,6 +38,30 @@ public sealed class DebugPanelControllerTests
 			line => Assert.Equal("[perf] active_sprite_count=12", line),
 			line => Assert.Equal("[perf] draw_command_count=34", line),
 			line => Assert.Equal("[perf] frame_time_avg_ms=16.79", line));
+	}
+
+	[Fact]
+	public void ExecuteSetTurn_UpdatesState_AndRequestsFlushAndUiRefresh()
+	{
+		var controllerType = typeof(MiniRPG.DebugPanelController);
+		var controller = RuntimeHelpers.GetUninitializedObject(controllerType);
+		var state = new GameState { Turn = 12 };
+		var flushRequested = false;
+		var uiRefreshRequested = false;
+
+		SetField(controller, "_state", state);
+		SetField(controller, "_log", null);
+		SetField(controller, "_markUiDirty", (Action)(() => uiRefreshRequested = true));
+		SetField(controller, "_flushMap", (Action)(() => flushRequested = true));
+
+		var result = ((DebugPanelModule.IHost)controller).ExecuteSetTurn(135);
+
+		Assert.Equal(135, state.Turn);
+		Assert.True(flushRequested);
+		Assert.True(uiRefreshRequested);
+		Assert.True(result.NeedsFlush);
+		Assert.True(result.NeedsUiRefresh);
+		Assert.Contains("turn set to 135", result.Logs[0], StringComparison.OrdinalIgnoreCase);
 	}
 
 	private static void SetField(object target, string fieldName, object? value)

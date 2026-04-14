@@ -116,6 +116,8 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	DebugModule.Result DebugPanelModule.IHost.ExecuteMoveDownFloor() => ApplyResult(DebugModule.MoveDownFloor(_state, _session));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteSpawnDialogTestNpcs() => ApplyResult(DebugModule.SpawnDialogTestNpcsNearPlayer(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteSpawnActor(string templateId) => ApplyResult(DebugModule.SpawnActorAtPlayerFacing(_state, templateId));
+	DebugModule.Result DebugPanelModule.IHost.ExecuteSetTurn(int turn) => ApplyResult(DebugModule.SetTurn(_state, turn));
+	DebugModule.Result DebugPanelModule.IHost.ExecuteSetTimeOfDay(int timeOfDay) => ApplyResult(DebugModule.SetTimeOfDay(_state, timeOfDay));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteQueryWeatherStatus() => ApplyResult(DebugModule.QueryWeatherStatus(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteLockWeather(WeatherType type, WeatherIntensity intensity) => ApplyResult(DebugModule.LockWeather(_state, type, intensity));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteUnlockWeather() => ApplyResult(DebugModule.UnlockWeather(_state));
@@ -181,8 +183,11 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 
 	private DebugModule.Result ApplyResult(DebugModule.Result result)
 	{
-		foreach (var message in result.Logs)
-			_log.Add(message);
+		if (_log != null)
+		{
+			foreach (var message in result.Logs)
+				_log.Add(message);
+		}
 
 		if (result.NeedsUiRefresh)
 			_markUiDirty();

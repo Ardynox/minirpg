@@ -2,7 +2,7 @@
 
 [node name="DebugPanel" type="PanelContainer"]
 visible = false
-custom_minimum_size = Vector2(620, 820)
+custom_minimum_size = Vector2(620, 680)
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
@@ -46,7 +46,6 @@ text = "ui.debug_panel.title"
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 520)
 horizontal_scroll_mode = 0
 
 [node name="Content" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll"]
@@ -184,6 +183,85 @@ theme_type_variation = "ActionButton"
 text = "ui.debug_panel.spawn.execute"
 
 [node name="SpawnSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="TurnSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TurnTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.turn"
+
+[node name="TurnStatus" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+
+[node name="TurnRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TurnValueLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection/TurnRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.turn.value"
+
+[node name="TurnValueEdit" type="LineEdit" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection/TurnRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "0"
+
+[node name="TurnApplyBtn" type="Button" parent="MarginContainer/VBox/ContentScroll/Content/TurnSection/TurnRow"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.debug_panel.turn.apply"
+
+[node name="TurnSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="TimeSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TimeTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection"]
+layout_mode = 2
+theme_type_variation = "HintLabel"
+text = "ui.debug_panel.section.time"
+
+[node name="TimeStatus" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+
+[node name="TimeValueRow" type="HBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TimeValueTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection/TimeValueRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+text = "ui.debug_panel.time.value"
+
+[node name="TimeValueLabel" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection/TimeValueRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.debug_panel.time.empty"
+
+[node name="TimeSlider" type="HSlider" parent="MarginContainer/VBox/ContentScroll/Content/TimeSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 119.0
+step = 1.0
+tick_count = 12
+
+[node name="TimeSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
 layout_mode = 2
 
 [node name="WeatherSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
@@ -373,19 +451,22 @@ layout_mode = 2
 theme_type_variation = "ActionButton"
 text = "ui.debug_panel.export.execute"
 
-[node name="ResultsSection" type="VBoxContainer" parent="MarginContainer/VBox"]
+[node name="ResultsSep" type="HSeparator" parent="MarginContainer/VBox/ContentScroll/Content"]
+layout_mode = 2
+
+[node name="ResultsSection" type="VBoxContainer" parent="MarginContainer/VBox/ContentScroll/Content"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ResultsTitle" type="Label" parent="MarginContainer/VBox/ResultsSection"]
+[node name="ResultsTitle" type="Label" parent="MarginContainer/VBox/ContentScroll/Content/ResultsSection"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
 text = "ui.debug_panel.section.results"
 
-[node name="ResultsText" type="RichTextLabel" parent="MarginContainer/VBox/ResultsSection"]
+[node name="ResultsText" type="RichTextLabel" parent="MarginContainer/VBox/ContentScroll/Content/ResultsSection"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 120)
 size_flags_horizontal = 3
 bbcode_enabled = false
-fit_content = false
-scroll_active = true
+fit_content = true
+scroll_active = false

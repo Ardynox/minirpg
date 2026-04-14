@@ -7,6 +7,7 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 {
 	private readonly PanelContainer _panel;
 	private readonly HBoxContainer _headerRow;
+	private readonly Control _dragZone;
 	private readonly Label _titleLabel;
 	private readonly Button _centerButton;
 	private readonly HBoxContainer _controlRow;
@@ -37,14 +38,31 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 
 		_headerRow = new HBoxContainer();
 		_headerRow.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+		_headerRow.Alignment = BoxContainer.AlignmentMode.Center;
 		root.AddChild(_headerRow);
+
+		_dragZone = new Control
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			CustomMinimumSize = new Vector2(96f, 28f),
+			Name = "DragZone",
+		};
+		_headerRow.AddChild(_dragZone);
 
 		_titleLabel = new Label
 		{
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
 			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			AnchorRight = 1f,
+			AnchorBottom = 1f,
+			OffsetLeft = 0f,
+			OffsetTop = 0f,
+			OffsetRight = 0f,
+			OffsetBottom = 0f,
 		};
-		_headerRow.AddChild(_titleLabel);
+		_titleLabel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+		_dragZone.AddChild(_titleLabel);
 
 		_centerButton = new Button
 		{
@@ -94,7 +112,7 @@ internal sealed class RuntimeWorldToolHeightPanelModule
 	public event Action? CenterRequested;
 
 	public PanelContainer PanelNode => _panel;
-	public Control DragHandle => _headerRow;
+	public Control DragHandle => _dragZone;
 
 	public bool Visible
 	{
