@@ -157,6 +157,11 @@ text = "ui.world_manager.danger.hint"
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="DeleteWorldBtn" type="Button" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.world_manager.delete_world"
+
 [node name="DeleteSaveDataBtn" type="Button" parent="Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions"]
 layout_mode = 2
 theme_type_variation = "ActionButton"

@@ -83,6 +83,24 @@ public sealed class WorldCatalogService
         return result;
     }
 
+    public WorldDeletionStatus DeleteWorld(string worldId)
+    {
+        if (string.IsNullOrWhiteSpace(worldId))
+            return WorldDeletionStatus.NotFound;
+
+        if (_isWorldLocked(worldId))
+            return WorldDeletionStatus.ActiveWorldLocked;
+
+        if (!_worldStore.TryLoadWorld(worldId, out _))
+            return WorldDeletionStatus.NotFound;
+
+        if (!_worldStore.DeleteWorld(worldId))
+            return WorldDeletionStatus.Failed;
+
+        ClearContinueStateForDeletedWorld(worldId);
+        return WorldDeletionStatus.Success;
+    }
+
     public WorldSaveDataDeletionStatus DeleteWorldSaveData(string worldId)
     {
         if (string.IsNullOrWhiteSpace(worldId))

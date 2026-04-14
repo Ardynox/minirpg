@@ -600,6 +600,35 @@ internal sealed class MainAppFlowCoordinator
 			OpenCharacterCreationDialog(world.WorldId, world.DisplayName);
 	}
 
+	public void HandleWorldManagerDeleteWorldRequested(string worldId)
+	{
+		if (_busyOperationActive())
+			return;
+
+		var world = _session.ListWorlds()
+			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
+		if (world == null)
+		{
+			SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+			RefreshWorldManagerContents();
+			return;
+		}
+
+		_confirmDialogActions.Clear();
+		_confirmDialogActions["delete_world"] = () => DeleteWorldFromManager(world.WorldId, world.DisplayName);
+		_confirmDialog.Open(
+			LocalizationService.T("ui.confirm_world_delete.title"),
+			LocalizationService.T(
+				"ui.confirm_world_delete.message",
+				("world", world.DisplayName),
+				("characters", world.CharacterCount)),
+			[
+				new ConfirmDialogAction("delete_world", LocalizationService.T("ui.confirm_world_delete.action.delete")),
+				new ConfirmDialogAction("cancel", LocalizationService.T("ui.confirm_switch.action.cancel")),
+			],
+			defaultActionIndex: 1);
+	}
+
 	public void HandleWorldManagerDeleteSaveDataRequested(string worldId)
 	{
 		if (_busyOperationActive())
@@ -1009,6 +1038,37 @@ internal sealed class MainAppFlowCoordinator
 		}
 
 		_worldManager.SetStatusMessage(null, isError: false);
+	}
+
+	private void DeleteWorldFromManager(string worldId, string worldName)
+	{
+		var status = _session.DeleteWorld(worldId);
+		switch (status)
+		{
+			case WorldDeletionStatus.Success:
+				SetWorldManagerStatus(
+					LocalizationService.T("ui.world_manager.status.deleted", ("world", worldName)),
+					isError: false);
+				_refreshMainMenuContinueState();
+				RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
+				return;
+
+			case WorldDeletionStatus.ActiveWorldLocked:
+				SetWorldManagerStatus(
+					LocalizationService.T("ui.world_manager.status.delete_current_world_locked"),
+					isError: true);
+				break;
+
+			case WorldDeletionStatus.NotFound:
+				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+				break;
+
+			default:
+				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_failed"), isError: true);
+				break;
+		}
+
+		RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
 	}
 
 	private void DeleteWorldSaveDataFromManager(string worldId, string worldName)

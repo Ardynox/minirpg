@@ -335,6 +335,23 @@ public sealed class WorldStore
 		SaveWorld(manifest);
 	}
 
+	public bool DeleteWorld(string worldId)
+	{
+		if (string.IsNullOrWhiteSpace(worldId))
+			return false;
+
+		if (!TryLoadWorld(worldId, out _))
+			return false;
+
+		if (!DeleteDirectoryIfExists(WorldSavesDirectory, GetWorldSaveDirectory(worldId)))
+			return false;
+
+		if (!DeleteDirectoryIfExists(WorldAssetsDirectory, GetWorldAssetDirectory(worldId)))
+			return false;
+
+		return DeleteFileIfExists(WorldManifestsDirectory, GetWorldManifestPath(worldId));
+	}
+
 	public bool DeleteWorldSaveData(string worldId)
 	{
 		if (string.IsNullOrWhiteSpace(worldId))
@@ -565,6 +582,25 @@ public sealed class WorldStore
 		try
 		{
 			Directory.Delete(targetDirectory, recursive: true);
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	private static bool DeleteFileIfExists(string rootDirectory, string targetPath)
+	{
+		if (!IsPathWithinRoot(rootDirectory, targetPath))
+			return false;
+
+		if (!File.Exists(targetPath))
+			return true;
+
+		try
+		{
+			File.Delete(targetPath);
 			return true;
 		}
 		catch

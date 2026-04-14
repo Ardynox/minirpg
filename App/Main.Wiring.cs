@@ -82,6 +82,7 @@ public partial class Main
 		_layoutEditBar.ResetRequested += ResetLayoutEditMode;
 		_worldManager.CloseRequested += _mainAppFlowCoordinator.CloseWorldManager;
 		_worldManager.CreateWorldRequested += _mainAppFlowCoordinator.OpenWorldSettingsDialog;
+		_worldManager.DeleteWorldRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteWorldRequested;
 		_worldManager.DeleteSaveDataRequested += _mainAppFlowCoordinator.HandleWorldManagerDeleteSaveDataRequested;
 		_worldManager.CleanAssetsRequested += _mainAppFlowCoordinator.HandleWorldManagerCleanAssetsRequested;
 		_worldManager.CreateCharacterRequested += _mainAppFlowCoordinator.HandleWorldManagerCreateCharacterRequested;

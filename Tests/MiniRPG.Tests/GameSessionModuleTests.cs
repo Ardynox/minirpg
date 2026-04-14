@@ -152,8 +152,8 @@ public sealed class GameSessionModuleTests
 			Assert.Equal(SaveLoadStatus.Success, prepared.Status);
 			var recovery = Assert.IsType<PreparedLoadRecovery>(prepared.Recovery);
 			Assert.Equal(2, recovery.Candidates.Count);
-			Assert.True(recovery.Candidates.Any(candidate => candidate.ActorId == sourceState.PlayerId));
-			var selectedCandidate = Assert.Single(recovery.Candidates.Where(candidate => candidate.ActorId == "player_twin"));
+			Assert.Contains(recovery.Candidates, candidate => candidate.ActorId == sourceState.PlayerId);
+			var selectedCandidate = Assert.Single(recovery.Candidates, candidate => candidate.ActorId == "player_twin");
 
 			Assert.Equal(SaveLoadStatus.Incompatible, restoredSession.CommitPreparedLoad(prepared, "unknown-candidate"));
 			Assert.Empty(restoredState.Actors);
@@ -274,6 +274,78 @@ public sealed class GameSessionModuleTests
 			Assert.Equal(originalPlayerId, currentState.PlayerId);
 			Assert.Equal(originalActorCount, currentState.Actors.Count);
 			Assert.True(currentState.Actors.ContainsKey(originalPlayerId));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorld_ReturnsActiveWorldLocked_WhenWorldIsCurrentlyLoaded()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-active-world");
+		try
+		{
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = session.CreateWorld("Alpha");
+			session.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+
+			var status = session.DeleteWorld(manifest.WorldId);
+
+			Assert.Equal(WorldDeletionStatus.ActiveWorldLocked, status);
+			Assert.Contains(session.ListWorlds(), entry => entry.WorldId == manifest.WorldId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorld_RemovesWorldAndClearsStoredContinueState()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+		using var _ = new ContinueStateScope();
+		var root = TestSupport.CreateTempDirectory("session-delete-world-continue");
+		try
+		{
+			var sourceSession = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var manifest = sourceSession.CreateWorld("Alpha");
+			var entry = sourceSession.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+			var assetDirectory = Path.Combine(root, "world_assets", manifest.WorldId, "cache");
+			Directory.CreateDirectory(assetDirectory);
+			File.WriteAllText(Path.Combine(assetDirectory, "chunk-0.bin"), "cached");
+			var legacyPath = Path.Combine(sourceSession.SaveDirectory, "legacy-slot.json");
+			Directory.CreateDirectory(sourceSession.SaveDirectory);
+			SaveModule.WriteSaveFile(CreateMinimalSaveFile("legacy-slot"), legacyPath);
+
+			AppSettingsStore.SaveContinueState(new ContinueState
+			{
+				LastContinueKind = "world_character",
+				LastWorldId = manifest.WorldId,
+				LastCharacterId = entry.CharacterId,
+				LastLegacySavePath = legacyPath,
+			});
+
+			var session = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
+			var status = session.DeleteWorld(manifest.WorldId);
+			var continueState = AppSettingsStore.LoadContinueState();
+			var continueTarget = session.ResolveContinueTarget();
+
+			Assert.Equal(WorldDeletionStatus.Success, status);
+			Assert.Null(continueState.LastContinueKind);
+			Assert.Null(continueState.LastWorldId);
+			Assert.Null(continueState.LastCharacterId);
+			Assert.Equal(legacyPath, continueState.LastLegacySavePath);
+			Assert.Equal(ContinueTargetKind.LegacySave, continueTarget.Kind);
+			Assert.Equal(Path.GetFullPath(legacyPath), continueTarget.SavePath);
+			Assert.Empty(session.ListWorlds());
+			Assert.False(Directory.Exists(Path.Combine(root, "world_saves", manifest.WorldId)));
+			Assert.False(Directory.Exists(Path.Combine(root, "world_assets", manifest.WorldId)));
+			Assert.False(File.Exists(Path.Combine(root, "world_manifests", $"{manifest.WorldId}.json")));
 		}
 		finally
 		{

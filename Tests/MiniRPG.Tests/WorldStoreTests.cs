@@ -117,6 +117,81 @@ public sealed class WorldStoreTests
 	}
 
 	[Fact]
+	public void DeleteWorld_RemovesManifestSaveDataAndAssets()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-delete-world");
+		try
+		{
+			var store = new WorldStore(root);
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "alpha-00000001",
+				DisplayName = "Alpha",
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = DateTimeOffset.UtcNow,
+			});
+
+			var characterPath = store.GetCharacterSavePath("alpha-00000001", "rook-00000001");
+			WriteWorldCharacterSave(characterPath, "alpha-00000001", "Alpha", "rook-00000001", "Rook");
+			var assetDirectory = Path.Combine(store.GetWorldAssetDirectory("alpha-00000001"), "chunks");
+			Directory.CreateDirectory(assetDirectory);
+			File.WriteAllText(Path.Combine(assetDirectory, "chunk-0.bin"), "cached");
+
+			var deleted = store.DeleteWorld("alpha-00000001");
+
+			Assert.True(deleted);
+			Assert.False(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.False(Directory.Exists(store.GetWorldSaveDirectory("alpha-00000001")));
+			Assert.False(Directory.Exists(store.GetWorldAssetDirectory("alpha-00000001")));
+			Assert.False(store.TryLoadWorld("alpha-00000001", out _));
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
+	public void DeleteWorld_RemovesEmptyWorldShellWithoutAffectingOtherWorlds()
+	{
+		var root = TestSupport.CreateTempDirectory("world-store-delete-empty-world");
+		try
+		{
+			var store = new WorldStore(root);
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "alpha-00000001",
+				DisplayName = "Alpha",
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = DateTimeOffset.UtcNow,
+			});
+			store.SaveWorld(new WorldManifest
+			{
+				WorldId = "beta-00000002",
+				DisplayName = "Beta",
+				Settings = WorldSettings.CreateDefault(),
+				CreatedAtUtc = DateTimeOffset.UtcNow,
+			});
+			var betaCharacterPath = store.GetCharacterSavePath("beta-00000002", "mage-00000002");
+			WriteWorldCharacterSave(betaCharacterPath, "beta-00000002", "Beta", "mage-00000002", "Mage");
+
+			var deleted = store.DeleteWorld("alpha-00000001");
+
+			Assert.True(deleted);
+			Assert.False(File.Exists(store.GetWorldManifestPath("alpha-00000001")));
+			Assert.True(File.Exists(store.GetWorldManifestPath("beta-00000002")));
+			Assert.True(File.Exists(betaCharacterPath));
+			var worlds = store.ListWorlds();
+			var world = Assert.Single(worlds);
+			Assert.Equal("beta-00000002", world.WorldId);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void DeleteWorldSaveData_RemovesCharacterSavesButKeepsManifest()
 	{
 		var root = TestSupport.CreateTempDirectory("world-store-delete-saves");

@@ -109,6 +109,9 @@ public class GameSessionModule : IDebugSessionActions
 		return _worldStore.CreateWorld(displayName, resolvedSettings);
 	}
 
+	public WorldDeletionStatus DeleteWorld(string worldId)
+		=> _worldCatalog.DeleteWorld(worldId);
+
 	public WorldSaveDataDeletionStatus DeleteWorldSaveData(string worldId)
 		=> _worldCatalog.DeleteWorldSaveData(worldId);
 
@@ -1087,6 +1090,14 @@ public enum SaveSlotKind
 {
 	PresetScenario,
 	UserSave,
+}
+
+public enum WorldDeletionStatus
+{
+	Success,
+	NotFound,
+	ActiveWorldLocked,
+	Failed,
 }
 
 public enum WorldSaveDataDeletionStatus

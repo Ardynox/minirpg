@@ -12,15 +12,17 @@ public sealed class WorldManagerModuleTests
 		var moduleSource = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "Module", "WorldManagerModule.cs"));
 		var sceneSource = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "Scene", "WorldManager.tscn"));
 
+		Assert.Contains("public event Action<string>? DeleteWorldRequested;", moduleSource);
+		Assert.Contains("_deleteWorldButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/DeleteWorldBtn\");", moduleSource);
 		Assert.Contains("public event Action<string>? DeleteSaveDataRequested;", moduleSource);
 		Assert.Contains("public event Action<string>? CleanAssetsRequested;", moduleSource);
-		Assert.Contains("_deleteSaveDataButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/DeleteSaveDataBtn\");", moduleSource);
 		Assert.Contains("_cleanAssetsButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/CleanAssetsBtn\");", moduleSource);
-		Assert.DoesNotContain("DeleteWorldRequested", moduleSource);
+		Assert.Contains("_deleteSaveDataButton = panel.GetNode<Button>(\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions/DeleteSaveDataBtn\");", moduleSource);
 		Assert.Contains("[node name=\"DangerSection\" type=\"VBoxContainer\" parent=\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn\"]", sceneSource);
+		Assert.Contains("[node name=\"DeleteWorldBtn\" type=\"Button\" parent=\"Margin/VBox/Pages/WorldsPage/Body/DetailColumn/DangerSection/DangerActions\"]", sceneSource);
+		Assert.Contains("text = \"ui.world_manager.delete_world\"", sceneSource);
 		Assert.Contains("text = \"ui.world_manager.delete_save_data\"", sceneSource);
 		Assert.Contains("text = \"ui.world_manager.clean_assets\"", sceneSource);
-		Assert.DoesNotContain("DeleteWorldBtn", sceneSource);
 	}
 
 	private static string ResolveRepoRoot()
