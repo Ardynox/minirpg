@@ -10,6 +10,7 @@ using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module.Render;
+using MiniRPG.Module.WorldTool;
 using Xunit;
 
 namespace MiniRPG.Tests;
@@ -449,6 +450,32 @@ public sealed class IsometricRenderTests
 			editorViewActive: true,
 			rawHover,
 			editorHoverState: null);
+
+		Assert.Equal(rawHover, highlightCell);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_ResolveHoverHighlightCell_RuntimeSelectFallsBackToRawHoverWhenNoResolvedTargetExists()
+	{
+		var rawHover = new Vector3I(9, 4, 2);
+		var previewState = new WorldToolPreviewState(
+			WorldToolMode.Select,
+			WorldToolCategory.Terrain,
+			WorldToolPreviewKind.Terrain,
+			rawHover,
+			ResolvedTargetCell: null,
+			BrushId: Terrains.Floor,
+			BrushGlyph: "#",
+			CanApply: false,
+			ShowGhost: false,
+			ShowInfoOverlay: false,
+			GhostRenderId: null,
+			GhostGlyph: null,
+			ResolvedEntityId: null,
+			HideResolvedTargetInWorld: false,
+			GhostFacility: null);
+
+		var highlightCell = IsometricVoxelRenderer.ResolveHoverHighlightCell(rawHover, previewState);
 
 		Assert.Equal(rawHover, highlightCell);
 	}
