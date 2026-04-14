@@ -8,6 +8,24 @@ namespace MiniRPG.Tests;
 public sealed class RuntimeWorldToolInteractionLogicTests
 {
 	[Fact]
+	public void IsPrimaryDragPressed_UsesEventOrLiveButtonState()
+	{
+		const MouseButtonMask noButtons = 0;
+
+		Assert.True(RuntimeWorldToolInteractionLogic.IsPrimaryDragPressed(MouseButtonMask.Left, false));
+		Assert.True(RuntimeWorldToolInteractionLogic.IsPrimaryDragPressed(noButtons, true));
+		Assert.False(RuntimeWorldToolInteractionLogic.IsPrimaryDragPressed(noButtons, false));
+	}
+
+	[Fact]
+	public void ShouldKeepDragStrokeActive_OnlyWhileStrokeExistsAndPrimaryButtonIsPressed()
+	{
+		Assert.True(RuntimeWorldToolInteractionLogic.ShouldKeepDragStrokeActive(true, true));
+		Assert.False(RuntimeWorldToolInteractionLogic.ShouldKeepDragStrokeActive(true, false));
+		Assert.False(RuntimeWorldToolInteractionLogic.ShouldKeepDragStrokeActive(false, true));
+	}
+
+	[Fact]
 	public void ShouldProcessDragHoverCell_OnlyTriggersWhenRawHoverCellChanges()
 	{
 		var origin = new Vector3I(3, 4, 5);

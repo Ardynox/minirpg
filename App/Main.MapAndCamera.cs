@@ -264,6 +264,16 @@ public partial class Main
 		if (@event is not InputEventMouseMotion motion)
 			return false;
 
+		var isPrimaryDragPressed = RuntimeWorldToolInteractionLogic.IsPrimaryDragPressed(
+			motion.ButtonMask,
+			Input.IsMouseButtonPressed(MouseButton.Left));
+		if (!RuntimeWorldToolInteractionLogic.ShouldKeepDragStrokeActive(
+			_runtimeWorldToolDragActive,
+			isPrimaryDragPressed))
+		{
+			_runtimeWorldToolDragActive = false;
+		}
+
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
 			_runtimeWorldToolDragActive = false;
@@ -277,7 +287,6 @@ public partial class Main
 		if ((_runtimeWorldToolBar.Visible && _runtimeWorldToolBar.IsPointerOver(motion.GlobalPosition))
 			|| (_runtimeWorldToolHeightPanel.Visible && _runtimeWorldToolHeightPanel.IsPointerOver(motion.GlobalPosition)))
 		{
-			_runtimeWorldToolDragActive = false;
 			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
 			RefreshRuntimeWorldHoverPresentation(null);
@@ -292,7 +301,7 @@ public partial class Main
 			RefreshRuntimeWorldHoverPresentation(worldCell, motion.GlobalPosition);
 			if (_runtimeWorldToolDragActive
 				&& SupportsRuntimeWorldToolDrag()
-				&& (motion.ButtonMask & MouseButtonMask.Left) != 0)
+				&& isPrimaryDragPressed)
 			{
 				if (RuntimeWorldToolInteractionLogic.ShouldProcessDragHoverCell(
 					worldCell,
@@ -308,7 +317,6 @@ public partial class Main
 		}
 
 		_runtimeWorldToolSession.SetHover(null);
-		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldHoverPresentation(null);
 		SetWorldHoverCell(null);
