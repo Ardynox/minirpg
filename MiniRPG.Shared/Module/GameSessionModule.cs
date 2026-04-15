@@ -1029,9 +1029,9 @@ public class GameSessionModule : IDebugSessionActions
 		Console.Error.WriteLine(message);
 	}
 
-	private static bool _storytellerWorkersRegistered;
+	private bool _storytellerWorkersRegistered;
 
-	private static void EnsureStorytellerWorkers()
+	private void EnsureStorytellerWorkers()
 	{
 		if (_storytellerWorkersRegistered) return;
 		_storytellerWorkersRegistered = true;

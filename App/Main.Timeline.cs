@@ -40,7 +40,7 @@ public partial class Main
 			return;
 		}
 
-		if (NeedBehaviorModule.HasNearbyThreat(_state, player))
+		if (ThreatDetection.HasNearbyThreat(_state, player))
 		{
 			_playerRestModeActive = false;
 			return;
@@ -66,7 +66,7 @@ public partial class Main
 			_log.Add(LocalizationService.T("log.rest.needs_bedroll"));
 			return;
 		}
-		if (NeedBehaviorModule.HasNearbyThreat(_state, player))
+		if (ThreatDetection.HasNearbyThreat(_state, player))
 		{
 			_log.Add(LocalizationService.T("log.rest.unsafe"));
 			return;
@@ -89,7 +89,7 @@ public partial class Main
 
 	private void SubmitPlayerAction(TimelinePlayerAction action)
 	{
-		if (!_autoNavigationExecutingStep)
+		if (!_autoNav.IsExecutingStep)
 			InterruptAutoNavigationForManualInput();
 
 		if (TrySubmitMultiplayerTimelineAction(action))
@@ -100,7 +100,7 @@ public partial class Main
 
 	private TimelineStepResult SubmitPlayerActionWithResult(TimelinePlayerAction action)
 	{
-		if (!_autoNavigationExecutingStep)
+		if (!_autoNav.IsExecutingStep)
 			InterruptAutoNavigationForManualInput();
 
 		if (TrySubmitMultiplayerTimelineAction(action))

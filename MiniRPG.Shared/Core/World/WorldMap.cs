@@ -13,6 +13,9 @@ public class WorldMap
 {
 	public ChunkManager Chunks { get; }
 	public int WorldSeed { get; }
+	public int Version { get; private set; }
+
+	public void IncrementVersion() => Version++;
 
 	// ── 子服务 ──
 	public TerrainAccess Terrain { get; }
@@ -50,36 +53,36 @@ public class WorldMap
 
 	public ushort GetTerrainId(int x, int y, int z) => Terrain.GetTerrainId(x, y, z);
 	public TerrainDef GetTerrain(int x, int y, int z) => Terrain.GetTerrain(x, y, z);
-	public void SetTerrainId(int x, int y, int z, ushort terrainId) => Terrain.SetTerrainId(x, y, z, terrainId);
-	public void SetTerrain(int x, int y, int z, string terrainStringId) => Terrain.SetTerrain(x, y, z, terrainStringId);
+	public void SetTerrainId(int x, int y, int z, ushort terrainId) { Terrain.SetTerrainId(x, y, z, terrainId); IncrementVersion(); }
+	public void SetTerrain(int x, int y, int z, string terrainStringId) { Terrain.SetTerrain(x, y, z, terrainStringId); IncrementVersion(); }
 	public byte GetHardness(int x, int y, int z) => Terrain.GetHardness(x, y, z);
-	public void SetHardness(int x, int y, int z, byte hardness) => Terrain.SetHardness(x, y, z, hardness);
+	public void SetHardness(int x, int y, int z, byte hardness) { Terrain.SetHardness(x, y, z, hardness); IncrementVersion(); }
 
 	// ══════════════════════════════════════════════════════
 	//  实体栈操作（转发到 EntityAccess）
 	// ══════════════════════════════════════════════════════
 
 	public List<CellEntity> GetEntities(int x, int y, int z) => Entities.GetEntities(x, y, z);
-	public void PushEntity(int x, int y, int z, CellEntity entity) => Entities.PushEntity(x, y, z, entity);
-	public bool RemoveEntity(int x, int y, int z, CellEntityType type, string entityId) => Entities.RemoveEntity(x, y, z, type, entityId);
-	public int RemoveEntitiesByType(int x, int y, int z, CellEntityType type) => Entities.RemoveEntitiesByType(x, y, z, type);
+	public void PushEntity(int x, int y, int z, CellEntity entity) { Entities.PushEntity(x, y, z, entity); IncrementVersion(); }
+	public bool RemoveEntity(int x, int y, int z, CellEntityType type, string entityId) { var r = Entities.RemoveEntity(x, y, z, type, entityId); if (r) IncrementVersion(); return r; }
+	public int RemoveEntitiesByType(int x, int y, int z, CellEntityType type) { var r = Entities.RemoveEntitiesByType(x, y, z, type); if (r > 0) IncrementVersion(); return r; }
 	public List<CellEntity> GetEntitiesByType(int x, int y, int z, CellEntityType type) => Entities.GetEntitiesByType(x, y, z, type);
 	public CellEntity? GetFirstEntity(int x, int y, int z, CellEntityType type) => Entities.GetFirstEntity(x, y, z, type);
 	public CellEntity? GetEntity(int x, int y, int z, CellEntityType type, string entityId) => Entities.GetEntity(x, y, z, type, entityId);
-	public bool UpdateEntity(int x, int y, int z, CellEntityType type, string entityId, Action<CellEntity> update) => Entities.UpdateEntity(x, y, z, type, entityId, update);
+	public bool UpdateEntity(int x, int y, int z, CellEntityType type, string entityId, Action<CellEntity> update) { var r = Entities.UpdateEntity(x, y, z, type, entityId, update); if (r) IncrementVersion(); return r; }
 
 	// ── Fixture 便捷方法 ──
 	public bool HasFixture(int x, int y, int z, string fixtureId) => Entities.HasFixture(x, y, z, fixtureId);
 	public bool HasVerticalAnchor(int x, int y, int z, bool goDown) => Entities.HasVerticalAnchor(x, y, z, goDown);
 	public string GetFixtureId(int x, int y, int z) => Entities.GetFixtureId(x, y, z);
-	public void SetFixture(int x, int y, int z, string glyph, string entityId) => Entities.SetFixture(x, y, z, glyph, entityId);
+	public void SetFixture(int x, int y, int z, string glyph, string entityId) { Entities.SetFixture(x, y, z, glyph, entityId); IncrementVersion(); }
 	public static string ResolveFixtureGlyph(string fixtureId) => EntityAccess.ResolveFixtureGlyph(fixtureId);
 
 	// ── Item 便捷方法 ──
-	public void PlaceItem(int x, int y, int z, Item item) => Entities.PlaceItem(x, y, z, item);
-	public Item? PickupItem(int x, int y, int z, string entityId) => Entities.PickupItem(x, y, z, entityId);
+	public void PlaceItem(int x, int y, int z, Item item) { Entities.PlaceItem(x, y, z, item); IncrementVersion(); }
+	public Item? PickupItem(int x, int y, int z, string entityId) { var r = Entities.PickupItem(x, y, z, entityId); if (r != null) IncrementVersion(); return r; }
 	public List<Item> PeekGroundItems(int x, int y, int z) => Entities.PeekGroundItems(x, y, z);
-	public bool UpdateGroundItem(int x, int y, int z, Item item) => Entities.UpdateGroundItem(x, y, z, item);
+	public bool UpdateGroundItem(int x, int y, int z, Item item) { var r = Entities.UpdateGroundItem(x, y, z, item); if (r) IncrementVersion(); return r; }
 	public static string ResolveGroundItemTemplateId(CellEntity entity) => EntityAccess.ResolveGroundItemTemplateId(entity);
 
 	// ══════════════════════════════════════════════════════
@@ -88,6 +91,7 @@ public class WorldMap
 
 	public bool IsSolid(int x, int y, int z) => Query.IsSolid(x, y, z);
 	public bool BlocksSight(int x, int y, int z) => Query.BlocksSight(x, y, z);
+	public bool BlocksSightVertical(int x, int y, int zFrom, int zTo) => Query.BlocksSightVertical(x, y, zFrom, zTo);
 	public bool IsWalkable(int x, int y, int z) => Query.IsWalkable(x, y, z);
 	public bool IsWeatherExposed(int x, int y, int z) => Query.IsWeatherExposed(x, y, z);
 	public bool CanTraverseVertical(int x, int y, int z, bool goDown) => Query.CanTraverseVertical(x, y, z, goDown);

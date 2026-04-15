@@ -68,6 +68,16 @@ public static class ItemFormatHelper
 			? BuildWeight(item)
 			: string.Empty;
 
+	public static string BuildRowText(GameState? state, Item item, string prefix = "")
+	{
+		var name = GetDisplayName(state, item);
+		var stats = InlineStats(state, item);
+		var weight = BuildWeight(state, item);
+		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
+		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
+		return $"{prefix}{name}{statSegment}{weightSegment}";
+	}
+
 	public static string BuildDetail(Item item)
 	{
 		var sb = new StringBuilder();

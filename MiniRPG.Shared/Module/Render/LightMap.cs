@@ -48,11 +48,34 @@ public sealed class LightMap
 	private readonly List<PointLight> _lights = new(16);
 	private readonly Dictionary<long, CellLight> _cells = new(256);
 
-	/// <summary>
-	/// Rebuild the light map for the given visible region.
-	/// Call once per render frame before GetFaceTint queries.
-	/// </summary>
+	private int _lastCx, _lastCy, _lastCz, _lastHalfW, _lastHalfH, _lastZMin, _lastZMax;
+	private int _lastWorldVersion;
+
 	public void Rebuild(WorldMap world, int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
+	{
+		var worldVersion = world.Version;
+		if (worldVersion == _lastWorldVersion
+			&& cx == _lastCx && cy == _lastCy && cz == _lastCz
+			&& halfW == _lastHalfW && halfH == _lastHalfH
+			&& zMin == _lastZMin && zMax == _lastZMax)
+		{
+			return;
+		}
+
+		_lastCx = cx; _lastCy = cy; _lastCz = cz;
+		_lastHalfW = halfW; _lastHalfH = halfH;
+		_lastZMin = zMin; _lastZMax = zMax;
+		_lastWorldVersion = worldVersion;
+
+		RebuildCore(world, cx, cy, cz, halfW, halfH, zMin, zMax);
+	}
+
+	public void Invalidate()
+	{
+		_lastWorldVersion = -1;
+	}
+
+	private void RebuildCore(WorldMap world, int cx, int cy, int cz, int halfW, int halfH, int zMin, int zMax)
 	{
 		_lights.Clear();
 		_cells.Clear();

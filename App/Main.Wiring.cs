@@ -19,51 +19,32 @@ public partial class Main
 		_settingsFlow.MapZoomMaxIncreaseRequested += IncreaseMapZoomMax;
 		_settingsFlow.MapEditorToggleRequested += () =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.map_editor", "Map editor is disabled in multiplayer sessions."));
+			if (GuardMultiplayer("ui.multiplayer.disabled.map_editor", "Map editor is disabled in multiplayer sessions."))
 				return;
-			}
 			_mainAppFlowCoordinator.ToggleMapEditor();
 		};
 
 		_settingsFlow.LayoutEditRequested += _mainAppFlowCoordinator.OpenLayoutEditMode;
 		_settingsFlow.SaveRequested += () =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
-				return;
-			}
+			if (GuardMultiplayerSave()) return;
 			DoSaveCurrent();
 		};
 		_settingsFlow.LoadRequested += () =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
-				return;
-			}
+			if (GuardMultiplayerLoad()) return;
 			_mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
 		};
 		_settingsFlow.LanguageChangedRequested += HandleLanguageChanged;
 		_settingsFlow.QuickSaveRequested += () =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
-				return;
-			}
+			if (GuardMultiplayerSave()) return;
 			var path = _session.GetQuickSavePath();
 			DoSave(path, _session.DescribeSavePath(path));
 		};
 		_settingsFlow.QuickLoadRequested += () =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
-				return;
-			}
+			if (GuardMultiplayerLoad()) return;
 			_mainAppFlowCoordinator.HandleQuickLoadRequested();
 		};
 		_settingsFlow.ReturnToMenuRequested += () =>
@@ -91,11 +72,7 @@ public partial class Main
 		_worldManager.ScenarioRequested += _mainAppFlowCoordinator.HandleWorldManagerScenarioRequested;
 		_worldManager.LegacySaveRequested += slot =>
 		{
-			if (IsMultiplayerSession)
-			{
-				_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
-				return;
-			}
+			if (GuardMultiplayerLoad()) return;
 			_mainAppFlowCoordinator.HandleWorldManagerLegacySaveRequested(slot);
 		};
 		_mapEditorBar.CategorySelected += category => _mapEditorCoordinator.SelectCategory(category);

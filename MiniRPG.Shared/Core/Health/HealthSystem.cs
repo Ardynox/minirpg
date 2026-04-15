@@ -10,6 +10,23 @@ public static class HealthSystem
 	public const float ValueMin = 0f;
 	public const float ValueMax = 100f;
 
+	private const float PainThresholdMild = 15f;
+	private const float PainThresholdModerate = 40f;
+	private const float PainThresholdSevere = 75f;
+
+	private const float BloodLossThresholdMild = 15f;
+	private const float BloodLossThresholdModerate = 40f;
+	private const float BloodLossThresholdSevere = 75f;
+	private const float BloodLossThresholdFatal = 100f;
+
+	private const float InfectionThresholdModerate = 30f;
+	private const float InfectionThresholdSevere = 70f;
+
+	private const float TemperatureThresholdModerate = 20f;
+	private const float TemperatureThresholdSevere = 50f;
+
+	private const float OnFireThresholdModerate = 30f;
+
 	public static void EnsureInitialized(Actor actor, int currentTurn)
 	{
 		HealthCatalog.Load();
@@ -54,33 +71,33 @@ public static class HealthSystem
 
 		var multiplier = 1f;
 		var pain = actor.PainValue;
-		if (pain >= 75f)
+		if (pain >= PainThresholdSevere)
 		{
 			if (capacityId == Caps.Moving || capacityId == Caps.Manipulation)
 				multiplier *= 0.6f;
 			if (capacityId == Caps.Consciousness)
 				multiplier *= 0.65f;
 		}
-		else if (pain >= 40f)
+		else if (pain >= PainThresholdModerate)
 		{
 			if (capacityId == Caps.Moving || capacityId == Caps.Manipulation)
 				multiplier *= 0.8f;
 			if (capacityId == Caps.Consciousness)
 				multiplier *= 0.85f;
 		}
-		else if (pain >= 15f)
+		else if (pain >= PainThresholdMild)
 		{
 			if (capacityId == Caps.Moving || capacityId == Caps.Manipulation || capacityId == Caps.Consciousness)
 				multiplier *= 0.92f;
 		}
 
 		var bloodLoss = actor.BloodLossValue;
-		if (bloodLoss >= 100f)
+		if (bloodLoss >= BloodLossThresholdFatal)
 		{
 			if (capacityId == Caps.BloodCirculation || capacityId == Caps.Consciousness)
 				return 0f;
 		}
-		else if (bloodLoss >= 75f)
+		else if (bloodLoss >= BloodLossThresholdSevere)
 		{
 			if (capacityId == Caps.BloodCirculation)
 				multiplier *= 0.2f;
@@ -89,7 +106,7 @@ public static class HealthSystem
 			if (capacityId == Caps.Moving)
 				multiplier *= 0.6f;
 		}
-		else if (bloodLoss >= 40f)
+		else if (bloodLoss >= BloodLossThresholdModerate)
 		{
 			if (capacityId == Caps.BloodCirculation)
 				multiplier *= 0.55f;
@@ -98,7 +115,7 @@ public static class HealthSystem
 			if (capacityId == Caps.Moving)
 				multiplier *= 0.85f;
 		}
-		else if (bloodLoss >= 15f)
+		else if (bloodLoss >= BloodLossThresholdMild)
 		{
 			if (capacityId == Caps.Consciousness || capacityId == Caps.Moving)
 				multiplier *= 0.94f;
@@ -108,12 +125,12 @@ public static class HealthSystem
 			string.Equals(condition.Id, HealthConditionIds.Infection, StringComparison.Ordinal));
 		if (infection != null)
 		{
-			if (infection.Severity >= 70f)
+			if (infection.Severity >= InfectionThresholdSevere)
 			{
 				if (capacityId == Caps.Consciousness || capacityId == Caps.Metabolism)
 					multiplier *= 0.65f;
 			}
-			else if (infection.Severity >= 30f)
+			else if (infection.Severity >= InfectionThresholdModerate)
 			{
 				if (capacityId == Caps.Consciousness || capacityId == Caps.Metabolism)
 					multiplier *= 0.88f;
@@ -127,18 +144,18 @@ public static class HealthSystem
 		var onFire = actor.HealthConditions.FirstOrDefault(condition =>
 			string.Equals(condition.Id, HealthConditionIds.OnFire, StringComparison.Ordinal));
 		var temperatureSeverity = Math.Max(hypothermia?.Severity ?? 0f, heatstroke?.Severity ?? 0f);
-		if (temperatureSeverity >= 50f)
+		if (temperatureSeverity >= TemperatureThresholdSevere)
 		{
 			if (capacityId == Caps.Moving || capacityId == Caps.Consciousness || capacityId == Caps.Manipulation)
 				multiplier *= 0.75f;
 		}
-		else if (temperatureSeverity >= 20f)
+		else if (temperatureSeverity >= TemperatureThresholdModerate)
 		{
 			if (capacityId == Caps.Moving || capacityId == Caps.Consciousness)
 				multiplier *= 0.9f;
 		}
 
-		if ((onFire?.Severity ?? 0f) >= 30f)
+		if ((onFire?.Severity ?? 0f) >= OnFireThresholdModerate)
 		{
 			if (capacityId is Caps.Moving or Caps.Manipulation or Caps.Consciousness)
 				multiplier *= 0.7f;

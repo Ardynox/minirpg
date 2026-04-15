@@ -126,11 +126,7 @@ public class ChestPanelModule : ListPanelBase
 	private void ApplyRowContent(Button row, int i)
 	{
 		var item = _chestItem!.Contents![i];
-		var stats = ItemFormatHelper.InlineStats(_host.State, item);
-		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
-		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
-		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
-		row.Text = $"{ItemFormatHelper.GetDisplayName(_host.State, item)}{statSegment}{weightSegment}";
+		row.Text = ItemFormatHelper.BuildRowText(_host.State, item);
 	}
 
 	protected override void HandleRowGuiInput(InputEvent ev, int index)

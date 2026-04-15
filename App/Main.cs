@@ -110,6 +110,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private InventoryPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
 	private TurnPanelModule _turnPanelModule = null!;
+	private PlayerTargetingCoordinator _playerTargetingCoordinator = null!;
 	private ThreatHudModule _threatHud = null!;
 	private TargetSummaryHudModule _targetSummaryHud = null!;
 	private NeedsHudModule _needsHud = null!;
@@ -126,8 +127,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private ActorInspectPanelModule? _actorInspectPanel;
 	private LimbTargetPanelModule? _limbTargetPanel;
 
-	private (int x, int y, int z)? _openChestPos;
-	private OpenContainerContext? _openChestContext;
+	private ChestCoordinator _chestCoordinator = null!;
 	private string? _armedSkillId;
 	private RuntimeWorldToolSession _runtimeWorldToolSession = null!;
 	private RuntimeCameraController _runtimeCameraController = null!;
@@ -141,6 +141,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private Vector2 _runtimeCameraRightClickPressGlobalPosition;
 	private bool _runtimeWorldToolHasLastPointerGlobalPosition;
 	private Vector2 _runtimeWorldToolLastPointerGlobalPosition;
+	private AltLabelOverlayController _altLabelOverlayController = null!;
 	private bool _skillTargetCursorActive;
 	private Vector3I? _skillTargetWorldCell;
 	private Vector3I? _hoverWorldCell;
@@ -179,13 +180,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private bool RenderReady => _mapRender != null;
 	private bool IsMultiplayerSession => _session != null && _session.IsMultiplayerRoomSession;
 
-	private readonly record struct OpenContainerContext(
-		ContainerSourceKind Source,
-		string ContainerInstanceId,
-		string? OwnerActorId,
-		int X,
-		int Y,
-		int Z);
+	private bool GuardMultiplayer(string i18nKey, string fallback)
+	{
+		if (!IsMultiplayerSession)
+			return false;
+		_log.Add(LocalizationService.TOrFallback(i18nKey, fallback));
+		return true;
+	}
+
+	private bool GuardMultiplayerSave() =>
+		GuardMultiplayer("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions.");
+
+	private bool GuardMultiplayerLoad() =>
+		GuardMultiplayer("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions.");
 
 	// ══════════════════════════════════════════════════════
 	//  IGameUI 接口实现
@@ -267,8 +274,21 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	public override void _ExitTree()
 	{
-		CloseMultiplayerBackendAsync(suppressDisconnectHandling: true).GetAwaiter().GetResult();
-		_localServerLauncher?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+		try
+		{
+			CloseMultiplayerBackendAsync(suppressDisconnectHandling: true).GetAwaiter().GetResult();
+		}
+		catch (Exception)
+		{
+		}
+
+		try
+		{
+			_localServerLauncher?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+		}
+		catch (Exception)
+		{
+		}
 	}
 
 	/// <summary>每帧更新：驱动异步资源加载 + 脏面板统一刷新 + 看海模式自动推进。</summary>

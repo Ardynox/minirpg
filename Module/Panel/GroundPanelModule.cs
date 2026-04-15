@@ -120,11 +120,11 @@ public class GroundPanelModule : ListPanelBase
 		var item = _groundItems[index];
 		var icon = item.IsContainer ? "[C]" : "   ";
 		var itemName = ItemFormatHelper.GetDisplayName(_host.State, item);
-		var stats = ItemFormatHelper.InlineStats(_host.State, item);
-		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
 		var nameText = item.IsContainer
 			? LocalizationService.T("ui.ground.container_name", ("name", itemName), ("count", item.Contents?.Count ?? 0))
 			: itemName;
+		var stats = ItemFormatHelper.InlineStats(_host.State, item);
+		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
 		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
 		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
 		row.Text = $"{icon} {nameText}{statSegment}{weightSegment}";
@@ -150,23 +150,29 @@ public class GroundPanelModule : ListPanelBase
 		ShowContextMenu(_groundItems[index], mb.GlobalPosition);
 	}
 
+	private const int ContextOpen = 0;
+	private const int ContextStrip = 1;
+	private const int ContextButcher = 2;
+	private const int ContextHarvest = 3;
+	private const int ContextPickup = 4;
+
 	private void ShowContextMenu(Item item, Vector2 position)
 	{
 		_contextMenu.Clear();
 		if (item.IsCorpse)
 		{
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), 0);
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.strip", "Strip"), 1);
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.butcher", "Butcher"), 2);
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.harvest", "Harvest"), 3);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), ContextOpen);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.strip", "Strip"), ContextStrip);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.butcher", "Butcher"), ContextButcher);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.harvest", "Harvest"), ContextHarvest);
 		}
 		else if (item.IsContainer)
 		{
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), 0);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.open", "Open"), ContextOpen);
 		}
 		else
 		{
-			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.pickup", "Pick up"), 4);
+			_contextMenu.AddItem(LocalizationService.TOrFallback("ui.ground.context.pickup", "Pick up"), ContextPickup);
 		}
 
 		_contextMenu.Position = new Vector2I((int)position.X, (int)position.Y);
@@ -182,19 +188,19 @@ public class GroundPanelModule : ListPanelBase
 		var item = _groundItems[_cursor];
 		switch (id)
 		{
-			case 0:
+			case ContextOpen:
 				_host.OpenChestPanel(item);
 				break;
-			case 1:
+			case ContextStrip:
 				_host.StripCorpse(item);
 				break;
-			case 2:
+			case ContextButcher:
 				_host.ButcherCorpse(item);
 				break;
-			case 3:
+			case ContextHarvest:
 				_host.OpenCorpseHarvest(item);
 				break;
-			case 4:
+			case ContextPickup:
 				_host.PickupGroundItem(item);
 				break;
 		}

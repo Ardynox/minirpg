@@ -26,41 +26,41 @@ internal sealed class MainRuntimeComposition
 
 internal sealed class RuntimeServices
 {
-	public GameState State { get; init; } = null!;
-	public GameSessionModule? Session { get; set; }
-	public LogModule? Log { get; set; }
-	public InputModule? Input { get; set; }
-	public IGameSessionBackend? SessionBackend { get; set; }
-	public ILocalServerLauncher? LocalServerLauncher { get; set; }
-	public FogOfWarTracker? FogTracker { get; set; }
-	public MenuModule? Menu { get; set; }
-	public PanelManager? Panels { get; set; }
+	public required GameState State { get; init; }
+	public required GameSessionModule Session { get; init; }
+	public required LogModule Log { get; init; }
+	public required InputModule Input { get; init; }
+	public required IGameSessionBackend SessionBackend { get; init; }
+	public ILocalServerLauncher? LocalServerLauncher { get; init; }
+	public required FogOfWarTracker FogTracker { get; init; }
+	public required MenuModule Menu { get; init; }
+	public required PanelManager Panels { get; init; }
 }
 
 internal sealed class RuntimeUiRefs
 {
 	public IsometricVoxelRenderer? MapRender { get; set; }
-	public WorldManagerModule? WorldManager { get; set; }
-	public SettingsPanelModule? SettingsPanel { get; set; }
-	public MultiplayerHubModule? MultiplayerHub { get; set; }
-	public MultiplayerRoomPanelModule? MultiplayerRoomPanel { get; set; }
-	public StatusPanelModule? StatusPanel { get; set; }
-	public SkillBarModule? SkillBar { get; set; }
-	public SkillManagerModule? SkillManager { get; set; }
-	public InventoryPanelModule? Inventory { get; set; }
-	public GroundPanelModule? Ground { get; set; }
-	public TurnPanelModule? TurnPanel { get; set; }
-	public ChestPanelModule? ChestPanel { get; set; }
-	public DialogPanelModule? DialogPanel { get; set; }
-	public TradePanelModule? TradePanel { get; set; }
-	public QuestPanelModule? QuestPanel { get; set; }
-	public ActorInspectPanelModule? ActorInspectPanel { get; set; }
-	public LimbTargetPanelModule? LimbTargetPanel { get; set; }
+	public required WorldManagerModule WorldManager { get; init; }
+	public required SettingsPanelModule SettingsPanel { get; init; }
+	public MultiplayerHubModule? MultiplayerHub { get; init; }
+	public MultiplayerRoomPanelModule? MultiplayerRoomPanel { get; init; }
+	public StatusPanelModule? StatusPanel { get; init; }
+	public required SkillBarModule SkillBar { get; init; }
+	public required SkillManagerModule SkillManager { get; init; }
+	public InventoryPanelModule? Inventory { get; init; }
+	public required GroundPanelModule Ground { get; init; }
+	public required TurnPanelModule TurnPanel { get; init; }
+	public ChestPanelModule? ChestPanel { get; init; }
+	public DialogPanelModule? DialogPanel { get; init; }
+	public TradePanelModule? TradePanel { get; init; }
+	public QuestPanelModule? QuestPanel { get; init; }
+	public ActorInspectPanelModule? ActorInspectPanel { get; init; }
+	public LimbTargetPanelModule? LimbTargetPanel { get; init; }
 }
 
 internal sealed class RuntimeHooks
 {
-	public Action? Quit { get; set; }
-	public Action? ShowMainMenuWithCurrentContinue { get; set; }
-	public Action? SetInputHandled { get; set; }
+	public required Action Quit { get; init; }
+	public required Action ShowMainMenuWithCurrentContinue { get; init; }
+	public required Action SetInputHandled { get; init; }
 }

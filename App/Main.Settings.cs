@@ -61,7 +61,7 @@ public partial class Main
 			_mapZoomMin,
 			_mapZoomMax,
 			_mapRender?.Zoom ?? 1.0f,
-			_autoNavigationInterruptPolicy);
+			_autoNav.InterruptPolicy);
 	}
 
 	private void SyncSettingsUiState(SettingsEntryContext? context = null)

@@ -216,7 +216,6 @@ public partial class Main
 		LocalizationService.SetLocale(AppSettingsStore.LoadLocale(), notify: false);
 		_enableKeyboardTargeting = AppSettingsStore.LoadEnableKeyboardTargeting();
 		_fastTurnModeEnabled = AppSettingsStore.LoadFastTurnMode();
-		_autoNavigationInterruptPolicy = AppSettingsStore.LoadAutoNavigationInterruptPolicy();
 		_enableDebugPanel = AppSettingsStore.LoadEnableDebugPanel();
 		_mapZoomMin = AppSettingsStore.LoadMapZoomMin();
 		_mapZoomMax = AppSettingsStore.LoadMapZoomMax();
@@ -250,6 +249,16 @@ public partial class Main
 		_log = new LogModule(_logContent);
 		_inputBar = GetNode<LineEdit>($"{HudRootPath}/InputBar");
 		BindWorldHoverOverlay();
+		_altLabelOverlayController = new AltLabelOverlayController(
+			_state,
+			_fogTracker,
+			() => _mapRender,
+			() => _session,
+			() => _menu,
+			() => RenderReady,
+			GetCurrentVisibleWorldHalfExtents,
+			() => GetNode<Control>(HudRootPath),
+			GetNode<CanvasLayer>(OverlayRootPath));
 		BindAltLabelOverlay();
 		BindPanelLauncherBar();
 		_mapEditor = new MapEditorSession(_state);
@@ -279,7 +288,6 @@ public partial class Main
 		var incidentAlertNode = IncidentAlertModule.CreateControl(_uiTheme);
 		_overlayLayer.AddChild(incidentAlertNode);
 		_incidentAlerts = new IncidentAlertModule(incidentAlertNode);
-		_lastActiveThreatMode = ThreatHudMode.Hidden;
 	}
 
 	private void InitializePanelsAndChrome()
@@ -516,6 +524,18 @@ public partial class Main
 				RefreshRuntimeWorldToolBar();
 			});
 		_runtime = BuildRuntimeComposition();
+		_playerTargetingCoordinator = new PlayerTargetingCoordinator(
+			_state,
+			_session,
+			_log,
+			_menu,
+			() => _mapRender,
+			() => PlayerDead)
+		{
+			ThreatHud = _threatHud,
+			TargetSummaryHud = _targetSummaryHud,
+			HealthAlerts = _healthAlerts,
+		};
 		_multiplayerFlowCoordinator = new MultiplayerFlowCoordinator(
 			AppSettingsStore.LoadMultiplayerSettings,
 			AppSettingsStore.SaveMultiplayerSettings,
@@ -555,6 +575,29 @@ public partial class Main
 			() => _predictionConfig,
 			() => _predictionCorrectionSmoothingSeconds);
 		_runtimeViewCoordinator = new RuntimeViewCoordinator(_state, _runtime!.UiRefs, _runtime.Services);
+		_autoNav = new AutoNavigationCoordinator(
+			_state,
+			_session,
+			_log,
+			() => _menu,
+			() => PlayerDead,
+			() => MapEditorActive,
+			() => LayoutEditActive,
+			() => RenderReady,
+			() => IsMultiplayerSession,
+			() => _watchModeEnabled,
+			() => _skillTargetCursorActive,
+			() => _skillTargetWorldCell,
+			DoMove,
+			SubmitPlayerAction,
+			FlushMap,
+			() => SyncSettingsUiState(),
+			() => _multiplayerRuntimeCoordinator?.ActivityVersion ?? 0L,
+			() => _multiplayerRuntimeCoordinator?.PendingPredictionCount ?? 0)
+		{
+			SetPlayerRestModeActive = value => _playerRestModeActive = value,
+		};
+		_autoNav.LoadInterruptPolicy(AppSettingsStore.LoadAutoNavigationInterruptPolicy());
 		_mapEditorCoordinator = new MapEditorCoordinator(
 			_state,
 			_mapEditor,
@@ -606,6 +649,22 @@ public partial class Main
 			EnsureTradeUI,
 			EnsureDialogUI,
 			() => _playerRestModeActive = false);
+		_limbTargetCoordinator = new LimbTargetCoordinator(
+			_state,
+			_log,
+			_panels,
+			EnsureLimbTargetPanel,
+			SubmitPlayerAction);
+		_chestCoordinator = new ChestCoordinator(
+			_state,
+			_log,
+			_inputModule,
+			_panels,
+			_groundPanel,
+			() => IsMultiplayerSession,
+			EnsureChestPanel,
+			SubmitClientCommand,
+			FlushMap);
 		_gameplayCommandCoordinator = new GameplayCommandCoordinator(
 			_state,
 			_inputModule,

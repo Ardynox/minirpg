@@ -17,116 +17,75 @@ internal sealed class ModalStateController(
 	Action closeSaveNameDialog,
 	Action closeCharacterCreationDialog)
 {
-	private readonly Action _closePanelChromeSettings = closePanelChromeSettings;
-	private readonly Action _hideSettingsPanels = hideSettingsPanels;
-	private readonly Action _closeSettingsOverlayIfVisible = closeSettingsOverlayIfVisible;
-	private readonly Action _closeMultiplayerHub = closeMultiplayerHub;
-	private readonly Action _closeMultiplayerRoomPanel = closeMultiplayerRoomPanel;
-	private readonly Action _exitMapEditor = exitMapEditor;
-	private readonly Action _cancelLayoutEdit = cancelLayoutEdit;
-	private readonly Action _closeConfirmDialog = closeConfirmDialog;
-	private readonly Action _closeLoadRecoveryDialog = closeLoadRecoveryDialog;
-	private readonly Action _closeWorldManager = closeWorldManager;
-	private readonly Action _closeWorldSettingsDialog = closeWorldSettingsDialog;
-	private readonly Action _closeSaveNameDialog = closeSaveNameDialog;
-	private readonly Action _closeCharacterCreationDialog = closeCharacterCreationDialog;
+	[Flags]
+	private enum CloseFlags
+	{
+		None = 0,
+		PanelChromeSettings = 1 << 0,
+		SettingsPanels = 1 << 1,
+		SettingsOverlay = 1 << 2,
+		MultiplayerHub = 1 << 3,
+		MultiplayerRoomPanel = 1 << 4,
+		MapEditor = 1 << 5,
+		LayoutEdit = 1 << 6,
+		ConfirmDialog = 1 << 7,
+		LoadRecoveryDialog = 1 << 8,
+		WorldManager = 1 << 9,
+		WorldSettingsDialog = 1 << 10,
+		SaveNameDialog = 1 << 11,
+		CharacterCreationDialog = 1 << 12,
+
+		AllDialogs = ConfirmDialog | LoadRecoveryDialog | WorldSettingsDialog | SaveNameDialog | CharacterCreationDialog,
+		AllMultiplayer = MultiplayerHub | MultiplayerRoomPanel,
+		CommonBase = PanelChromeSettings | AllMultiplayer | AllDialogs | WorldManager,
+	}
+
+	private static CloseFlags ResolveFlags(RuntimeUiResetReason reason) => reason switch
+	{
+		RuntimeUiResetReason.SessionTransition =>
+			CloseFlags.CommonBase | CloseFlags.MapEditor | CloseFlags.LayoutEdit | CloseFlags.SettingsPanels,
+		RuntimeUiResetReason.OpenWorldManager =>
+			CloseFlags.PanelChromeSettings | CloseFlags.SettingsOverlay | CloseFlags.AllMultiplayer
+			| CloseFlags.MapEditor | CloseFlags.LayoutEdit
+			| CloseFlags.ConfirmDialog | CloseFlags.LoadRecoveryDialog
+			| CloseFlags.WorldSettingsDialog | CloseFlags.SaveNameDialog | CloseFlags.CharacterCreationDialog,
+		RuntimeUiResetReason.OpenMenuSettings =>
+			CloseFlags.CommonBase | CloseFlags.SettingsPanels,
+		RuntimeUiResetReason.OpenMultiplayerRoomPanel =>
+			CloseFlags.CommonBase | CloseFlags.SettingsPanels,
+		RuntimeUiResetReason.OpenWorldSettings =>
+			CloseFlags.PanelChromeSettings | CloseFlags.AllMultiplayer | CloseFlags.SettingsPanels
+			| CloseFlags.ConfirmDialog | CloseFlags.LoadRecoveryDialog
+			| CloseFlags.WorldManager | CloseFlags.CharacterCreationDialog | CloseFlags.SaveNameDialog,
+		RuntimeUiResetReason.OpenCharacterCreation =>
+			CloseFlags.PanelChromeSettings | CloseFlags.AllMultiplayer | CloseFlags.SettingsPanels
+			| CloseFlags.ConfirmDialog | CloseFlags.LoadRecoveryDialog
+			| CloseFlags.WorldManager | CloseFlags.WorldSettingsDialog | CloseFlags.SaveNameDialog,
+		RuntimeUiResetReason.EnterMapEditor =>
+			CloseFlags.CommonBase | CloseFlags.LayoutEdit | CloseFlags.SettingsPanels,
+		RuntimeUiResetReason.EnterLayoutEdit =>
+			CloseFlags.PanelChromeSettings | CloseFlags.AllMultiplayer | CloseFlags.SettingsPanels,
+		_ => CloseFlags.None,
+	};
 
 	public void Prepare(RuntimeUiResetReason reason)
 	{
-		switch (reason)
-		{
-			case RuntimeUiResetReason.SessionTransition:
-				_closePanelChromeSettings();
-				_exitMapEditor();
-				_cancelLayoutEdit();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeCharacterCreationDialog();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_closeWorldManager();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				_hideSettingsPanels();
-				break;
-			case RuntimeUiResetReason.OpenWorldManager:
-				_closePanelChromeSettings();
-				_closeSettingsOverlayIfVisible();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_exitMapEditor();
-				_cancelLayoutEdit();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeCharacterCreationDialog();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.OpenMenuSettings:
-				_closePanelChromeSettings();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_hideSettingsPanels();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeCharacterCreationDialog();
-				_closeWorldManager();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.OpenMultiplayerRoomPanel:
-				_closePanelChromeSettings();
-				_hideSettingsPanels();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeCharacterCreationDialog();
-				_closeWorldManager();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.OpenWorldSettings:
-				_closePanelChromeSettings();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_hideSettingsPanels();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeWorldManager();
-				_closeCharacterCreationDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.OpenCharacterCreation:
-				_closePanelChromeSettings();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_hideSettingsPanels();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeWorldManager();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.EnterMapEditor:
-				_closePanelChromeSettings();
-				_cancelLayoutEdit();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_hideSettingsPanels();
-				_closeConfirmDialog();
-				_closeLoadRecoveryDialog();
-				_closeCharacterCreationDialog();
-				_closeWorldManager();
-				_closeWorldSettingsDialog();
-				_closeSaveNameDialog();
-				break;
-			case RuntimeUiResetReason.EnterLayoutEdit:
-				_closePanelChromeSettings();
-				_closeMultiplayerHub();
-				_closeMultiplayerRoomPanel();
-				_hideSettingsPanels();
-				break;
-		}
+		var flags = ResolveFlags(reason);
+		if (flags == CloseFlags.None)
+			return;
+
+		if (flags.HasFlag(CloseFlags.PanelChromeSettings)) closePanelChromeSettings();
+		if (flags.HasFlag(CloseFlags.SettingsPanels)) hideSettingsPanels();
+		if (flags.HasFlag(CloseFlags.SettingsOverlay)) closeSettingsOverlayIfVisible();
+		if (flags.HasFlag(CloseFlags.MultiplayerHub)) closeMultiplayerHub();
+		if (flags.HasFlag(CloseFlags.MultiplayerRoomPanel)) closeMultiplayerRoomPanel();
+		if (flags.HasFlag(CloseFlags.MapEditor)) exitMapEditor();
+		if (flags.HasFlag(CloseFlags.LayoutEdit)) cancelLayoutEdit();
+		if (flags.HasFlag(CloseFlags.ConfirmDialog)) closeConfirmDialog();
+		if (flags.HasFlag(CloseFlags.LoadRecoveryDialog)) closeLoadRecoveryDialog();
+		if (flags.HasFlag(CloseFlags.WorldManager)) closeWorldManager();
+		if (flags.HasFlag(CloseFlags.WorldSettingsDialog)) closeWorldSettingsDialog();
+		if (flags.HasFlag(CloseFlags.SaveNameDialog)) closeSaveNameDialog();
+		if (flags.HasFlag(CloseFlags.CharacterCreationDialog)) closeCharacterCreationDialog();
 	}
 }

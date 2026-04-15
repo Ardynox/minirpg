@@ -82,6 +82,10 @@ public partial class IsometricVoxelRenderer
 		new Color(0.96f, 0.72f, 0.40f, 0.12f),
 		new Color(0.97f, 0.74f, 0.42f, 0.82f),
 		new Color(0.96f, 0.72f, 0.40f, 0.42f));
+	private static readonly HoverHighlightStyle PathPreviewHighlightStyle = new(
+		new Color(0.45f, 0.85f, 0.70f, 0.10f),
+		new Color(0.50f, 0.90f, 0.75f, 0.55f),
+		new Color(0.45f, 0.85f, 0.70f, 0.30f));
 	private static readonly Vector2 HoverCellFillScale = new(1.96f, 0.98f);
 	private static readonly Vector2 HoverCellOutlineScale = new(2.04f, 1.02f);
 
@@ -101,7 +105,7 @@ public partial class IsometricVoxelRenderer
 	private MapEditorHoverState? _editorHoverState;
 	private const float EditorCameraLerpSpeed = 14f;
 
-	private readonly List<Sprite2D> _spritePool = [];
+	private readonly VoxelSpritePool _spritePool = new();
 	private int _spriteCount;
 	private VoxelFaceBatchCanvas? _faceBatchCanvas;
 	private readonly List<FaceSpriteCommand> _faceCommands = [];
@@ -116,8 +120,9 @@ public partial class IsometricVoxelRenderer
 	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
 	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
 	private IsometricLightingSettings _lighting = DefaultLighting;
-	private DayNightSnapshot _dayNight = DayNightSnapshot.FullDay;
+
 	private readonly LightMap _lightMap = new();
+	private readonly VoxelLightingCalculator _lightingCalc;
 	private readonly TerrainAtlas _terrainAtlas = new();
 
 	// ── Orchestration state (formerly TileMapRenderModule) ──
@@ -134,34 +139,12 @@ public partial class IsometricVoxelRenderer
 	private double _tileAnimationClockSeconds;
 	private int _lightingProfileIndex;
 	private int _tileDrawCommandCount;
-	private RenderPerfSnapshot _lastPerfSnapshot = RenderPerfSnapshot.Empty;
-	private double _frameTimeEwmaMs;
-	private bool _hasFrameTimeEwma;
+	private readonly RenderPerfTracer _perfTracer = new();
 	private EditorPerspectiveResult _editorPerspective = EditorPerspectiveResult.Empty;
 	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
 	private float _playerVisualCorrectionRemaining;
 	private float _playerVisualCorrectionDuration;
 	private RenderTraceSample _lastRenderTraceSample = RenderTraceSample.Empty;
-	private int _editorPerfTraceFrameCount;
-	private double _editorPerfTraceFlushMs;
-	private double _editorPerfTraceTerrainMs;
-	private double _editorPerfTraceLightMapMs;
-	private double _editorPerfTraceEntityMs;
-	private double _editorPerfTraceHoverMs;
-	private double _editorPerfTraceSceneMs;
-	private long _editorPerfTraceScannedTerrainCells;
-	private long _editorPerfTracePreviewHiddenTerrainCells;
-	private long _editorPerfTraceScreenCulledTerrainCells;
-	private long _editorPerfTraceEmptyTerrainCells;
-	private long _editorPerfTraceOccludedTerrainCells;
-	private long _editorPerfTraceHiddenFaceTerrainCells;
-	private long _editorPerfTraceAcceptedVoxelCount;
-	private long _editorPerfTraceEntityCommandCount;
-	private long _editorPerfTraceHighlightCommandCount;
-	private long _editorPerfTraceFaceCommandCount;
-	private static readonly bool EnableEditorPerfTrace = false;
-	private const int EditorPerfTraceReportEveryFrames = 20;
-	private const double EditorPerfTraceSlowFlushThresholdMs = 20.0;
 
 	private static readonly (string Key, IsometricLightingSettings Lighting)[] LightingProfiles =
 	[
@@ -211,6 +194,7 @@ public partial class IsometricVoxelRenderer
 		_fogTracker = fogTracker;
 		_viewW = viewW;
 		_viewH = viewH;
+		_lightingCalc = new VoxelLightingCalculator(_lightMap);
 	}
 
 	public int LastSpriteCount => _spriteCount;
@@ -228,10 +212,11 @@ public partial class IsometricVoxelRenderer
 	}
 	internal WorldToolPreviewState? WorldToolPreviewState { get; set; }
 	public Vector3I? TargetCursorWorldCell { get; set; }
+	public IReadOnlyList<Godot.Vector3I>? PathHighlightCells { get; set; }
 	public Node2D CombatFxWorldRoot => _combatFxWorldRoot!;
 	public bool IsIsometricMode => true;
 	public int LightingProfileIndex => _lightingProfileIndex;
-	public RenderPerfSnapshot LastPerfSnapshot => _lastPerfSnapshot;
+	public RenderPerfSnapshot LastPerfSnapshot => _perfTracer.LastPerfSnapshot;
 	public float Zoom => _zoom;
 	public bool FogMapVisible { get; set; }
 	public bool MinimapVisible { get; set; }
@@ -445,109 +430,41 @@ public partial class IsometricVoxelRenderer
 
 	internal static Vector3I? ResolveHoverHighlightCell(
 		Vector3I? hoverWorldCell,
-		WorldToolPreviewState? previewState)
-	{
-		if (previewState is not { } preview)
-			return hoverWorldCell;
-
-		return preview.ToolMode switch
-		{
-			WorldToolMode.Build => preview.ResolvedTargetCell ?? hoverWorldCell,
-			WorldToolMode.Select => preview.ResolvedTargetCell ?? hoverWorldCell,
-			_ => preview.ResolvedTargetCell,
-		};
-	}
+		WorldToolPreviewState? previewState) =>
+		WorldToolPreviewHelper.ResolveHoverHighlightCell(hoverWorldCell, previewState);
 
 	internal static Vector3I? ResolveHoverHighlightCell(
 		bool editorViewActive,
 		Vector3I? hoverWorldCell,
 		MapEditorHoverState? editorHoverState) =>
-		editorViewActive
-			? ResolveHoverHighlightCell(hoverWorldCell, MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(editorHoverState))
-			: hoverWorldCell;
+		WorldToolPreviewHelper.ResolveHoverHighlightCell(editorViewActive, hoverWorldCell, editorHoverState);
 
 	internal static bool ShouldDrawPlacementGhost(WorldToolPreviewState? hoverState) =>
-		hoverState is
-		{
-			CanApply: true,
-			ShowGhost: true,
-			ResolvedTargetCell: { }
-		}
-		&& (hoverState.Value.Kind != WorldToolPreviewKind.Facility
-			? !string.IsNullOrWhiteSpace(hoverState.Value.GhostRenderId)
-			: hoverState.Value.GhostFacility != null);
+		WorldToolPreviewHelper.ShouldDrawPlacementGhost(hoverState);
 
 	internal static bool ShouldDrawEditorPlacementGhost(MapEditorHoverState? hoverState) =>
-		ShouldDrawPlacementGhost(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState));
+		WorldToolPreviewHelper.ShouldDrawEditorPlacementGhost(hoverState);
 
 	internal static bool ShouldHidePreviewTerrain(WorldToolPreviewState? hoverState, int worldX, int worldY, int worldZ) =>
-		ShouldHidePreviewTarget(
-			hoverState,
-			WorldToolPreviewKind.Terrain,
-			worldX,
-			worldY,
-			worldZ);
+		WorldToolPreviewHelper.ShouldHidePreviewTerrain(hoverState, worldX, worldY, worldZ);
 
 	internal static bool ShouldHideEditorPreviewTerrain(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ) =>
-		ShouldHidePreviewTerrain(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState), worldX, worldY, worldZ);
+		WorldToolPreviewHelper.ShouldHideEditorPreviewTerrain(hoverState, worldX, worldY, worldZ);
 
 	internal static bool ShouldHidePreviewFixture(WorldToolPreviewState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
-		ShouldHidePreviewTarget(
-			hoverState,
-			WorldToolPreviewKind.Fixture,
-			worldX,
-			worldY,
-			worldZ,
-			entityId);
+		WorldToolPreviewHelper.ShouldHidePreviewFixture(hoverState, worldX, worldY, worldZ, entityId);
 
 	internal static bool ShouldHideEditorPreviewFixture(MapEditorHoverState? hoverState, int worldX, int worldY, int worldZ, string entityId) =>
-		ShouldHidePreviewFixture(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState), worldX, worldY, worldZ, entityId);
+		WorldToolPreviewHelper.ShouldHideEditorPreviewFixture(hoverState, worldX, worldY, worldZ, entityId);
 
 	internal static bool ShouldHidePreviewFacility(WorldToolPreviewState? hoverState, string facilityId) =>
-		hoverState is
-		{
-			HideResolvedTargetInWorld: true,
-			Kind: WorldToolPreviewKind.Facility,
-			ResolvedEntityId: { Length: > 0 } resolvedEntityId
-		}
-		&& string.Equals(resolvedEntityId, facilityId, StringComparison.Ordinal);
+		WorldToolPreviewHelper.ShouldHidePreviewFacility(hoverState, facilityId);
 
-	internal static int GetPlacementGhostCommandCount(WorldToolPreviewState? hoverState)
-	{
-		if (hoverState is not { } resolved || !ShouldDrawPlacementGhost(resolved))
-			return 0;
-
-		return resolved.Kind == WorldToolPreviewKind.Terrain ? 3 : 1;
-	}
+	internal static int GetPlacementGhostCommandCount(WorldToolPreviewState? hoverState) =>
+		WorldToolPreviewHelper.GetPlacementGhostCommandCount(hoverState);
 
 	internal static int GetEditorPlacementGhostCommandCount(MapEditorHoverState? hoverState) =>
-		GetPlacementGhostCommandCount(MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(hoverState));
-
-	private static bool ShouldHidePreviewTarget(
-		WorldToolPreviewState? hoverState,
-		WorldToolPreviewKind kind,
-		int worldX,
-		int worldY,
-		int worldZ,
-		string? entityId = null)
-	{
-		if (hoverState is not
-			{
-				HideResolvedTargetInWorld: true,
-				Kind: var hoverKind,
-				ResolvedTargetCell: { } targetCell
-			} || hoverKind != kind)
-		{
-			return false;
-		}
-
-		if (targetCell.X != worldX || targetCell.Y != worldY || targetCell.Z != worldZ)
-			return false;
-
-		return kind != WorldToolPreviewKind.Fixture ||
-			(!string.IsNullOrWhiteSpace(entityId) &&
-			 string.Equals(hoverState.Value.ResolvedEntityId, entityId, StringComparison.Ordinal));
-	}
+		WorldToolPreviewHelper.GetEditorPlacementGhostCommandCount(hoverState);
 
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
 		=> _weatherFxController?.SetTuning(tuning, _editorViewActive);
@@ -976,24 +893,7 @@ public partial class IsometricVoxelRenderer
 
 	private void CommitPerfFrame(double frameTimeMs)
 	{
-		if (!_hasFrameTimeEwma)
-		{
-			_frameTimeEwmaMs = frameTimeMs;
-			_hasFrameTimeEwma = true;
-		}
-		else
-		{
-			const double alpha = 0.10;
-			_frameTimeEwmaMs = (_frameTimeEwmaMs * (1.0 - alpha)) + (frameTimeMs * alpha);
-		}
-		_lastPerfSnapshot = new RenderPerfSnapshot(
-			(_weatherFxController?.ActiveSpriteCount ?? 0) + _spriteCount,
-			_tileDrawCommandCount,
-			_frameTimeEwmaMs);
-		if (EnableEditorPerfTrace)
-			TraceEditorPerfFrame(frameTimeMs, _lastRenderTraceSample);
-		else if (_editorPerfTraceFrameCount != 0)
-			ResetEditorPerfTrace();
+		_perfTracer.CommitPerfFrame(frameTimeMs, _spriteCount, _weatherFxController?.ActiveSpriteCount ?? 0, _tileDrawCommandCount, _editorViewActive, _lastRenderTraceSample);
 	}
 
 	public readonly record struct RenderPerfSnapshot(
@@ -1004,7 +904,7 @@ public partial class IsometricVoxelRenderer
 		public static RenderPerfSnapshot Empty => new(0, 0, 0d);
 	}
 
-	private readonly record struct RenderTraceSample(
+	public readonly record struct RenderTraceSample(
 		double TerrainMs,
 		double LightMapMs,
 		double EntityMs,
@@ -1042,82 +942,6 @@ public partial class IsometricVoxelRenderer
 	private static double GetElapsedMs(long startTimestamp) =>
 		(Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
 
-	private void TraceEditorPerfFrame(double flushTimeMs, RenderTraceSample sample)
-	{
-		if (!OS.IsDebugBuild())
-			return;
-
-		if (!_editorViewActive)
-		{
-			ResetEditorPerfTrace();
-			return;
-		}
-
-		_editorPerfTraceFrameCount++;
-		_editorPerfTraceFlushMs += flushTimeMs;
-		_editorPerfTraceTerrainMs += sample.TerrainMs;
-		_editorPerfTraceLightMapMs += sample.LightMapMs;
-		_editorPerfTraceEntityMs += sample.EntityMs;
-		_editorPerfTraceHoverMs += sample.HoverMs;
-		_editorPerfTraceSceneMs += sample.SceneMs;
-		_editorPerfTraceScannedTerrainCells += sample.ScannedTerrainCells;
-		_editorPerfTracePreviewHiddenTerrainCells += sample.PreviewHiddenTerrainCells;
-		_editorPerfTraceScreenCulledTerrainCells += sample.ScreenCulledTerrainCells;
-		_editorPerfTraceEmptyTerrainCells += sample.EmptyTerrainCells;
-		_editorPerfTraceOccludedTerrainCells += sample.OccludedTerrainCells;
-		_editorPerfTraceHiddenFaceTerrainCells += sample.HiddenFaceTerrainCells;
-		_editorPerfTraceAcceptedVoxelCount += sample.AcceptedVoxelCount;
-		_editorPerfTraceEntityCommandCount += sample.EntityCommandCount;
-		_editorPerfTraceHighlightCommandCount += sample.HighlightCommandCount;
-		_editorPerfTraceFaceCommandCount += sample.FaceCommandCount;
-
-		var shouldReport = _editorPerfTraceFrameCount >= EditorPerfTraceReportEveryFrames
-			|| flushTimeMs >= EditorPerfTraceSlowFlushThresholdMs;
-		if (!shouldReport)
-			return;
-
-		var frames = Math.Max(1, _editorPerfTraceFrameCount);
-		GD.Print(
-			$"[IsoPerf] frames={frames} flush_ms={_editorPerfTraceFlushMs / frames:F2} " +
-			$"terrain_ms={_editorPerfTraceTerrainMs / frames:F2} " +
-			$"light_ms={_editorPerfTraceLightMapMs / frames:F2} " +
-			$"entity_ms={_editorPerfTraceEntityMs / frames:F2} " +
-			$"hover_ms={_editorPerfTraceHoverMs / frames:F2} " +
-			$"scene_ms={_editorPerfTraceSceneMs / frames:F2} " +
-			$"terrain_scan={_editorPerfTraceScannedTerrainCells / frames} " +
-			$"accepted_voxels={_editorPerfTraceAcceptedVoxelCount / frames} " +
-			$"entities={_editorPerfTraceEntityCommandCount / frames} " +
-			$"highlights={_editorPerfTraceHighlightCommandCount / frames} " +
-			$"faces={_editorPerfTraceFaceCommandCount / frames} " +
-			$"preview_hidden={_editorPerfTracePreviewHiddenTerrainCells / frames} " +
-			$"screen_culled={_editorPerfTraceScreenCulledTerrainCells / frames} " +
-			$"empty={_editorPerfTraceEmptyTerrainCells / frames} " +
-			$"occluded={_editorPerfTraceOccludedTerrainCells / frames} " +
-			$"hidden_faces={_editorPerfTraceHiddenFaceTerrainCells / frames}");
-		ResetEditorPerfTrace();
-	}
-
-	private void ResetEditorPerfTrace()
-	{
-		_editorPerfTraceFrameCount = 0;
-		_editorPerfTraceFlushMs = 0d;
-		_editorPerfTraceTerrainMs = 0d;
-		_editorPerfTraceLightMapMs = 0d;
-		_editorPerfTraceEntityMs = 0d;
-		_editorPerfTraceHoverMs = 0d;
-		_editorPerfTraceSceneMs = 0d;
-		_editorPerfTraceScannedTerrainCells = 0;
-		_editorPerfTracePreviewHiddenTerrainCells = 0;
-		_editorPerfTraceScreenCulledTerrainCells = 0;
-		_editorPerfTraceEmptyTerrainCells = 0;
-		_editorPerfTraceOccludedTerrainCells = 0;
-		_editorPerfTraceHiddenFaceTerrainCells = 0;
-		_editorPerfTraceAcceptedVoxelCount = 0;
-		_editorPerfTraceEntityCommandCount = 0;
-		_editorPerfTraceHighlightCommandCount = 0;
-		_editorPerfTraceFaceCommandCount = 0;
-	}
-
 	// ── Main Render Pass ──
 
 	public void Render()
@@ -1128,7 +952,8 @@ public partial class IsometricVoxelRenderer
 			return;
 		}
 
-		_dayNight = DayNightCycle.Compute(_state.Turn);
+		var dayNight = DayNightCycle.Compute(_state.Turn);
+		_lightingCalc.Configure(_lighting, dayNight);
 		BeginFrame();
 
 		var cx = _viewCenterX;
@@ -1530,166 +1355,7 @@ public partial class IsometricVoxelRenderer
 	private Color GetFaceTint(int wx, int wy, int wz, VoxelFace face)
 	{
 		var visionTint = GetVisionTint(wx, wy, wz);
-		if (visionTint.R <= 0f && visionTint.G <= 0f && visionTint.B <= 0f)
-			return visionTint;
-
-		var faceLight = face switch
-		{
-			VoxelFace.Top => _lighting.TopLight,
-			VoxelFace.Left => _lighting.LeftLight,
-			VoxelFace.Right => _lighting.RightLight,
-			_ => 1f,
-		};
-
-		var depth = wz - _state.PlayerZ;
-		var depthAttenuation = Math.Max(0.35f, 1f - depth * _lighting.DepthFalloff);
-		var brightness = Math.Clamp(_lighting.Ambient * _dayNight.AmbientMultiplier * faceLight * depthAttenuation, MinLight, MaxLight);
-		brightness = MathF.Pow(brightness, _lighting.Contrast);
-
-		var ao = ComputeAmbientOcclusion(wx, wy, wz, face);
-		var sunShadow = ComputeSunShadow(wx, wy, wz, face);
-		var shadedBrightness = Math.Clamp(brightness * (1f - ao) * (1f - sunShadow), MinLight, MaxLight);
-
-		// Point light contribution (additive)
-		var tintR = _dayNight.SunTintR;
-		var tintG = _dayNight.SunTintG;
-		var tintB = _dayNight.SunTintB;
-
-		if (_lightMap.TryGetLight(wx, wy, wz, out var cellLight))
-		{
-			var pointBrightness = cellLight.Intensity * 0.5f;
-			shadedBrightness = Math.Clamp(shadedBrightness + pointBrightness, MinLight, MaxLight);
-
-			// Blend point light color into tint (stronger when point light dominates)
-			var blend = Math.Clamp(pointBrightness / (shadedBrightness + 0.001f) * 0.6f, 0f, 0.8f);
-			tintR = tintR + (cellLight.R - tintR) * blend;
-			tintG = tintG + (cellLight.G - tintG) * blend;
-			tintB = tintB + (cellLight.B - tintB) * blend;
-		}
-
-		return new Color(
-			Math.Clamp(visionTint.R * shadedBrightness * tintR, 0f, 1f),
-			Math.Clamp(visionTint.G * shadedBrightness * tintG, 0f, 1f),
-			Math.Clamp(visionTint.B * shadedBrightness * tintB, 0f, 1f),
-			visionTint.A);
-	}
-
-	private float ComputeAmbientOcclusion(int wx, int wy, int wz, VoxelFace face)
-	{
-		if (_lighting.ShadowStrength <= 0f || _lighting.OcclusionStep <= 0f)
-			return 0f;
-		if (_state.World == null)
-			return 0f;
-
-		var world = _state.World;
-		var ao = 0f;
-
-		switch (face)
-		{
-			case VoxelFace.Top:
-			{
-				// 8 horizontal neighbors — direct adjacency occlusion
-				const float neighborWeight = 0.06f;
-				if (world.GetTerrain(wx - 1, wy, wz).IsOpaque) ao += neighborWeight;
-				if (world.GetTerrain(wx + 1, wy, wz).IsOpaque) ao += neighborWeight;
-				if (world.GetTerrain(wx, wy - 1, wz).IsOpaque) ao += neighborWeight;
-				if (world.GetTerrain(wx, wy + 1, wz).IsOpaque) ao += neighborWeight;
-				if (world.GetTerrain(wx - 1, wy - 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
-				if (world.GetTerrain(wx + 1, wy - 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
-				if (world.GetTerrain(wx - 1, wy + 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
-				if (world.GetTerrain(wx + 1, wy + 1, wz).IsOpaque) ao += neighborWeight * 0.5f;
-
-				// Diagonal-above checks (blocks casting overhead shadow)
-				const float aboveWeight = 0.04f;
-				if (world.GetTerrain(wx + 1, wy + 1, wz - 1).IsOpaque) ao += aboveWeight;
-				if (world.GetTerrain(wx - 1, wy + 1, wz - 1).IsOpaque) ao += aboveWeight;
-				if (world.GetTerrain(wx + 1, wy - 1, wz - 1).IsOpaque) ao += aboveWeight;
-				if (world.GetTerrain(wx - 1, wy - 1, wz - 1).IsOpaque) ao += aboveWeight;
-
-				// Concave corner bonus: two adjacent cardinal neighbors both opaque
-				const float cornerBonus = 0.08f;
-				var n = world.GetTerrain(wx, wy - 1, wz).IsOpaque;
-				var s = world.GetTerrain(wx, wy + 1, wz).IsOpaque;
-				var w = world.GetTerrain(wx - 1, wy, wz).IsOpaque;
-				var e = world.GetTerrain(wx + 1, wy, wz).IsOpaque;
-				if (n && w) ao += cornerBonus;
-				if (n && e) ao += cornerBonus;
-				if (s && w) ao += cornerBonus;
-				if (s && e) ao += cornerBonus;
-				break;
-			}
-			case VoxelFace.Left:
-			{
-				// Left face is visible from -Y direction; occluded by +Y neighbors
-				const float sideWeight = 0.10f;
-				const float aboveSideWeight = 0.06f;
-				if (world.GetTerrain(wx, wy + 1, wz).IsOpaque) ao += sideWeight;
-				if (world.GetTerrain(wx, wy + 1, wz - 1).IsOpaque) ao += aboveSideWeight;
-				if (world.GetTerrain(wx - 1, wy + 1, wz).IsOpaque) ao += sideWeight * 0.5f;
-				// Block directly above darkens side face
-				if (world.GetTerrain(wx, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
-				break;
-			}
-			case VoxelFace.Right:
-			{
-				// Right face is visible from -X direction; occluded by +X neighbors
-				const float sideWeight = 0.10f;
-				const float aboveSideWeight = 0.06f;
-				if (world.GetTerrain(wx + 1, wy, wz).IsOpaque) ao += sideWeight;
-				if (world.GetTerrain(wx + 1, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
-				if (world.GetTerrain(wx + 1, wy - 1, wz).IsOpaque) ao += sideWeight * 0.5f;
-				// Block directly above darkens side face
-				if (world.GetTerrain(wx, wy, wz - 1).IsOpaque) ao += aboveSideWeight;
-				break;
-			}
-		}
-
-		return Math.Clamp(ao * _lighting.ShadowStrength, 0f, 0.65f);
-	}
-
-	private float ComputeSunShadow(int wx, int wy, int wz, VoxelFace face)
-	{
-		if (_dayNight.SunAltitude <= 0.01f)
-			return 0f; // no sun → no sun shadow
-		if (_lighting.ShadowStrength <= 0f)
-			return 0f;
-		if (_state.World == null)
-			return 0f;
-
-		var world = _state.World;
-
-		// Shadow length inversely proportional to sun altitude (longer at dawn/dusk)
-		var maxSteps = (int)Math.Clamp(3f / Math.Max(0.3f, _dayNight.SunAltitude), 2, 8);
-
-		// Sun direction: where the sun IS. Shadow is cast opposite.
-		// We ray-march FROM the cell TOWARD the sun to find occluders above.
-		var dirX = _dayNight.SunDirectionX;
-		var dirY = _dayNight.SunDirectionY;
-
-		var shadow = 0f;
-		for (var step = 1; step <= maxSteps; step++)
-		{
-			var sampleX = wx + (int)MathF.Round(dirX * step);
-			var sampleY = wy + (int)MathF.Round(dirY * step);
-			var sampleZ = wz - step; // check cells above
-
-			if (world.GetTerrain(sampleX, sampleY, sampleZ).IsOpaque)
-			{
-				// Closer occluders cast stronger shadows (inverse-distance falloff)
-				var contribution = _lighting.OcclusionStep * (1f - (step - 1) / (float)(maxSteps + 1));
-				shadow += contribution;
-			}
-		}
-
-		var faceScale = face switch
-		{
-			VoxelFace.Top => 0.78f,
-			VoxelFace.Left => 1.10f,
-			VoxelFace.Right => 0.92f,
-			_ => 1f,
-		};
-
-		return Math.Clamp(shadow * _lighting.ShadowStrength * faceScale, 0f, 0.72f);
+		return _lightingCalc.GetFaceTint(_state.World, wx, wy, wz, _state.PlayerZ, face, visionTint);
 	}
 
 	// ── Texture Generation ──
@@ -2185,6 +1851,30 @@ public partial class IsometricVoxelRenderer
 				zMin,
 				zMax,
 				visibleMapRect);
+		}
+
+		if (PathHighlightCells is { Count: > 0 } pathCells)
+		{
+			for (var i = 0; i < pathCells.Count; i++)
+			{
+				var pathCell = pathCells[i];
+				if (targetCursorCell is { } tc && tc.X == pathCell.X && tc.Y == pathCell.Y && tc.Z == pathCell.Z)
+					continue;
+				if (hoverCell is { } hc && hc.X == pathCell.X && hc.Y == pathCell.Y && hc.Z == pathCell.Z)
+					continue;
+				TryAddHoverHighlightCommand(
+					pathCell,
+					PathPreviewHighlightStyle,
+					previewState: null,
+					allowHighlightWithoutVision: false,
+					cx,
+					cy,
+					halfW,
+					halfH,
+					zMin,
+					zMax,
+					visibleMapRect);
+			}
 		}
 
 		_highlightCommandCount = _highlightCommands.Count + GetPlacementGhostCommandCount(previewState);
@@ -3063,29 +2753,20 @@ public partial class IsometricVoxelRenderer
 
 	private void BeginFrame()
 	{
+		_spritePool.BeginFrame();
 		_spriteCount = 0;
 		_faceBatchCanvas?.SetCommands(Array.Empty<FaceSpriteCommand>());
 	}
 
 	private void EndFrame()
 	{
-		for (var i = _spriteCount; i < _spritePool.Count; i++)
-			_spritePool[i].Visible = false;
+		_spritePool.EndFrame();
 	}
 
 	private Sprite2D AcquireSprite()
 	{
-		var idx = _spriteCount++;
-		if (idx < _spritePool.Count) return _spritePool[idx];
-		var sprite = new Sprite2D
-		{
-			Name = "VoxelSprite" + _spritePool.Count.ToString(),
-			Centered = true,
-			TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-		};
-		_root!.AddChild(sprite);
-		_spritePool.Add(sprite);
-		return sprite;
+		_spriteCount++;
+		return _spritePool.Acquire(_root!);
 	}
 
 	private void UpdateCamera(int cx, int cy, int cz)
@@ -3112,7 +2793,7 @@ public partial class IsometricVoxelRenderer
 
 	// ── Types ──
 
-	private enum VoxelFace
+	internal enum VoxelFace
 	{
 		Top,
 		Left,

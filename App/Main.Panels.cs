@@ -29,6 +29,7 @@ public partial class Main
 		TopRow.AddChild(node);
 		LocalizationService.LocalizeTree(node);
 		_chestPanel = new ChestPanelModule(node, this);
+		_chestCoordinator.ChestPanel = _chestPanel;
 		_panels.Register(_chestPanel);
 		RegisterAlwaysDirectDraggable(_chestPanel);
 		RegisterCommonPanelChrome(_chestPanel, "MarginContainer/VBox/HeaderBar/Header", CloseChestPanel);
@@ -113,6 +114,7 @@ public partial class Main
 		var node = LimbTargetPanelModule.CreateControl(GetNode<Control>(HudRootPath).Theme);
 		TopRow.AddChild(node);
 		_limbTargetPanel = new LimbTargetPanelModule(node);
+		_limbTargetCoordinator.LimbTargetPanel = _limbTargetPanel;
 		_limbTargetPanel.CloseRequested += CloseLimbTargetPanel;
 		_limbTargetPanel.TargetConfirmed += HandleLimbTargetConfirmed;
 		_panels.Register(_limbTargetPanel);
@@ -341,10 +343,10 @@ public partial class Main
 		CloseTradePanel();
 		CloseDebugPanel();
 		CloseLimbTargetPanel();
-		_hideGroundAndLogPanelsIfVisible();
+		HideGroundAndLogPanelsIfVisible();
 	}
 
-	private void _hideGroundAndLogPanelsIfVisible()
+	private void HideGroundAndLogPanelsIfVisible()
 	{
 		if (_groundPanel?.PanelNode.Visible == true)
 			_groundPanel.PanelNode.Visible = false;

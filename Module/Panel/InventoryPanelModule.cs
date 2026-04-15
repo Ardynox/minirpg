@@ -180,14 +180,19 @@ public class InventoryPanelModule : ListPanelBase
 		_sortBtn.Pressed += () => CycleSort();
 	}
 
+	private const int ContextEquip = 0;
+	private const int ContextUse = 1;
+	private const int ContextDrop = 2;
+	private const int ContextOpenContainer = 3;
+
 	private void OnContextMenuAction(long id)
 	{
 		switch (id)
 		{
-			case 0: TryEquip(); break;
-			case 1: TryUse(); break;
-			case 2: TryDrop(); break;
-			case 3: TryOpenContainer(); break;
+			case ContextEquip: TryEquip(); break;
+			case ContextUse: TryUse(); break;
+			case ContextDrop: TryDrop(); break;
+			case ContextOpenContainer: TryOpenContainer(); break;
 		}
 	}
 
@@ -337,11 +342,7 @@ public class InventoryPanelModule : ListPanelBase
 	{
 		var item = _displayItems[i].Item;
 		var eqTag = item.Equipped ? "[E] " : "    ";
-		var stats = ItemFormatHelper.InlineStats(_host.State, item);
-		var weight = ItemFormatHelper.BuildWeight(_host.State, item);
-		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
-		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
-		row.Text = $"{eqTag}{ItemFormatHelper.GetDisplayName(_host.State, item)}{statSegment}{weightSegment}";
+		row.Text = ItemFormatHelper.BuildRowText(_host.State, item, eqTag);
 	}
 
 	protected override void HandleRowGuiInput(InputEvent ev, int index)
@@ -384,11 +385,11 @@ public class InventoryPanelModule : ListPanelBase
 		if (_cursor < 0 || _cursor >= _displayItems.Count) return;
 		var (_, item) = _displayItems[_cursor];
 		_contextMenu.Clear();
-		if (item.IsContainer) _contextMenu.AddItem(LocalizationService.T("ui.inventory.context.open"), 3);
-		_contextMenu.AddItem(item.Equipped ? LocalizationService.T("ui.inventory.context.unequip") : LocalizationService.T("ui.inventory.context.equip"), 0);
+		if (item.IsContainer) _contextMenu.AddItem(LocalizationService.T("ui.inventory.context.open"), ContextOpenContainer);
+		_contextMenu.AddItem(item.Equipped ? LocalizationService.T("ui.inventory.context.unequip") : LocalizationService.T("ui.inventory.context.equip"), ContextEquip);
 		if (item.Category == ItemCategories.Food || item.Tags.ContainsKey(ItemTags.Nutrition))
-			_contextMenu.AddItem(LocalizationService.T("ui.inventory.context.eat"), 1);
-		_contextMenu.AddItem(LocalizationService.T("ui.inventory.context.drop"), 2);
+			_contextMenu.AddItem(LocalizationService.T("ui.inventory.context.eat"), ContextUse);
+		_contextMenu.AddItem(LocalizationService.T("ui.inventory.context.drop"), ContextDrop);
 		_contextMenu.Position = new Vector2I((int)pos.X, (int)pos.Y);
 		_contextMenu.ResetSize();
 		_contextMenu.Popup();

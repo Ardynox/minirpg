@@ -52,6 +52,12 @@ public partial class Main
 
 		if (cmd is ":settings" or "settings")
 		{
+			if (IsAutoNavigationPreviewActive)
+			{
+				CancelAutoNavigationPreview();
+				return;
+			}
+
 			if (fogMapVisible && _mapRender != null)
 			{
 				_mapRender.FogMapVisible = false;
@@ -80,22 +86,14 @@ public partial class Main
 		{
 			case ":quicksave":
 			{
-				if (IsMultiplayerSession)
-				{
-					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
-					return;
-				}
+				if (GuardMultiplayerSave()) return;
 				var path = _session.GetQuickSavePath();
 				DoSave(path, _session.DescribeSavePath(path));
 				return;
 			}
 			case ":quickload":
 			{
-				if (IsMultiplayerSession)
-				{
-					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
-					return;
-				}
+				if (GuardMultiplayerLoad()) return;
 				_mainAppFlowCoordinator.HandleQuickLoadRequested();
 				return;
 			}
@@ -146,16 +144,12 @@ public partial class Main
 			case ":climb_up":
 			case "climb_up": SubmitPlayerAction(TimelinePlayerAction.Climb(-1)); break;
 			case "save":
-				if (IsMultiplayerSession)
-					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.save", "Saving local files is disabled in multiplayer sessions."));
-				else
-					DoSaveCurrent();
+				if (GuardMultiplayerSave()) break;
+				DoSaveCurrent();
 				break;
 			case "load":
-				if (IsMultiplayerSession)
-					_log.Add(LocalizationService.TOrFallback("ui.multiplayer.disabled.load", "Loading local saves is disabled in multiplayer sessions."));
-				else
-					_mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
+				if (GuardMultiplayerLoad()) break;
+				_mainAppFlowCoordinator.OpenWorldManager(WorldManagerContext.InGame, WorldLaunchTab.Worlds);
 				break;
 			case "newmap":
 				_session.NewGame(PlayerCreationOptions.CreateDefault());

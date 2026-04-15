@@ -6,6 +6,8 @@ namespace MiniRPG;
 
 public partial class Main
 {
+	private LimbTargetCoordinator _limbTargetCoordinator = null!;
+
 	private void HandleSkillConfirmRequested(InteractionDef skill)
 	{
 		if (!SkillQuery.IsUnifiedCastSkill(skill))
@@ -36,7 +38,7 @@ public partial class Main
 		}
 
 		_armedSkillId = skillId;
-		CloseLimbTargetPanel();
+		_limbTargetCoordinator.CloseLimbTargetPanel();
 		if (_skillTargetCursorActive)
 			EndSkillTargetCursorMode();
 
@@ -46,7 +48,7 @@ public partial class Main
 	private void ClearArmedSkill(bool restoreFocus = true)
 	{
 		_armedSkillId = null;
-		CloseLimbTargetPanel();
+		_limbTargetCoordinator.CloseLimbTargetPanel();
 		RefreshArmedSkillUi();
 		if (_skillTargetCursorActive)
 			EndSkillTargetCursorMode(restoreFocus);
@@ -61,174 +63,22 @@ public partial class Main
 	}
 
 	private void OpenLimbTargetPanel(Actor target, InteractionDef skill) =>
-		OpenLimbTargetPanel(new LimbTargetPanelModule.LimbTargetRequest
-		{
-			TargetActor = target,
-			Skill = skill,
-			TargetName = IdentificationModule.GetActorDisplayName(_state, target),
-			Options = target.Limbs
-				.Select(limb => new LimbTargetPanelModule.LimbTargetOption
-				{
-					LimbId = limb.Id,
-					Label = limb.Name,
-					CurrentDurability = limb.Durability,
-					MaxDurability = limb.MaxDurability,
-					IsVital = CombatModule.IsVitalLimb(limb),
-					IsMissing = limb.Durability <= 0,
-				})
-				.ToList(),
-		});
+		_limbTargetCoordinator.OpenLimbTargetPanel(target, skill);
 
-	private void OpenLimbTargetPanel(LimbTargetPanelModule.LimbTargetRequest request)
-	{
-		var panel = EnsureLimbTargetPanel();
-		panel.Open(_state, request);
-		_panels.PushFocus(panel);
-	}
+	private void OpenOperationTargetPanel(Actor surgeon, Actor target, InteractionDef skill) =>
+		_limbTargetCoordinator.OpenOperationTargetPanel(surgeon, target, skill);
 
-	private void OpenOperationTargetPanel(Actor surgeon, Actor target, InteractionDef skill)
-	{
-		var limbIds = SurgeryModule.GetLiveOperationLimbIds(surgeon, target);
-		if (limbIds.Count == 0)
-		{
-			_log.Add(LocalizationService.TOrFallback("log.surgery.no_operation_targets", "No valid operation is available for that target."));
-			return;
-		}
+	private void OpenCorpseHarvest(Item corpseItem) =>
+		_limbTargetCoordinator.OpenCorpseHarvest(corpseItem);
 
-		var request = new LimbTargetPanelModule.LimbTargetRequest
-		{
-			TargetActor = target,
-			Skill = skill,
-			TargetName = IdentificationModule.GetActorDisplayName(_state, target),
-			Options = limbIds
-				.Select(limbId => CreateOperationOption(target, limbId))
-				.ToList(),
-		};
-		OpenLimbTargetPanel(request);
-	}
+	private void SubmitCorpseOperation(string skillId, Item corpseItem) =>
+		_limbTargetCoordinator.SubmitCorpseOperation(skillId, corpseItem);
 
-	private void OpenCorpseHarvest(Item corpseItem)
-	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null)
-			return;
+	private void CloseLimbTargetPanel() =>
+		_limbTargetCoordinator.CloseLimbTargetPanel();
 
-		var skill = InteractionDefs.Get("harvest_corpse");
-		if (skill == null)
-			return;
-
-		var limbIds = SurgeryModule.GetCorpseHarvestableLimbIds(corpseItem);
-		if (limbIds.Count == 0)
-		{
-			_log.Add(LocalizationService.TOrFallback("log.corpse.no_harvest_targets", "Nothing useful remains to harvest."));
-			return;
-		}
-
-		var request = new LimbTargetPanelModule.LimbTargetRequest
-		{
-			TargetItem = corpseItem,
-			Skill = skill,
-			TargetName = ItemFormatHelper.GetDisplayName(_state, corpseItem),
-			Options = limbIds
-				.Select(limbId => CreateCorpseHarvestOption(limbId))
-				.ToList(),
-		};
-		OpenLimbTargetPanel(request);
-	}
-
-	private LimbTargetPanelModule.LimbTargetOption CreateOperationOption(Actor target, string limbId)
-	{
-		var current = target.Limbs.FirstOrDefault(limb => string.Equals(limb.Id, limbId, StringComparison.Ordinal));
-		var preset = PresetDB.Limbs.GetValueOrDefault(limbId);
-		return new LimbTargetPanelModule.LimbTargetOption
-		{
-			LimbId = limbId,
-			Label = current?.Name ?? preset?.Name ?? limbId,
-			CurrentDurability = current?.Durability ?? 0,
-			MaxDurability = current?.MaxDurability ?? preset?.MaxDurability ?? 0,
-			IsVital = current != null
-				? CombatModule.IsVitalLimb(current)
-				: (preset?.Tags.ContainsKey(CombatModule.VitalTag) ?? false) || (preset?.Tags.ContainsKey("要害") ?? false),
-			IsMissing = current == null || current.Durability <= 0,
-		};
-	}
-
-	private static LimbTargetPanelModule.LimbTargetOption CreateCorpseHarvestOption(string limbId)
-	{
-		var preset = PresetDB.Limbs.GetValueOrDefault(limbId);
-		return new LimbTargetPanelModule.LimbTargetOption
-		{
-			LimbId = limbId,
-			Label = preset?.Name ?? limbId,
-			CurrentDurability = preset?.MaxDurability ?? 0,
-			MaxDurability = preset?.MaxDurability ?? 0,
-			IsVital = (preset?.Tags.ContainsKey(CombatModule.VitalTag) ?? false) || (preset?.Tags.ContainsKey("要害") ?? false),
-			IsMissing = false,
-		};
-	}
-
-	private void SubmitCorpseOperation(string skillId, Item corpseItem)
-	{
-		var player = ActorModule.GetPlayer(_state);
-		if (player == null)
-			return;
-
-		SubmitPlayerAction(TimelinePlayerAction.CastSkill(
-			skillId,
-			SkillTargetType.Item,
-			targetItemId: corpseItem.InstanceId,
-			targetX: player.X,
-			targetY: player.Y,
-			targetZ: player.Z));
-	}
-
-	private void CloseLimbTargetPanel()
-	{
-		if (_limbTargetPanel == null || !_limbTargetPanel.Visible)
-			return;
-
-		_limbTargetPanel.Close();
-		_panels.OnPanelClosed(_limbTargetPanel);
-	}
-
-	private void HandleLimbTargetConfirmed(LimbTargetPanelModule.LimbTargetRequest request, LimbTargetPanelModule.LimbTargetOption option)
-	{
-		if (request.TargetItem != null)
-		{
-			CloseLimbTargetPanel();
-			var player = ActorModule.GetPlayer(_state);
-			if (player == null)
-				return;
-
-			SubmitPlayerAction(TimelinePlayerAction.CastSkill(
-				request.Skill.Id,
-				SkillTargetType.Item,
-				targetLimbId: option.LimbId,
-				targetItemId: request.TargetItem.InstanceId,
-				targetX: player.X,
-				targetY: player.Y,
-				targetZ: player.Z));
-			return;
-		}
-
-		var target = request.TargetActor;
-		var limb = target?.Limbs.Find(candidate => string.Equals(candidate.Id, option.LimbId, StringComparison.Ordinal));
-		if (target == null)
-		{
-			CloseLimbTargetPanel();
-			return;
-		}
-
-		CloseLimbTargetPanel();
-		SubmitPlayerAction(TimelinePlayerAction.CastSkill(
-			request.Skill.Id,
-			SkillTargetType.Actor,
-			targetActorId: target.Id,
-			targetLimbId: limb?.Id ?? option.LimbId,
-			targetX: target.X,
-			targetY: target.Y,
-			targetZ: target.Z));
-	}
+	private void HandleLimbTargetConfirmed(LimbTargetPanelModule.LimbTargetRequest request, LimbTargetPanelModule.LimbTargetOption option) =>
+		_limbTargetCoordinator.HandleLimbTargetConfirmed(request, option);
 
 	private InteractionDef? GetArmedSkill()
 	{
