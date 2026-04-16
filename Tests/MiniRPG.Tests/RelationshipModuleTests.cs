@@ -134,4 +134,40 @@ public sealed class RelationshipModuleTests
 
 		Assert.Equal(0, module.EdgeCount);
 	}
+
+	[Fact]
+	public void Tick_DecaysEveryEdgeTowardZero()
+	{
+		var module = new RelationshipModule();
+		module.Adjust("a", "b", fearDelta: 1f);
+		module.Adjust("c", "d", trustDelta: -0.5f);
+
+		module.Tick(decayPerTurn: 0.1f);
+
+		Assert.Equal(0.9f, module.Get("a", "b").Fear, 3);
+		Assert.Equal(-0.45f, module.Get("c", "d").Trust, 3);
+	}
+
+	[Fact]
+	public void Tick_DropsEdgesBelowCleanupThreshold()
+	{
+		var module = new RelationshipModule();
+		module.Adjust("a", "b", trustDelta: 0.001f);
+
+		module.Tick(decayPerTurn: 0.5f);
+
+		Assert.Equal(0, module.EdgeCount);
+	}
+
+	[Fact]
+	public void Tick_ZeroOrNegativeDecay_IsNoOp()
+	{
+		var module = new RelationshipModule();
+		module.Adjust("a", "b", fearDelta: 0.5f);
+
+		module.Tick(decayPerTurn: 0f);
+		module.Tick(decayPerTurn: -1f);
+
+		Assert.Equal(0.5f, module.Get("a", "b").Fear, 3);
+	}
 }

@@ -148,4 +148,37 @@ public sealed class RumorBusTests
 
 		Assert.Empty(bus.Active);
 	}
+
+	[Fact]
+	public void Tick_ReducesCredibility()
+	{
+		var bus = new RumorBus();
+		bus.Emit("x", RumorKind.AttackWitnessed, 0, 0, 0, credibility: 1f);
+
+		bus.Tick(decayPerTurn: 0.25f);
+
+		Assert.Equal(0.75f, bus.Active[0].Credibility, 3);
+	}
+
+	[Fact]
+	public void Tick_DropsRumorsBelowThreshold()
+	{
+		var bus = new RumorBus();
+		bus.Emit("x", RumorKind.AttackWitnessed, 0, 0, 0, credibility: 0.06f);
+
+		bus.Tick(decayPerTurn: 0.5f);
+
+		Assert.Empty(bus.Active);
+	}
+
+	[Fact]
+	public void Tick_ZeroDecay_IsNoOp()
+	{
+		var bus = new RumorBus();
+		bus.Emit("x", RumorKind.AttackWitnessed, 0, 0, 0, credibility: 0.5f);
+
+		bus.Tick(decayPerTurn: 0f);
+
+		Assert.Equal(0.5f, bus.Active[0].Credibility, 3);
+	}
 }

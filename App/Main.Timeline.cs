@@ -189,8 +189,20 @@ public partial class Main
 		if (result.Events.Count > 0)
 			Dispatch(result.Events);
 
+		TickSimulationSystems();
 		FinalizeTimelineStepUi();
 		SyncTimelineAutoAdvanceState(emitStatusLog: true);
+	}
+
+	// Drive per-turn decay for the second-layer simulation modules.
+	// Called once per timeline step after the event batch has been
+	// dispatched; keeps relationships / memories / rumors from piling
+	// up forever in long sessions.
+	private void TickSimulationSystems()
+	{
+		_relationships?.Tick();
+		_actorMemories?.Tick();
+		_rumorBus?.Tick();
 	}
 
 	private void SyncTimelineAutoAdvanceState(bool emitStatusLog = false)

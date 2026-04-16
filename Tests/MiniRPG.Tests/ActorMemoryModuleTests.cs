@@ -134,4 +134,38 @@ public sealed class ActorMemoryModuleTests
 
 		Assert.Equal(0, module.ActorsWithMemories);
 	}
+
+	[Fact]
+	public void Tick_ReducesMemoryStrength()
+	{
+		var module = new ActorMemoryModule();
+		module.Record("alice", new ActorMemory("bob", ActorMemoryKind.KindnessReceived, 1f));
+
+		module.Tick(decayPerTurn: 0.2f);
+
+		Assert.Equal(0.8f, module.GetMemories("alice")[0].Strength, 3);
+	}
+
+	[Fact]
+	public void Tick_ForgetsMemoriesBelowThreshold_AndDropsEmptyActors()
+	{
+		var module = new ActorMemoryModule();
+		module.Record("alice", new ActorMemory("bob", ActorMemoryKind.HostileAttackBy, 0.03f));
+
+		module.Tick(decayPerTurn: 0.5f);
+
+		Assert.Empty(module.GetMemories("alice"));
+		Assert.Equal(0, module.ActorsWithMemories);
+	}
+
+	[Fact]
+	public void Tick_ZeroDecay_IsNoOp()
+	{
+		var module = new ActorMemoryModule();
+		module.Record("alice", new ActorMemory("bob", ActorMemoryKind.DebtOwedTo, 1f));
+
+		module.Tick(decayPerTurn: 0f);
+
+		Assert.Equal(1f, module.GetMemories("alice")[0].Strength, 3);
+	}
 }

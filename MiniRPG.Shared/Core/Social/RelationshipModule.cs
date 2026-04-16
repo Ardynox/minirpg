@@ -98,6 +98,50 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 		_graph.Clear();
 	}
 
+	/// <summary>Per-turn decay rate; relationships drift toward zero by this factor each call to <see cref="Tick"/>.</summary>
+	public const float DefaultDecayPerTurn = 0.02f;
+
+	/// <summary>Absolute magnitude below which an edge is dropped instead of carrying a near-zero.</summary>
+	public const float CleanupThreshold = 0.005f;
+
+	/// <summary>
+	/// Decay every edge toward zero by <paramref name="decayPerTurn"/> and
+	/// drop edges whose magnitude falls below <see cref="CleanupThreshold"/>.
+	/// Intended to be called once per simulation turn by the timeline
+	/// system; not wired automatically yet, see Docs/涌现世界路线图.md.
+	/// </summary>
+	public void Tick(float decayPerTurn = DefaultDecayPerTurn)
+	{
+		if (_graph.Count == 0 || decayPerTurn <= 0f)
+			return;
+
+		var factor = Math.Max(0f, 1f - decayPerTurn);
+		List<(string, string)>? toRemove = null;
+		foreach (var kvp in _graph)
+		{
+			var decayed = new RelationshipState(
+				kvp.Value.Trust * factor,
+				kvp.Value.Fear * factor,
+				kvp.Value.Debt * factor);
+
+			if (IsBelowThreshold(decayed))
+				(toRemove ??= new List<(string, string)>()).Add(kvp.Key);
+			else
+				_graph[kvp.Key] = decayed;
+		}
+
+		if (toRemove != null)
+		{
+			for (var i = 0; i < toRemove.Count; i++)
+				_graph.Remove(toRemove[i]);
+		}
+	}
+
+	private static bool IsBelowThreshold(RelationshipState state) =>
+		Math.Abs(state.Trust) < CleanupThreshold
+		&& Math.Abs(state.Fear) < CleanupThreshold
+		&& Math.Abs(state.Debt) < CleanupThreshold;
+
 	public void OnEvent(GameState state, GameEvent ev)
 	{
 		if (ev == null) return;

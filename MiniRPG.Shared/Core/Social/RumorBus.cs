@@ -117,6 +117,34 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 		_active.Clear();
 	}
 
+	/// <summary>Fraction of credibility lost per turn.</summary>
+	public const float DefaultDecayPerTurn = 0.04f;
+
+	/// <summary>Rumors whose credibility falls below this are dropped.</summary>
+	public const float DropThreshold = 0.05f;
+
+	/// <summary>
+	/// Decay every active rumor's credibility by <paramref name="decayPerTurn"/>
+	/// and drop rumors that fall below <see cref="DropThreshold"/>. Not
+	/// wired to <c>TimelineTurnManager</c> automatically yet.
+	/// </summary>
+	public void Tick(float decayPerTurn = DefaultDecayPerTurn)
+	{
+		if (_active.Count == 0 || decayPerTurn <= 0f)
+			return;
+
+		var factor = Math.Max(0f, 1f - decayPerTurn);
+		for (var i = _active.Count - 1; i >= 0; i--)
+		{
+			var rumor = _active[i];
+			var decayed = rumor with { Credibility = rumor.Credibility * factor };
+			if (decayed.Credibility < DropThreshold)
+				_active.RemoveAt(i);
+			else
+				_active[i] = decayed;
+		}
+	}
+
 	public void OnEvent(GameState state, GameEvent ev)
 	{
 		if (ev == null) return;

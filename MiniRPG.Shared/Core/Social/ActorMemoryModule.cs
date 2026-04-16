@@ -104,6 +104,46 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 		_byActor.Clear();
 	}
 
+	/// <summary>Fraction of remembered strength lost per turn.</summary>
+	public const float DefaultDecayPerTurn = 0.01f;
+
+	/// <summary>Entries whose strength falls below this are forgotten outright.</summary>
+	public const float ForgetThreshold = 0.02f;
+
+	/// <summary>
+	/// Decay the strength of every stored memory by
+	/// <paramref name="decayPerTurn"/> and forget entries that fall below
+	/// <see cref="ForgetThreshold"/>. Not wired automatically yet.
+	/// </summary>
+	public void Tick(float decayPerTurn = DefaultDecayPerTurn)
+	{
+		if (_byActor.Count == 0 || decayPerTurn <= 0f)
+			return;
+
+		var factor = Math.Max(0f, 1f - decayPerTurn);
+		List<string>? emptyActors = null;
+		foreach (var kvp in _byActor)
+		{
+			var list = kvp.Value;
+			for (var i = list.Count - 1; i >= 0; i--)
+			{
+				var decayed = list[i] with { Strength = list[i].Strength * factor };
+				if (Math.Abs(decayed.Strength) < ForgetThreshold)
+					list.RemoveAt(i);
+				else
+					list[i] = decayed;
+			}
+			if (list.Count == 0)
+				(emptyActors ??= new List<string>()).Add(kvp.Key);
+		}
+
+		if (emptyActors != null)
+		{
+			for (var i = 0; i < emptyActors.Count; i++)
+				_byActor.Remove(emptyActors[i]);
+		}
+	}
+
 	public void OnEvent(GameState state, GameEvent ev)
 	{
 		if (ev == null) return;
