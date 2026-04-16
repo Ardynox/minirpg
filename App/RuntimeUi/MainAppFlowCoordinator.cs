@@ -74,6 +74,7 @@ internal sealed class MainAppFlowCoordinator
 	private string? _pendingCharacterCreationWorldId;
 	private string? _pendingCharacterCreationWorldName;
 	private readonly WorldManagerStatusBanner _statusBanner;
+	private readonly WorldManagerDeletionRouter _deletionRouter;
 	private readonly Dictionary<string, Action> _confirmDialogActions = new(StringComparer.Ordinal);
 	private PendingPreparedLoad? _pendingPreparedLoad;
 
@@ -204,6 +205,12 @@ internal sealed class MainAppFlowCoordinator
 		_showBusyOperationStageAsync = showBusyOperationStageAsync;
 		_endBusyOperation = endBusyOperation;
 		_statusBanner = new WorldManagerStatusBanner(worldManager, session);
+		_deletionRouter = new WorldManagerDeletionRouter(
+			session,
+			worldManager,
+			_statusBanner,
+			refreshMainMenuContinueState,
+			(selectedWorldId, selectedCharacterId) => RefreshWorldManagerContents(selectedWorldId, selectedCharacterId));
 	}
 
 	public void HandleBackToMenu()
@@ -615,7 +622,7 @@ internal sealed class MainAppFlowCoordinator
 		}
 
 		_confirmDialogActions.Clear();
-		_confirmDialogActions["delete_world"] = () => DeleteWorldFromManager(world.WorldId, world.DisplayName);
+		_confirmDialogActions["delete_world"] = () => _deletionRouter.DeleteWorld(world.WorldId, world.DisplayName);
 		_confirmDialog.Open(
 			LocalizationService.T("ui.confirm_world_delete.title"),
 			LocalizationService.T(
@@ -644,7 +651,7 @@ internal sealed class MainAppFlowCoordinator
 		}
 
 		_confirmDialogActions.Clear();
-		_confirmDialogActions["delete_save_data"] = () => DeleteWorldSaveDataFromManager(world.WorldId, world.DisplayName);
+		_confirmDialogActions["delete_save_data"] = () => _deletionRouter.DeleteWorldSaveData(world.WorldId, world.DisplayName);
 		_confirmDialog.Open(
 			LocalizationService.T("ui.confirm_world_delete_save_data.title"),
 			LocalizationService.T(
@@ -673,7 +680,7 @@ internal sealed class MainAppFlowCoordinator
 		}
 
 		_confirmDialogActions.Clear();
-		_confirmDialogActions["clean_assets"] = () => CleanWorldAssetsFromManager(world.WorldId, world.DisplayName);
+		_confirmDialogActions["clean_assets"] = () => _deletionRouter.CleanWorldAssets(world.WorldId, world.DisplayName);
 		_confirmDialog.Open(
 			LocalizationService.T("ui.confirm_world_clean_assets.title"),
 			LocalizationService.T(
@@ -1003,100 +1010,6 @@ internal sealed class MainAppFlowCoordinator
 		if (onSwitch != null)
 			_confirmDialogActions["switch"] = onSwitch;
 		_confirmDialog.Open(title, message, actions, defaultActionIndex);
-	}
-
-	private void DeleteWorldFromManager(string worldId, string worldName)
-	{
-		var status = _session.DeleteWorld(worldId);
-		switch (status)
-		{
-			case WorldDeletionStatus.Success:
-				_statusBanner.Set(
-					LocalizationService.T("ui.world_manager.status.deleted", ("world", worldName)),
-					isError: false);
-				_refreshMainMenuContinueState();
-				RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
-				return;
-
-			case WorldDeletionStatus.ActiveWorldLocked:
-				_statusBanner.Set(
-					LocalizationService.T("ui.world_manager.status.delete_current_world_locked"),
-					isError: true);
-				break;
-
-			case WorldDeletionStatus.NotFound:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
-				break;
-
-			default:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_failed"), isError: true);
-				break;
-		}
-
-		RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
-	}
-
-	private void DeleteWorldSaveDataFromManager(string worldId, string worldName)
-	{
-		var status = _session.DeleteWorldSaveData(worldId);
-		switch (status)
-		{
-			case WorldSaveDataDeletionStatus.Success:
-				_statusBanner.Set(
-					LocalizationService.T("ui.world_manager.status.delete_save_data_success", ("world", worldName)),
-					isError: false);
-				_refreshMainMenuContinueState();
-				RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
-				return;
-
-			case WorldSaveDataDeletionStatus.ActiveWorldLocked:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_locked"), isError: true);
-				break;
-
-			case WorldSaveDataDeletionStatus.NotFound:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_not_found"), isError: true);
-				break;
-
-			default:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_failed"), isError: true);
-				break;
-		}
-
-		RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: null);
-	}
-
-	private void CleanWorldAssetsFromManager(string worldId, string worldName)
-	{
-		var status = _session.DeleteWorldAssets(worldId);
-		switch (status)
-		{
-			case WorldAssetCleanupStatus.Success:
-				_statusBanner.Set(
-					LocalizationService.T("ui.world_manager.status.clean_assets_success", ("world", worldName)),
-					isError: false);
-				RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: _worldManager.SelectedCharacterId);
-				return;
-
-			case WorldAssetCleanupStatus.NoAssets:
-				_statusBanner.Set(
-					LocalizationService.T("ui.world_manager.status.clean_assets_no_assets", ("world", worldName)),
-					isError: false);
-				break;
-
-			case WorldAssetCleanupStatus.ActiveWorldLocked:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_locked"), isError: true);
-				break;
-
-			case WorldAssetCleanupStatus.NotFound:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_not_found"), isError: true);
-				break;
-
-			default:
-				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_failed"), isError: true);
-				break;
-		}
-
-		RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: _worldManager.SelectedCharacterId);
 	}
 
 	private (string? WorldId, string? CharacterId) ResolvePreferredWorldManagerSelection()
