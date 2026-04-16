@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "generatedOn": "2026-04-17",
+  "libraryRoot": "Assets/Audio/Library",
+  "entries": [
+    {
+      "id": "kenney_music_jingles",
+      "kind": "pack",
+      "category": "stinger",
+      "path": "Assets/Audio/Library/Kenney/MusicJingles",
+      "fileCount": 85,
+      "formats": ["ogg"],
+      "author": "Kenney Vleugels",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://kenney.nl/assets/music-jingles",
+      "notes": "Short musical stingers for UI confirm, loot, quest, fail, and transition cues."
+    },
+    {
+      "id": "forest_ambience",
+      "kind": "track",
+      "category": "ambience",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/forest_ambience.mp3",
+      "formats": ["mp3"],
+      "author": "TinyWorlds",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://opengameart.org/content/forest-ambience",
+      "notes": "Calm outdoor loop for overworld, forest edge, and daytime travel."
+    },
+    {
+      "id": "loopable_dungeon_ambience",
+      "kind": "track",
+      "category": "ambience",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/dungeon_ambient_1.ogg",
+      "formats": ["ogg"],
+      "author": "JaggedStone",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://opengameart.org/content/loopable-dungeon-ambience",
+      "notes": "Low-key dungeon bed for caves, ruins, and underground exploration."
+    },
+    {
+      "id": "dark_rainy_night_ambience",
+      "kind": "track",
+      "category": "ambience",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/dark_rainy_night_ambience.ogg",
+      "formats": ["ogg"],
+      "author": "kindland",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://opengameart.org/content/rain-and-thunders",
+      "notes": "Storm loop for bad weather, camp-at-night, and danger buildup."
+    },
+    {
+      "id": "prepare_your_swords",
+      "kind": "track",
+      "category": "combat",
+      "path": "Assets/Audio/Library/OpenGameArt/Music/prepare_your_swords.ogg",
+      "formats": ["ogg"],
+      "author": "bojidar-bg",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://opengameart.org/content/prepare-your-swords",
+      "notes": "Short combat-ready cue for encounter start, threat spike, or battle transition."
+    },
+    {
+      "id": "underwater_theme_ii",
+      "kind": "track",
+      "category": "music",
+      "path": "Assets/Audio/Library/OpenGameArt/Music/underwater_theme_ii.ogg",
+      "formats": ["ogg"],
+      "author": "CleytonKauffman",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "sourcePage": "https://opengameart.org/content/underwater-theme-ii",
+      "notes": "Longer sampled atmosphere for shoreline, flooded ruins, and reflective scenes."
+    }
+  ]
+}
