@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using Godot;
+using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
-using MiniRPG.Tools;
-using VoxelTileMappingDocument = MiniRPG.Tools.VoxelTileMappingDocument;
-using VoxelTileMappingEntry = MiniRPG.Tools.VoxelTileMappingEntry;
 
 namespace MiniRPG.Module.Render;
 
@@ -138,7 +135,6 @@ public sealed class TerrainAtlas
 	private const float NonSolidSideEdgeStrength = 0.06f;
 
 	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
-	private const string VoxelTileMappingPath = "Data/voxel_tile_mapping.json";
 
 	private Dictionary<string, VoxelTileMappingEntry> _customMappings = new(StringComparer.OrdinalIgnoreCase);
 
@@ -217,35 +213,27 @@ public sealed class TerrainAtlas
 	{
 		if (_customMappings.TryGetValue(terrain.StringId, out var custom) && !string.IsNullOrWhiteSpace(custom.TopTilePath))
 		{
-			var customTex = LoadTexture(custom.TopTilePath);
-			if (customTex != null)
+			var customImg = LoadImageSource(custom.TopTilePath);
+			if (customImg != null)
 			{
-				var customImg = ExtractImage(customTex);
-				if (customImg != null)
+				if (custom.TopIsIso)
 				{
-					if (custom.TopIsIso)
-					{
-						var scaled = ScaleToFit(customImg, VoxelFaceImageUtil.TopFaceWidth, VoxelFaceImageUtil.TopFaceHeight, custom.TopScaleX, custom.TopScaleY, custom.TopOffsetX, custom.TopOffsetY);
-						return scaled;
-					}
-					var diamond = VoxelFaceImageUtil.BuildTopDiamond(customImg);
-					return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
+					var scaled = ScaleToFit(customImg, VoxelFaceImageUtil.TopFaceWidth, VoxelFaceImageUtil.TopFaceHeight, custom.TopScaleX, custom.TopScaleY, custom.TopOffsetX, custom.TopOffsetY);
+					return scaled;
 				}
+				var diamond = VoxelFaceImageUtil.BuildTopDiamond(customImg);
+				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
 			}
 		}
 
 		var topPath = ResolveVoxelTopTexturePath(terrain);
 		if (!string.IsNullOrWhiteSpace(topPath))
 		{
-			var sourceTexture = LoadTexture(topPath);
-			if (sourceTexture != null)
+			var sourceImage = LoadImageSource(topPath);
+			if (sourceImage != null)
 			{
-				var sourceImage = ExtractImage(sourceTexture);
-				if (sourceImage != null)
-				{
-					var diamond = VoxelFaceImageUtil.BuildTopDiamond(sourceImage);
-					return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
-				}
+				var diamond = VoxelFaceImageUtil.BuildTopDiamond(sourceImage);
+				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
 			}
 		}
 
@@ -280,11 +268,10 @@ public sealed class TerrainAtlas
 			}
 			else if (mode == "texture" && !string.IsNullOrEmpty(path))
 			{
-				var customTex = LoadTexture(path);
-				if (customTex != null)
+				var img = LoadImageSource(path);
+				if (img != null)
 				{
-					var img = ExtractImage(customTex);
-					if (img != null && isIso)
+					if (isIso)
 					{
 						var sideOx = isRight ? custom.RightOffsetX : custom.LeftOffsetX;
 						var sideOy = isRight ? custom.RightOffsetY : custom.LeftOffsetY;
@@ -300,22 +287,14 @@ public sealed class TerrainAtlas
 		{
 			var sidePath = ResolveVoxelSideTexturePath(terrain);
 			if (!string.IsNullOrWhiteSpace(sidePath))
-			{
-				var sideTexture = LoadTexture(sidePath);
-				if (sideTexture != null)
-					sideSourceImage = ExtractImage(sideTexture);
-			}
+				sideSourceImage = LoadImageSource(sidePath);
 		}
 
 		if (sideSourceImage == null)
 		{
 			var topPath = ResolveVoxelTopTexturePath(terrain);
 			if (!string.IsNullOrWhiteSpace(topPath))
-			{
-				var topTexture = LoadTexture(topPath);
-				if (topTexture != null)
-					sideSourceImage = ExtractImage(topTexture);
-			}
+				sideSourceImage = LoadImageSource(topPath);
 		}
 
 		if (sideSourceImage == null)
@@ -408,29 +387,23 @@ public sealed class TerrainAtlas
 			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
 	}
 
-	private readonly Dictionary<string, Texture2D?> _textureLoadCache = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, Image?> _imageLoadCache = new(StringComparer.OrdinalIgnoreCase);
 
-	private Texture2D? LoadTexture(string path)
+	private Image? LoadImageSource(string path)
 	{
-		if (_textureLoadCache.TryGetValue(path, out var cached))
+		var normalizedPath = PzTilePathUtility.NormalizeAssetPath(path);
+		if (_imageLoadCache.TryGetValue(normalizedPath, out var cached))
 			return cached;
-		var loaded = GD.Load<Texture2D>(path);
-		_textureLoadCache[path] = loaded;
-		return loaded;
-	}
 
-	private static Image? ExtractImage(Texture2D texture)
-	{
-		if (texture is AtlasTexture atlas)
+		Image? loaded = null;
+		var projectPath = PzTilePathUtility.GetProjectFilePath(normalizedPath);
+		if (File.Exists(projectPath))
 		{
-			var fullImage = atlas.Atlas?.GetImage();
-			if (fullImage == null) return null;
-			var region = atlas.Region;
-			return fullImage.GetRegion(new Rect2I(
-				(int)region.Position.X, (int)region.Position.Y,
-				(int)region.Size.X, (int)region.Size.Y));
+			loaded = Image.LoadFromFile(projectPath);
 		}
-		return texture.GetImage();
+
+		_imageLoadCache[normalizedPath] = loaded;
+		return loaded;
 	}
 
 	private static Image CreateDiamondImage(int w, int h, Color color)
@@ -484,33 +457,24 @@ public sealed class TerrainAtlas
 		dest.BlitRect(src, new Rect2I(0, 0, srcW, srcH), new Vector2I(destX, destY));
 	}
 
-	private static readonly JsonSerializerOptions MappingJsonOpts = new()
-	{
-		PropertyNameCaseInsensitive = true,
-		ReadCommentHandling = JsonCommentHandling.Skip,
-	};
-
 	private void LoadCustomMappings()
 	{
 		_customMappings.Clear();
-		var fullPath = ProjectSettings.GlobalizePath($"res://{VoxelTileMappingPath}");
-		if (!File.Exists(fullPath)) return;
 		try
 		{
-			var json = File.ReadAllText(fullPath);
-			var doc = JsonSerializer.Deserialize<VoxelTileMappingDocument>(json, MappingJsonOpts);
-			if (doc?.Entries == null) return;
-			foreach (var e in doc.Entries)
+			var document = VoxelTileMappingStore.Load();
+			foreach (var entry in document.Entries)
 			{
-				if (!string.IsNullOrWhiteSpace(e.TerrainId))
-					_customMappings[e.TerrainId] = e;
+				if (!string.IsNullOrWhiteSpace(entry.TerrainId))
+					_customMappings[entry.TerrainId] = entry;
 			}
+
 			if (_customMappings.Count > 0)
-				GD.Print($"[TerrainAtlas] Loaded {_customMappings.Count} custom tile mappings.");
+				Console.WriteLine($"[TerrainAtlas] Loaded {_customMappings.Count} custom tile mappings.");
 		}
 		catch (Exception ex)
 		{
-			GD.PushWarning($"[TerrainAtlas] Failed to load custom mappings: {ex.Message}");
+			Console.Error.WriteLine($"[TerrainAtlas] Failed to load custom mappings: {ex.Message}");
 		}
 	}
 }

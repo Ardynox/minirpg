@@ -130,18 +130,27 @@ public static class PzTilePathUtility
 		else if (normalized.StartsWith("PZ_Tiles/", StringComparison.OrdinalIgnoreCase))
 			normalized = $"{LegacyRoot}/{normalized["PZ_Tiles/".Length..]}";
 
-		if (normalized.StartsWith(LegacyRoot, StringComparison.OrdinalIgnoreCase))
-			return $"{CopyRoot}{normalized[LegacyRoot.Length..]}";
-
-		if (normalized.StartsWith(CopyRoot, StringComparison.OrdinalIgnoreCase))
+		if (normalized.Equals(CopyRoot, StringComparison.OrdinalIgnoreCase))
+			return CopyRoot;
+		if (normalized.StartsWith(CopyRoot + "/", StringComparison.OrdinalIgnoreCase))
 			return $"{CopyRoot}{normalized[CopyRoot.Length..]}";
+		if (normalized.Equals(LegacyRoot, StringComparison.OrdinalIgnoreCase))
+			return CopyRoot;
+		if (normalized.StartsWith(LegacyRoot + "/", StringComparison.OrdinalIgnoreCase))
+			return $"{CopyRoot}{normalized[LegacyRoot.Length..]}";
 
 		return normalized;
 	}
 
-	public static bool IsUnderCopyRoot(string? path) =>
-		!string.IsNullOrWhiteSpace(path)
-		&& NormalizeAssetPath(path).StartsWith(CopyRoot + "/", StringComparison.OrdinalIgnoreCase);
+	public static bool IsUnderCopyRoot(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+			return false;
+
+		var normalized = NormalizeAssetPath(path);
+		return normalized.Equals(CopyRoot, StringComparison.OrdinalIgnoreCase)
+			|| normalized.StartsWith(CopyRoot + "/", StringComparison.OrdinalIgnoreCase);
+	}
 
 	public static string? GetCopyRelativePath(string? path)
 	{
