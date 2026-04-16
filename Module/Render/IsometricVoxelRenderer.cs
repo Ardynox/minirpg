@@ -1505,7 +1505,7 @@ public partial class IsometricVoxelRenderer
 			return false;
 
 		var topDiamondImage = VoxelFaceImageUtil.BuildTopDiamond(topSourceImage);
-		topDiamondImage = VoxelFaceImageUtil.EnhanceTopFaceEdges(topDiamondImage, GetTopEdgeStrength(terrain));
+		topDiamondImage = VoxelFaceImageUtil.EnhanceTopFaceEdges(topDiamondImage, VoxelTerrainShading.TopEdgeStrength(terrain));
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
@@ -1516,14 +1516,15 @@ public partial class IsometricVoxelRenderer
 		else
 			sideSourceImage = topSourceImage;
 
-		var wallLike = IsWallTerrain(terrain);
-		var leftDarken = wallLike ? WallLeftSideDarken : DefaultLeftSideDarken;
-		var rightDarken = wallLike ? WallRightSideDarken : DefaultRightSideDarken;
+		var wallLike = VoxelTerrainShading.IsWall(terrain);
+		var leftDarken = VoxelTerrainShading.LeftDarken(terrain);
+		var rightDarken = VoxelTerrainShading.RightDarken(terrain);
 		var faceHeight = wallLike ? WallSideFaceHeight : SideFaceHeight;
 		var leftImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: false, leftDarken, faceHeight);
 		var rightImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: true, rightDarken, faceHeight);
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: GetSideEdgeStrength(terrain));
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: GetSideEdgeStrength(terrain));
+		var sideEdge = VoxelTerrainShading.SideEdgeStrength(terrain);
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: sideEdge);
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: sideEdge);
 
 		textures = new CachedBlockTextures(
 			topTexture,
@@ -1540,28 +1541,6 @@ public partial class IsometricVoxelRenderer
 		var loaded = GD.Load<Texture2D>(path);
 		_voxelFaceTextureCache[path] = loaded;
 		return loaded;
-	}
-
-	private static float GetTopEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain))
-			return WallTopEdgeStrength;
-		return terrain.Solid ? SolidTopEdgeStrength : NonSolidTopEdgeStrength;
-	}
-
-	private static float GetSideEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain))
-			return WallSideEdgeStrength;
-		return terrain.Solid ? SolidSideEdgeStrength : NonSolidSideEdgeStrength;
-	}
-
-	private static bool IsWallTerrain(TerrainDef terrain)
-	{
-		return terrain.StringId.StartsWith("wall_", StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Stone, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Dirt, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>

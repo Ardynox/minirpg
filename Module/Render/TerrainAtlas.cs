@@ -122,18 +122,6 @@ public sealed class TerrainAtlas
 	//  面生成 — 从 IsometricVoxelRenderer 提取的核心算法
 	// ══════════════════════════════════════════════════════
 
-	private const float LeftDarken = 0.65f;
-	private const float RightDarken = 0.80f;
-	private const float WallLeftSideDarken = 0.52f;
-	private const float WallRightSideDarken = 0.68f;
-
-	private const float WallTopEdgeStrength = 0.30f;
-	private const float SolidTopEdgeStrength = 0.22f;
-	private const float NonSolidTopEdgeStrength = 0.12f;
-	private const float WallSideEdgeStrength = 0.20f;
-	private const float SolidSideEdgeStrength = 0.12f;
-	private const float NonSolidSideEdgeStrength = 0.06f;
-
 	private Dictionary<string, VoxelTileMappingEntry> _customMappings = new(StringComparer.OrdinalIgnoreCase);
 
 	// ── Fallback terrain colors (when no tile image available) ──
@@ -173,7 +161,7 @@ public sealed class TerrainAtlas
 					return scaled;
 				}
 				var diamond = VoxelFaceImageUtil.BuildTopDiamond(customImg);
-				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
+				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, VoxelTerrainShading.TopEdgeStrength(terrain));
 			}
 		}
 
@@ -184,7 +172,7 @@ public sealed class TerrainAtlas
 			if (sourceImage != null)
 			{
 				var diamond = VoxelFaceImageUtil.BuildTopDiamond(sourceImage);
-				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
+				return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, VoxelTerrainShading.TopEdgeStrength(terrain));
 			}
 		}
 
@@ -254,10 +242,10 @@ public sealed class TerrainAtlas
 			sideSourceImage = CreateSolidImage(VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureHeight, color);
 		}
 
-		var wallLike = IsWallTerrain(terrain);
+		var wallLike = VoxelTerrainShading.IsWall(terrain);
 		var darken = isRight
-			? (wallLike ? WallRightSideDarken : RightDarken)
-			: (wallLike ? WallLeftSideDarken : LeftDarken);
+			? VoxelTerrainShading.RightDarken(terrain)
+			: VoxelTerrainShading.LeftDarken(terrain);
 		var perSideHeight = isRight
 			? (custom is { RightHeight: > 0 } ? custom.RightHeight : 0)
 			: (custom is { LeftHeight: > 0 } ? custom.LeftHeight : 0);
@@ -266,33 +254,13 @@ public sealed class TerrainAtlas
 			: (wallLike ? VoxelFaceImageUtil.WallSideFaceHeight : VoxelFaceImageUtil.SideFaceHeight);
 
 		var image = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight, darken, faceHeight);
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, GetSideEdgeStrength(terrain));
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, VoxelTerrainShading.SideEdgeStrength(terrain));
 		return image;
 	}
 
 	// ══════════════════════════════════════════════════════
 	//  工具方法
 	// ══════════════════════════════════════════════════════
-
-	private static float GetTopEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain)) return WallTopEdgeStrength;
-		return terrain.Solid ? SolidTopEdgeStrength : NonSolidTopEdgeStrength;
-	}
-
-	private static float GetSideEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain)) return WallSideEdgeStrength;
-		return terrain.Solid ? SolidSideEdgeStrength : NonSolidSideEdgeStrength;
-	}
-
-	private static bool IsWallTerrain(TerrainDef terrain)
-	{
-		return terrain.StringId.StartsWith("wall_", StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Stone, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Dirt, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
-	}
 
 	private readonly Dictionary<string, Image?> _imageLoadCache = new(StringComparer.OrdinalIgnoreCase);
 

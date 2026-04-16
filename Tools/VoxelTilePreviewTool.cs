@@ -18,17 +18,8 @@ public partial class VoxelTilePreviewTool : Control
 	private const float PreviewScale = 2.0f;
 	private const string TerrainCategory = "terrain";
 
-	private const float LeftDarken = 0.65f;
-	private const float RightDarken = 0.80f;
-	private const float WallLeftSideDarken = 0.52f;
-	private const float WallRightSideDarken = 0.68f;
-
-	private const float WallTopEdgeStrength = 0.30f;
-	private const float SolidTopEdgeStrength = 0.22f;
-	private const float NonSolidTopEdgeStrength = 0.12f;
-	private const float WallSideEdgeStrength = 0.20f;
-	private const float SolidSideEdgeStrength = 0.12f;
-	private const float NonSolidSideEdgeStrength = 0.06f;
+	private const float NonSolidTopEdgeStrength = VoxelTerrainShading.NonSolidTopEdgeStrength;
+	private const float NonSolidSideEdgeStrength = VoxelTerrainShading.NonSolidSideEdgeStrength;
 
 	private static readonly string[] Categories = [TerrainCategory, "fixture", "entity", "item"];
 	private static readonly string[] CategoryLabels = ["地形", "设施", "实体", "物品"];
@@ -2031,7 +2022,7 @@ public partial class VoxelTilePreviewTool : Control
 		{
 			var topDiamond = VoxelFaceImageUtil.EnhanceTopFaceEdges(
 				VoxelFaceImageUtil.BuildTopDiamond(topImage),
-				terrain != null ? GetTopEdgeStrength(terrain) : NonSolidTopEdgeStrength);
+				terrain != null ? VoxelTerrainShading.TopEdgeStrength(terrain) : NonSolidTopEdgeStrength);
 			_topSprite.Texture = ImageTexture.CreateFromImage(topDiamond);
 			_topSprite.Scale = new Vector2(PreviewScale * topScaleX, PreviewScale * topScaleY);
 			_topSprite.Position = new Vector2(320 + topOffsetX, 150 + topOffsetY);
@@ -2051,9 +2042,9 @@ public partial class VoxelTilePreviewTool : Control
 		if (showLeft)
 		{
 			var leftImage = ResolveSideSourceImage(entryId, mapping, isRight: false);
-			var darken = terrain != null && IsWallTerrain(terrain) ? WallLeftSideDarken : LeftDarken;
+			var darken = terrain != null ? VoxelTerrainShading.LeftDarken(terrain) : VoxelTerrainShading.LeftSideDarken;
 			var leftFace = VoxelFaceImageUtil.GenerateSideFace(leftImage, false, darken, effectiveLeftHeight);
-			VoxelFaceImageUtil.EnhanceSideFaceEdge(leftFace, false, terrain != null ? GetSideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
+			VoxelFaceImageUtil.EnhanceSideFaceEdge(leftFace, false, terrain != null ? VoxelTerrainShading.SideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
 			_leftSprite.Texture = ImageTexture.CreateFromImage(leftFace);
 			_leftSprite.Scale = new Vector2(PreviewScale, PreviewScale);
 			_leftSprite.Position = new Vector2(256 + leftOffsetX, 325 + leftOffsetY);
@@ -2067,9 +2058,9 @@ public partial class VoxelTilePreviewTool : Control
 		if (showRight)
 		{
 			var rightImage = ResolveSideSourceImage(entryId, mapping, isRight: true);
-			var darken = terrain != null && IsWallTerrain(terrain) ? WallRightSideDarken : RightDarken;
+			var darken = terrain != null ? VoxelTerrainShading.RightDarken(terrain) : VoxelTerrainShading.RightSideDarken;
 			var rightFace = VoxelFaceImageUtil.GenerateSideFace(rightImage, true, darken, effectiveRightHeight);
-			VoxelFaceImageUtil.EnhanceSideFaceEdge(rightFace, true, terrain != null ? GetSideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
+			VoxelFaceImageUtil.EnhanceSideFaceEdge(rightFace, true, terrain != null ? VoxelTerrainShading.SideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
 			_rightSprite.Texture = ImageTexture.CreateFromImage(rightFace);
 			_rightSprite.Scale = new Vector2(PreviewScale, PreviewScale);
 			_rightSprite.Position = new Vector2(384 + rightOffsetX, 325 + rightOffsetY);
@@ -2095,7 +2086,7 @@ public partial class VoxelTilePreviewTool : Control
 
 		var image = mapping?.TopIsIso == true
 			? ScaleToFit(source, VoxelFaceImageUtil.TopFaceWidth, VoxelFaceImageUtil.TopFaceHeight, mapping.TopScaleX, mapping.TopScaleY, mapping.TopOffsetX, mapping.TopOffsetY)
-			: VoxelFaceImageUtil.EnhanceTopFaceEdges(VoxelFaceImageUtil.BuildTopDiamond(source), GetTopEdgeStrength(terrain));
+			: VoxelFaceImageUtil.EnhanceTopFaceEdges(VoxelFaceImageUtil.BuildTopDiamond(source), VoxelTerrainShading.TopEdgeStrength(terrain));
 		return ImageTexture.CreateFromImage(image);
 	}
 
@@ -2131,16 +2122,16 @@ public partial class VoxelTilePreviewTool : Control
 		}
 
 		var source = ResolveSideSourceImage(terrain, mapping, isRight);
-		var wallLike = IsWallTerrain(terrain);
+		var wallLike = VoxelTerrainShading.IsWall(terrain);
 		var darken = isRight
-			? (wallLike ? WallRightSideDarken : RightDarken)
-			: (wallLike ? WallLeftSideDarken : LeftDarken);
+			? VoxelTerrainShading.RightDarken(terrain)
+			: VoxelTerrainShading.LeftDarken(terrain);
 		var customHeight = isRight ? mapping?.RightHeight ?? 0 : mapping?.LeftHeight ?? 0;
 		var faceHeight = customHeight > 0
 			? customHeight
 			: (wallLike ? VoxelFaceImageUtil.WallSideFaceHeight : VoxelFaceImageUtil.SideFaceHeight);
 		var image = VoxelFaceImageUtil.GenerateSideFace(source, isRight, darken, faceHeight);
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, GetSideEdgeStrength(terrain));
+		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, VoxelTerrainShading.SideEdgeStrength(terrain));
 		return ImageTexture.CreateFromImage(image);
 	}
 
@@ -2292,28 +2283,6 @@ public partial class VoxelTilePreviewTool : Control
 
 	private static Color GetFallbackColor(string terrainId) =>
 		TerrainFallbackColors.GetValueOrDefault(terrainId, new Color(0.55f, 0.55f, 0.58f));
-
-	private static float GetTopEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain))
-			return WallTopEdgeStrength;
-		return terrain.Solid ? SolidTopEdgeStrength : NonSolidTopEdgeStrength;
-	}
-
-	private static float GetSideEdgeStrength(TerrainDef terrain)
-	{
-		if (IsWallTerrain(terrain))
-			return WallSideEdgeStrength;
-		return terrain.Solid ? SolidSideEdgeStrength : NonSolidSideEdgeStrength;
-	}
-
-	private static bool IsWallTerrain(TerrainDef terrain)
-	{
-		return terrain.StringId.StartsWith("wall_", StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Stone, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Dirt, StringComparison.OrdinalIgnoreCase)
-			|| terrain.StringId.Equals(Terrains.Mountain, StringComparison.OrdinalIgnoreCase);
-	}
 
 	private static string GetSlotLabel(FaceSlot slot) => slot switch
 	{
