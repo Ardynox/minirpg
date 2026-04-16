@@ -203,9 +203,9 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForDefaultZoom_IsNotSmallerThanLegacyBaseline()
 	{
-		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var fallback = new VisibleWorldWindow(HalfX: 13, HalfY: 7);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var window = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			Vector2.One,
 			fallback);
@@ -218,9 +218,9 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_UsesCombinedScreenWidthAndHeightCoverage()
 	{
-		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var fallback = new VisibleWorldWindow(HalfX: 13, HalfY: 7);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var window = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			Vector2.One,
 			fallback);
@@ -232,13 +232,13 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForZoomedOutView_ExpandsCoverage()
 	{
-		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
-		var defaultZoomWindow = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var fallback = new VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var defaultZoomWindow = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			Vector2.One,
 			fallback);
 
-		var zoomedOutWindow = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var zoomedOutWindow = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.6f, 0.6f),
 			fallback);
@@ -250,10 +250,10 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForDefaultZoom_ExpandsBeyondLegacyDepth()
 	{
-		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 21, HalfY: 21);
-		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+		var visibleWorldWindow = new VisibleWorldWindow(HalfX: 21, HalfY: 21);
+		var fallback = new VisibleDepthWindow(Above: 4, Below: 2);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+		var window = VoxelViewportMath.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			Vector2.One,
 			visibleWorldWindow,
@@ -266,10 +266,10 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_ForMinimumZoom_ReachesConfiguredCap()
 	{
-		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 29, HalfY: 29);
-		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+		var visibleWorldWindow = new VisibleWorldWindow(HalfX: 29, HalfY: 29);
+		var fallback = new VisibleDepthWindow(Above: 4, Below: 2);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+		var window = VoxelViewportMath.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.6f, 0.6f),
 			visibleWorldWindow,
@@ -282,9 +282,9 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_ForMinimumZoom_CoversLargerSquareWindow()
 	{
-		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var fallback = new VisibleWorldWindow(HalfX: 13, HalfY: 7);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var window = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.6f, 0.6f),
 			fallback);
@@ -296,9 +296,9 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleWorldWindow_CapsExtremeZoomOutCoverage()
 	{
-		var fallback = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 13, HalfY: 7);
+		var fallback = new VisibleWorldWindow(HalfX: 13, HalfY: 7);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleWorldWindow(
+		var window = VoxelViewportMath.CalculateVisibleWorldWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.2f, 0.2f),
 			fallback);
@@ -310,10 +310,10 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleDepthWindow_CapsExtremeZoomOutCoverage()
 	{
-		var visibleWorldWindow = new IsometricVoxelRenderer.VisibleWorldWindow(HalfX: 48, HalfY: 48);
-		var fallback = new IsometricVoxelRenderer.VisibleDepthWindow(Above: 4, Below: 2);
+		var visibleWorldWindow = new VisibleWorldWindow(HalfX: 48, HalfY: 48);
+		var fallback = new VisibleDepthWindow(Above: 4, Below: 2);
 
-		var window = IsometricVoxelRenderer.CalculateVisibleDepthWindow(
+		var window = VoxelViewportMath.CalculateVisibleDepthWindow(
 			new Vector2I(1280, 960),
 			new Vector2(0.2f, 0.2f),
 			visibleWorldWindow,
@@ -326,7 +326,7 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_CalculateVisibleMapRect_ExpandsFromCameraByViewportAndOverscan()
 	{
-		var rect = IsometricVoxelRenderer.CalculateVisibleMapRect(
+		var rect = VoxelViewportMath.CalculateVisibleMapRect(
 			new Vector2I(1280, 960),
 			new Vector2(100f, 200f),
 			Vector2.One);
@@ -338,13 +338,13 @@ public sealed class IsometricRenderTests
 	[Fact]
 	public void IsometricVoxelRenderer_IsVoxelScreenVisible_CullsCellsOutsideVisibleMapRect()
 	{
-		var visibleRect = IsometricVoxelRenderer.CalculateVisibleMapRect(
+		var visibleRect = VoxelViewportMath.CalculateVisibleMapRect(
 			new Vector2I(1280, 960),
 			Vector2.Zero,
 			Vector2.One);
 
-		Assert.True(IsometricVoxelRenderer.IsVoxelScreenVisible(Vector2.Zero, visibleRect));
-		Assert.False(IsometricVoxelRenderer.IsVoxelScreenVisible(new Vector2(0f, 1400f), visibleRect));
+		Assert.True(VoxelViewportMath.IsVoxelScreenVisible(Vector2.Zero, visibleRect));
+		Assert.False(VoxelViewportMath.IsVoxelScreenVisible(new Vector2(0f, 1400f), visibleRect));
 	}
 
 	[Fact]

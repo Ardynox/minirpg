@@ -164,7 +164,7 @@ public partial class IsometricVoxelRenderer
 		}
 
 		var basePos = IsoCoordUtil.WorldToScreen(hover.X, hover.Y, hover.Z);
-		if (visibleMapRect is { } mapRect && !IsVoxelScreenVisible(basePos, mapRect))
+		if (visibleMapRect is { } mapRect && !VoxelViewportMath.IsVoxelScreenVisible(basePos, mapRect))
 			return;
 
 		_highlightCommands.Add(new HoverHighlightCommand(
