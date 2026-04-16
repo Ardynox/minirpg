@@ -39,10 +39,11 @@ public sealed class MainTimelineMotionTests
 		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
 		var friendlyActor = new Actor { Id = "ally", Faction = Factions.Friendly, X = 7, Y = 0, Z = 0 };
 		ActorModule.Add(state, friendlyActor);
+		var gameEvent = CreateActorMotionEvent(friendlyActor);
 
 		Assert.False(Main.ShouldBlockNpcMotion(
 			state,
-			actorId: friendlyActor.Id,
+			gameEvent,
 			activeActor,
 			isMultiplayerSession: false));
 	}
@@ -54,10 +55,11 @@ public sealed class MainTimelineMotionTests
 		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
 		var nearbyActor = new Actor { Id = "ally", Faction = Factions.Friendly, X = 3, Y = 0, Z = 0 };
 		ActorModule.Add(state, nearbyActor);
+		var gameEvent = CreateActorMotionEvent(nearbyActor);
 
 		Assert.True(Main.ShouldBlockNpcMotion(
 			state,
-			actorId: nearbyActor.Id,
+			gameEvent,
 			activeActor,
 			isMultiplayerSession: false));
 	}
@@ -69,10 +71,11 @@ public sealed class MainTimelineMotionTests
 		var activeActor = new Actor { Id = "player", Faction = Factions.Player, X = 0, Y = 0, Z = 0 };
 		var hostileActor = new Actor { Id = "enemy", Faction = Factions.Hostile, X = 6, Y = 0, Z = 0 };
 		ActorModule.Add(state, hostileActor);
+		var gameEvent = CreateActorMotionEvent(hostileActor, sourceX: 7, targetX: 6);
 
 		Assert.True(Main.ShouldBlockNpcMotion(
 			state,
-			actorId: hostileActor.Id,
+			gameEvent,
 			activeActor,
 			isMultiplayerSession: false));
 	}
@@ -84,10 +87,11 @@ public sealed class MainTimelineMotionTests
 		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
 		var friendlyActor = new Actor { Id = "ally", Faction = Factions.Friendly, X = 7, Y = 0, Z = 0 };
 		ActorModule.Add(state, friendlyActor);
+		var gameEvent = CreateActorMotionEvent(friendlyActor);
 
 		Assert.True(Main.ShouldBlockNpcMotion(
 			state,
-			actorId: friendlyActor.Id,
+			gameEvent,
 			activeActor,
 			isMultiplayerSession: true));
 	}
@@ -159,4 +163,24 @@ public sealed class MainTimelineMotionTests
 			blockingMotion: false,
 			hasNearbyThreat: static (_, _, _) => false));
 	}
+
+	private static GameEvent CreateActorMotionEvent(
+		Actor actor,
+		int? sourceX = null,
+		int? targetX = null,
+		int? sourceY = null,
+		int? targetY = null,
+		int? sourceZ = null,
+		int? targetZ = null) =>
+		new("actor_moved")
+		{
+			InitiatorId = actor.Id,
+			InitiatorFaction = actor.Faction,
+			SourceX = sourceX ?? actor.X,
+			SourceY = sourceY ?? actor.Y,
+			SourceZ = sourceZ ?? actor.Z,
+			TargetX = targetX ?? actor.X,
+			TargetY = targetY ?? actor.Y,
+			TargetZ = targetZ ?? actor.Z,
+		};
 }

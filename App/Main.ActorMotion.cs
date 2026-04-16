@@ -34,7 +34,7 @@ public partial class Main
 		}
 
 		var activeActor = PartyModule.GetActiveActor(_state);
-		var blocking = ResolveActorMotionBlocking(gameEvent.InitiatorId, timingTier, activeActor);
+		var blocking = ResolveActorMotionBlocking(gameEvent, timingTier, activeActor);
 		request = new ActorMotionPresentationRequest(
 			gameEvent.InitiatorId,
 			gameEvent.SourceX,
@@ -77,14 +77,14 @@ public partial class Main
 	}
 
 	private bool ResolveActorMotionBlocking(
-		string actorId,
+		GameEvent gameEvent,
 		ActorMotionTimingTier timingTier,
 		Actor? activeActor)
 	{
 		if (timingTier != ActorMotionTimingTier.NpcFast)
 			return true;
 
-		return ShouldBlockNpcMotion(_state, actorId, activeActor, IsMultiplayerSession);
+		return ShouldBlockNpcMotion(_state, gameEvent, activeActor, IsMultiplayerSession);
 	}
 
 	private float? ResolveActorMotionDurationOverrideSeconds(
@@ -116,27 +116,54 @@ public partial class Main
 
 	internal static bool ShouldBlockNpcMotion(
 		GameState state,
-		string actorId,
+		GameEvent gameEvent,
 		Actor? activeActor,
 		bool isMultiplayerSession)
 	{
 		if (isMultiplayerSession)
 			return true;
-		if (string.IsNullOrWhiteSpace(actorId) || activeActor == null)
+		if (string.IsNullOrWhiteSpace(gameEvent.InitiatorId) || activeActor == null)
 			return true;
-		if (string.Equals(actorId, activeActor.Id, StringComparison.Ordinal))
-			return true;
-
-		var actor = ActorModule.GetById(state, actorId);
-		if (actor == null)
+		if (string.Equals(gameEvent.InitiatorId, activeActor.Id, StringComparison.Ordinal))
 			return true;
 
-		var distance = AIUtil.Distance3D(activeActor, actor);
+		var distance = ResolveActorMotionDistance(state, gameEvent, activeActor);
 		if (distance <= ReadableNpcMotionDistance)
 			return true;
 
-		return FactionRelation.IsHostile(activeActor.Faction, actor.Faction)
+		return FactionRelation.IsHostile(
+				activeActor.Faction,
+				ResolveMotionActorFaction(state, gameEvent))
 			&& distance <= ThreatNpcMotionDistance;
+	}
+
+	private static int ResolveActorMotionDistance(
+		GameState state,
+		GameEvent gameEvent,
+		Actor activeActor)
+	{
+		var distance = Math.Min(
+			AIUtil.Distance3D(activeActor, gameEvent.SourceX, gameEvent.SourceY, gameEvent.SourceZ),
+			AIUtil.Distance3D(activeActor, gameEvent.TargetX, gameEvent.TargetY, gameEvent.TargetZ));
+		if (string.IsNullOrWhiteSpace(gameEvent.InitiatorId))
+			return distance;
+
+		var actor = ActorModule.GetById(state, gameEvent.InitiatorId);
+		return actor == null
+			? distance
+			: Math.Min(distance, AIUtil.Distance3D(activeActor, actor));
+	}
+
+	private static string ResolveMotionActorFaction(GameState state, GameEvent gameEvent)
+	{
+		if (!string.IsNullOrWhiteSpace(gameEvent.InitiatorId))
+		{
+			var actor = ActorModule.GetById(state, gameEvent.InitiatorId);
+			if (actor != null)
+				return actor.Faction;
+		}
+
+		return gameEvent.InitiatorFaction ?? string.Empty;
 	}
 
 	internal static bool ShouldUseNpcRushMotionDuration(
