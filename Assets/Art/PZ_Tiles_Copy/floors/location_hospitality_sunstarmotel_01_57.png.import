@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://g1g2jpvdb7f1"
-path="res://.godot/imported/location_hospitality_sunstarmotel_01_57.png-c9e4c019ec3d9e639de75e8296eececa.ctex"
+path="res://.godot/imported/location_hospitality_sunstarmotel_01_57.png-23406dd97ddcabadef1de9a4b0ad5923.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_hospitality_sunstarmotel_01_57.png"
-dest_files=["res://.godot/imported/location_hospitality_sunstarmotel_01_57.png-c9e4c019ec3d9e639de75e8296eececa.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_hospitality_sunstarmotel_01_57.png"
+dest_files=["res://.godot/imported/location_hospitality_sunstarmotel_01_57.png-23406dd97ddcabadef1de9a4b0ad5923.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://drmhxbq3w12lq"
-path="res://.godot/imported/lighting_indoor_01_22.png-72aa9592aab72b114531eb10db78a1b6.ctex"
+path="res://.godot/imported/lighting_indoor_01_22.png-408134bc1e6d1a50d5d9a81b32ade9a2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/lighting_indoor_01/lighting_indoor_01_22.png"
-dest_files=["res://.godot/imported/lighting_indoor_01_22.png-72aa9592aab72b114531eb10db78a1b6.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/lighting_indoor_01/lighting_indoor_01_22.png"
+dest_files=["res://.godot/imported/lighting_indoor_01_22.png-408134bc1e6d1a50d5d9a81b32ade9a2.ctex"]
 
 [params]
 

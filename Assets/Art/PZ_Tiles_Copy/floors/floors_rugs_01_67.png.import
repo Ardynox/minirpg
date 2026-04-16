@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bybqutglvcp6x"
-path="res://.godot/imported/floors_rugs_01_67.png-421b8ace7f7e52155034761d53f59d3a.ctex"
+path="res://.godot/imported/floors_rugs_01_67.png-5c0d55abc9ac56152a965f6f83a9f79f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/floors_rugs_01_67.png"
-dest_files=["res://.godot/imported/floors_rugs_01_67.png-421b8ace7f7e52155034761d53f59d3a.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/floors_rugs_01_67.png"
+dest_files=["res://.godot/imported/floors_rugs_01_67.png-5c0d55abc9ac56152a965f6f83a9f79f.ctex"]
 
 [params]
 

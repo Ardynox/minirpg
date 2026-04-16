@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dsykuykvaqekq"
-path="res://.godot/imported/walls_house_clapboard_LIGHT_01_MIRRORED_13.png-5e1a719018978b6d03f815b58aabea8f.ctex"
+path="res://.godot/imported/walls_house_clapboard_LIGHT_01_MIRRORED_13.png-fb781096135fe0ac48cabc0402f115e1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_clapboard_LIGHT_01_MIRRORED_13.png"
-dest_files=["res://.godot/imported/walls_house_clapboard_LIGHT_01_MIRRORED_13.png-5e1a719018978b6d03f815b58aabea8f.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_clapboard_LIGHT_01_MIRRORED_13.png"
+dest_files=["res://.godot/imported/walls_house_clapboard_LIGHT_01_MIRRORED_13.png-fb781096135fe0ac48cabc0402f115e1.ctex"]
 
 [params]
 

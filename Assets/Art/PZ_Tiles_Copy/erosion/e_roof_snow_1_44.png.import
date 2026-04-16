@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dh47un3tb2qay"
-path="res://.godot/imported/e_roof_snow_1_44.png-1f27d65c78b0c202b7977be30c874081.ctex"
+path="res://.godot/imported/e_roof_snow_1_44.png-870a41a8a28209841dc44d026014fbfb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_roof_snow_1_44.png"
-dest_files=["res://.godot/imported/e_roof_snow_1_44.png-1f27d65c78b0c202b7977be30c874081.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_roof_snow_1_44.png"
+dest_files=["res://.godot/imported/e_roof_snow_1_44.png-870a41a8a28209841dc44d026014fbfb.ctex"]
 
 [params]
 

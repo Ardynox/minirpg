@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ddr5dxtloua8n"
-path="res://.godot/imported/e_easternredbudJUMBO_1_11.png-212802080ca39f7086f842a960bcb3fb.ctex"
+path="res://.godot/imported/e_easternredbudJUMBO_1_11.png-660176e503326d7a1606195c944293df.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_easternredbudJUMBO_1_11.png"
-dest_files=["res://.godot/imported/e_easternredbudJUMBO_1_11.png-212802080ca39f7086f842a960bcb3fb.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_easternredbudJUMBO_1_11.png"
+dest_files=["res://.godot/imported/e_easternredbudJUMBO_1_11.png-660176e503326d7a1606195c944293df.ctex"]
 
 [params]
 

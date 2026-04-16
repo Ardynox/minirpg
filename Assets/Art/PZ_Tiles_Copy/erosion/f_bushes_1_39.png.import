@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d042dswa3sji5"
-path="res://.godot/imported/f_bushes_1_39.png-af9a210af2af4691527677dab9d85e7a.ctex"
+path="res://.godot/imported/f_bushes_1_39.png-8ccc923f459d16267bd6a298c83defc8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/f_bushes_1_39.png"
-dest_files=["res://.godot/imported/f_bushes_1_39.png-af9a210af2af4691527677dab9d85e7a.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/f_bushes_1_39.png"
+dest_files=["res://.godot/imported/f_bushes_1_39.png-8ccc923f459d16267bd6a298c83defc8.ctex"]
 
 [params]
 

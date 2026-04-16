@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ba3fxm2m5h7t"
-path="res://.godot/imported/appliances_cooking_ON_01_5.png-b4c9bb6914fbcbe90b48311c091a9915.ctex"
+path="res://.godot/imported/appliances_cooking_ON_01_5.png-01c117c75b65ed8c1371f0f1a8be18cd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/appliances_cooking_ON_01_5.png"
-dest_files=["res://.godot/imported/appliances_cooking_ON_01_5.png-b4c9bb6914fbcbe90b48311c091a9915.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/appliances_cooking_ON_01_5.png"
+dest_files=["res://.godot/imported/appliances_cooking_ON_01_5.png-01c117c75b65ed8c1371f0f1a8be18cd.ctex"]
 
 [params]
 

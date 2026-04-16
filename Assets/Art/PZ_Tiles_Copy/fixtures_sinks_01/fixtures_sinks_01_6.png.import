@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bbrbhwo2h853d"
-path="res://.godot/imported/fixtures_sinks_01_6.png-0383c5824506682ffe74cee3d56359de.ctex"
+path="res://.godot/imported/fixtures_sinks_01_6.png-dc8f3a75720561c9ba3c2609819e7e5c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_sinks_01/fixtures_sinks_01_6.png"
-dest_files=["res://.godot/imported/fixtures_sinks_01_6.png-0383c5824506682ffe74cee3d56359de.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_sinks_01/fixtures_sinks_01_6.png"
+dest_files=["res://.godot/imported/fixtures_sinks_01_6.png-dc8f3a75720561c9ba3c2609819e7e5c.ctex"]
 
 [params]
 

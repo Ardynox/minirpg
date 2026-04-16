@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwo7l6i6bqo0r"
-path="res://.godot/imported/security_01_0.png-6eb0297b5790f848614a6fa1d628750f.ctex"
+path="res://.godot/imported/security_01_0.png-da27feb726e3c86a20a8e3b9169b5442.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/security_01/security_01_0.png"
-dest_files=["res://.godot/imported/security_01_0.png-6eb0297b5790f848614a6fa1d628750f.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/security_01/security_01_0.png"
+dest_files=["res://.godot/imported/security_01_0.png-da27feb726e3c86a20a8e3b9169b5442.ctex"]
 
 [params]
 

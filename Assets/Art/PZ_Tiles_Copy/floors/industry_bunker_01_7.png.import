@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dapya7v4ubc8u"
-path="res://.godot/imported/industry_bunker_01_7.png-b7332bfe49539c4ca81ad2150bb46b25.ctex"
+path="res://.godot/imported/industry_bunker_01_7.png-b8993112a72f4e19aeb6235b627b4553.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/industry_bunker_01_7.png"
-dest_files=["res://.godot/imported/industry_bunker_01_7.png-b7332bfe49539c4ca81ad2150bb46b25.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/industry_bunker_01_7.png"
+dest_files=["res://.godot/imported/industry_bunker_01_7.png-b8993112a72f4e19aeb6235b627b4553.ctex"]
 
 [params]
 

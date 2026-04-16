@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://7ugyn7e30beu"
-path="res://.godot/imported/f_wallvines_1_2.png-0723fae42ca64cbec31a6a3d44049a2c.ctex"
+path="res://.godot/imported/f_wallvines_1_2.png-60fdc6b45d869ff420cfcc61c04380a8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/f_wallvines_1_2.png"
-dest_files=["res://.godot/imported/f_wallvines_1_2.png-0723fae42ca64cbec31a6a3d44049a2c.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/f_wallvines_1_2.png"
+dest_files=["res://.godot/imported/f_wallvines_1_2.png-60fdc6b45d869ff420cfcc61c04380a8.ctex"]
 
 [params]
 

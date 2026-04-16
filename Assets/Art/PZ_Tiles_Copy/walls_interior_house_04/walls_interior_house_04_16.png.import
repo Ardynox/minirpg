@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bhp0d8xeelsn7"
-path="res://.godot/imported/walls_interior_house_04_16.png-a7cb671b9a5a040ec06d7c140c65ef3c.ctex"
+path="res://.godot/imported/walls_interior_house_04_16.png-8e94292a1fe32a51c695b6a5143f1f32.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/walls_interior_house_04/walls_interior_house_04_16.png"
-dest_files=["res://.godot/imported/walls_interior_house_04_16.png-a7cb671b9a5a040ec06d7c140c65ef3c.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/walls_interior_house_04/walls_interior_house_04_16.png"
+dest_files=["res://.godot/imported/walls_interior_house_04_16.png-8e94292a1fe32a51c695b6a5143f1f32.ctex"]
 
 [params]
 

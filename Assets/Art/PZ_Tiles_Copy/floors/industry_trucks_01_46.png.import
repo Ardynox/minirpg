@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://csp8mtltbi7np"
-path="res://.godot/imported/industry_trucks_01_46.png-c21e28efaa5faceb1f09a66de87b9a41.ctex"
+path="res://.godot/imported/industry_trucks_01_46.png-f2a13e79f3236dcc5de87bd4d17f3d2e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/industry_trucks_01_46.png"
-dest_files=["res://.godot/imported/industry_trucks_01_46.png-c21e28efaa5faceb1f09a66de87b9a41.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/industry_trucks_01_46.png"
+dest_files=["res://.godot/imported/industry_trucks_01_46.png-f2a13e79f3236dcc5de87bd4d17f3d2e.ctex"]
 
 [params]
 

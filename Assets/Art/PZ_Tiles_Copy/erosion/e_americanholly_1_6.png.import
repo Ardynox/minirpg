@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://s1n1bvyak6mm"
-path="res://.godot/imported/e_americanholly_1_6.png-566c75241b86b09ec8311ce040e4b2eb.ctex"
+path="res://.godot/imported/e_americanholly_1_6.png-b5a789c37c59b68196e31094b865c68a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_americanholly_1_6.png"
-dest_files=["res://.godot/imported/e_americanholly_1_6.png-566c75241b86b09ec8311ce040e4b2eb.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_americanholly_1_6.png"
+dest_files=["res://.godot/imported/e_americanholly_1_6.png-b5a789c37c59b68196e31094b865c68a.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dffua81ikrwb"
-path="res://.godot/imported/furniture_seating_outdoor_01_21.png-ee9f61464b10c01f99ebe7b941996318.ctex"
+path="res://.godot/imported/furniture_seating_outdoor_01_21.png-579b1fd53d675a9f4015a878f7e27206.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/furniture_seating_outdoor_01/furniture_seating_outdoor_01_21.png"
-dest_files=["res://.godot/imported/furniture_seating_outdoor_01_21.png-ee9f61464b10c01f99ebe7b941996318.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/furniture_seating_outdoor_01/furniture_seating_outdoor_01_21.png"
+dest_files=["res://.godot/imported/furniture_seating_outdoor_01_21.png-579b1fd53d675a9f4015a878f7e27206.ctex"]
 
 [params]
 

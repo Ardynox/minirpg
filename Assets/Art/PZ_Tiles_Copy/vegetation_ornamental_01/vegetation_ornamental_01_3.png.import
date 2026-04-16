@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bpw82v750suiv"
-path="res://.godot/imported/vegetation_ornamental_01_3.png-39180bd5e42fd4526099fbf7cc0b9aa9.ctex"
+path="res://.godot/imported/vegetation_ornamental_01_3.png-e4f7e4c9a3154a57fdcf72632cb734d5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/vegetation_ornamental_01/vegetation_ornamental_01_3.png"
-dest_files=["res://.godot/imported/vegetation_ornamental_01_3.png-39180bd5e42fd4526099fbf7cc0b9aa9.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/vegetation_ornamental_01/vegetation_ornamental_01_3.png"
+dest_files=["res://.godot/imported/vegetation_ornamental_01_3.png-e4f7e4c9a3154a57fdcf72632cb734d5.ctex"]
 
 [params]
 

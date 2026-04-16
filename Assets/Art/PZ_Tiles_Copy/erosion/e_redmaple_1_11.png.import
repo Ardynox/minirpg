@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cjeou6wx74y6o"
-path="res://.godot/imported/e_redmaple_1_11.png-bfcdd0305bce03c1863051b939bdb0c9.ctex"
+path="res://.godot/imported/e_redmaple_1_11.png-35496a6f4bf0a51b3b81539ce6609030.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_redmaple_1_11.png"
-dest_files=["res://.godot/imported/e_redmaple_1_11.png-bfcdd0305bce03c1863051b939bdb0c9.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_redmaple_1_11.png"
+dest_files=["res://.godot/imported/e_redmaple_1_11.png-35496a6f4bf0a51b3b81539ce6609030.ctex"]
 
 [params]
 

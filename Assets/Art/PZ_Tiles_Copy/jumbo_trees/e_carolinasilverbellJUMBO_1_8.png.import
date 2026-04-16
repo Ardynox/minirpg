@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgnyr8ffy54a5"
-path="res://.godot/imported/e_carolinasilverbellJUMBO_1_8.png-58d9045aac5e7b9d2e4d7cc949ad8cf5.ctex"
+path="res://.godot/imported/e_carolinasilverbellJUMBO_1_8.png-28b5c8234bfd1dd38b64f16e3c9c074f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_carolinasilverbellJUMBO_1_8.png"
-dest_files=["res://.godot/imported/e_carolinasilverbellJUMBO_1_8.png-58d9045aac5e7b9d2e4d7cc949ad8cf5.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_carolinasilverbellJUMBO_1_8.png"
+dest_files=["res://.godot/imported/e_carolinasilverbellJUMBO_1_8.png-28b5c8234bfd1dd38b64f16e3c9c074f.ctex"]
 
 [params]
 

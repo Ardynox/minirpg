@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cescv62ht758l"
-path="res://.godot/imported/weapons_01_1.png-2103cfc5d653c4e2ee0cfa94544272a2.ctex"
+path="res://.godot/imported/weapons_01_1.png-bc6e5852066fdd4e2a555b07c39cdbac.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/weapons_01/weapons_01_1.png"
-dest_files=["res://.godot/imported/weapons_01_1.png-2103cfc5d653c4e2ee0cfa94544272a2.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/weapons_01/weapons_01_1.png"
+dest_files=["res://.godot/imported/weapons_01_1.png-bc6e5852066fdd4e2a555b07c39cdbac.ctex"]
 
 [params]
 

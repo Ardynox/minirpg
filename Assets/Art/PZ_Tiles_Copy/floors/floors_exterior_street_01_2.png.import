@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0njqbreyarum"
-path="res://.godot/imported/floors_exterior_street_01_2.png-8ee464e1f2b59b3a5fbbc3d994f3c5b1.ctex"
+path="res://.godot/imported/floors_exterior_street_01_2.png-264a5cada42344f45540135726533f62.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/floors_exterior_street_01_2.png"
-dest_files=["res://.godot/imported/floors_exterior_street_01_2.png-8ee464e1f2b59b3a5fbbc3d994f3c5b1.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/floors_exterior_street_01_2.png"
+dest_files=["res://.godot/imported/floors_exterior_street_01_2.png-264a5cada42344f45540135726533f62.ctex"]
 
 [params]
 

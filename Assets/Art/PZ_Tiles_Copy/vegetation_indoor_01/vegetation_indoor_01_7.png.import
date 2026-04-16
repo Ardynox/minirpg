@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cd5uccb6litf"
-path="res://.godot/imported/vegetation_indoor_01_7.png-1a76eac09a42194464910a75cd3012f7.ctex"
+path="res://.godot/imported/vegetation_indoor_01_7.png-7927aa2ae0fc6c2bf0857639f420bfe5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/vegetation_indoor_01/vegetation_indoor_01_7.png"
-dest_files=["res://.godot/imported/vegetation_indoor_01_7.png-1a76eac09a42194464910a75cd3012f7.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/vegetation_indoor_01/vegetation_indoor_01_7.png"
+dest_files=["res://.godot/imported/vegetation_indoor_01_7.png-7927aa2ae0fc6c2bf0857639f420bfe5.ctex"]
 
 [params]
 

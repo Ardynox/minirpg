@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8ilgivxsodc2"
-path="res://.godot/imported/d_generic_1_38.png-c29e09e6765af9d7fef1bf94e9bae0cc.ctex"
+path="res://.godot/imported/d_generic_1_38.png-9949f93d395233fe5d03d1fab99dd330.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/d_generic_1_38.png"
-dest_files=["res://.godot/imported/d_generic_1_38.png-c29e09e6765af9d7fef1bf94e9bae0cc.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/d_generic_1_38.png"
+dest_files=["res://.godot/imported/d_generic_1_38.png-9949f93d395233fe5d03d1fab99dd330.ctex"]
 
 [params]
 

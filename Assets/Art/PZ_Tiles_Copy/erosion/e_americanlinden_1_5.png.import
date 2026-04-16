@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cuqb4n5mbdwdi"
-path="res://.godot/imported/e_americanlinden_1_5.png-fc8355abda870f2ec4c5836ca85d6a11.ctex"
+path="res://.godot/imported/e_americanlinden_1_5.png-71d8c403e66a93f4c75c19c2d99a7f3e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_americanlinden_1_5.png"
-dest_files=["res://.godot/imported/e_americanlinden_1_5.png-fc8355abda870f2ec4c5836ca85d6a11.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_americanlinden_1_5.png"
+dest_files=["res://.godot/imported/e_americanlinden_1_5.png-71d8c403e66a93f4c75c19c2d99a7f3e.ctex"]
 
 [params]
 

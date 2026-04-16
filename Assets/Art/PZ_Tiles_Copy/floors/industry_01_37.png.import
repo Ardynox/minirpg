@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://wiwjcefm75d6"
-path="res://.godot/imported/industry_01_37.png-67f6be009e5eb3532afbed3322657568.ctex"
+path="res://.godot/imported/industry_01_37.png-0ed1aad6074844f82c536d54f4643369.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/industry_01_37.png"
-dest_files=["res://.godot/imported/industry_01_37.png-67f6be009e5eb3532afbed3322657568.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/industry_01_37.png"
+dest_files=["res://.godot/imported/industry_01_37.png-0ed1aad6074844f82c536d54f4643369.ctex"]
 
 [params]
 

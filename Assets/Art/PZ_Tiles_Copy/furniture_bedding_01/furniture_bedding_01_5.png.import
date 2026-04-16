@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://benfvfcihh785"
-path="res://.godot/imported/furniture_bedding_01_5.png-57c2bf982092ee441a261f8eb21bb28b.ctex"
+path="res://.godot/imported/furniture_bedding_01_5.png-6ec47cb9ca606c6c7415d08318702419.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/furniture_bedding_01/furniture_bedding_01_5.png"
-dest_files=["res://.godot/imported/furniture_bedding_01_5.png-57c2bf982092ee441a261f8eb21bb28b.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/furniture_bedding_01/furniture_bedding_01_5.png"
+dest_files=["res://.godot/imported/furniture_bedding_01_5.png-6ec47cb9ca606c6c7415d08318702419.ctex"]
 
 [params]
 

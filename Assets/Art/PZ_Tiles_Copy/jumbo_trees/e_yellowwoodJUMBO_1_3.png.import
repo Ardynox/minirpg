@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dk2mnu634gcfg"
-path="res://.godot/imported/e_yellowwoodJUMBO_1_3.png-68e3874e8d70bd2ce2b617ab2845609d.ctex"
+path="res://.godot/imported/e_yellowwoodJUMBO_1_3.png-e693f0123693b09aecd4c25155c620ad.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_yellowwoodJUMBO_1_3.png"
-dest_files=["res://.godot/imported/e_yellowwoodJUMBO_1_3.png-68e3874e8d70bd2ce2b617ab2845609d.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_yellowwoodJUMBO_1_3.png"
+dest_files=["res://.godot/imported/e_yellowwoodJUMBO_1_3.png-e693f0123693b09aecd4c25155c620ad.ctex"]
 
 [params]
 

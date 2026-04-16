@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://du1ib676ird7k"
-path="res://.godot/imported/location_restaurant_diner_01_40.png-e13b1794ee0300ab8d9286edbd8009d8.ctex"
+path="res://.godot/imported/location_restaurant_diner_01_40.png-654aaa282c306c369b2dc1bdc49962a2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_restaurant_diner_01_40.png"
-dest_files=["res://.godot/imported/location_restaurant_diner_01_40.png-e13b1794ee0300ab8d9286edbd8009d8.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_restaurant_diner_01_40.png"
+dest_files=["res://.godot/imported/location_restaurant_diner_01_40.png-654aaa282c306c369b2dc1bdc49962a2.ctex"]
 
 [params]
 

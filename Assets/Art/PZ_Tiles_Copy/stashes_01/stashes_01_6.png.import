@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cqp2ebnqf04p0"
-path="res://.godot/imported/stashes_01_6.png-b1c98919bd0e943f68b1d15b8d6b6e03.ctex"
+path="res://.godot/imported/stashes_01_6.png-9c0e8132045358119b2968a8f1cdfdc0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/stashes_01/stashes_01_6.png"
-dest_files=["res://.godot/imported/stashes_01_6.png-b1c98919bd0e943f68b1d15b8d6b6e03.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/stashes_01/stashes_01_6.png"
+dest_files=["res://.godot/imported/stashes_01_6.png-9c0e8132045358119b2968a8f1cdfdc0.ctex"]
 
 [params]
 

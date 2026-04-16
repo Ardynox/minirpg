@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6cr0tglh4ydi"
-path="res://.godot/imported/e_dogwood_1_11.png-8a1b537bac933607f7ec0618359cf44e.ctex"
+path="res://.godot/imported/e_dogwood_1_11.png-23b42a641ac0a40c473b5f5a27738964.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_dogwood_1_11.png"
-dest_files=["res://.godot/imported/e_dogwood_1_11.png-8a1b537bac933607f7ec0618359cf44e.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_dogwood_1_11.png"
+dest_files=["res://.godot/imported/e_dogwood_1_11.png-23b42a641ac0a40c473b5f5a27738964.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://boug1bju0ly2o"
-path="res://.godot/imported/floors_interior_carpet_01_4.png-7a607a96063411f824cd817dd2cb30e9.ctex"
+path="res://.godot/imported/floors_interior_carpet_01_4.png-302c236ca5172b2713f69bc3a119494c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/floors_interior_carpet_01_4.png"
-dest_files=["res://.godot/imported/floors_interior_carpet_01_4.png-7a607a96063411f824cd817dd2cb30e9.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/floors_interior_carpet_01_4.png"
+dest_files=["res://.godot/imported/floors_interior_carpet_01_4.png-302c236ca5172b2713f69bc3a119494c.ctex"]
 
 [params]
 

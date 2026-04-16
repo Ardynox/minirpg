@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8vbyoqp6x0db"
-path="res://.godot/imported/fixtures_overlay_counters_01_3.png-284249d3833c627eefe56ad2f2ab60c2.ctex"
+path="res://.godot/imported/fixtures_overlay_counters_01_3.png-52f71d7dc881643e92bbe2937c33cd23.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/fixtures_overlay_counters_01_3.png"
-dest_files=["res://.godot/imported/fixtures_overlay_counters_01_3.png-284249d3833c627eefe56ad2f2ab60c2.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/fixtures_overlay_counters_01_3.png"
+dest_files=["res://.godot/imported/fixtures_overlay_counters_01_3.png-52f71d7dc881643e92bbe2937c33cd23.ctex"]
 
 [params]
 

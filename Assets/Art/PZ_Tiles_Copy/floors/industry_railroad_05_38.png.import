@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dcwpyk73eh4oe"
-path="res://.godot/imported/industry_railroad_05_38.png-d25abc3f4312bb6986b6de1fae782fe4.ctex"
+path="res://.godot/imported/industry_railroad_05_38.png-2d58e0ec97d0a138460592825dbd20ca.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/industry_railroad_05_38.png"
-dest_files=["res://.godot/imported/industry_railroad_05_38.png-d25abc3f4312bb6986b6de1fae782fe4.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/industry_railroad_05_38.png"
+dest_files=["res://.godot/imported/industry_railroad_05_38.png-2d58e0ec97d0a138460592825dbd20ca.ctex"]
 
 [params]
 

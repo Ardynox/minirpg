@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bxf0oe2g3j8b4"
-path="res://.godot/imported/Fire_03_1.png-9e134086c883846d50efca4e384e596f.ctex"
+path="res://.godot/imported/Fire_03_1.png-127d2af2195b076144c6e72b67e592c7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/Fire_03/Fire_03_1.png"
-dest_files=["res://.godot/imported/Fire_03_1.png-9e134086c883846d50efca4e384e596f.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/Fire_03/Fire_03_1.png"
+dest_files=["res://.godot/imported/Fire_03_1.png-127d2af2195b076144c6e72b67e592c7.ctex"]
 
 [params]
 

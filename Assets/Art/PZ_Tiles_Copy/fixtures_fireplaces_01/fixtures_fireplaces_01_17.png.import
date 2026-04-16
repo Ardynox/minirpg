@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cfdyht2vpgsqo"
-path="res://.godot/imported/fixtures_fireplaces_01_17.png-1d89f00f27d90356d3e38a6dd577d392.ctex"
+path="res://.godot/imported/fixtures_fireplaces_01_17.png-90d4d851473e43705a5c8f7c4aa38526.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_fireplaces_01/fixtures_fireplaces_01_17.png"
-dest_files=["res://.godot/imported/fixtures_fireplaces_01_17.png-1d89f00f27d90356d3e38a6dd577d392.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_fireplaces_01/fixtures_fireplaces_01_17.png"
+dest_files=["res://.godot/imported/fixtures_fireplaces_01_17.png-90d4d851473e43705a5c8f7c4aa38526.ctex"]
 
 [params]
 

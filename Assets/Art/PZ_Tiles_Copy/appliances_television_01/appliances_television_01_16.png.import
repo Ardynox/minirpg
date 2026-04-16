@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://o4o0ijy8qror"
-path="res://.godot/imported/appliances_television_01_16.png-0f3e172b4535ee1f3f2608c179092e6c.ctex"
+path="res://.godot/imported/appliances_television_01_16.png-e74cdbc3fa1b71de59f408ecdc5614ba.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/appliances_television_01/appliances_television_01_16.png"
-dest_files=["res://.godot/imported/appliances_television_01_16.png-0f3e172b4535ee1f3f2608c179092e6c.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/appliances_television_01/appliances_television_01_16.png"
+dest_files=["res://.godot/imported/appliances_television_01_16.png-e74cdbc3fa1b71de59f408ecdc5614ba.ctex"]
 
 [params]
 

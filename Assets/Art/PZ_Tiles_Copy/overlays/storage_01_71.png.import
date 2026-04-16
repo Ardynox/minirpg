@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ctvlabqhgnvdn"
-path="res://.godot/imported/storage_01_71.png-ff6620d368f9c9674b0e7385fdc00b0d.ctex"
+path="res://.godot/imported/storage_01_71.png-c8cdf8cedc26018a213d7af4659a7d91.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/storage_01_71.png"
-dest_files=["res://.godot/imported/storage_01_71.png-ff6620d368f9c9674b0e7385fdc00b0d.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/storage_01_71.png"
+dest_files=["res://.godot/imported/storage_01_71.png-c8cdf8cedc26018a213d7af4659a7d91.ctex"]
 
 [params]
 

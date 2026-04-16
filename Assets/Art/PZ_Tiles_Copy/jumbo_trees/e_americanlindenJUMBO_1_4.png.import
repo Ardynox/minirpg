@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://64k1yixwde24"
-path="res://.godot/imported/e_americanlindenJUMBO_1_4.png-329652a5c57c4e68d2c44f8126b9f2de.ctex"
+path="res://.godot/imported/e_americanlindenJUMBO_1_4.png-87add72d78ca3f549154a634fc0877fa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_americanlindenJUMBO_1_4.png"
-dest_files=["res://.godot/imported/e_americanlindenJUMBO_1_4.png-329652a5c57c4e68d2c44f8126b9f2de.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_americanlindenJUMBO_1_4.png"
+dest_files=["res://.godot/imported/e_americanlindenJUMBO_1_4.png-87add72d78ca3f549154a634fc0877fa.ctex"]
 
 [params]
 

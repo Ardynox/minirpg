@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cjg8ny2x1f87u"
-path="res://.godot/imported/walls_exterior_wooden_01_46.png-2dde0613185703dafe3419c4c708d8c0.ctex"
+path="res://.godot/imported/walls_exterior_wooden_01_46.png-43e4e2419d152fd25457bc3ce1d9f32e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/walls_exterior_wooden_01/walls_exterior_wooden_01_46.png"
-dest_files=["res://.godot/imported/walls_exterior_wooden_01_46.png-2dde0613185703dafe3419c4c708d8c0.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/walls_exterior_wooden_01/walls_exterior_wooden_01_46.png"
+dest_files=["res://.godot/imported/walls_exterior_wooden_01_46.png-43e4e2419d152fd25457bc3ce1d9f32e.ctex"]
 
 [params]
 

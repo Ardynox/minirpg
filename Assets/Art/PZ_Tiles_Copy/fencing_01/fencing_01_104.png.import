@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c17esydblfuc5"
-path="res://.godot/imported/fencing_01_104.png-21e8cd2d416705f82fec82fcc26330b0.ctex"
+path="res://.godot/imported/fencing_01_104.png-a8524d07357783effd65f598033dac33.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fencing_01/fencing_01_104.png"
-dest_files=["res://.godot/imported/fencing_01_104.png-21e8cd2d416705f82fec82fcc26330b0.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fencing_01/fencing_01_104.png"
+dest_files=["res://.godot/imported/fencing_01_104.png-a8524d07357783effd65f598033dac33.ctex"]
 
 [params]
 

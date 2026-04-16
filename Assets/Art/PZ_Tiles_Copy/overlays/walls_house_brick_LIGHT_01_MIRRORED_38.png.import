@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdiabyi48bbyl"
-path="res://.godot/imported/walls_house_brick_LIGHT_01_MIRRORED_38.png-f3397d8116ae0960b121dfd8ff895125.ctex"
+path="res://.godot/imported/walls_house_brick_LIGHT_01_MIRRORED_38.png-d114d5b30b14aba68284f5cfc7cd4b54.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_brick_LIGHT_01_MIRRORED_38.png"
-dest_files=["res://.godot/imported/walls_house_brick_LIGHT_01_MIRRORED_38.png-f3397d8116ae0960b121dfd8ff895125.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_brick_LIGHT_01_MIRRORED_38.png"
+dest_files=["res://.godot/imported/walls_house_brick_LIGHT_01_MIRRORED_38.png-d114d5b30b14aba68284f5cfc7cd4b54.ctex"]
 
 [params]
 

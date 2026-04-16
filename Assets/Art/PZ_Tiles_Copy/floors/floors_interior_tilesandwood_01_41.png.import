@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c637bp3roumn7"
-path="res://.godot/imported/floors_interior_tilesandwood_01_41.png-96dc9130f37cbe54ffab7c4457b66937.ctex"
+path="res://.godot/imported/floors_interior_tilesandwood_01_41.png-89a27a7ff1b0bb43795d43555b5b28dd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/floors_interior_tilesandwood_01_41.png"
-dest_files=["res://.godot/imported/floors_interior_tilesandwood_01_41.png-96dc9130f37cbe54ffab7c4457b66937.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/floors_interior_tilesandwood_01_41.png"
+dest_files=["res://.godot/imported/floors_interior_tilesandwood_01_41.png-89a27a7ff1b0bb43795d43555b5b28dd.ctex"]
 
 [params]
 

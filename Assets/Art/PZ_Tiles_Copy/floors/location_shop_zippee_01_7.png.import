@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://v33iwhbt4ex8"
-path="res://.godot/imported/location_shop_zippee_01_7.png-064b52513d3eb2f676650ff48f430e58.ctex"
+path="res://.godot/imported/location_shop_zippee_01_7.png-1d1eb2e9208e28439f01c123a7b7f958.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_shop_zippee_01_7.png"
-dest_files=["res://.godot/imported/location_shop_zippee_01_7.png-064b52513d3eb2f676650ff48f430e58.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_shop_zippee_01_7.png"
+dest_files=["res://.godot/imported/location_shop_zippee_01_7.png-1d1eb2e9208e28439f01c123a7b7f958.ctex"]
 
 [params]
 

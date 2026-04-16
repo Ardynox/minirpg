@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bm0plkkaa6jl0"
-path="res://.godot/imported/location_trailer_02_60.png-ad5032611ddfbb08d8be11986dcd2a02.ctex"
+path="res://.godot/imported/location_trailer_02_60.png-861af3712542a00443bf2f6bb7535a6d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_trailer_02_60.png"
-dest_files=["res://.godot/imported/location_trailer_02_60.png-ad5032611ddfbb08d8be11986dcd2a02.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_trailer_02_60.png"
+dest_files=["res://.godot/imported/location_trailer_02_60.png-861af3712542a00443bf2f6bb7535a6d.ctex"]
 
 [params]
 

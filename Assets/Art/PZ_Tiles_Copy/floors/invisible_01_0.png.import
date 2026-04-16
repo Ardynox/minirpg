@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://de0sgie8jh8fb"
-path="res://.godot/imported/invisible_01_0.png-96e110d522bb82d84a07187293e92779.ctex"
+path="res://.godot/imported/invisible_01_0.png-4116864a8ace9ce3e250e443302029e9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/invisible_01_0.png"
-dest_files=["res://.godot/imported/invisible_01_0.png-96e110d522bb82d84a07187293e92779.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/invisible_01_0.png"
+dest_files=["res://.godot/imported/invisible_01_0.png-4116864a8ace9ce3e250e443302029e9.ctex"]
 
 [params]
 

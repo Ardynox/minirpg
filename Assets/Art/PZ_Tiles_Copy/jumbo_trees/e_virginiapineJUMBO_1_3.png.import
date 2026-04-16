@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://r7qnkc0ymbtm"
-path="res://.godot/imported/e_virginiapineJUMBO_1_3.png-acf2cd7ba0954c369721ac0a8a356f9e.ctex"
+path="res://.godot/imported/e_virginiapineJUMBO_1_3.png-2a9dd1dea57c3c81a746e5456beb88de.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_virginiapineJUMBO_1_3.png"
-dest_files=["res://.godot/imported/e_virginiapineJUMBO_1_3.png-acf2cd7ba0954c369721ac0a8a356f9e.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_virginiapineJUMBO_1_3.png"
+dest_files=["res://.godot/imported/e_virginiapineJUMBO_1_3.png-2a9dd1dea57c3c81a746e5456beb88de.ctex"]
 
 [params]
 

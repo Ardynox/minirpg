@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b1o83tv0tqnha"
-path="res://.godot/imported/d_floorleaves_1_1.png-62442f0cbd04736dcf527091c31faba7.ctex"
+path="res://.godot/imported/d_floorleaves_1_1.png-7880a23b375ac80dd730f473e1389f78.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/d_floorleaves_1_1.png"
-dest_files=["res://.godot/imported/d_floorleaves_1_1.png-62442f0cbd04736dcf527091c31faba7.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/d_floorleaves_1_1.png"
+dest_files=["res://.godot/imported/d_floorleaves_1_1.png-7880a23b375ac80dd730f473e1389f78.ctex"]
 
 [params]
 

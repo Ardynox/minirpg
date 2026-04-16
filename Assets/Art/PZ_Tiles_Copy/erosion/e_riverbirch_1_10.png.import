@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cegcuahagrpd3"
-path="res://.godot/imported/e_riverbirch_1_10.png-c76fefd94a4dd40c4ed186658d67f122.ctex"
+path="res://.godot/imported/e_riverbirch_1_10.png-012f5bb853df71d36a2133fe39973244.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_riverbirch_1_10.png"
-dest_files=["res://.godot/imported/e_riverbirch_1_10.png-c76fefd94a4dd40c4ed186658d67f122.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_riverbirch_1_10.png"
+dest_files=["res://.godot/imported/e_riverbirch_1_10.png-012f5bb853df71d36a2133fe39973244.ctex"]
 
 [params]
 

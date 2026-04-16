@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cf7lg864agudc"
-path="res://.godot/imported/e_canadianhemlock_1_4.png-510f69cca11c3746c6049c5234c2f87f.ctex"
+path="res://.godot/imported/e_canadianhemlock_1_4.png-44d4465682d43715546b3298d98f168e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_canadianhemlock_1_4.png"
-dest_files=["res://.godot/imported/e_canadianhemlock_1_4.png-510f69cca11c3746c6049c5234c2f87f.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_canadianhemlock_1_4.png"
+dest_files=["res://.godot/imported/e_canadianhemlock_1_4.png-44d4465682d43715546b3298d98f168e.ctex"]
 
 [params]
 

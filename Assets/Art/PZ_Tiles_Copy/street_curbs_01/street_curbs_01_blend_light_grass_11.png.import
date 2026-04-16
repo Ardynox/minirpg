@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bq33sr68j187k"
-path="res://.godot/imported/street_curbs_01_blend_light_grass_11.png-9f57000a63daad98474b5bf05f3d4ad5.ctex"
+path="res://.godot/imported/street_curbs_01_blend_light_grass_11.png-48d97532361cbcdb7a18df80b68ade0b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/street_curbs_01/street_curbs_01_blend_light_grass_11.png"
-dest_files=["res://.godot/imported/street_curbs_01_blend_light_grass_11.png-9f57000a63daad98474b5bf05f3d4ad5.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/street_curbs_01/street_curbs_01_blend_light_grass_11.png"
+dest_files=["res://.godot/imported/street_curbs_01_blend_light_grass_11.png-48d97532361cbcdb7a18df80b68ade0b.ctex"]
 
 [params]
 

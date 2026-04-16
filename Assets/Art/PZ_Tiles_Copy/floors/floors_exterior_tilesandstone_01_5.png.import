@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c5hmcsaar62u"
-path="res://.godot/imported/floors_exterior_tilesandstone_01_5.png-780c478f35b0465a2e2003184e7beacd.ctex"
+path="res://.godot/imported/floors_exterior_tilesandstone_01_5.png-f216efc0565362ad0aa98ed2d0a769e0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/floors_exterior_tilesandstone_01_5.png"
-dest_files=["res://.godot/imported/floors_exterior_tilesandstone_01_5.png-780c478f35b0465a2e2003184e7beacd.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/floors_exterior_tilesandstone_01_5.png"
+dest_files=["res://.godot/imported/floors_exterior_tilesandstone_01_5.png-f216efc0565362ad0aa98ed2d0a769e0.ctex"]
 
 [params]
 

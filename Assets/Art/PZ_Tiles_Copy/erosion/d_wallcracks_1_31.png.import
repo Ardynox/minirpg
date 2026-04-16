@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c58kryd7lsgra"
-path="res://.godot/imported/d_wallcracks_1_31.png-913109001ff4ec4c718053f58a9477d9.ctex"
+path="res://.godot/imported/d_wallcracks_1_31.png-46317cb2c7a64d33474ecd0567f7bbce.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/d_wallcracks_1_31.png"
-dest_files=["res://.godot/imported/d_wallcracks_1_31.png-913109001ff4ec4c718053f58a9477d9.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/d_wallcracks_1_31.png"
+dest_files=["res://.godot/imported/d_wallcracks_1_31.png-46317cb2c7a64d33474ecd0567f7bbce.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://2vb1g74uowmb"
-path="res://.godot/imported/appliances_01_47.png-2b75b8edaff424d8893aaa5c381b995e.ctex"
+path="res://.godot/imported/appliances_01_47.png-d0aafe31e5de23a04af6050d0d0af3ae.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/appliances_01_47.png"
-dest_files=["res://.godot/imported/appliances_01_47.png-2b75b8edaff424d8893aaa5c381b995e.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/appliances_01_47.png"
+dest_files=["res://.godot/imported/appliances_01_47.png-d0aafe31e5de23a04af6050d0d0af3ae.ctex"]
 
 [params]
 

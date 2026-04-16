@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://hsdboxnvtq6i"
-path="res://.godot/imported/floors_burnt_01_10.png-fcf77d51636e96072dd8957774931415.ctex"
+path="res://.godot/imported/floors_burnt_01_10.png-d5782505063b4be749d59e0fd3f104d7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors_burnt_01/floors_burnt_01_10.png"
-dest_files=["res://.godot/imported/floors_burnt_01_10.png-fcf77d51636e96072dd8957774931415.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors_burnt_01/floors_burnt_01_10.png"
+dest_files=["res://.godot/imported/floors_burnt_01_10.png-d5782505063b4be749d59e0fd3f104d7.ctex"]
 
 [params]
 

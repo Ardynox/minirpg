@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dpgv57oxr1o8w"
-path="res://.godot/imported/floors_exterior_natural_01_33.png-ceb6a441b041b3b2c885d2c7937a265f.ctex"
+path="res://.godot/imported/floors_exterior_natural_01_33.png-3da471820ad5174eeb8088eab7099d10.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors_exterior_natural_01/floors_exterior_natural_01_33.png"
-dest_files=["res://.godot/imported/floors_exterior_natural_01_33.png-ceb6a441b041b3b2c885d2c7937a265f.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors_exterior_natural_01/floors_exterior_natural_01_33.png"
+dest_files=["res://.godot/imported/floors_exterior_natural_01_33.png-3da471820ad5174eeb8088eab7099d10.ctex"]
 
 [params]
 

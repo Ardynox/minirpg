@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5mbi1yr12chn"
-path="res://.godot/imported/floors_overlay_tiles_01_44.png-91088026683d1ed40161c09e74a4f75b.ctex"
+path="res://.godot/imported/floors_overlay_tiles_01_44.png-fc16295dcae621859f8bd117c515e99a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/floors_overlay_tiles_01_44.png"
-dest_files=["res://.godot/imported/floors_overlay_tiles_01_44.png-91088026683d1ed40161c09e74a4f75b.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/floors_overlay_tiles_01_44.png"
+dest_files=["res://.godot/imported/floors_overlay_tiles_01_44.png-fc16295dcae621859f8bd117c515e99a.ctex"]
 
 [params]
 

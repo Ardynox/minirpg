@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dgbvq16u0d6y3"
-path="res://.godot/imported/e_redmapleJUMBO_1_6.png-d6805f911ac0e47313a327d83075c5e6.ctex"
+path="res://.godot/imported/e_redmapleJUMBO_1_6.png-178f27047a94611c9b652f61a2c87aa9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_redmapleJUMBO_1_6.png"
-dest_files=["res://.godot/imported/e_redmapleJUMBO_1_6.png-d6805f911ac0e47313a327d83075c5e6.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_redmapleJUMBO_1_6.png"
+dest_files=["res://.godot/imported/e_redmapleJUMBO_1_6.png-178f27047a94611c9b652f61a2c87aa9.ctex"]
 
 [params]
 

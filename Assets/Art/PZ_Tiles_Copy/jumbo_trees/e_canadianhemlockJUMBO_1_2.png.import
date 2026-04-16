@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://nmxw7s3yqcpx"
-path="res://.godot/imported/e_canadianhemlockJUMBO_1_2.png-4cf5e93c8f68366371bf47057e55ee30.ctex"
+path="res://.godot/imported/e_canadianhemlockJUMBO_1_2.png-a764b44425bf64fb021f8442dd8f8a17.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_canadianhemlockJUMBO_1_2.png"
-dest_files=["res://.godot/imported/e_canadianhemlockJUMBO_1_2.png-4cf5e93c8f68366371bf47057e55ee30.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_canadianhemlockJUMBO_1_2.png"
+dest_files=["res://.godot/imported/e_canadianhemlockJUMBO_1_2.png-a764b44425bf64fb021f8442dd8f8a17.ctex"]
 
 [params]
 

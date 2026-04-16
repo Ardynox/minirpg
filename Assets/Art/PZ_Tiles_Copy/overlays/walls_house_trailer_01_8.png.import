@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cr6y2dfrsawk8"
-path="res://.godot/imported/walls_house_trailer_01_8.png-3459be52b6897fc552f80a87f031eee0.ctex"
+path="res://.godot/imported/walls_house_trailer_01_8.png-b7dc3809517f42136cc84eebfc194693.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_trailer_01_8.png"
-dest_files=["res://.godot/imported/walls_house_trailer_01_8.png-3459be52b6897fc552f80a87f031eee0.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_trailer_01_8.png"
+dest_files=["res://.godot/imported/walls_house_trailer_01_8.png-b7dc3809517f42136cc84eebfc194693.ctex"]
 
 [params]
 

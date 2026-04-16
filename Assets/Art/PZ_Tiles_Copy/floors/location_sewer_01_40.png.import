@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdg2bl5hg3ous"
-path="res://.godot/imported/location_sewer_01_40.png-1da7d68e4fb2115d229b56ea8620a943.ctex"
+path="res://.godot/imported/location_sewer_01_40.png-953d0511247613d1142bdfd0e1f51999.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_sewer_01_40.png"
-dest_files=["res://.godot/imported/location_sewer_01_40.png-1da7d68e4fb2115d229b56ea8620a943.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_sewer_01_40.png"
+dest_files=["res://.godot/imported/location_sewer_01_40.png-953d0511247613d1142bdfd0e1f51999.ctex"]
 
 [params]
 

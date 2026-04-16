@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://da1skmpegdc3u"
-path="res://.godot/imported/roofs_01_93.png-06cc86fb165fb57b21cb3eb6c539ca68.ctex"
+path="res://.godot/imported/roofs_01_93.png-dac9aabbfa3da94143a3365ce4d2ea45.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/roofs_01_93.png"
-dest_files=["res://.godot/imported/roofs_01_93.png-06cc86fb165fb57b21cb3eb6c539ca68.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/roofs_01_93.png"
+dest_files=["res://.godot/imported/roofs_01_93.png-dac9aabbfa3da94143a3365ce4d2ea45.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6uqg57y0c8ei"
-path="res://.godot/imported/e_cockspurhawthorn_1_14.png-26f51991e5ffafe77f379178229e0062.ctex"
+path="res://.godot/imported/e_cockspurhawthorn_1_14.png-fe7a854bf070431f92a33243fd34e545.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_cockspurhawthorn_1_14.png"
-dest_files=["res://.godot/imported/e_cockspurhawthorn_1_14.png-26f51991e5ffafe77f379178229e0062.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_cockspurhawthorn_1_14.png"
+dest_files=["res://.godot/imported/e_cockspurhawthorn_1_14.png-fe7a854bf070431f92a33243fd34e545.ctex"]
 
 [params]
 

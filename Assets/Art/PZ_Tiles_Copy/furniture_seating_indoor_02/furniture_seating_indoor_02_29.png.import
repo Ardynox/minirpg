@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5v1dlsflh0k7"
-path="res://.godot/imported/furniture_seating_indoor_02_29.png-0b21b008bec9c25f7cbae815f3660af5.ctex"
+path="res://.godot/imported/furniture_seating_indoor_02_29.png-5cfff507eb56d0cf202e31c96c4fb025.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/furniture_seating_indoor_02/furniture_seating_indoor_02_29.png"
-dest_files=["res://.godot/imported/furniture_seating_indoor_02_29.png-0b21b008bec9c25f7cbae815f3660af5.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/furniture_seating_indoor_02/furniture_seating_indoor_02_29.png"
+dest_files=["res://.godot/imported/furniture_seating_indoor_02_29.png-5cfff507eb56d0cf202e31c96c4fb025.ctex"]
 
 [params]
 

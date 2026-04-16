@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c2gpoxaa3gn6g"
-path="res://.godot/imported/floors_overlay_street_01_6.png-f388e34b3c9563ea13eb592e449b40e2.ctex"
+path="res://.godot/imported/floors_overlay_street_01_6.png-e5a60229f9916b1524bc28bdc25f56cf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/floors_overlay_street_01_6.png"
-dest_files=["res://.godot/imported/floors_overlay_street_01_6.png-f388e34b3c9563ea13eb592e449b40e2.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/floors_overlay_street_01_6.png"
+dest_files=["res://.godot/imported/floors_overlay_street_01_6.png-e5a60229f9916b1524bc28bdc25f56cf.ctex"]
 
 [params]
 

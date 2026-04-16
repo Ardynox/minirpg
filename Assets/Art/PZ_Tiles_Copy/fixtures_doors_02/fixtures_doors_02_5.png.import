@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c67jbtd818beq"
-path="res://.godot/imported/fixtures_doors_02_5.png-69797cbba8402872a22c3a5bc51a3bbd.ctex"
+path="res://.godot/imported/fixtures_doors_02_5.png-fc92a5c2ba600f09d5292d96e0c6f3a9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_doors_02/fixtures_doors_02_5.png"
-dest_files=["res://.godot/imported/fixtures_doors_02_5.png-69797cbba8402872a22c3a5bc51a3bbd.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_doors_02/fixtures_doors_02_5.png"
+dest_files=["res://.godot/imported/fixtures_doors_02_5.png-fc92a5c2ba600f09d5292d96e0c6f3a9.ctex"]
 
 [params]
 

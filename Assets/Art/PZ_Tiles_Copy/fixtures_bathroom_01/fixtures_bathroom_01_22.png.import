@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dgxdiyf1cxirk"
-path="res://.godot/imported/fixtures_bathroom_01_22.png-a2784b15936f99371933954f01a45b7c.ctex"
+path="res://.godot/imported/fixtures_bathroom_01_22.png-2d82a51204eb859c298e4a332fb0bf3a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_bathroom_01/fixtures_bathroom_01_22.png"
-dest_files=["res://.godot/imported/fixtures_bathroom_01_22.png-a2784b15936f99371933954f01a45b7c.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_bathroom_01/fixtures_bathroom_01_22.png"
+dest_files=["res://.godot/imported/fixtures_bathroom_01_22.png-2d82a51204eb859c298e4a332fb0bf3a.ctex"]
 
 [params]
 

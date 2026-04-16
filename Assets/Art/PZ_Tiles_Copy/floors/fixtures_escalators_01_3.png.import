@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8ifrh76n8wbx"
-path="res://.godot/imported/fixtures_escalators_01_3.png-1f75d34ac14d50b5b37c3acdd2a579fe.ctex"
+path="res://.godot/imported/fixtures_escalators_01_3.png-182a312b687ed95eb23cdceac34c49b2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/fixtures_escalators_01_3.png"
-dest_files=["res://.godot/imported/fixtures_escalators_01_3.png-1f75d34ac14d50b5b37c3acdd2a579fe.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/fixtures_escalators_01_3.png"
+dest_files=["res://.godot/imported/fixtures_escalators_01_3.png-182a312b687ed95eb23cdceac34c49b2.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cvrpkft76odhd"
-path="res://.godot/imported/food_01_78.png-f861b70df8d5511da43b0d522e43c684.ctex"
+path="res://.godot/imported/food_01_78.png-09efc6ff6bdceadc41bb260aaf8801e0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/food_01/food_01_78.png"
-dest_files=["res://.godot/imported/food_01_78.png-f861b70df8d5511da43b0d522e43c684.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/food_01/food_01_78.png"
+dest_files=["res://.godot/imported/food_01_78.png-09efc6ff6bdceadc41bb260aaf8801e0.ctex"]
 
 [params]
 

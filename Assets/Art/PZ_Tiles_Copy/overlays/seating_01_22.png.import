@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fqygpcigjvtc"
-path="res://.godot/imported/seating_01_22.png-eab8e410c7b74edffffa2433d658f456.ctex"
+path="res://.godot/imported/seating_01_22.png-c4dbb12f190a70b7d4ad672f4dc07dc7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/seating_01_22.png"
-dest_files=["res://.godot/imported/seating_01_22.png-eab8e410c7b74edffffa2433d658f456.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/seating_01_22.png"
+dest_files=["res://.godot/imported/seating_01_22.png-c4dbb12f190a70b7d4ad672f4dc07dc7.ctex"]
 
 [params]
 

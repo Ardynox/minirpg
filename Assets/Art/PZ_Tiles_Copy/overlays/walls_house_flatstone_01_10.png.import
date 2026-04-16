@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bn3tw63j0fx2x"
-path="res://.godot/imported/walls_house_flatstone_01_10.png-5c1ec24e763a5d06ae894ac25038f951.ctex"
+path="res://.godot/imported/walls_house_flatstone_01_10.png-c203c646716c4da580358c71b7f9a501.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_flatstone_01_10.png"
-dest_files=["res://.godot/imported/walls_house_flatstone_01_10.png-5c1ec24e763a5d06ae894ac25038f951.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_flatstone_01_10.png"
+dest_files=["res://.godot/imported/walls_house_flatstone_01_10.png-c203c646716c4da580358c71b7f9a501.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdv84ifmrfu8x"
-path="res://.godot/imported/fixtures_windows_01_56.png-239ac3416bb4397f331906cf24bb72cf.ctex"
+path="res://.godot/imported/fixtures_windows_01_56.png-5c843c9043f0069bb8da64108b9a9f58.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_windows_01/fixtures_windows_01_56.png"
-dest_files=["res://.godot/imported/fixtures_windows_01_56.png-239ac3416bb4397f331906cf24bb72cf.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_windows_01/fixtures_windows_01_56.png"
+dest_files=["res://.godot/imported/fixtures_windows_01_56.png-5c843c9043f0069bb8da64108b9a9f58.ctex"]
 
 [params]
 

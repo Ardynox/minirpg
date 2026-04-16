@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bma6hmkkh1mgr"
-path="res://.godot/imported/carpentry_01_36.png-a4918d457a429bff86109d723bc8ef99.ctex"
+path="res://.godot/imported/carpentry_01_36.png-5bc315e9e11af27b360f254a76eea38c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/carpentry_01/carpentry_01_36.png"
-dest_files=["res://.godot/imported/carpentry_01_36.png-a4918d457a429bff86109d723bc8ef99.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/carpentry_01/carpentry_01_36.png"
+dest_files=["res://.godot/imported/carpentry_01_36.png-5bc315e9e11af27b360f254a76eea38c.ctex"]
 
 [params]
 

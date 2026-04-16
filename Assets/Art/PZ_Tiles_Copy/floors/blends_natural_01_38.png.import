@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dppwv2fg25tjt"
-path="res://.godot/imported/blends_natural_01_38.png-de98eea11f47a56584567c189301bc7d.ctex"
+path="res://.godot/imported/blends_natural_01_38.png-faaa8d1d5ad9b8fb3167502e0c182697.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/blends_natural_01_38.png"
-dest_files=["res://.godot/imported/blends_natural_01_38.png-de98eea11f47a56584567c189301bc7d.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_38.png"
+dest_files=["res://.godot/imported/blends_natural_01_38.png-faaa8d1d5ad9b8fb3167502e0c182697.ctex"]
 
 [params]
 

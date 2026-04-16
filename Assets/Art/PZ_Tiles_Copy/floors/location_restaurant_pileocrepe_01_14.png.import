@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://divc641lead0e"
-path="res://.godot/imported/location_restaurant_pileocrepe_01_14.png-2eb6c72a7edd2058ed70f8d396c09e2a.ctex"
+path="res://.godot/imported/location_restaurant_pileocrepe_01_14.png-3bb6041b57253437ebaa87df03133831.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/floors/location_restaurant_pileocrepe_01_14.png"
-dest_files=["res://.godot/imported/location_restaurant_pileocrepe_01_14.png-2eb6c72a7edd2058ed70f8d396c09e2a.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/floors/location_restaurant_pileocrepe_01_14.png"
+dest_files=["res://.godot/imported/location_restaurant_pileocrepe_01_14.png-3bb6041b57253437ebaa87df03133831.ctex"]
 
 [params]
 

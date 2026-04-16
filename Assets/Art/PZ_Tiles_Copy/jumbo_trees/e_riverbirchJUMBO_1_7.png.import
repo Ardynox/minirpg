@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdq7m04rjdkle"
-path="res://.godot/imported/e_riverbirchJUMBO_1_7.png-c50b9a40d7c6d580c5f2b75b3c152172.ctex"
+path="res://.godot/imported/e_riverbirchJUMBO_1_7.png-ef9a3d427f94b53312f0e18018de03d4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_riverbirchJUMBO_1_7.png"
-dest_files=["res://.godot/imported/e_riverbirchJUMBO_1_7.png-c50b9a40d7c6d580c5f2b75b3c152172.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_riverbirchJUMBO_1_7.png"
+dest_files=["res://.godot/imported/e_riverbirchJUMBO_1_7.png-ef9a3d427f94b53312f0e18018de03d4.ctex"]
 
 [params]
 

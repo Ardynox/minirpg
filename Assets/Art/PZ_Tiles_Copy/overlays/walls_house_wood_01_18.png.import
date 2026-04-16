@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://csvfjkohr2sua"
-path="res://.godot/imported/walls_house_wood_01_18.png-e9dc2d4a2500d825603886a0913a3817.ctex"
+path="res://.godot/imported/walls_house_wood_01_18.png-c49b886f23750fb755453c47a90516d4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_wood_01_18.png"
-dest_files=["res://.godot/imported/walls_house_wood_01_18.png-e9dc2d4a2500d825603886a0913a3817.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_wood_01_18.png"
+dest_files=["res://.godot/imported/walls_house_wood_01_18.png-c49b886f23750fb755453c47a90516d4.ctex"]
 
 [params]
 

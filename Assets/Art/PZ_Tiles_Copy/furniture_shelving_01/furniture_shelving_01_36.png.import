@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8xtfo26gwpr1"
-path="res://.godot/imported/furniture_shelving_01_36.png-8c68ba0c31f349631d9210baec32e5ba.ctex"
+path="res://.godot/imported/furniture_shelving_01_36.png-3a37f45e84828fb1f049f915d49b065c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/furniture_shelving_01/furniture_shelving_01_36.png"
-dest_files=["res://.godot/imported/furniture_shelving_01_36.png-8c68ba0c31f349631d9210baec32e5ba.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/furniture_shelving_01/furniture_shelving_01_36.png"
+dest_files=["res://.godot/imported/furniture_shelving_01_36.png-3a37f45e84828fb1f049f915d49b065c.ctex"]
 
 [params]
 

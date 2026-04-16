@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cifk0xf5eblk1"
-path="res://.godot/imported/furniture_tables_high_01_60.png-e723eb9db5d8b08770d5bc22edfaf2ef.ctex"
+path="res://.godot/imported/furniture_tables_high_01_60.png-4994357cb620674eb4415f3e4e5ee609.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/furniture_tables_high_01/furniture_tables_high_01_60.png"
-dest_files=["res://.godot/imported/furniture_tables_high_01_60.png-e723eb9db5d8b08770d5bc22edfaf2ef.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/furniture_tables_high_01/furniture_tables_high_01_60.png"
+dest_files=["res://.godot/imported/furniture_tables_high_01_60.png-4994357cb620674eb4415f3e4e5ee609.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://4til2w6ttywg"
-path="res://.godot/imported/trash_01_4.png-60d3a89dbe8aba3c048bc0be45bb3359.ctex"
+path="res://.godot/imported/trash_01_4.png-d8bde7173720b1f490bf811d2b397fe5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/trash_01/trash_01_4.png"
-dest_files=["res://.godot/imported/trash_01_4.png-60d3a89dbe8aba3c048bc0be45bb3359.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/trash_01/trash_01_4.png"
+dest_files=["res://.godot/imported/trash_01_4.png-d8bde7173720b1f490bf811d2b397fe5.ctex"]
 
 [params]
 

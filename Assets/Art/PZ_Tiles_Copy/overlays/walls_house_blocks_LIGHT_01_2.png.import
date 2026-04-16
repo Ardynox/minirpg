@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://hldif5vds5e1"
-path="res://.godot/imported/walls_house_blocks_LIGHT_01_2.png-491d8101f46650b1fe420b5d52976988.ctex"
+path="res://.godot/imported/walls_house_blocks_LIGHT_01_2.png-9197db1d1b15cde82ef22fbbc784bacc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/walls_house_blocks_LIGHT_01_2.png"
-dest_files=["res://.godot/imported/walls_house_blocks_LIGHT_01_2.png-491d8101f46650b1fe420b5d52976988.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/walls_house_blocks_LIGHT_01_2.png"
+dest_files=["res://.godot/imported/walls_house_blocks_LIGHT_01_2.png-9197db1d1b15cde82ef22fbbc784bacc.ctex"]
 
 [params]
 

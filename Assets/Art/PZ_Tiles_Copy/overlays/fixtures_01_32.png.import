@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bqn0c8ayvqou4"
-path="res://.godot/imported/fixtures_01_32.png-0f3fe141f54ac57f77f90eea372495b8.ctex"
+path="res://.godot/imported/fixtures_01_32.png-10c6e5d9f0087eda31dc4fc4224e8882.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/overlays/fixtures_01_32.png"
-dest_files=["res://.godot/imported/fixtures_01_32.png-0f3fe141f54ac57f77f90eea372495b8.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/overlays/fixtures_01_32.png"
+dest_files=["res://.godot/imported/fixtures_01_32.png-10c6e5d9f0087eda31dc4fc4224e8882.ctex"]
 
 [params]
 

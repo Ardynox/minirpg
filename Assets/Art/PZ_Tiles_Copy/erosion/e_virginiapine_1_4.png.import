@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b6iwe48iq5bmv"
-path="res://.godot/imported/e_virginiapine_1_4.png-4ec2a22a2084d73b928019cd0ac7236c.ctex"
+path="res://.godot/imported/e_virginiapine_1_4.png-6114b7ebd12c532903d8f427e194396a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_virginiapine_1_4.png"
-dest_files=["res://.godot/imported/e_virginiapine_1_4.png-4ec2a22a2084d73b928019cd0ac7236c.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_virginiapine_1_4.png"
+dest_files=["res://.godot/imported/e_virginiapine_1_4.png-6114b7ebd12c532903d8f427e194396a.ctex"]
 
 [params]
 

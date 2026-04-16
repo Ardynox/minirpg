@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6t3b2y5f1qxp"
-path="res://.godot/imported/e_yellowwood_1_4.png-688ecc62386e12d417258f83ea212e64.ctex"
+path="res://.godot/imported/e_yellowwood_1_4.png-26dd2283728df2a7a831772c717d8a3a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_yellowwood_1_4.png"
-dest_files=["res://.godot/imported/e_yellowwood_1_4.png-688ecc62386e12d417258f83ea212e64.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_yellowwood_1_4.png"
+dest_files=["res://.godot/imported/e_yellowwood_1_4.png-26dd2283728df2a7a831772c717d8a3a.ctex"]
 
 [params]
 

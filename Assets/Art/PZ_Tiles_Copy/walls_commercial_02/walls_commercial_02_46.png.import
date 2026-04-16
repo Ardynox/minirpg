@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dsyt8tf8n58uj"
-path="res://.godot/imported/walls_commercial_02_46.png-e806d6b053e60682b7f351836b45a626.ctex"
+path="res://.godot/imported/walls_commercial_02_46.png-30afa8b56133078125449d7e28b4f4d6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/walls_commercial_02/walls_commercial_02_46.png"
-dest_files=["res://.godot/imported/walls_commercial_02_46.png-e806d6b053e60682b7f351836b45a626.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/walls_commercial_02/walls_commercial_02_46.png"
+dest_files=["res://.godot/imported/walls_commercial_02_46.png-30afa8b56133078125449d7e28b4f4d6.ctex"]
 
 [params]
 

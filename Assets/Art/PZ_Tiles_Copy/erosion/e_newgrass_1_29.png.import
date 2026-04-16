@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cysy2lwkb87ir"
-path="res://.godot/imported/e_newgrass_1_29.png-aa633bcf3c9d390b41eac51e73409863.ctex"
+path="res://.godot/imported/e_newgrass_1_29.png-33bd3bf8b1b130cda66d8a5be8121fcc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_newgrass_1_29.png"
-dest_files=["res://.godot/imported/e_newgrass_1_29.png-aa633bcf3c9d390b41eac51e73409863.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_newgrass_1_29.png"
+dest_files=["res://.godot/imported/e_newgrass_1_29.png-33bd3bf8b1b130cda66d8a5be8121fcc.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b6soot28sfcsx"
-path="res://.godot/imported/appliances_refrigeration_01_35.png-2d69ec8c743534ec7e9f8f7e5885bf53.ctex"
+path="res://.godot/imported/appliances_refrigeration_01_35.png-e631f28adc5c7d38a134f506ee72b178.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/appliances_refrigeration_01/appliances_refrigeration_01_35.png"
-dest_files=["res://.godot/imported/appliances_refrigeration_01_35.png-2d69ec8c743534ec7e9f8f7e5885bf53.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/appliances_refrigeration_01/appliances_refrigeration_01_35.png"
+dest_files=["res://.godot/imported/appliances_refrigeration_01_35.png-e631f28adc5c7d38a134f506ee72b178.ctex"]
 
 [params]
 

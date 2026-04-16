@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://mvy6fmsk76eg"
-path="res://.godot/imported/vegetation_farming_01_55.png-5ddbb13dd0e6f94ce346c9605ce75818.ctex"
+path="res://.godot/imported/vegetation_farming_01_55.png-b78dc67c53fb8d039a70dd98b2ca7de4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/vegetation_farming_01/vegetation_farming_01_55.png"
-dest_files=["res://.godot/imported/vegetation_farming_01_55.png-5ddbb13dd0e6f94ce346c9605ce75818.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/vegetation_farming_01/vegetation_farming_01_55.png"
+dest_files=["res://.godot/imported/vegetation_farming_01_55.png-b78dc67c53fb8d039a70dd98b2ca7de4.ctex"]
 
 [params]
 

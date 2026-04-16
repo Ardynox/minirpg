@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgamrly3nha51"
-path="res://.godot/imported/e_easternredbud_1_16.png-d6250700310722225a54db7c116d9882.ctex"
+path="res://.godot/imported/e_easternredbud_1_16.png-b85d64b54d95e01e4eb2a8d3cf4369e2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_easternredbud_1_16.png"
-dest_files=["res://.godot/imported/e_easternredbud_1_16.png-d6250700310722225a54db7c116d9882.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_easternredbud_1_16.png"
+dest_files=["res://.godot/imported/e_easternredbud_1_16.png-b85d64b54d95e01e4eb2a8d3cf4369e2.ctex"]
 
 [params]
 

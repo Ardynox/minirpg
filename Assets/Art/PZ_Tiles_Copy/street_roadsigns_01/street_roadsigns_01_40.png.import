@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://r4my4ije47np"
-path="res://.godot/imported/street_roadsigns_01_40.png-236b1129d306ba7daaf251456ab8c584.ctex"
+path="res://.godot/imported/street_roadsigns_01_40.png-faeaf05f688d5a1076c625391676fb2e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/street_roadsigns_01/street_roadsigns_01_40.png"
-dest_files=["res://.godot/imported/street_roadsigns_01_40.png-236b1129d306ba7daaf251456ab8c584.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/street_roadsigns_01/street_roadsigns_01_40.png"
+dest_files=["res://.godot/imported/street_roadsigns_01_40.png-faeaf05f688d5a1076c625391676fb2e.ctex"]
 
 [params]
 

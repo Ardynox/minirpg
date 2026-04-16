@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dspqvtis10jx1"
-path="res://.godot/imported/lighting_outdoor_01_10.png-dcff040f2fc3973c91bf5c79f7c4a1a8.ctex"
+path="res://.godot/imported/lighting_outdoor_01_10.png-3ecafbbd2186dff4e334c876f8d6a918.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/lighting_outdoor_01/lighting_outdoor_01_10.png"
-dest_files=["res://.godot/imported/lighting_outdoor_01_10.png-dcff040f2fc3973c91bf5c79f7c4a1a8.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/lighting_outdoor_01/lighting_outdoor_01_10.png"
+dest_files=["res://.godot/imported/lighting_outdoor_01_10.png-3ecafbbd2186dff4e334c876f8d6a918.ctex"]
 
 [params]
 

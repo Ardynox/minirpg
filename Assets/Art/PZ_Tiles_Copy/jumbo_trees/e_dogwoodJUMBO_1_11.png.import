@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b227ctyypsxsg"
-path="res://.godot/imported/e_dogwoodJUMBO_1_11.png-3ac4f050844695b87bfa3993278d403e.ctex"
+path="res://.godot/imported/e_dogwoodJUMBO_1_11.png-1f15cdffaf7c4592a572845b9a8eba68.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_dogwoodJUMBO_1_11.png"
-dest_files=["res://.godot/imported/e_dogwoodJUMBO_1_11.png-3ac4f050844695b87bfa3993278d403e.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_dogwoodJUMBO_1_11.png"
+dest_files=["res://.godot/imported/e_dogwoodJUMBO_1_11.png-1f15cdffaf7c4592a572845b9a8eba68.ctex"]
 
 [params]
 

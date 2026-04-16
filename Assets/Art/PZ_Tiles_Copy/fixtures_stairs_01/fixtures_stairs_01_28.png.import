@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://jm7q41f11ddq"
-path="res://.godot/imported/fixtures_stairs_01_28.png-502e78464e5b00d39543019586a83dc8.ctex"
+path="res://.godot/imported/fixtures_stairs_01_28.png-424211617ae57d7af0bfb8084c6d1d9a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/fixtures_stairs_01/fixtures_stairs_01_28.png"
-dest_files=["res://.godot/imported/fixtures_stairs_01_28.png-502e78464e5b00d39543019586a83dc8.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/fixtures_stairs_01/fixtures_stairs_01_28.png"
+dest_files=["res://.godot/imported/fixtures_stairs_01_28.png-424211617ae57d7af0bfb8084c6d1d9a.ctex"]
 
 [params]
 

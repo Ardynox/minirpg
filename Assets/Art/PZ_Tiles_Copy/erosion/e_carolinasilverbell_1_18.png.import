@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dn1ewduj0vixq"
-path="res://.godot/imported/e_carolinasilverbell_1_18.png-4d6cd177d8839cf46453566cc6708e85.ctex"
+path="res://.godot/imported/e_carolinasilverbell_1_18.png-66d554f01cf1a2f6ccd45539372de9c9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/e_carolinasilverbell_1_18.png"
-dest_files=["res://.godot/imported/e_carolinasilverbell_1_18.png-4d6cd177d8839cf46453566cc6708e85.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/e_carolinasilverbell_1_18.png"
+dest_files=["res://.godot/imported/e_carolinasilverbell_1_18.png-66d554f01cf1a2f6ccd45539372de9c9.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c4osyepwpdnd2"
-path="res://.godot/imported/e_cockspurhawthornJUMBO_1_7.png-8ff536ef2e6fb316ebff61f6140fb6de.ctex"
+path="res://.godot/imported/e_cockspurhawthornJUMBO_1_7.png-fa46fe7ec91a1df764dc7c42d6f7667e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/jumbo_trees/e_cockspurhawthornJUMBO_1_7.png"
-dest_files=["res://.godot/imported/e_cockspurhawthornJUMBO_1_7.png-8ff536ef2e6fb316ebff61f6140fb6de.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/jumbo_trees/e_cockspurhawthornJUMBO_1_7.png"
+dest_files=["res://.godot/imported/e_cockspurhawthornJUMBO_1_7.png-fa46fe7ec91a1df764dc7c42d6f7667e.ctex"]
 
 [params]
 

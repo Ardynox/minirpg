@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bvfx6a8lmb5fr"
-path="res://.godot/imported/d_streetcracks_1_50.png-eaa3be39607859dec40247ae15a073aa.ctex"
+path="res://.godot/imported/d_streetcracks_1_50.png-a7756c9a5a689a4e3e9ca057339092b7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Art/PZ_Tiles/erosion/d_streetcracks_1_50.png"
-dest_files=["res://.godot/imported/d_streetcracks_1_50.png-eaa3be39607859dec40247ae15a073aa.ctex"]
+source_file="res://Assets/Art/PZ_Tiles_Copy/erosion/d_streetcracks_1_50.png"
+dest_files=["res://.godot/imported/d_streetcracks_1_50.png-a7756c9a5a689a4e3e9ca057339092b7.ctex"]
 
 [params]
 
