@@ -56,17 +56,7 @@ public sealed class ChaseEnemyExecutor : IUtilityExecutor
 				var dz = goDown ? 1 : -1;
 				ClimbingService.MoveActorVertical(state, actor, goDown ? 1 : -1);
 				var result = new ActionExecutionResult { Consumed = true };
-				result.Events.Add(new GameEvent("actor_climbed")
-				{
-					InitiatorId = actor.Id,
-					SourceX = sourceX,
-					SourceY = sourceY,
-					SourceZ = sourceZ,
-					TargetX = sourceX,
-					TargetY = sourceY,
-					TargetZ = sourceZ + dz,
-					Damage = dz,
-				});
+				result.Events.Add(MovementEventFactory.CreateActorClimbed(actor, sourceX, sourceY, sourceZ, sourceZ + dz, dz));
 				return result;
 			}
 		}

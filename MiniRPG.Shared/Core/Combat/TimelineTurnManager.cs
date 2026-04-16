@@ -897,17 +897,7 @@ public static class TimelineTurnManager
 		{
 			player.TickBuffs();
 			ClimbingService.MoveActorVertical(state, player, action.Dz);
-			events.Add(new GameEvent("actor_climbed")
-			{
-				InitiatorId = player.Id,
-				SourceX = x,
-				SourceY = y,
-				SourceZ = z,
-				TargetX = x,
-				TargetY = y,
-				TargetZ = targetZ,
-				Damage = action.Dz,
-			});
+			events.Add(MovementEventFactory.CreateActorClimbed(player, x, y, z, targetZ, action.Dz));
 			return PlayerActionOutcome.ConsumedTurn;
 		}
 
@@ -918,17 +908,7 @@ public static class TimelineTurnManager
 			if (ClimbingService.RollClimbCheck(player, difficulty))
 			{
 				ClimbingService.MoveActorVertical(state, player, action.Dz);
-				events.Add(new GameEvent("actor_climbed")
-				{
-					InitiatorId = player.Id,
-					SourceX = x,
-					SourceY = y,
-					SourceZ = z,
-					TargetX = x,
-					TargetY = y,
-					TargetZ = targetZ,
-					Damage = action.Dz,
-				});
+				events.Add(MovementEventFactory.CreateActorClimbed(player, x, y, z, targetZ, action.Dz));
 			}
 			else
 			{

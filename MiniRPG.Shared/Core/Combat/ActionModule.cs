@@ -43,16 +43,7 @@ public static class ActionModule
 		}
 
 		ActorModule.MoveActor(state, actor.Id, nx, ny);
-		events.Add(new GameEvent("actor_moved")
-		{
-			InitiatorId = actor.Id,
-			SourceX = sourceX,
-			SourceY = sourceY,
-			SourceZ = sourceZ,
-			TargetX = nx,
-			TargetY = ny,
-			TargetZ = sourceZ,
-		});
+		events.Add(MovementEventFactory.CreateActorMoved(actor, sourceX, sourceY, sourceZ, nx, ny));
 		return events;
 	}
 
