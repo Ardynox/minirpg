@@ -19,6 +19,7 @@ public partial class Main
 		_incidentStatistics?.Reset();
 		_relationships?.Reset();
 		_actorMemories?.Reset();
+		_rumorBus?.Reset();
 		_mapRender?.ResetActorMotionState();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)

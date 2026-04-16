@@ -239,11 +239,13 @@ public partial class Main
 		_incidentStatistics = new MiniRPG.Core.Events.IncidentStatistics();
 		_relationships = new MiniRPG.Core.Social.RelationshipModule();
 		_actorMemories = new MiniRPG.Core.Social.ActorMemoryModule();
+		_rumorBus = new MiniRPG.Core.Social.RumorBus();
 		_consequenceRouter = new MiniRPG.Core.Events.GameEventConsequenceRouter(
 			errorSink: message => _log?.Add($"[Consequence] {message}"));
 		_consequenceRouter.Register(_incidentStatistics);
 		_consequenceRouter.Register(_relationships);
 		_consequenceRouter.Register(_actorMemories);
+		_consequenceRouter.Register(_rumorBus);
 		var localBackend = new LocalSessionBackend(_session, _state, Dispatch);
 		localBackend.AttachConsequenceRouter(_consequenceRouter);
 		_sessionBackend = localBackend;
