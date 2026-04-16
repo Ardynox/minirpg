@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
@@ -58,6 +59,16 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		Assert.True(duplicateIds.Length == 0, "Duplicate catalog ids: " + string.Join(", ", duplicateIds));
 		Assert.True(invalidRootPaths.Length == 0, "Catalog entries outside PZ_Tiles_Copy: " + string.Join(", ", invalidRootPaths.Take(20)));
 		Assert.True(missingFiles.Length == 0, "Catalog file path missing on disk: " + string.Join(", ", missingFiles.Take(20)));
+	}
+
+	[Fact]
+	public void PzTilePathUtility_IsPzTilesAssetPath_CoversCopyRoot_LegacyRoot_AndNonPzPaths()
+	{
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png"));
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
+		Assert.False(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/Generated/voxel_tiles/grass_top.png"));
+		Assert.False(PzTilePathUtility.IsPzTilesAssetPath(null));
 	}
 
 	[Fact]
@@ -157,6 +168,75 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		Assert.Equal(expectedTerrainIds.Length, customMappings.Count);
 		foreach (var terrainId in expectedTerrainIds)
 			Assert.True(customMappings.ContainsKey(terrainId), $"TerrainAtlas missing custom mapping for {terrainId}");
+	}
+
+	[Fact]
+	public void VoxelTileMapping_RoundTrips_IsoFlags_Offsets_Heights_AndVisibility()
+	{
+		var document = new VoxelTileMappingDocument
+		{
+			Entries =
+			[
+				new VoxelTileMappingEntry
+				{
+					TerrainId = "test_fixture",
+					Category = "fixture",
+					TopTilePath = "res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png",
+					TopIsIso = true,
+					LeftSideMode = "texture",
+					LeftSideTilePath = "res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_1.png",
+					LeftIsIso = true,
+					RightSideMode = "color",
+					RightSideColor = "#abcdef",
+					RightIsIso = false,
+					TopScaleX = 1.35f,
+					TopScaleY = 0.85f,
+					TopOffsetX = 13f,
+					TopOffsetY = -7f,
+					LeftOffsetX = -12f,
+					LeftOffsetY = 9f,
+					LeftHeight = 144,
+					RightOffsetX = 17f,
+					RightOffsetY = -11f,
+					RightHeight = 156,
+					ShowLeftSide = false,
+					ShowRightSide = true,
+				},
+			],
+		};
+
+		var json = VoxelTileMappingStore.Serialize(document);
+		var roundTripped = JsonSerializer.Deserialize<VoxelTileMappingDocument>(
+			json,
+			new JsonSerializerOptions
+			{
+				PropertyNameCaseInsensitive = true,
+				ReadCommentHandling = JsonCommentHandling.Skip,
+			});
+
+		var entry = Assert.Single(Assert.NotNull(roundTripped).Entries);
+		Assert.Equal("test_fixture", entry.TerrainId);
+		Assert.Equal("fixture", entry.Category);
+		Assert.Equal("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png", entry.TopTilePath);
+		Assert.True(entry.TopIsIso);
+		Assert.Equal("texture", entry.LeftSideMode);
+		Assert.Equal("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_1.png", entry.LeftSideTilePath);
+		Assert.True(entry.LeftIsIso);
+		Assert.Equal("color", entry.RightSideMode);
+		Assert.Equal("#abcdef", entry.RightSideColor);
+		Assert.False(entry.RightIsIso);
+		Assert.Equal(1.35f, entry.TopScaleX);
+		Assert.Equal(0.85f, entry.TopScaleY);
+		Assert.Equal(13f, entry.TopOffsetX);
+		Assert.Equal(-7f, entry.TopOffsetY);
+		Assert.Equal(-12f, entry.LeftOffsetX);
+		Assert.Equal(9f, entry.LeftOffsetY);
+		Assert.Equal(144, entry.LeftHeight);
+		Assert.Equal(17f, entry.RightOffsetX);
+		Assert.Equal(-11f, entry.RightOffsetY);
+		Assert.Equal(156, entry.RightHeight);
+		Assert.False(entry.ShowLeftSide);
+		Assert.True(entry.ShowRightSide);
 	}
 
 	private static bool IsValidExplicitSide(

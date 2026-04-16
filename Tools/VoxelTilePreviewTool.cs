@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
@@ -14,6 +16,7 @@ public partial class VoxelTilePreviewTool : Control
 {
 	private const int BrowserPageSize = 24;
 	private const float PreviewScale = 2.0f;
+	private const string TerrainCategory = "terrain";
 
 	private const float LeftDarken = 0.65f;
 	private const float RightDarken = 0.80f;
@@ -26,6 +29,9 @@ public partial class VoxelTilePreviewTool : Control
 	private const float WallSideEdgeStrength = 0.20f;
 	private const float SolidSideEdgeStrength = 0.12f;
 	private const float NonSolidSideEdgeStrength = 0.06f;
+
+	private static readonly string[] Categories = [TerrainCategory, "fixture", "entity", "item"];
+	private static readonly string[] CategoryLabels = ["地形", "设施", "实体", "物品"];
 
 	private static readonly Dictionary<string, Color> TerrainFallbackColors = new(StringComparer.OrdinalIgnoreCase)
 	{
@@ -71,13 +77,17 @@ public partial class VoxelTilePreviewTool : Control
 	private readonly Dictionary<string, PzTileCatalogEntry> _catalogByPath = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, VoxelTileMappingEntry> _mappings = new(StringComparer.OrdinalIgnoreCase);
 	private readonly List<TerrainDef> _terrains = [];
+	private readonly List<string> _entryIds = [];
 	private readonly List<PzTileCatalogEntry> _filteredEntries = [];
+	private readonly Dictionary<string, Button> _categoryButtons = new(StringComparer.OrdinalIgnoreCase);
 
 	private PzTileCatalogDocument _catalog = new();
+	private string _activeCategory = TerrainCategory;
 	private FaceSlot _activeSlot = FaceSlot.Top;
 	private int _browserPage;
 	private int _selectedTerrainIndex;
 	private bool _isRefreshingUi;
+	private bool _eyedropperMode;
 
 	private ItemList _terrainList = null!;
 	private Label _terrainListSummaryLabel = null!;
@@ -94,8 +104,10 @@ public partial class VoxelTilePreviewTool : Control
 	private Button _nextPageButton = null!;
 	private ColorPickerButton _sideColorPicker = null!;
 	private Button _applyColorButton = null!;
+	private Button _eyedropperButton = null!;
 	private Button _clearSlotButton = null!;
 	private Button _saveButton = null!;
+	private FileDialog _fileDialog = null!;
 
 	private Button _topSlotButton = null!;
 	private Button _leftSlotButton = null!;
@@ -113,18 +125,45 @@ public partial class VoxelTilePreviewTool : Control
 	private Sprite2D _topSprite = null!;
 	private Sprite2D _leftSprite = null!;
 	private Sprite2D _rightSprite = null!;
+	private GuidesDrawNode _guidesNode = null!;
+
+	private HSlider _topScaleXSlider = null!;
+	private HSlider _topScaleYSlider = null!;
+	private HSlider _topOffsetXSlider = null!;
+	private HSlider _topOffsetYSlider = null!;
+	private Label _topScaleXLabel = null!;
+	private Label _topScaleYLabel = null!;
+	private Label _topOffsetXLabel = null!;
+	private Label _topOffsetYLabel = null!;
+	private HSlider _leftOffsetXSlider = null!;
+	private HSlider _leftOffsetYSlider = null!;
+	private HSlider _leftHeightSlider = null!;
+	private Label _leftOffsetXLabel = null!;
+	private Label _leftOffsetYLabel = null!;
+	private Label _leftHeightLabel = null!;
+	private HSlider _rightOffsetXSlider = null!;
+	private HSlider _rightOffsetYSlider = null!;
+	private HSlider _rightHeightSlider = null!;
+	private Label _rightOffsetXLabel = null!;
+	private Label _rightOffsetYLabel = null!;
+	private Label _rightHeightLabel = null!;
+	private CheckBox _showLeftCheck = null!;
+	private CheckBox _showRightCheck = null!;
+	private CheckBox _showGuidesCheck = null!;
 
 	public override void _Ready()
 	{
 		LoadData();
 		BuildUi();
 		RefreshFilterOptions();
-		RefreshBrowser(resetPage: true);
 		RebuildTerrainList();
-		if (_terrains.Count > 0)
+		if (_entryIds.Count > 0)
 			SelectTerrain(0);
 		else
+		{
 			RefreshSelectionState();
+			RefreshBrowser(resetPage: true);
+		}
 	}
 
 	private void BuildUi()
@@ -153,6 +192,18 @@ public partial class VoxelTilePreviewTool : Control
 		BuildLeftPanel(root);
 		BuildCenterPanel(root);
 		BuildRightPanel(root);
+
+		_fileDialog = new FileDialog
+		{
+			FileMode = FileDialog.FileModeEnum.OpenFile,
+			Access = FileDialog.AccessEnum.Resources,
+			Filters = ["*.png ; PNG Images"],
+			Title = "选择贴图",
+			Size = new Vector2I(800, 500),
+		};
+		_fileDialog.FileSelected += OnFileDialogSelected;
+		AddChild(_fileDialog);
+
 		UpdateActiveSlotUi();
 		UpdateSideActionUi();
 	}
@@ -174,10 +225,27 @@ public partial class VoxelTilePreviewTool : Control
 		content.AddThemeConstantOverride("separation", 8);
 		panel.AddChild(content);
 
-		content.AddChild(new Label
+		content.AddChild(new Label { Text = "分类" });
+
+		var categoryRow = new HBoxContainer();
+		categoryRow.AddThemeConstantOverride("separation", 4);
+		content.AddChild(categoryRow);
+
+		for (var i = 0; i < Categories.Length; i++)
 		{
-			Text = "Terrain 映射",
-		});
+			var category = Categories[i];
+			var button = new Button
+			{
+				Text = CategoryLabels[i],
+				ToggleMode = true,
+				ButtonPressed = string.Equals(_activeCategory, category, StringComparison.OrdinalIgnoreCase),
+				CustomMinimumSize = new Vector2(56, 28),
+			};
+			var capturedCategory = category;
+			button.Pressed += () => SwitchCategory(capturedCategory);
+			categoryRow.AddChild(button);
+			_categoryButtons[category] = button;
+		}
 
 		_terrainListSummaryLabel = new Label
 		{
@@ -194,6 +262,13 @@ public partial class VoxelTilePreviewTool : Control
 		};
 		_terrainList.ItemSelected += OnTerrainSelected;
 		content.AddChild(_terrainList);
+
+		var addButton = new Button
+		{
+			Text = "+ 新增",
+		};
+		addButton.Pressed += OnAddNewEntry;
+		content.AddChild(addButton);
 
 		_saveButton = new Button
 		{
@@ -259,6 +334,9 @@ public partial class VoxelTilePreviewTool : Control
 			Size = new Vector2(640, 420),
 		});
 
+		_guidesNode = new GuidesDrawNode { Visible = false };
+		previewRoot.AddChild(_guidesNode);
+
 		_leftSprite = new Sprite2D { Centered = true, Scale = new Vector2(PreviewScale, PreviewScale) };
 		_rightSprite = new Sprite2D { Centered = true, Scale = new Vector2(PreviewScale, PreviewScale) };
 		_topSprite = new Sprite2D { Centered = true, Scale = new Vector2(PreviewScale, PreviewScale) };
@@ -293,12 +371,60 @@ public partial class VoxelTilePreviewTool : Control
 		_applyColorButton.Pressed += ApplyColorToActiveSide;
 		actionRow.AddChild(_applyColorButton);
 
+		_eyedropperButton = new Button
+		{
+			Text = "取色器",
+			ToggleMode = true,
+		};
+		_eyedropperButton.Toggled += on => _eyedropperMode = on;
+		actionRow.AddChild(_eyedropperButton);
+
 		_clearSlotButton = new Button
 		{
 			Text = "清空当前槽位",
 		};
 		_clearSlotButton.Pressed += ClearActiveSlot;
 		actionRow.AddChild(_clearSlotButton);
+
+		var controlsPanel = new VBoxContainer();
+		controlsPanel.AddThemeConstantOverride("separation", 4);
+		content.AddChild(controlsPanel);
+
+		var toggleRow = new HBoxContainer();
+		toggleRow.AddThemeConstantOverride("separation", 12);
+		controlsPanel.AddChild(toggleRow);
+
+		_showLeftCheck = new CheckBox { Text = "显示左侧", ButtonPressed = true };
+		_showLeftCheck.Toggled += _ => OnSideVisibilityChanged();
+		toggleRow.AddChild(_showLeftCheck);
+
+		_showRightCheck = new CheckBox { Text = "显示右侧", ButtonPressed = true };
+		_showRightCheck.Toggled += _ => OnSideVisibilityChanged();
+		toggleRow.AddChild(_showRightCheck);
+
+		_showGuidesCheck = new CheckBox { Text = "辅助线", ButtonPressed = false };
+		_showGuidesCheck.Toggled += on => _guidesNode.Visible = on;
+		toggleRow.AddChild(_showGuidesCheck);
+
+		var resetButton = new Button { Text = "重置参数" };
+		resetButton.Pressed += OnResetParams;
+		toggleRow.AddChild(resetButton);
+
+		controlsPanel.AddChild(new Label { Text = "── 顶面 ──" });
+		(_topScaleXSlider, _topScaleXLabel) = BuildSliderRow(controlsPanel, "顶缩放X", 0.1f, 5.0f, 1.0f, _ => OnTopParamsChanged());
+		(_topScaleYSlider, _topScaleYLabel) = BuildSliderRow(controlsPanel, "顶缩放Y", 0.1f, 5.0f, 1.0f, _ => OnTopParamsChanged());
+		(_topOffsetXSlider, _topOffsetXLabel) = BuildSliderRow(controlsPanel, "顶偏移X", -128f, 128f, 0f, _ => OnTopParamsChanged());
+		(_topOffsetYSlider, _topOffsetYLabel) = BuildSliderRow(controlsPanel, "顶偏移Y", -128f, 128f, 0f, _ => OnTopParamsChanged());
+
+		controlsPanel.AddChild(new Label { Text = "── 左侧面 ──" });
+		(_leftOffsetXSlider, _leftOffsetXLabel) = BuildSliderRow(controlsPanel, "左偏移X", -128f, 128f, 0f, _ => OnLeftSideParamsChanged());
+		(_leftOffsetYSlider, _leftOffsetYLabel) = BuildSliderRow(controlsPanel, "左偏移Y", -128f, 128f, 0f, _ => OnLeftSideParamsChanged());
+		(_leftHeightSlider, _leftHeightLabel) = BuildSliderRow(controlsPanel, "左侧高度", 24f, 256f, VoxelFaceImageUtil.SideFaceHeight, _ => OnLeftSideParamsChanged());
+
+		controlsPanel.AddChild(new Label { Text = "── 右侧面 ──" });
+		(_rightOffsetXSlider, _rightOffsetXLabel) = BuildSliderRow(controlsPanel, "右偏移X", -128f, 128f, 0f, _ => OnRightSideParamsChanged());
+		(_rightOffsetYSlider, _rightOffsetYLabel) = BuildSliderRow(controlsPanel, "右偏移Y", -128f, 128f, 0f, _ => OnRightSideParamsChanged());
+		(_rightHeightSlider, _rightHeightLabel) = BuildSliderRow(controlsPanel, "右侧高度", 24f, 256f, VoxelFaceImageUtil.SideFaceHeight, _ => OnRightSideParamsChanged());
 
 		_globalStatusLabel = new Label
 		{
@@ -441,7 +567,51 @@ public partial class VoxelTilePreviewTool : Control
 		};
 		content.AddChild(metaLabel);
 
+		var browseButton = new Button
+		{
+			Text = "浏览...",
+		};
+		browseButton.Pressed += () =>
+		{
+			SetActiveSlot(slot);
+			_fileDialog.Popup();
+		};
+		content.AddChild(browseButton);
+
 		return (button, preview, titleLabel, metaLabel);
+	}
+
+	private static (HSlider Slider, Label Label) BuildSliderRow(Control parent, string name, float min, float max, float value, Action<float> onChange)
+	{
+		var row = new HBoxContainer();
+		row.AddThemeConstantOverride("separation", 8);
+		parent.AddChild(row);
+
+		var isScale = name.Contains("缩放", StringComparison.Ordinal);
+		var label = new Label
+		{
+			Text = isScale ? $"{name}: {value:F2}" : $"{name}: {value:F0}",
+			CustomMinimumSize = new Vector2(100, 0),
+		};
+		row.AddChild(label);
+
+		var slider = new HSlider
+		{
+			MinValue = min,
+			MaxValue = max,
+			Step = isScale ? 0.05f : 1f,
+			Value = value,
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+			CustomMinimumSize = new Vector2(150, 0),
+		};
+		slider.ValueChanged += v =>
+		{
+			label.Text = isScale ? $"{name}: {v:F2}" : $"{name}: {v:F0}";
+			onChange((float)v);
+		};
+		row.AddChild(slider);
+
+		return (slider, label);
 	}
 
 	private void OnTerrainSelected(long index)
@@ -450,6 +620,192 @@ public partial class VoxelTilePreviewTool : Control
 			return;
 
 		SelectTerrain((int)index);
+	}
+
+	private void SwitchCategory(string category)
+	{
+		if (string.Equals(_activeCategory, category, StringComparison.OrdinalIgnoreCase))
+			return;
+
+		_activeCategory = category;
+		foreach (var pair in _categoryButtons)
+			pair.Value.SetPressedNoSignal(string.Equals(pair.Key, category, StringComparison.OrdinalIgnoreCase));
+
+		_selectedTerrainIndex = 0;
+		RebuildTerrainList();
+		if (_entryIds.Count > 0)
+			SelectTerrain(0);
+		else
+		{
+			RefreshSelectionState();
+			RefreshBrowser(resetPage: true);
+		}
+	}
+
+	private void OnAddNewEntry()
+	{
+		var dialog = new AcceptDialog { Title = "新增条目" };
+		var vbox = new VBoxContainer();
+		dialog.AddChild(vbox);
+
+		vbox.AddChild(new Label { Text = "StringId:" });
+		var idEdit = new LineEdit
+		{
+			PlaceholderText = "例: my_terrain",
+			CustomMinimumSize = new Vector2(250, 0),
+		};
+		vbox.AddChild(idEdit);
+
+		if (string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+		{
+			vbox.AddChild(new HSeparator());
+			vbox.AddChild(new Label { Text = "以下为地形属性 (可选, 留空用默认值)" });
+
+			vbox.AddChild(new Label { Text = "Glyph:" });
+			var glyphEdit = new LineEdit { PlaceholderText = "#", CustomMinimumSize = new Vector2(250, 0) };
+			vbox.AddChild(glyphEdit);
+
+			vbox.AddChild(new Label { Text = "Material:" });
+			var materialEdit = new LineEdit { PlaceholderText = "stone", CustomMinimumSize = new Vector2(250, 0) };
+			vbox.AddChild(materialEdit);
+
+			vbox.AddChild(new Label { Text = "Hardness (0-255):" });
+			var hardnessEdit = new SpinBox { MinValue = 0, MaxValue = 255, Step = 1, Value = 0 };
+			vbox.AddChild(hardnessEdit);
+
+			var solidCheck = new CheckBox { Text = "Solid", ButtonPressed = false };
+			vbox.AddChild(solidCheck);
+
+			dialog.Confirmed += () =>
+			{
+				var newId = idEdit.Text.Trim();
+				if (string.IsNullOrWhiteSpace(newId))
+					return;
+
+				RegisterNewTerrain(
+					newId,
+					string.IsNullOrWhiteSpace(glyphEdit.Text) ? "#" : glyphEdit.Text.Trim(),
+					string.IsNullOrWhiteSpace(materialEdit.Text) ? "stone" : materialEdit.Text.Trim(),
+					(byte)hardnessEdit.Value,
+					solidCheck.ButtonPressed);
+				dialog.QueueFree();
+			};
+		}
+		else
+		{
+			dialog.Confirmed += () =>
+			{
+				var newId = idEdit.Text.Trim();
+				if (string.IsNullOrWhiteSpace(newId))
+					return;
+
+				RegisterNewNonTerrain(newId, _activeCategory);
+				dialog.QueueFree();
+			};
+		}
+
+		dialog.Size = new Vector2I(340, 0);
+		AddChild(dialog);
+		dialog.PopupCentered();
+	}
+
+	private void RegisterNewTerrain(string stringId, string glyph, string material, byte hardness, bool solid)
+	{
+		if (TerrainRegistry.Get(stringId) != null)
+		{
+			_mappingStatusLabel.Text = $"地形 '{stringId}' 已存在";
+			return;
+		}
+
+		ushort nextId = 0;
+		foreach (var terrain in TerrainRegistry.All)
+		{
+			if (terrain != null && terrain.Id >= nextId)
+				nextId = (ushort)(terrain.Id + 1);
+		}
+
+		var terrainDef = new TerrainDef
+		{
+			Id = nextId,
+			StringId = stringId,
+			Glyph = glyph,
+			DefaultHardness = hardness,
+			Solid = solid,
+			Material = material,
+		};
+		TerrainRegistry.Register(terrainDef);
+		SaveTerrainsJson();
+
+		if (!_mappings.ContainsKey(stringId))
+			_mappings[stringId] = new VoxelTileMappingEntry { TerrainId = stringId, Category = TerrainCategory };
+
+		_terrains.Add(terrainDef);
+		_selectedTerrainIndex = 0;
+		_activeCategory = TerrainCategory;
+		foreach (var pair in _categoryButtons)
+			pair.Value.SetPressedNoSignal(string.Equals(pair.Key, TerrainCategory, StringComparison.OrdinalIgnoreCase));
+		RebuildTerrainList();
+		var index = _entryIds.FindIndex(id => string.Equals(id, stringId, StringComparison.OrdinalIgnoreCase));
+		if (index >= 0)
+			SelectTerrain(index);
+	}
+
+	private void RegisterNewNonTerrain(string stringId, string category)
+	{
+		if (_mappings.ContainsKey(stringId))
+		{
+			_mappingStatusLabel.Text = $"'{stringId}' 已存在";
+			return;
+		}
+
+		_mappings[stringId] = new VoxelTileMappingEntry
+		{
+			TerrainId = stringId,
+			Category = category,
+		};
+
+		RebuildTerrainList();
+		var index = _entryIds.FindIndex(id => string.Equals(id, stringId, StringComparison.OrdinalIgnoreCase));
+		if (index >= 0)
+			SelectTerrain(index);
+	}
+
+	private void SaveTerrainsJson()
+	{
+		var terrains = new List<object>();
+		foreach (var terrain in TerrainRegistry.All)
+		{
+			if (terrain == null)
+				continue;
+
+			var payload = new Dictionary<string, object?>
+			{
+				["Id"] = terrain.Id,
+				["StringId"] = terrain.StringId,
+				["Glyph"] = terrain.Glyph,
+				["DefaultHardness"] = terrain.DefaultHardness,
+				["Solid"] = terrain.Solid,
+				["Material"] = terrain.Material,
+			};
+
+			if (terrain.IsOpaque != terrain.Solid)
+				payload["IsOpaque"] = terrain.IsOpaque;
+			if (!string.IsNullOrWhiteSpace(terrain.BreaksInto) && !string.Equals(terrain.BreaksInto, "rubble", StringComparison.OrdinalIgnoreCase))
+				payload["BreaksInto"] = terrain.BreaksInto;
+			if (!string.IsNullOrWhiteSpace(terrain.TopTile))
+				payload["TopTile"] = terrain.TopTile;
+			if (!string.IsNullOrWhiteSpace(terrain.SideTile))
+				payload["SideTile"] = terrain.SideTile;
+
+			terrains.Add(payload);
+		}
+
+		var outputPath = GameDataLocator.GetProjectDataPathOrThrow("terrains.json");
+		var directory = Path.GetDirectoryName(outputPath);
+		if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+			Directory.CreateDirectory(directory);
+
+		File.WriteAllText(outputPath, JsonSerializer.Serialize(terrains, JsonWriteOptions));
 	}
 
 	private void SetActiveSlot(FaceSlot slot)
@@ -563,13 +919,13 @@ public partial class VoxelTilePreviewTool : Control
 			child.QueueFree();
 
 		var selectedTerrain = GetSelectedTerrain();
-		var selectedTerrainName = selectedTerrain == null
-			? "未选中 terrain"
-			: GameLocalizer.LocalizeTerrainName(selectedTerrain.StringId);
+		var selectedTerrainName = selectedTerrain != null
+			? $"{GameLocalizer.LocalizeTerrainName(selectedTerrain.StringId)} ({selectedTerrain.StringId})"
+			: GetSelectedEntryId() ?? "未选中条目";
 		_browserSummaryLabel.Text =
 			$"资源浏览器: {_filteredEntries.Count}/{_catalog.Entries.Count}\n" +
 			$"当前槽位: {GetSlotLabel(_activeSlot)}\n" +
-			$"当前 terrain: {selectedTerrainName}";
+			$"当前条目: {selectedTerrainName}";
 
 		if (_filteredEntries.Count == 0)
 		{
@@ -599,40 +955,82 @@ public partial class VoxelTilePreviewTool : Control
 	{
 		_isRefreshingUi = true;
 		_terrainList.Clear();
-		for (var i = 0; i < _terrains.Count; i++)
+		_entryIds.Clear();
+		if (string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase))
 		{
-			var terrain = _terrains[i];
-			var status = CalculateMappingStatus(terrain.StringId);
-			_terrainList.AddItem(BuildTerrainListLabel(terrain, status));
-			_terrainList.SetItemTooltip(i, $"{GameLocalizer.LocalizeTerrainName(terrain.StringId)}\nstringId: {terrain.StringId}\n状态: {status.DisplayText}");
+			foreach (var terrain in _terrains)
+				_entryIds.Add(terrain.StringId);
+
+			foreach (var extraId in _mappings.Values
+				.Where(static entry => string.Equals(entry.Category, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+				.Select(static entry => entry.TerrainId)
+				.Where(id => !_entryIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+				.OrderBy(static id => id, StringComparer.OrdinalIgnoreCase))
+			{
+				_entryIds.Add(extraId);
+			}
+		}
+		else
+		{
+			_entryIds.AddRange(_mappings.Values
+				.Where(entry => string.Equals(entry.Category, _activeCategory, StringComparison.OrdinalIgnoreCase))
+				.Select(static entry => entry.TerrainId)
+				.OrderBy(static id => id, StringComparer.OrdinalIgnoreCase));
+		}
+
+		for (var i = 0; i < _entryIds.Count; i++)
+		{
+			var entryId = _entryIds[i];
+			var status = CalculateMappingStatus(entryId);
+			if (string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase) && TerrainRegistry.Get(entryId) is { } terrain)
+			{
+				_terrainList.AddItem(BuildTerrainListLabel(terrain, status));
+				_terrainList.SetItemTooltip(i, $"{GameLocalizer.LocalizeTerrainName(terrain.StringId)}\nstringId: {terrain.StringId}\n状态: {status.DisplayText}");
+			}
+			else
+			{
+				_terrainList.AddItem($"{entryId}\n{_activeCategory} · {status.DisplayText}");
+				_terrainList.SetItemTooltip(i, $"stringId: {entryId}\ncategory: {_activeCategory}\n状态: {status.DisplayText}");
+			}
+
 			_terrainList.SetItemCustomFgColor(i, GetTerrainStatusColor(status));
 		}
 
-		if (_terrains.Count > 0)
+		if (_entryIds.Count > 0)
 		{
-			_selectedTerrainIndex = Math.Clamp(_selectedTerrainIndex, 0, _terrains.Count - 1);
+			_selectedTerrainIndex = Math.Clamp(_selectedTerrainIndex, 0, _entryIds.Count - 1);
 			_terrainList.Select(_selectedTerrainIndex);
 		}
 
-		var completed = _terrains.Count(terrain => CalculateMappingStatus(terrain.StringId).IsComplete);
-		var invalid = _terrains.Count(terrain => CalculateMappingStatus(terrain.StringId).HasInvalidReference);
-		_terrainListSummaryLabel.Text =
-			$"terrain 映射: {completed}/{_terrains.Count}\n" +
-			$"失效引用: {invalid}\n" +
-			$"catalog 资源: {_catalog.Entries.Count}";
+		if (string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+		{
+			var completed = _terrains.Count(terrain => CalculateMappingStatus(terrain.StringId).IsComplete);
+			var invalid = _terrains.Count(terrain => CalculateMappingStatus(terrain.StringId).HasInvalidReference);
+			_terrainListSummaryLabel.Text =
+				$"terrain 映射: {completed}/{_terrains.Count}\n" +
+				$"失效引用: {invalid}\n" +
+				$"catalog 资源: {_catalog.Entries.Count}";
+		}
+		else
+		{
+			_terrainListSummaryLabel.Text =
+				$"{_activeCategory} 条目: {_entryIds.Count}\n" +
+				$"已有映射: {_entryIds.Count(id => _mappings.ContainsKey(id))}\n" +
+				$"catalog 资源: {_catalog.Entries.Count}";
+		}
 		_isRefreshingUi = false;
 	}
 
 	private void SelectTerrain(int index)
 	{
-		if (_terrains.Count == 0)
+		if (_entryIds.Count == 0)
 		{
 			_selectedTerrainIndex = 0;
 			RefreshSelectionState();
 			return;
 		}
 
-		_selectedTerrainIndex = Math.Clamp(index, 0, _terrains.Count - 1);
+		_selectedTerrainIndex = Math.Clamp(index, 0, _entryIds.Count - 1);
 		_terrainList.Select(_selectedTerrainIndex);
 		RefreshSelectionState();
 		RefreshBrowser(resetPage: false);
@@ -640,32 +1038,34 @@ public partial class VoxelTilePreviewTool : Control
 
 	private void RefreshSelectionState()
 	{
-		if (_terrains.Count == 0)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 		{
-			_mappingStatusLabel.Text = "没有可编辑的 terrain。";
+			_mappingStatusLabel.Text = $"当前分类: {_activeCategory}\n(无条目)";
 			_globalStatusLabel.Text = "请先加载 terrain 和 catalog 数据。";
-			ApplySlotView(_topSlotPreview, _topSlotTitleLabel, _topSlotMetaLabel, new SlotViewModel("未设置", "无可用 terrain", null));
-			ApplySlotView(_leftSlotPreview, _leftSlotTitleLabel, _leftSlotMetaLabel, new SlotViewModel("未设置", "无可用 terrain", null));
-			ApplySlotView(_rightSlotPreview, _rightSlotTitleLabel, _rightSlotMetaLabel, new SlotViewModel("未设置", "无可用 terrain", null));
+			ApplySlotView(_topSlotPreview, _topSlotTitleLabel, _topSlotMetaLabel, new SlotViewModel("未设置", "无可用条目", null));
+			ApplySlotView(_leftSlotPreview, _leftSlotTitleLabel, _leftSlotMetaLabel, new SlotViewModel("未设置", "无可用条目", null));
+			ApplySlotView(_rightSlotPreview, _rightSlotTitleLabel, _rightSlotMetaLabel, new SlotViewModel("未设置", "无可用条目", null));
+			SyncEditorControls(null);
 			RefreshPreview();
 			return;
 		}
 
-		var terrain = _terrains[_selectedTerrainIndex];
+		var terrain = GetSelectedTerrain();
 		var mapping = GetSelectedMapping();
-		var status = CalculateMappingStatus(terrain.StringId);
-		_mappingStatusLabel.Text =
-			$"{GameLocalizer.LocalizeTerrainName(terrain.StringId)}\n" +
-			$"stringId: {terrain.StringId}\n" +
-			$"状态: {status.DisplayText}";
-		_globalStatusLabel.Text = BuildGlobalStatusText(terrain, mapping, status);
+		var status = CalculateMappingStatus(entryId);
+		_mappingStatusLabel.Text = terrain != null
+			? $"{GameLocalizer.LocalizeTerrainName(terrain.StringId)}\nstringId: {terrain.StringId}\n状态: {status.DisplayText}"
+			: $"{entryId}\ncategory: {_activeCategory}\n状态: {status.DisplayText}";
+		_globalStatusLabel.Text = BuildGlobalStatusText(entryId, terrain, mapping, status);
 
 		ApplySlotView(_topSlotPreview, _topSlotTitleLabel, _topSlotMetaLabel, DescribeSlot(FaceSlot.Top, mapping));
 		ApplySlotView(_leftSlotPreview, _leftSlotTitleLabel, _leftSlotMetaLabel, DescribeSlot(FaceSlot.LeftSide, mapping));
 		ApplySlotView(_rightSlotPreview, _rightSlotTitleLabel, _rightSlotMetaLabel, DescribeSlot(FaceSlot.RightSide, mapping));
 
-		var sideColor = GetPreferredSideColor(mapping, terrain);
+		var sideColor = GetPreferredSideColor(mapping, terrain, entryId);
 		_sideColorPicker.Color = sideColor;
+		SyncEditorControls(mapping);
 		RefreshPreview();
 	}
 
@@ -674,11 +1074,11 @@ public partial class VoxelTilePreviewTool : Control
 		if (_activeSlot == FaceSlot.Top)
 			return;
 
-		var terrain = GetSelectedTerrain();
-		if (terrain == null)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 			return;
 
-		var mapping = EnsureMappingEntry(terrain.StringId);
+		var mapping = EnsureMappingEntry(entryId);
 		var colorHex = ColorToHex(_sideColorPicker.Color);
 		switch (_activeSlot)
 		{
@@ -698,15 +1098,16 @@ public partial class VoxelTilePreviewTool : Control
 
 		RebuildTerrainList();
 		RefreshSelectionState();
+		RefreshBrowser(resetPage: false);
 	}
 
 	private void ClearActiveSlot()
 	{
-		var terrain = GetSelectedTerrain();
-		if (terrain == null)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 			return;
 
-		var mapping = EnsureMappingEntry(terrain.StringId);
+		var mapping = EnsureMappingEntry(entryId);
 		switch (_activeSlot)
 		{
 			case FaceSlot.Top:
@@ -729,6 +1130,177 @@ public partial class VoxelTilePreviewTool : Control
 
 		RebuildTerrainList();
 		RefreshSelectionState();
+		RefreshBrowser(resetPage: false);
+	}
+
+	private void ApplyEyedropperColor(PzTileCatalogEntry catalogEntry)
+	{
+		var image = GetImage(catalogEntry.Path);
+		if (image == null)
+		{
+			_eyedropperMode = false;
+			_eyedropperButton.SetPressedNoSignal(false);
+			return;
+		}
+
+		var centerX = Math.Clamp(image.GetWidth() / 2, 0, image.GetWidth() - 1);
+		var centerY = Math.Clamp(image.GetHeight() / 2, 0, image.GetHeight() - 1);
+		var centerColor = image.GetPixel(centerX, centerY);
+		var sampledColor = centerColor;
+		if (centerColor.A <= 0.01f)
+		{
+			var bestDistance = int.MaxValue;
+			var found = false;
+			for (var y = 0; y < image.GetHeight(); y++)
+			for (var x = 0; x < image.GetWidth(); x++)
+			{
+				var candidate = image.GetPixel(x, y);
+				if (candidate.A <= 0.01f)
+					continue;
+
+				var dx = x - centerX;
+				var dy = y - centerY;
+				var distance = dx * dx + dy * dy;
+				if (distance >= bestDistance)
+					continue;
+
+				bestDistance = distance;
+				sampledColor = candidate;
+				found = true;
+			}
+
+			if (!found)
+				sampledColor = centerColor;
+		}
+
+		_sideColorPicker.Color = sampledColor;
+		if (_activeSlot != FaceSlot.Top)
+			ApplyColorToActiveSide();
+
+		_eyedropperMode = false;
+		_eyedropperButton.SetPressedNoSignal(false);
+	}
+
+	private void OnFileDialogSelected(string path)
+	{
+		if (!string.IsNullOrWhiteSpace(path))
+			ApplyCatalogEntryToActiveSlot(new PzTileCatalogEntry { Path = path });
+	}
+
+	private void OnSideVisibilityChanged()
+	{
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return;
+
+		var mapping = EnsureMappingEntry(entryId);
+		mapping.ShowLeftSide = _showLeftCheck.ButtonPressed;
+		mapping.ShowRightSide = _showRightCheck.ButtonPressed;
+		RebuildTerrainList();
+		RefreshSelectionState();
+	}
+
+	private void OnTopParamsChanged()
+	{
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return;
+
+		var mapping = EnsureMappingEntry(entryId);
+		mapping.TopScaleX = (float)_topScaleXSlider.Value;
+		mapping.TopScaleY = (float)_topScaleYSlider.Value;
+		mapping.TopOffsetX = (float)_topOffsetXSlider.Value;
+		mapping.TopOffsetY = (float)_topOffsetYSlider.Value;
+		RefreshPreview();
+	}
+
+	private void OnLeftSideParamsChanged()
+	{
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return;
+
+		var mapping = EnsureMappingEntry(entryId);
+		mapping.LeftOffsetX = (float)_leftOffsetXSlider.Value;
+		mapping.LeftOffsetY = (float)_leftOffsetYSlider.Value;
+		mapping.LeftHeight = (int)_leftHeightSlider.Value;
+		RefreshPreview();
+	}
+
+	private void OnRightSideParamsChanged()
+	{
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return;
+
+		var mapping = EnsureMappingEntry(entryId);
+		mapping.RightOffsetX = (float)_rightOffsetXSlider.Value;
+		mapping.RightOffsetY = (float)_rightOffsetYSlider.Value;
+		mapping.RightHeight = (int)_rightHeightSlider.Value;
+		RefreshPreview();
+	}
+
+	private void OnResetParams()
+	{
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return;
+
+		var mapping = EnsureMappingEntry(entryId);
+		mapping.TopScaleX = 1.0f;
+		mapping.TopScaleY = 1.0f;
+		mapping.TopOffsetX = 0f;
+		mapping.TopOffsetY = 0f;
+		mapping.LeftOffsetX = 0f;
+		mapping.LeftOffsetY = 0f;
+		mapping.LeftHeight = 0;
+		mapping.RightOffsetX = 0f;
+		mapping.RightOffsetY = 0f;
+		mapping.RightHeight = 0;
+		mapping.ShowLeftSide = true;
+		mapping.ShowRightSide = true;
+		RebuildTerrainList();
+		RefreshSelectionState();
+	}
+
+	private void SyncEditorControls(VoxelTileMappingEntry? mapping)
+	{
+		var topScaleX = mapping?.TopScaleX ?? 1.0f;
+		var topScaleY = mapping?.TopScaleY ?? 1.0f;
+		var topOffsetX = mapping?.TopOffsetX ?? 0f;
+		var topOffsetY = mapping?.TopOffsetY ?? 0f;
+		var leftOffsetX = mapping?.LeftOffsetX ?? 0f;
+		var leftOffsetY = mapping?.LeftOffsetY ?? 0f;
+		var leftHeight = mapping?.LeftHeight ?? 0;
+		var rightOffsetX = mapping?.RightOffsetX ?? 0f;
+		var rightOffsetY = mapping?.RightOffsetY ?? 0f;
+		var rightHeight = mapping?.RightHeight ?? 0;
+		var showLeft = mapping?.ShowLeftSide ?? true;
+		var showRight = mapping?.ShowRightSide ?? true;
+
+		_showLeftCheck.SetPressedNoSignal(showLeft);
+		_showRightCheck.SetPressedNoSignal(showRight);
+		_topScaleXSlider.SetValueNoSignal(topScaleX);
+		_topScaleYSlider.SetValueNoSignal(topScaleY);
+		_topOffsetXSlider.SetValueNoSignal(topOffsetX);
+		_topOffsetYSlider.SetValueNoSignal(topOffsetY);
+		_leftOffsetXSlider.SetValueNoSignal(leftOffsetX);
+		_leftOffsetYSlider.SetValueNoSignal(leftOffsetY);
+		_leftHeightSlider.SetValueNoSignal(leftHeight > 0 ? leftHeight : VoxelFaceImageUtil.SideFaceHeight);
+		_rightOffsetXSlider.SetValueNoSignal(rightOffsetX);
+		_rightOffsetYSlider.SetValueNoSignal(rightOffsetY);
+		_rightHeightSlider.SetValueNoSignal(rightHeight > 0 ? rightHeight : VoxelFaceImageUtil.SideFaceHeight);
+
+		_topScaleXLabel.Text = $"顶缩放X: {topScaleX:F2}";
+		_topScaleYLabel.Text = $"顶缩放Y: {topScaleY:F2}";
+		_topOffsetXLabel.Text = $"顶偏移X: {topOffsetX:F0}";
+		_topOffsetYLabel.Text = $"顶偏移Y: {topOffsetY:F0}";
+		_leftOffsetXLabel.Text = $"左偏移X: {leftOffsetX:F0}";
+		_leftOffsetYLabel.Text = $"左偏移Y: {leftOffsetY:F0}";
+		_leftHeightLabel.Text = $"左侧高度: {(leftHeight > 0 ? leftHeight : VoxelFaceImageUtil.SideFaceHeight):F0}";
+		_rightOffsetXLabel.Text = $"右偏移X: {rightOffsetX:F0}";
+		_rightOffsetYLabel.Text = $"右偏移Y: {rightOffsetY:F0}";
+		_rightHeightLabel.Text = $"右侧高度: {(rightHeight > 0 ? rightHeight : VoxelFaceImageUtil.SideFaceHeight):F0}";
 	}
 
 	private void SaveMappings()
@@ -895,29 +1467,36 @@ public partial class VoxelTilePreviewTool : Control
 
 	private void ApplyCatalogEntryToActiveSlot(PzTileCatalogEntry catalogEntry)
 	{
-		var terrain = GetSelectedTerrain();
-		if (terrain == null)
+		if (_eyedropperMode)
+		{
+			ApplyEyedropperColor(catalogEntry);
+			return;
+		}
+
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 			return;
 
-		var mapping = EnsureMappingEntry(terrain.StringId);
-		var normalizedPath = PzTilePathUtility.NormalizeAssetPath(catalogEntry.Path);
+		var mapping = EnsureMappingEntry(entryId);
+		var normalizedPath = NormalizePath(catalogEntry.Path);
+		var isIso = PzTilePathUtility.IsPzTilesAssetPath(normalizedPath);
 		switch (_activeSlot)
 		{
 			case FaceSlot.Top:
 				mapping.TopTilePath = normalizedPath;
-				mapping.TopIsIso = string.Equals(catalogEntry.Kind, "iso_tile", StringComparison.OrdinalIgnoreCase);
+				mapping.TopIsIso = isIso;
 				break;
 			case FaceSlot.LeftSide:
 				mapping.LeftSideMode = "texture";
 				mapping.LeftSideTilePath = normalizedPath;
 				mapping.LeftSideColor = null;
-				mapping.LeftIsIso = false;
+				mapping.LeftIsIso = isIso;
 				break;
 			case FaceSlot.RightSide:
 				mapping.RightSideMode = "texture";
 				mapping.RightSideTilePath = normalizedPath;
 				mapping.RightSideColor = null;
-				mapping.RightIsIso = false;
+				mapping.RightIsIso = isIso;
 				break;
 		}
 
@@ -929,12 +1508,16 @@ public partial class VoxelTilePreviewTool : Control
 	private VoxelTileMappingEntry EnsureMappingEntry(string terrainId)
 	{
 		if (_mappings.TryGetValue(terrainId, out var existing))
+		{
+			if (string.IsNullOrWhiteSpace(existing.Category))
+				existing.Category = _activeCategory;
 			return existing;
+		}
 
 		var created = new VoxelTileMappingEntry
 		{
 			TerrainId = terrainId,
-			Category = "terrain",
+			Category = _activeCategory,
 		};
 		_mappings[terrainId] = created;
 		return created;
@@ -942,19 +1525,30 @@ public partial class VoxelTilePreviewTool : Control
 
 	private TerrainDef? GetSelectedTerrain()
 	{
-		if (_terrains.Count == 0 || _selectedTerrainIndex < 0 || _selectedTerrainIndex >= _terrains.Count)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
+			return null;
+		if (!string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase))
 			return null;
 
-		return _terrains[_selectedTerrainIndex];
+		return TerrainRegistry.Get(entryId);
 	}
 
 	private VoxelTileMappingEntry? GetSelectedMapping()
 	{
-		var terrain = GetSelectedTerrain();
-		if (terrain == null)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 			return null;
 
-		return _mappings.GetValueOrDefault(terrain.StringId);
+		return _mappings.GetValueOrDefault(entryId);
+	}
+
+	private string? GetSelectedEntryId()
+	{
+		if (_entryIds.Count == 0 || _selectedTerrainIndex < 0 || _selectedTerrainIndex >= _entryIds.Count)
+			return null;
+
+		return _entryIds[_selectedTerrainIndex];
 	}
 
 	private string? GetActiveSlotPath(VoxelTileMappingEntry? entry) => _activeSlot switch
@@ -1038,20 +1632,31 @@ public partial class VoxelTilePreviewTool : Control
 		return false;
 	}
 
-	private string BuildGlobalStatusText(TerrainDef terrain, VoxelTileMappingEntry? mapping, MappingStatus status)
+	private string BuildGlobalStatusText(string entryId, TerrainDef? terrain, VoxelTileMappingEntry? mapping, MappingStatus status)
 	{
 		var top = DescribeSlot(FaceSlot.Top, mapping);
 		var left = DescribeSlot(FaceSlot.LeftSide, mapping);
 		var right = DescribeSlot(FaceSlot.RightSide, mapping);
-		var completed = _terrains.Count(candidate => CalculateMappingStatus(candidate.StringId).IsComplete);
-		var invalid = _terrains.Count(candidate => CalculateMappingStatus(candidate.StringId).HasInvalidReference);
+		if (terrain != null && string.Equals(_activeCategory, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+		{
+			var completed = _terrains.Count(candidate => CalculateMappingStatus(candidate.StringId).IsComplete);
+			var invalid = _terrains.Count(candidate => CalculateMappingStatus(candidate.StringId).HasInvalidReference);
+			return
+				$"顶面: {top.SummaryText}\n" +
+				$"左侧: {left.SummaryText}\n" +
+				$"右侧: {right.SummaryText}\n" +
+				$"当前条目完整: {(status.IsComplete ? "是" : "否")}\n" +
+				$"全局覆盖: terrain 映射 {completed}/{_terrains.Count}，失效引用 {invalid}\n" +
+				$"资源根: {PzTilePathUtility.CopyRoot}";
+		}
+
 		return
+			$"条目: {entryId}\n" +
 			$"顶面: {top.SummaryText}\n" +
 			$"左侧: {left.SummaryText}\n" +
 			$"右侧: {right.SummaryText}\n" +
 			$"当前条目完整: {(status.IsComplete ? "是" : "否")}\n" +
-			$"全局覆盖: terrain 映射 {completed}/{_terrains.Count}，失效引用 {invalid}\n" +
-			$"资源根: {PzTilePathUtility.CopyRoot}";
+			$"当前分类条目数: {_entryIds.Count}";
 	}
 
 	private SlotViewModel DescribeSlot(FaceSlot slot, VoxelTileMappingEntry? mapping)
@@ -1123,7 +1728,7 @@ public partial class VoxelTilePreviewTool : Control
 		metaLabel.Text = viewModel.Subtitle;
 	}
 
-	private Color GetPreferredSideColor(VoxelTileMappingEntry? mapping, TerrainDef terrain)
+	private Color GetPreferredSideColor(VoxelTileMappingEntry? mapping, TerrainDef? terrain, string entryId)
 	{
 		if (_activeSlot == FaceSlot.LeftSide && TryParseColor(mapping?.LeftSideColor, out var leftColor))
 			return leftColor;
@@ -1133,13 +1738,13 @@ public partial class VoxelTilePreviewTool : Control
 			return leftColor;
 		if (TryParseColor(mapping?.RightSideColor, out rightColor))
 			return rightColor;
-		return GetFallbackColor(terrain.StringId);
+		return GetFallbackColor(terrain?.StringId ?? entryId);
 	}
 
 	private void RefreshPreview()
 	{
-		var terrain = GetSelectedTerrain();
-		if (terrain == null)
+		var entryId = GetSelectedEntryId();
+		if (string.IsNullOrWhiteSpace(entryId))
 		{
 			_topSprite.Visible = false;
 			_leftSprite.Visible = false;
@@ -1147,24 +1752,85 @@ public partial class VoxelTilePreviewTool : Control
 			return;
 		}
 
+		var terrain = GetSelectedTerrain();
 		var mapping = GetSelectedMapping();
-		var topTexture = BuildTopPreviewTexture(terrain, mapping);
-		_topSprite.Texture = topTexture;
-		_topSprite.Position = new Vector2(320, 150);
-		_topSprite.Scale = Vector2.One;
-		_topSprite.Visible = topTexture != null;
+		var topScaleX = mapping?.TopScaleX ?? 1.0f;
+		var topScaleY = mapping?.TopScaleY ?? 1.0f;
+		var topOffsetX = mapping?.TopOffsetX ?? 0f;
+		var topOffsetY = mapping?.TopOffsetY ?? 0f;
+		var leftOffsetX = mapping?.LeftOffsetX ?? 0f;
+		var leftOffsetY = mapping?.LeftOffsetY ?? 0f;
+		var rightOffsetX = mapping?.RightOffsetX ?? 0f;
+		var rightOffsetY = mapping?.RightOffsetY ?? 0f;
+		var leftHeight = mapping?.LeftHeight ?? 0;
+		var rightHeight = mapping?.RightHeight ?? 0;
+		var showLeft = mapping?.ShowLeftSide ?? true;
+		var showRight = mapping?.ShowRightSide ?? true;
+		var effectiveLeftHeight = leftHeight > 0 ? leftHeight : VoxelFaceImageUtil.SideFaceHeight;
+		var effectiveRightHeight = rightHeight > 0 ? rightHeight : VoxelFaceImageUtil.SideFaceHeight;
 
-		var leftTexture = BuildSidePreviewTexture(terrain, mapping, isRight: false, out var showLeft);
-		_leftSprite.Texture = leftTexture;
-		_leftSprite.Position = new Vector2(256, 325);
-		_leftSprite.Scale = Vector2.One;
-		_leftSprite.Visible = showLeft && leftTexture != null;
+		var topImage = GetImage(mapping?.TopTilePath);
+		var topIsIso = mapping?.TopIsIso == true || PzTilePathUtility.IsPzTilesAssetPath(mapping?.TopTilePath);
+		if (topImage != null && topIsIso)
+		{
+			_topSprite.Texture = ImageTexture.CreateFromImage(topImage);
+			var fitScale = Math.Min(256f / Math.Max(1, topImage.GetWidth()), 128f / Math.Max(1, topImage.GetHeight()));
+			fitScale = Math.Max(fitScale, PreviewScale);
+			_topSprite.Scale = new Vector2(fitScale * topScaleX, fitScale * topScaleY);
+			_topSprite.Position = new Vector2(320 + topOffsetX, 150 + topOffsetY);
+		}
+		else if (topImage != null)
+		{
+			var topDiamond = VoxelFaceImageUtil.EnhanceTopFaceEdges(
+				VoxelFaceImageUtil.BuildTopDiamond(topImage),
+				terrain != null ? GetTopEdgeStrength(terrain) : NonSolidTopEdgeStrength);
+			_topSprite.Texture = ImageTexture.CreateFromImage(topDiamond);
+			_topSprite.Scale = new Vector2(PreviewScale * topScaleX, PreviewScale * topScaleY);
+			_topSprite.Position = new Vector2(320 + topOffsetX, 150 + topOffsetY);
+		}
+		else
+		{
+			var placeholder = CreateDiamondImage(
+				VoxelFaceImageUtil.TopFaceWidth,
+				VoxelFaceImageUtil.TopFaceHeight,
+				GetFallbackColor(entryId));
+			_topSprite.Texture = ImageTexture.CreateFromImage(placeholder);
+			_topSprite.Scale = new Vector2(PreviewScale * topScaleX, PreviewScale * topScaleY);
+			_topSprite.Position = new Vector2(320 + topOffsetX, 150 + topOffsetY);
+		}
+		_topSprite.Visible = true;
 
-		var rightTexture = BuildSidePreviewTexture(terrain, mapping, isRight: true, out var showRight);
-		_rightSprite.Texture = rightTexture;
-		_rightSprite.Position = new Vector2(384, 325);
-		_rightSprite.Scale = Vector2.One;
-		_rightSprite.Visible = showRight && rightTexture != null;
+		if (showLeft)
+		{
+			var leftImage = ResolveSideSourceImage(entryId, mapping, isRight: false);
+			var darken = terrain != null && IsWallTerrain(terrain) ? WallLeftSideDarken : LeftDarken;
+			var leftFace = VoxelFaceImageUtil.GenerateSideFace(leftImage, false, darken, effectiveLeftHeight);
+			VoxelFaceImageUtil.EnhanceSideFaceEdge(leftFace, false, terrain != null ? GetSideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
+			_leftSprite.Texture = ImageTexture.CreateFromImage(leftFace);
+			_leftSprite.Scale = new Vector2(PreviewScale, PreviewScale);
+			_leftSprite.Position = new Vector2(256 + leftOffsetX, 325 + leftOffsetY);
+			_leftSprite.Visible = true;
+		}
+		else
+		{
+			_leftSprite.Visible = false;
+		}
+
+		if (showRight)
+		{
+			var rightImage = ResolveSideSourceImage(entryId, mapping, isRight: true);
+			var darken = terrain != null && IsWallTerrain(terrain) ? WallRightSideDarken : RightDarken;
+			var rightFace = VoxelFaceImageUtil.GenerateSideFace(rightImage, true, darken, effectiveRightHeight);
+			VoxelFaceImageUtil.EnhanceSideFaceEdge(rightFace, true, terrain != null ? GetSideEdgeStrength(terrain) : NonSolidSideEdgeStrength);
+			_rightSprite.Texture = ImageTexture.CreateFromImage(rightFace);
+			_rightSprite.Scale = new Vector2(PreviewScale, PreviewScale);
+			_rightSprite.Position = new Vector2(384 + rightOffsetX, 325 + rightOffsetY);
+			_rightSprite.Visible = true;
+		}
+		else
+		{
+			_rightSprite.Visible = false;
+		}
 	}
 
 	private Texture2D? BuildTopPreviewTexture(TerrainDef terrain, VoxelTileMappingEntry? mapping)
@@ -1246,6 +1912,24 @@ public partial class VoxelTilePreviewTool : Control
 			VoxelFaceImageUtil.SideTextureWidth,
 			VoxelFaceImageUtil.SideTextureWidth,
 			GetFallbackColor(terrain.StringId));
+	}
+
+	private Image ResolveSideSourceImage(string entryId, VoxelTileMappingEntry? mapping, bool isRight)
+	{
+		var mode = isRight ? mapping?.RightSideMode : mapping?.LeftSideMode;
+		var path = isRight ? mapping?.RightSideTilePath : mapping?.LeftSideTilePath;
+		var colorHex = isRight ? mapping?.RightSideColor : mapping?.LeftSideColor;
+		if (string.Equals(mode, "color", StringComparison.OrdinalIgnoreCase) && TryParseColor(colorHex, out var parsedColor))
+			return CreateSolidImage(VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureWidth, parsedColor);
+
+		var textureImage = GetImage(path);
+		if (textureImage != null)
+			return textureImage;
+
+		return CreateSolidImage(
+			VoxelFaceImageUtil.SideTextureWidth,
+			VoxelFaceImageUtil.SideTextureWidth,
+			GetFallbackColor(entryId));
 	}
 
 	private bool TryGetCatalogEntry(string? path, out PzTileCatalogEntry entry) =>
@@ -1393,6 +2077,12 @@ public partial class VoxelTilePreviewTool : Control
 
 	private static string ColorToHex(Color color) =>
 		$"#{(int)Math.Round(color.R * 255):x2}{(int)Math.Round(color.G * 255):x2}{(int)Math.Round(color.B * 255):x2}";
+
+	private static readonly JsonSerializerOptions JsonWriteOptions = new()
+	{
+		WriteIndented = true,
+		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+	};
 }
 
 internal readonly record struct MappingStatus(bool HasTop, bool HasLeftSide, bool HasRightSide, bool HasInvalidReference)
@@ -1409,3 +2099,40 @@ internal readonly record struct MappingStatus(bool HasTop, bool HasLeftSide, boo
 }
 
 internal readonly record struct SlotViewModel(string Title, string Subtitle, Texture2D? PreviewTexture, string SummaryText = "");
+
+internal partial class GuidesDrawNode : Node2D
+{
+	public override void _Draw()
+	{
+		var guideColor = new Color(0f, 0.9f, 0.9f, 0.35f);
+		var crossColor = new Color(1f, 1f, 1f, 0.2f);
+		const float cx = 320f;
+		const float topCy = 150f;
+		const float halfW = 128f;
+		const float halfH = 64f;
+
+		DrawLine(new Vector2(cx, topCy - halfH), new Vector2(cx + halfW, topCy), guideColor, 1f);
+		DrawLine(new Vector2(cx + halfW, topCy), new Vector2(cx, topCy + halfH), guideColor, 1f);
+		DrawLine(new Vector2(cx, topCy + halfH), new Vector2(cx - halfW, topCy), guideColor, 1f);
+		DrawLine(new Vector2(cx - halfW, topCy), new Vector2(cx, topCy - halfH), guideColor, 1f);
+
+		const float sideH = 176f;
+		var leftTop = new Vector2(cx - halfW, topCy);
+		var leftBottom = new Vector2(cx - halfW, topCy + sideH);
+		var leftMid = new Vector2(cx, topCy + halfH);
+		var leftMidBottom = new Vector2(cx, topCy + halfH + sideH);
+		DrawLine(leftTop, leftBottom, guideColor, 1f);
+		DrawLine(leftMid, leftMidBottom, guideColor, 1f);
+		DrawLine(leftBottom, leftMidBottom, guideColor, 1f);
+
+		var rightTop = new Vector2(cx + halfW, topCy);
+		var rightBottom = new Vector2(cx + halfW, topCy + sideH);
+		var rightMidBottom = new Vector2(cx, topCy + halfH + sideH);
+		DrawLine(rightTop, rightBottom, guideColor, 1f);
+		DrawLine(leftMid, leftMidBottom, guideColor, 1f);
+		DrawLine(rightBottom, rightMidBottom, guideColor, 1f);
+
+		DrawLine(new Vector2(cx - 160, topCy), new Vector2(cx + 160, topCy), crossColor, 1f);
+		DrawLine(new Vector2(cx, topCy - 100), new Vector2(cx, topCy + 300), crossColor, 1f);
+	}
+}

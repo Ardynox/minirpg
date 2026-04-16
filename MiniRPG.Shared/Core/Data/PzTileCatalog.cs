@@ -152,6 +152,23 @@ public static class PzTilePathUtility
 			|| normalized.StartsWith(CopyRoot + "/", StringComparison.OrdinalIgnoreCase);
 	}
 
+	public static bool IsPzTilesAssetPath(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+			return false;
+
+		var normalized = NormalizeAssetPath(path);
+		if (normalized.Equals(CopyRoot, StringComparison.OrdinalIgnoreCase)
+			|| normalized.StartsWith(CopyRoot + "/", StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+
+		var raw = path.Trim().Replace('\\', '/');
+		return raw.Equals(LegacyRoot, StringComparison.OrdinalIgnoreCase)
+			|| raw.StartsWith(LegacyRoot + "/", StringComparison.OrdinalIgnoreCase);
+	}
+
 	public static string? GetCopyRelativePath(string? path)
 	{
 		var normalized = NormalizeAssetPath(path);
