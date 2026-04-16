@@ -90593,20 +90593,20 @@
       "mappingEligible": false
     },
     {
-      "id": "generated__tile_crystal_vein_iso",
-      "path": "res://Assets/Art/PZ_Tiles/generated/tile_crystal_vein_iso.png",
+      "id": "generated__tile_crystal_vein_top",
+      "path": "res://Assets/Art/PZ_Tiles/generated/tile_crystal_vein_top.png",
       "group": "Generated",
-      "originalFileName": "tile_crystal_vein_iso.png",
-      "displayNameZh": "Tile Crystal Vein Iso",
-      "displayNameEn": "Tile Crystal Vein Iso",
+      "originalFileName": "tile_crystal_vein_top.png",
+      "displayNameZh": "Tile Crystal Vein Top",
+      "displayNameEn": "Tile Crystal Vein Top",
       "tags": [
         "crystal",
         "generated",
-        "iso",
         "png",
         "tile",
-        "tile_crystal_vein_iso",
-        "tile_crystal_vein_iso.png",
+        "tile_crystal_vein_top",
+        "tile_crystal_vein_top.png",
+        "top",
         "vein"
       ],
       "usageDomains": [],
@@ -90618,20 +90618,20 @@
       "mappingEligible": false
     },
     {
-      "id": "generated__tile_fungus_iso",
-      "path": "res://Assets/Art/PZ_Tiles/generated/tile_fungus_iso.png",
+      "id": "generated__tile_fungus_top",
+      "path": "res://Assets/Art/PZ_Tiles/generated/tile_fungus_top.png",
       "group": "Generated",
-      "originalFileName": "tile_fungus_iso.png",
-      "displayNameZh": "Tile Fungus Iso",
-      "displayNameEn": "Tile Fungus Iso",
+      "originalFileName": "tile_fungus_top.png",
+      "displayNameZh": "Tile Fungus Top",
+      "displayNameEn": "Tile Fungus Top",
       "tags": [
         "fungus",
         "generated",
-        "iso",
         "png",
         "tile",
-        "tile_fungus_iso",
-        "tile_fungus_iso.png"
+        "tile_fungus_top",
+        "tile_fungus_top.png",
+        "top"
       ],
       "usageDomains": [],
       "usageRoles": [],
@@ -90666,20 +90666,20 @@
       "mappingEligible": false
     },
     {
-      "id": "generated__tile_lava_iso",
-      "path": "res://Assets/Art/PZ_Tiles/generated/tile_lava_iso.png",
+      "id": "generated__tile_lava_top",
+      "path": "res://Assets/Art/PZ_Tiles/generated/tile_lava_top.png",
       "group": "Generated",
-      "originalFileName": "tile_lava_iso.png",
-      "displayNameZh": "Tile Lava Iso",
-      "displayNameEn": "Tile Lava Iso",
+      "originalFileName": "tile_lava_top.png",
+      "displayNameZh": "Tile Lava Top",
+      "displayNameEn": "Tile Lava Top",
       "tags": [
         "generated",
-        "iso",
         "lava",
         "png",
         "tile",
-        "tile_lava_iso",
-        "tile_lava_iso.png"
+        "tile_lava_top",
+        "tile_lava_top.png",
+        "top"
       ],
       "usageDomains": [],
       "usageRoles": [],
@@ -90714,21 +90714,21 @@
       "mappingEligible": false
     },
     {
-      "id": "generated__tile_ore_gold_iso",
-      "path": "res://Assets/Art/PZ_Tiles/generated/tile_ore_gold_iso.png",
+      "id": "generated__tile_ore_gold_top",
+      "path": "res://Assets/Art/PZ_Tiles/generated/tile_ore_gold_top.png",
       "group": "Generated",
-      "originalFileName": "tile_ore_gold_iso.png",
-      "displayNameZh": "Tile Ore Gold Iso",
-      "displayNameEn": "Tile Ore Gold Iso",
+      "originalFileName": "tile_ore_gold_top.png",
+      "displayNameZh": "Tile Ore Gold Top",
+      "displayNameEn": "Tile Ore Gold Top",
       "tags": [
         "generated",
         "gold",
-        "iso",
         "ore",
         "png",
         "tile",
-        "tile_ore_gold_iso",
-        "tile_ore_gold_iso.png"
+        "tile_ore_gold_top",
+        "tile_ore_gold_top.png",
+        "top"
       ],
       "usageDomains": [],
       "usageRoles": [],
