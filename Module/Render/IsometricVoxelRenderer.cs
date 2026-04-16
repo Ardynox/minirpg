@@ -55,8 +55,6 @@ public partial class IsometricVoxelRenderer
 	private const float DefaultRightSideDarken = RightDarken;
 	private const float WallLeftSideDarken = 0.52f;
 	private const float WallRightSideDarken = 0.68f;
-	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
-
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
 	private readonly int _viewW;
@@ -1494,7 +1492,7 @@ public partial class IsometricVoxelRenderer
 	private bool TryCreateVoxelFaceTextures(TerrainDef terrain, out CachedBlockTextures textures)
 	{
 		textures = default;
-		var topPath = ResolveVoxelTopTexturePath(terrain);
+		var topPath = VoxelTilePathResolver.ResolveTopPath(terrain);
 		if (string.IsNullOrWhiteSpace(topPath))
 			return false;
 
@@ -1511,7 +1509,7 @@ public partial class IsometricVoxelRenderer
 		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
 
 		Image sideSourceImage;
-		var sidePath = ResolveVoxelSideTexturePath(terrain);
+		var sidePath = VoxelTilePathResolver.ResolveSidePath(terrain);
 		var sideTexture = string.IsNullOrWhiteSpace(sidePath) ? null : GetOrLoadVoxelFaceTexture(sidePath);
 		if (sideTexture != null)
 			sideSourceImage = ExtractImage(sideTexture) ?? topSourceImage;
@@ -1542,98 +1540,6 @@ public partial class IsometricVoxelRenderer
 		var loaded = GD.Load<Texture2D>(path);
 		_voxelFaceTextureCache[path] = loaded;
 		return loaded;
-	}
-
-	private static readonly Dictionary<string, string> VoxelTileAliases = new(StringComparer.OrdinalIgnoreCase)
-	{
-		["grass_top"] = "tile_grass_top.png",
-		["grass_side"] = "tile_grass_side.png",
-		["dirt"] = "tile_dirt.png",
-		["dirt_side"] = "tile_dirt.png",
-		["soil"] = "tile_dirt.png",
-		["soil_side"] = "tile_dirt.png",
-		["stone"] = "tile_stone.png",
-		["stone_side"] = "tile_stone.png",
-		["sand"] = "tile_sand.png",
-		["sand_side"] = "tile_sand.png",
-		["gravel"] = "tile_gravel.png",
-		["gravel_side"] = "tile_gravel.png",
-		["mud"] = "tile_mud.png",
-		["mud_side"] = "tile_mud.png",
-		["clay"] = "tile_clay.png",
-		["clay_side"] = "tile_clay.png",
-		["snow"] = "tile_snow.png",
-		["snow_side"] = "tile_snow.png",
-		["ash"] = "tile_ash.png",
-		["ash_side"] = "tile_ash.png",
-		["plank"] = "tile_plank.png",
-		["plank_side"] = "tile_plank.png",
-		["log_top"] = "tile_log_top.png",
-		["log_side"] = "tile_log_side.png",
-		["brick"] = "tile_brick.png",
-		["brick_side"] = "tile_brick.png",
-		["brick_mossy"] = "tile_brick_mossy.png",
-		["brick_mossy_side"] = "tile_brick_mossy.png",
-		["brick_cracked"] = "tile_brick_cracked.png",
-		["brick_cracked_side"] = "tile_brick_cracked.png",
-		["ore_coal"] = "ores/tile_stone_ore_coal.png",
-		["ore_iron"] = "ores/tile_stone_ore_iron.png",
-		["ore_copper"] = "ores/tile_stone_ore_copper.png",
-		["ore_gold"] = "ores/tile_stone_ore_gold.png",
-		["ore_crystal"] = "ores/tile_stone_ore_crystal.png",
-		["wall_stone_side"] = "tile_stone.png",
-		["wall_granite_side"] = "tile_stone.png",
-		["wall_obsidian_side"] = "tile_stone.png",
-		["wall_iron_side"] = "tile_stone.png",
-		["mountain_side"] = "tile_stone.png",
-		["rubble"] = "tile_gravel.png",
-		["rubble_side"] = "tile_gravel.png",
-	};
-
-	private static string ResolveVoxelTopTexturePath(TerrainDef terrain)
-	{
-		var token = string.IsNullOrWhiteSpace(terrain.TopTile) ? terrain.StringId : terrain.TopTile;
-		var fileName = ResolveVoxelFileName(token, isTop: true);
-		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
-	}
-
-	private static string ResolveVoxelSideTexturePath(TerrainDef terrain)
-	{
-		var token = string.IsNullOrWhiteSpace(terrain.SideTile) ? terrain.StringId : terrain.SideTile;
-		var fileName = ResolveVoxelFileName(token, isTop: false);
-		return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{VoxelTileRoot}/{fileName}";
-	}
-
-	private static string ResolveVoxelFileName(string token, bool isTop)
-	{
-		if (VoxelTileAliases.TryGetValue(token, out var alias))
-			return alias;
-
-		var inferred = token switch
-		{
-			"grass_block" => isTop ? "tile_grass_top.png" : "tile_grass_side.png",
-			"grass" => isTop ? "tile_grass_top.png" : "tile_grass_side.png",
-			"tree" => "tile_grass_side.png",
-			"fungus" => "tile_grass_side.png",
-			"dirt" => "tile_dirt.png",
-			"swamp" => "tile_dirt.png",
-			"marsh" => "tile_dirt.png",
-			"sand" => "tile_dirt.png",
-			"wall_soil" => "tile_dirt.png",
-			"stone" => "tile_stone.png",
-			"gravel" => "tile_stone.png",
-			"mountain" => "tile_stone.png",
-			"rubble" => "tile_stone.png",
-			"floor" => "tile_stone.png",
-			"wall_stone" => "tile_stone.png",
-			"wall_granite" => "tile_stone.png",
-			"wall_obsidian" => "tile_stone.png",
-			"wall_iron" => "tile_stone.png",
-			"crystal_vein" => "tile_stone.png",
-			_ => string.Empty,
-		};
-
-		return inferred;
 	}
 
 	private static float GetTopEdgeStrength(TerrainDef terrain)

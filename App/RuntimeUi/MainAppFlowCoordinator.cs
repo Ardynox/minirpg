@@ -73,8 +73,7 @@ internal sealed class MainAppFlowCoordinator
 	private WorldLaunchTab _worldManagerTab = WorldLaunchTab.Worlds;
 	private string? _pendingCharacterCreationWorldId;
 	private string? _pendingCharacterCreationWorldName;
-	private string? _worldManagerStatusMessage;
-	private bool _worldManagerStatusIsError;
+	private readonly WorldManagerStatusBanner _statusBanner;
 	private readonly Dictionary<string, Action> _confirmDialogActions = new(StringComparer.Ordinal);
 	private PendingPreparedLoad? _pendingPreparedLoad;
 
@@ -204,6 +203,7 @@ internal sealed class MainAppFlowCoordinator
 		_beginBusyOperation = beginBusyOperation;
 		_showBusyOperationStageAsync = showBusyOperationStageAsync;
 		_endBusyOperation = endBusyOperation;
+		_statusBanner = new WorldManagerStatusBanner(worldManager, session);
 	}
 
 	public void HandleBackToMenu()
@@ -549,7 +549,7 @@ internal sealed class MainAppFlowCoordinator
 		_modalStateController.Prepare(RuntimeUiResetReason.OpenWorldManager);
 		_worldManagerContext = context;
 		_worldManagerTab = initialTab;
-		ClearWorldManagerStatus();
+		_statusBanner.Clear();
 		if (initialTab == WorldLaunchTab.Worlds && string.IsNullOrWhiteSpace(selectedWorldId))
 			(selectedWorldId, selectedCharacterId) = ResolvePreferredWorldManagerSelection();
 		RefreshWorldManagerContents(selectedWorldId, selectedCharacterId);
@@ -580,7 +580,7 @@ internal sealed class MainAppFlowCoordinator
 			_worldManagerTab,
 			selectedWorldId ?? _worldManager.SelectedWorldId,
 			selectedCharacterId ?? _worldManager.SelectedCharacterId);
-		ApplyWorldManagerStatus();
+		_statusBanner.Apply();
 	}
 
 	public void CloseWorldManager()
@@ -609,7 +609,7 @@ internal sealed class MainAppFlowCoordinator
 			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
 		if (world == null)
 		{
-			SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+			_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
 			RefreshWorldManagerContents();
 			return;
 		}
@@ -638,7 +638,7 @@ internal sealed class MainAppFlowCoordinator
 			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
 		if (world == null)
 		{
-			SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_save_data_not_found"), isError: true);
+			_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_not_found"), isError: true);
 			RefreshWorldManagerContents();
 			return;
 		}
@@ -667,7 +667,7 @@ internal sealed class MainAppFlowCoordinator
 			.FirstOrDefault(entry => string.Equals(entry.WorldId, worldId, StringComparison.Ordinal));
 		if (world == null)
 		{
-			SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.clean_assets_not_found"), isError: true);
+			_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_not_found"), isError: true);
 			RefreshWorldManagerContents();
 			return;
 		}
@@ -724,7 +724,7 @@ internal sealed class MainAppFlowCoordinator
 			return;
 
 		_worldManagerContext = WorldManagerContext.MainMenu;
-		ClearWorldManagerStatus();
+		_statusBanner.Clear();
 		var prepared = prepareAction();
 		StartPreparedLoad(
 			prepared,
@@ -765,7 +765,7 @@ internal sealed class MainAppFlowCoordinator
 				clearLogs: _worldManagerContext == WorldManagerContext.MainMenu,
 				onSuccess: recoveredCandidate =>
 				{
-					ClearWorldManagerStatus();
+					_statusBanner.Clear();
 					_refreshPlayerCharacterVisual();
 					_syncSettingsUiState(null);
 					_refreshLocalizedUi(false);
@@ -788,12 +788,12 @@ internal sealed class MainAppFlowCoordinator
 				},
 				onFailure: status =>
 				{
-					SetWorldManagerStatus(BuildLoadFailureMessage(status, label), isError: true);
+					_statusBanner.Set(BuildLoadFailureMessage(status, label), isError: true);
 					LogLoadFailure(status, label);
 				}),
 			onPreviewFailure: status =>
 			{
-				SetWorldManagerStatus(BuildLoadFailureMessage(status, label), isError: true);
+				_statusBanner.Set(BuildLoadFailureMessage(status, label), isError: true);
 				LogLoadFailure(status, label);
 				RefreshWorldManagerContents();
 			});
@@ -941,7 +941,7 @@ internal sealed class MainAppFlowCoordinator
 
 	private void RequestWorldManagerLoad(string targetLabel, Func<PreparedSessionLoad> prepareAction)
 	{
-		ClearWorldManagerStatus();
+		_statusBanner.Clear();
 		if (_worldManagerContext != WorldManagerContext.InGame || !_session.RequiresSwitchConfirmation)
 		{
 			LoadFromWorldManager(targetLabel, prepareAction);
@@ -1005,48 +1005,13 @@ internal sealed class MainAppFlowCoordinator
 		_confirmDialog.Open(title, message, actions, defaultActionIndex);
 	}
 
-	private void SetWorldManagerStatus(string message, bool isError)
-	{
-		_worldManagerStatusMessage = message;
-		_worldManagerStatusIsError = isError;
-		ApplyWorldManagerStatus();
-	}
-
-	private void ClearWorldManagerStatus()
-	{
-		_worldManagerStatusMessage = null;
-		_worldManagerStatusIsError = false;
-		ApplyWorldManagerStatus();
-	}
-
-	private void ApplyWorldManagerStatus()
-	{
-		if (!string.IsNullOrWhiteSpace(_worldManagerStatusMessage))
-		{
-			_worldManager.SetStatusMessage(_worldManagerStatusMessage, _worldManagerStatusIsError);
-			return;
-		}
-
-		if (_session.HasWorldStorageMigrationFailures)
-		{
-			_worldManager.SetStatusMessage(
-				LocalizationService.T(
-					"ui.world_manager.status.migration_warning",
-					("count", _session.WorldStorageMigrationFailureCount)),
-				isError: true);
-			return;
-		}
-
-		_worldManager.SetStatusMessage(null, isError: false);
-	}
-
 	private void DeleteWorldFromManager(string worldId, string worldName)
 	{
 		var status = _session.DeleteWorld(worldId);
 		switch (status)
 		{
 			case WorldDeletionStatus.Success:
-				SetWorldManagerStatus(
+				_statusBanner.Set(
 					LocalizationService.T("ui.world_manager.status.deleted", ("world", worldName)),
 					isError: false);
 				_refreshMainMenuContinueState();
@@ -1054,17 +1019,17 @@ internal sealed class MainAppFlowCoordinator
 				return;
 
 			case WorldDeletionStatus.ActiveWorldLocked:
-				SetWorldManagerStatus(
+				_statusBanner.Set(
 					LocalizationService.T("ui.world_manager.status.delete_current_world_locked"),
 					isError: true);
 				break;
 
 			case WorldDeletionStatus.NotFound:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_not_found"), isError: true);
 				break;
 
 			default:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_failed"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_failed"), isError: true);
 				break;
 		}
 
@@ -1077,7 +1042,7 @@ internal sealed class MainAppFlowCoordinator
 		switch (status)
 		{
 			case WorldSaveDataDeletionStatus.Success:
-				SetWorldManagerStatus(
+				_statusBanner.Set(
 					LocalizationService.T("ui.world_manager.status.delete_save_data_success", ("world", worldName)),
 					isError: false);
 				_refreshMainMenuContinueState();
@@ -1085,15 +1050,15 @@ internal sealed class MainAppFlowCoordinator
 				return;
 
 			case WorldSaveDataDeletionStatus.ActiveWorldLocked:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_save_data_locked"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_locked"), isError: true);
 				break;
 
 			case WorldSaveDataDeletionStatus.NotFound:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_save_data_not_found"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_not_found"), isError: true);
 				break;
 
 			default:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.delete_save_data_failed"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.delete_save_data_failed"), isError: true);
 				break;
 		}
 
@@ -1106,28 +1071,28 @@ internal sealed class MainAppFlowCoordinator
 		switch (status)
 		{
 			case WorldAssetCleanupStatus.Success:
-				SetWorldManagerStatus(
+				_statusBanner.Set(
 					LocalizationService.T("ui.world_manager.status.clean_assets_success", ("world", worldName)),
 					isError: false);
 				RefreshWorldManagerContents(selectedWorldId: worldId, selectedCharacterId: _worldManager.SelectedCharacterId);
 				return;
 
 			case WorldAssetCleanupStatus.NoAssets:
-				SetWorldManagerStatus(
+				_statusBanner.Set(
 					LocalizationService.T("ui.world_manager.status.clean_assets_no_assets", ("world", worldName)),
 					isError: false);
 				break;
 
 			case WorldAssetCleanupStatus.ActiveWorldLocked:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.clean_assets_locked"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_locked"), isError: true);
 				break;
 
 			case WorldAssetCleanupStatus.NotFound:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.clean_assets_not_found"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_not_found"), isError: true);
 				break;
 
 			default:
-				SetWorldManagerStatus(LocalizationService.T("ui.world_manager.status.clean_assets_failed"), isError: true);
+				_statusBanner.Set(LocalizationService.T("ui.world_manager.status.clean_assets_failed"), isError: true);
 				break;
 		}
 

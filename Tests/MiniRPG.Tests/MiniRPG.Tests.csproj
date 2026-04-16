@@ -6,10 +6,13 @@
     <IsPackable>false</IsPackable>
     <UseSystemDrawing>true</UseSystemDrawing>
     <GodotProjectDir>$(MSBuildThisFileDirectory)..\..\</GodotProjectDir>
+    <!-- xUnit 测试程序集不走 Godot 启动，关掉 GodotPluginsInitializer 避免与主程序集 Main 重名（CS0436）。-->
+    <GodotDisabledSourceGenerators>GodotPluginsInitializer</GodotDisabledSourceGenerators>
   </PropertyGroup>
 
   <ItemGroup>
     <CompilerVisibleProperty Include="GodotProjectDir" />
+    <CompilerVisibleProperty Include="GodotDisabledSourceGenerators" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="xunit" Version="2.9.2" />

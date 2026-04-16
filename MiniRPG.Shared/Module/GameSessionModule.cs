@@ -13,6 +13,7 @@ using MiniRPG.Core.Event.Workers;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Session;
 
 namespace MiniRPG.Module;
 
@@ -105,7 +106,7 @@ public class GameSessionModule : IDebugSessionActions
 
 	public WorldManifest CreateWorld(string displayName, WorldSettings? settings = null)
 	{
-		var resolvedSettings = NormalizeWorldSettings(settings ?? WorldSettings.CreateDefault());
+		var resolvedSettings = WorldSessionParameters.Normalize(settings ?? WorldSettings.CreateDefault());
 		return _worldStore.CreateWorld(displayName, resolvedSettings);
 	}
 
@@ -210,8 +211,8 @@ public class GameSessionModule : IDebugSessionActions
 		var canonicalPath = _worldStore.GetCharacterSavePath(worldId, characterId);
 
 		_state.Reset();
-		_state.WorldSeed = NormalizeWorldSettings(manifest.Settings).Seed;
-		_state.GeneratorId = ResolveGeneratorId(manifest.Settings.GeneratorId);
+		_state.WorldSeed = WorldSessionParameters.Normalize(manifest.Settings).Seed;
+		_state.GeneratorId = WorldSessionParameters.NormalizeGeneratorId(manifest.Settings.GeneratorId);
 		_state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
@@ -426,7 +427,7 @@ public class GameSessionModule : IDebugSessionActions
 				("name", DescribeSavePath(CurrentSavePath ?? ManualSavePath))),
 			ActiveSessionKind.PresetScenario => LocalizationService.T(
 				"ui.session_label.scenario",
-				("name", ResolvePresetScenarioDisplayName(CurrentPresetScenarioId))),
+				("name", WorldSessionParameters.ResolvePresetScenarioDisplayName(CurrentPresetScenarioId))),
 			ActiveSessionKind.BlankEditor => LocalizationService.T("ui.session_label.map_editor"),
 			_ => LocalizationService.T("ui.session_label.current_session"),
 		};
@@ -459,7 +460,7 @@ public class GameSessionModule : IDebugSessionActions
 
 	public string BuildPresetScenarioJson(string id)
 	{
-		var normalizedId = NormalizePresetScenarioId(id);
+		var normalizedId = WorldSessionParameters.NormalizePresetScenarioId(id);
 		var saveFile = SaveModule.BuildSnapshot(_state);
 		saveFile.Header.Title = normalizedId;
 		saveFile.Header.SavedAtUtc = PresetScenarioCatalog.ExportTimestamp;
@@ -468,7 +469,7 @@ public class GameSessionModule : IDebugSessionActions
 
 	public string ExportPresetScenario(string id)
 	{
-		var normalizedId = NormalizePresetScenarioId(id);
+		var normalizedId = WorldSessionParameters.NormalizePresetScenarioId(id);
 		var json = BuildPresetScenarioJson(normalizedId);
 		var exportPath = PresetScenarioCatalog.ResolveExportPath(normalizedId);
 		var directory = Path.GetDirectoryName(exportPath);
@@ -932,57 +933,6 @@ public class GameSessionModule : IDebugSessionActions
 		CurrentWorldName = null;
 		CurrentCharacterId = null;
 		CurrentCharacterName = null;
-	}
-
-	private static WorldSettings NormalizeWorldSettings(WorldSettings settings)
-	{
-		var normalized = settings.Clone();
-		if (normalized.Seed == 0)
-			normalized.Seed = System.Environment.TickCount;
-
-		normalized.GeneratorId = ResolveGeneratorId(normalized.GeneratorId);
-		normalized.MonsterDensityPercent = Math.Clamp(normalized.MonsterDensityPercent, 0, 500);
-		normalized.NpcDensityPercent = Math.Clamp(normalized.NpcDensityPercent, 0, 500);
-		normalized.LootAbundancePercent = Math.Clamp(normalized.LootAbundancePercent, 0, 500);
-		normalized.NestIntensityPercent = Math.Clamp(normalized.NestIntensityPercent, 0, 500);
-		normalized.WeatherVolatilityPercent = Math.Clamp(normalized.WeatherVolatilityPercent, 0, 500);
-		normalized.ClimateId = string.IsNullOrWhiteSpace(normalized.ClimateId) ? "temperate" : normalized.ClimateId.Trim();
-		normalized.StartSeasonId = string.IsNullOrWhiteSpace(normalized.StartSeasonId) ? "spring" : normalized.StartSeasonId.Trim();
-		normalized.CivilizationLevelId = string.IsNullOrWhiteSpace(normalized.CivilizationLevelId) ? "frontier" : normalized.CivilizationLevelId.Trim();
-		return normalized;
-	}
-
-	private static string ResolveGeneratorId(string? generatorId)
-	{
-		var normalized = generatorId?.Trim();
-		if (string.IsNullOrWhiteSpace(normalized) || string.Equals(normalized, "blank_floor", StringComparison.Ordinal))
-			return "dwarf_fortress";
-
-		return normalized;
-	}
-
-	private static string ResolvePresetScenarioDisplayName(string? presetScenarioId)
-	{
-		if (!string.IsNullOrWhiteSpace(presetScenarioId)
-			&& PresetScenarioCatalog.TryGet(presetScenarioId, out var scenario))
-		{
-			return LocalizationService.TOrFallback(
-				scenario.DisplayNameKey,
-				GameLocalizer.HumanizeId(scenario.Id));
-		}
-
-		return string.IsNullOrWhiteSpace(presetScenarioId)
-			? LocalizationService.T("ui.common.none")
-			: GameLocalizer.HumanizeId(presetScenarioId);
-	}
-
-	private static string NormalizePresetScenarioId(string id)
-	{
-		var normalized = (id ?? string.Empty).Trim();
-		if (string.IsNullOrWhiteSpace(normalized))
-			throw new ArgumentException("Preset scenario id cannot be empty.", nameof(id));
-
-		return normalized;
 	}
 
 	private static string ResolveUserDataDir()
