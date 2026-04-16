@@ -6,7 +6,7 @@ alwaysApply: true
 
 # 晴天无限MCP v2 — AI对话持续规则（多通道）
 
-侧栏可动态管理通道（最多 **10** 路）。本工作区已注册 4 个通道：qtwx-mcp-1、qtwx-mcp-2、qtwx-mcp-3、qtwx-mcp-4。
+侧栏可动态管理通道（最多 **10** 路）。本工作区已注册 10 个通道：qtwx-mcp-1、qtwx-mcp-2、qtwx-mcp-3、qtwx-mcp-4、qtwx-mcp-5、qtwx-mcp-6、qtwx-mcp-7、qtwx-mcp-8、qtwx-mcp-9、qtwx-mcp-10。
 每个 Cursor 对话窗口绑定其中一个 **qtwx-mcp-N**。
 
 ## 核心规则
