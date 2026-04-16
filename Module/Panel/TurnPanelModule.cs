@@ -22,6 +22,7 @@ public sealed class TurnPanelModule
 	private readonly List<PanelContainer> _queueChipPool = [];
 	private readonly List<RichTextLabel> _queueChipLabels = [];
 	private readonly List<ProgressBar> _queueChipBars = [];
+	private static readonly Color HiddenBarTint = new(1f, 1f, 1f, 0f);
 
 	/// <summary>队列中最多显示的角色数（避免溢出）。</summary>
 	private const int MaxQueueSlots = 8;
@@ -199,9 +200,8 @@ public sealed class TurnPanelModule
 		label.AppendText($"[color={colorHex}]{text}[/color]");
 
 		var bar = _queueChipBars[index];
-		bar.Visible = showBar;
-		if (showBar)
-			bar.Value = Math.Clamp(chargePct, 0f, 1f);
+		bar.Value = Math.Clamp(chargePct, 0f, 1f);
+		bar.SelfModulate = showBar ? Colors.White : HiddenBarTint;
 	}
 
 	private static void ApplyChipStyle(PanelContainer chip, bool isCurrent)
@@ -219,12 +219,9 @@ public sealed class TurnPanelModule
 			ContentMarginRight = 6,
 			ContentMarginTop = 1,
 			ContentMarginBottom = 1,
+			BorderWidthBottom = 2,
+			BorderColor = isCurrent ? UIColors.FocusBorder : Colors.Transparent,
 		};
-		if (isCurrent)
-		{
-			style.BorderWidthBottom = 2;
-			style.BorderColor = UIColors.FocusBorder;
-		}
 
 		chip.AddThemeStyleboxOverride("panel", style);
 	}
@@ -233,7 +230,7 @@ public sealed class TurnPanelModule
 	{
 		var chip = new PanelContainer
 		{
-			CustomMinimumSize = new Vector2(0, 24),
+			CustomMinimumSize = new Vector2(0, 26),
 			Visible = false,
 		};
 		ApplyChipStyle(chip, isCurrent: false);
@@ -258,7 +255,7 @@ public sealed class TurnPanelModule
 			Value = 0.0,
 			ShowPercentage = false,
 			SizeFlagsHorizontal = Control.SizeFlags.Fill,
-			Visible = false,
+			SelfModulate = HiddenBarTint,
 		};
 		var barBg = new StyleBoxFlat
 		{

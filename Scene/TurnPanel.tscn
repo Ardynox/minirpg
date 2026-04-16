@@ -2,7 +2,7 @@
 
 [node name="TurnPanel" type="PanelContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 34)
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
