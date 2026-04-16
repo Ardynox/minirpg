@@ -1,4 +1,6 @@
 using System;
+using MiniRPG.Core.AI;
+using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Module.Render;
 
@@ -37,7 +39,8 @@ public partial class Main
 			gameEvent.TargetY,
 			gameEvent.TargetZ,
 			timingTier,
-			Blocking: true);
+			Blocking: true,
+			DurationSecondsOverride: ResolveActorMotionDurationOverrideSeconds(gameEvent.InitiatorId, timingTier));
 		return true;
 	}
 
@@ -62,5 +65,51 @@ public partial class Main
 
 		timingTier = ActorMotionTimingTier.NpcFast;
 		return true;
+	}
+
+	private float? ResolveActorMotionDurationOverrideSeconds(string actorId, ActorMotionTimingTier timingTier)
+	{
+		if (timingTier != ActorMotionTimingTier.NpcFast)
+			return null;
+
+		var snapshot = TimelineTurnManager.CreateDebugSnapshot(
+			_state,
+			PlayerDead,
+			_watchModeEnabled,
+			includeEntries: false);
+		return ShouldUseNpcRushMotionDuration(
+			_state,
+			actorId,
+			PartyModule.GetActiveActor(_state),
+			_watchModeEnabled,
+			IsMultiplayerSession,
+			snapshot.HasPendingAutoAdvance && !snapshot.IsPlayerTurn,
+			ThreatDetection.HasNearbyThreat)
+			? ActorMotionTiming.NpcRushSeconds
+			: null;
+	}
+
+	internal static bool ShouldUseNpcRushMotionDuration(
+		GameState state,
+		string actorId,
+		Actor? activeActor,
+		bool watchModeEnabled,
+		bool isMultiplayerSession,
+		bool hasAdditionalAutoAdvance,
+		Func<GameState, Actor, int, bool> hasNearbyThreat)
+	{
+		if (string.IsNullOrWhiteSpace(actorId)
+			|| activeActor == null
+			|| watchModeEnabled
+			|| isMultiplayerSession
+			|| !hasAdditionalAutoAdvance)
+		{
+			return false;
+		}
+
+		if (string.Equals(actorId, activeActor.Id, StringComparison.Ordinal))
+			return false;
+
+		return !hasNearbyThreat(state, activeActor, 6);
 	}
 }

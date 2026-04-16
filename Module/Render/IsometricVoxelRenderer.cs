@@ -455,7 +455,7 @@ public partial class IsometricVoxelRenderer
 			request.TargetY,
 			request.TargetZ,
 			_tileAnimationClockSeconds,
-			ActorMotionTiming.ResolveDurationSeconds(request.TimingTier),
+			request.DurationSecondsOverride ?? ActorMotionTiming.ResolveDurationSeconds(request.TimingTier),
 			request.Blocking);
 		UpdateActorMotionFlags();
 	}

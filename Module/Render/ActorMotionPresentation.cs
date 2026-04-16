@@ -12,6 +12,7 @@ internal static class ActorMotionTiming
 	public const float PlayerSlowSeconds = 0.16f;
 	public const float PlayerFastSeconds = 0.11f;
 	public const float NpcFastSeconds = 0.08f;
+	public const float NpcRushSeconds = 0.05f;
 
 	public static ActorMotionTimingTier ResolveManualPlayerTier() => ActorMotionTimingTier.PlayerSlow;
 
@@ -35,4 +36,5 @@ internal readonly record struct ActorMotionPresentationRequest(
 	int TargetY,
 	int TargetZ,
 	ActorMotionTimingTier TimingTier,
-	bool Blocking);
+	bool Blocking,
+	float? DurationSecondsOverride = null);

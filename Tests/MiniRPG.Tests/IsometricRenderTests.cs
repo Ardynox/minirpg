@@ -578,6 +578,30 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_PresentActorMotion_UsesDurationOverrideWhenProvided()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.NpcFast,
+			Blocking: true,
+			DurationSecondsOverride: ActorMotionTiming.NpcRushSeconds));
+		renderer.AdvanceAnimations(ActorMotionTiming.NpcRushSeconds * 0.5d);
+
+		var visual = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.InRange(visual.X, 1.49f, 1.51f);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_TryPickIsometricCell_RuntimeViewUsesCurrentLayerCell()
 	{
 		var world = CreateAirOnlyWorld();

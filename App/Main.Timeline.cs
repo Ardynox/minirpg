@@ -15,11 +15,30 @@ public partial class Main
 		_watchTimer += delta;
 		if (_watchTimer < autoAdvanceIntervalSeconds)
 			return;
-		if (!(_fastTurnModeEnabled && !_watchModeEnabled) && _mapRender?.HasBlockingActorMotion == true)
+		if (ShouldPauseTimelineAutoAdvanceForBlockingMotion(
+			_watchModeEnabled,
+			_fastTurnModeEnabled,
+			_mapRender?.HasBlockingActorMotion == true))
 			return;
 
 		_watchTimer = 0;
 		WatchModeTick();
+	}
+
+	internal static bool ShouldPauseTimelineAutoAdvanceForBlockingMotion(
+		bool watchModeEnabled,
+		bool fastTurnModeEnabled,
+		bool hasBlockingActorMotion)
+	{
+		if (!hasBlockingActorMotion)
+			return false;
+
+		if (watchModeEnabled || !fastTurnModeEnabled)
+			return true;
+
+		// Fast-turn still skips NPC step-by-step presentation, but any blocking
+		// motion that survives into render should remain visible long enough to read.
+		return true;
 	}
 
 	private void ProcessPlayerRestMode()
