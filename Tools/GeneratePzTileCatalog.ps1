@@ -226,7 +226,7 @@ function Get-ExistingCatalogMap {
 			continue
 		}
 
-		$relativePath = $path.Replace('res://Assets/Art/PZ_Tiles_Copy/', '')
+		$relativePath = $path.Replace('res://Assets/Art/PZ_Tiles/', '').Replace('res://Assets/Art/PZ_Tiles_Copy/', '')
 		$relativePath = Get-NormalizedRelativePath $relativePath
 		$map[$relativePath] = $entry
 	}
@@ -560,7 +560,7 @@ foreach ($file in (Get-ChildItem $sourceRoot -Recurse -File -Filter *.png | Sort
 
 	$entries.Add([ordered]@{
 		id = Convert-ToId $relativePath
-		path = "res://Assets/Art/PZ_Tiles_Copy/$relativePath"
+		path = "res://Assets/Art/PZ_Tiles/$relativePath"
 		group = $group
 		originalFileName = $file.Name
 		displayNameZh = $displayNameZh

@@ -3,7 +3,7 @@
     {
       "terrainId": "crystal_vein",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_84",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_84.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_84.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -31,7 +31,7 @@
     {
       "terrainId": "dirt",
       "topCatalogId": "floors__blends_natural_01_64",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_64.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_64.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -59,7 +59,7 @@
     {
       "terrainId": "floor",
       "topCatalogId": "floors__blends_street_01_0",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_0.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_0.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -87,7 +87,7 @@
     {
       "terrainId": "fungus",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_82",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_82.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_82.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -115,7 +115,7 @@
     {
       "terrainId": "grass",
       "topCatalogId": "floors__blends_natural_01_21",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_21.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_21.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -143,7 +143,7 @@
     {
       "terrainId": "grass_block",
       "topCatalogId": "floors__blends_natural_01_22",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_22.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_22.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -171,7 +171,7 @@
     {
       "terrainId": "gravel",
       "topCatalogId": "floors__blends_street_01_64",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_64.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_64.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -199,7 +199,7 @@
     {
       "terrainId": "ice",
       "topCatalogId": "floors__blends_natural_02_0",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_0.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_0.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -227,7 +227,7 @@
     {
       "terrainId": "lava",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_96",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_96.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_96.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -255,7 +255,7 @@
     {
       "terrainId": "marsh",
       "topCatalogId": "floors__blends_natural_01_53",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_53.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_53.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -283,7 +283,7 @@
     {
       "terrainId": "mountain",
       "topCatalogId": "floors__blends_street_01_70",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -311,7 +311,7 @@
     {
       "terrainId": "ore_coal",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_109",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_109.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_109.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -339,7 +339,7 @@
     {
       "terrainId": "ore_copper",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_100",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_100.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_100.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -367,7 +367,7 @@
     {
       "terrainId": "ore_crystal",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_85",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_85.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_85.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -395,7 +395,7 @@
     {
       "terrainId": "ore_gold",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_101",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_101.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_101.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -423,7 +423,7 @@
     {
       "terrainId": "ore_iron",
       "topCatalogId": "floors__blends_natural_02_5",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_5.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_5.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -451,7 +451,7 @@
     {
       "terrainId": "rubble",
       "topCatalogId": "floors_burnt_01__floors_burnt_01_24",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_burnt_01/floors_burnt_01_24.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_burnt_01/floors_burnt_01_24.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -479,7 +479,7 @@
     {
       "terrainId": "sand",
       "topCatalogId": "floors__blends_natural_01_0",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_0.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_0.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -507,7 +507,7 @@
     {
       "terrainId": "snow",
       "topCatalogId": "floors__blends_street_01_101",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_101.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_101.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -535,7 +535,7 @@
     {
       "terrainId": "stone",
       "topCatalogId": "floors__blends_street_01_70",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -563,7 +563,7 @@
     {
       "terrainId": "swamp",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_93",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_93.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_93.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -591,7 +591,7 @@
     {
       "terrainId": "tree",
       "topCatalogId": "floors__blends_natural_01_48",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_48.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_48.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -619,7 +619,7 @@
     {
       "terrainId": "wall_granite",
       "topCatalogId": "floors__blends_street_01_96",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_96.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_96.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -647,7 +647,7 @@
     {
       "terrainId": "wall_iron",
       "topCatalogId": "floors__blends_natural_02_5",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_5.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_5.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -675,7 +675,7 @@
     {
       "terrainId": "wall_obsidian",
       "topCatalogId": "floors_rugs_01__floors_rugs_01_104",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_104.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_104.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -703,7 +703,7 @@
     {
       "terrainId": "wall_soil",
       "topCatalogId": "floors__blends_natural_01_69",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_69.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_69.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -731,7 +731,7 @@
     {
       "terrainId": "wall_stone",
       "topCatalogId": "floors__blends_street_01_70",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -759,7 +759,7 @@
     {
       "terrainId": "water",
       "topCatalogId": "floors__blends_natural_02_6",
-      "topPath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_6.png",
+      "topPath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_6.png",
       "topIsIso": true,
       "topScaleX": 1,
       "topScaleY": 1,
@@ -834,10 +834,10 @@
         "fire_01__fire_01_3"
       ],
       "paths": [
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_0.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_1.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_2.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_3.png"
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_0.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_1.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_2.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_3.png"
       ],
       "scale": {
         "x": 1,
@@ -900,10 +900,10 @@
         "fire_02__fire_02_3"
       ],
       "paths": [
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_0.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_1.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_2.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_3.png"
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_0.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_1.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_2.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_3.png"
       ],
       "scale": {
         "x": 1,
@@ -3824,10 +3824,10 @@
         "fire_03__fire_03_3"
       ],
       "paths": [
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_03/Fire_03_0.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_03/Fire_03_1.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_03/Fire_03_2.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_03/Fire_03_3.png"
+        "res://Assets/Art/PZ_Tiles/Fire_03/Fire_03_0.png",
+        "res://Assets/Art/PZ_Tiles/Fire_03/Fire_03_1.png",
+        "res://Assets/Art/PZ_Tiles/Fire_03/Fire_03_2.png",
+        "res://Assets/Art/PZ_Tiles/Fire_03/Fire_03_3.png"
       ],
       "scale": {
         "x": 1,
@@ -3852,10 +3852,10 @@
         "fire_02__fire_02_3"
       ],
       "paths": [
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_0.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_1.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_2.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_02/Fire_02_3.png"
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_0.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_1.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_2.png",
+        "res://Assets/Art/PZ_Tiles/Fire_02/Fire_02_3.png"
       ],
       "scale": {
         "x": 1,
@@ -3880,10 +3880,10 @@
         "fire_01__fire_01_3"
       ],
       "paths": [
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_0.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_1.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_2.png",
-        "res://Assets/Art/PZ_Tiles_Copy/Fire_01/Fire_01_3.png"
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_0.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_1.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_2.png",
+        "res://Assets/Art/PZ_Tiles/Fire_01/Fire_01_3.png"
       ],
       "scale": {
         "x": 1,

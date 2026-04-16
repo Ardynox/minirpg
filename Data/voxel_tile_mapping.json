@@ -3,7 +3,7 @@
     {
       "terrainId": "crystal_vein",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_84.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_84.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6f7fb1",
@@ -27,7 +27,7 @@
     {
       "terrainId": "dirt",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_64.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_64.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#7a5a32",
@@ -51,7 +51,7 @@
     {
       "terrainId": "floor",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_0.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_0.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#8a8678",
@@ -75,7 +75,7 @@
     {
       "terrainId": "fungus",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_82.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_82.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#695976",
@@ -99,7 +99,7 @@
     {
       "terrainId": "grass",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_21.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_21.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#4a5c2d",
@@ -123,7 +123,7 @@
     {
       "terrainId": "grass_block",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_22.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_22.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6d5c33",
@@ -147,7 +147,7 @@
     {
       "terrainId": "gravel",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_64.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_64.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#80828a",
@@ -171,7 +171,7 @@
     {
       "terrainId": "ice",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_0.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_0.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#8aa4c0",
@@ -195,7 +195,7 @@
     {
       "terrainId": "lava",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_96.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_96.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#b14422",
@@ -219,7 +219,7 @@
     {
       "terrainId": "marsh",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_53.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_53.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6b6e4b",
@@ -243,7 +243,7 @@
     {
       "terrainId": "mountain",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#5c6068",
@@ -267,7 +267,7 @@
     {
       "terrainId": "ore_coal",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_109.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_109.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#3e4046",
@@ -291,7 +291,7 @@
     {
       "terrainId": "ore_copper",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_100.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_100.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#905a44",
@@ -315,7 +315,7 @@
     {
       "terrainId": "ore_crystal",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_85.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_85.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#8d7ab4",
@@ -339,7 +339,7 @@
     {
       "terrainId": "ore_gold",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_101.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_101.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#b69132",
@@ -363,7 +363,7 @@
     {
       "terrainId": "ore_iron",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_5.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_5.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#657583",
@@ -387,7 +387,7 @@
     {
       "terrainId": "rubble",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_burnt_01/floors_burnt_01_24.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_burnt_01/floors_burnt_01_24.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#57504a",
@@ -411,7 +411,7 @@
     {
       "terrainId": "sand",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_0.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_0.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#c7b37a",
@@ -435,7 +435,7 @@
     {
       "terrainId": "snow",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_101.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_101.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#d7d9dd",
@@ -459,7 +459,7 @@
     {
       "terrainId": "stone",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6f7074",
@@ -483,7 +483,7 @@
     {
       "terrainId": "swamp",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_93.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_93.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#5a5f37",
@@ -507,7 +507,7 @@
     {
       "terrainId": "tree",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_48.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_48.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#5a4023",
@@ -531,7 +531,7 @@
     {
       "terrainId": "wall_granite",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_96.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_96.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#777a83",
@@ -555,7 +555,7 @@
     {
       "terrainId": "wall_iron",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_5.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_5.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6f8aa0",
@@ -579,7 +579,7 @@
     {
       "terrainId": "wall_obsidian",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors_rugs_01/floors_rugs_01_104.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors_rugs_01/floors_rugs_01_104.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#2b2731",
@@ -603,7 +603,7 @@
     {
       "terrainId": "wall_soil",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_01_69.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_01_69.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#6e4b2c",
@@ -627,7 +627,7 @@
     {
       "terrainId": "wall_stone",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_street_01_70.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_street_01_70.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#5d6068",
@@ -651,7 +651,7 @@
     {
       "terrainId": "water",
       "category": "terrain",
-      "topTilePath": "res://Assets/Art/PZ_Tiles_Copy/floors/blends_natural_02_6.png",
+      "topTilePath": "res://Assets/Art/PZ_Tiles/floors/blends_natural_02_6.png",
       "topIsIso": true,
       "leftSideMode": "color",
       "leftSideColor": "#3b6690",

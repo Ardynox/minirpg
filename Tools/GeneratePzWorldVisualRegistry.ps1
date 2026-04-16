@@ -25,8 +25,8 @@ function Normalize-ResPath {
 		$normalized = "res://$normalized"
 	}
 
-	if ($normalized.StartsWith('res://Assets/Art/PZ_Tiles/', [System.StringComparison]::OrdinalIgnoreCase)) {
-		return 'res://Assets/Art/PZ_Tiles_Copy' + $normalized.Substring('res://Assets/Art/PZ_Tiles'.Length)
+	if ($normalized.StartsWith('res://Assets/Art/PZ_Tiles_Copy/', [System.StringComparison]::OrdinalIgnoreCase)) {
+		return 'res://Assets/Art/PZ_Tiles' + $normalized.Substring('res://Assets/Art/PZ_Tiles_Copy'.Length)
 	}
 
 	return $normalized
@@ -300,7 +300,7 @@ $catalogByRelativePath = @{}
 foreach ($entry in $catalog.entries) {
 	$normalizedPath = Normalize-ResPath ([string]$entry.path)
 	$catalogByPath[$normalizedPath] = $entry
-	$relativePath = $normalizedPath.Substring('res://Assets/Art/PZ_Tiles_Copy/'.Length)
+	$relativePath = $normalizedPath.Substring('res://Assets/Art/PZ_Tiles/'.Length)
 	$catalogByRelativePath[$relativePath] = $entry
 }
 
@@ -667,8 +667,8 @@ $compatTileMapping = [ordered]@{
 	}
 	fixture = [ordered]@{}
 	item = [ordered]@{
-		container = (Normalize-ResPath 'res://Assets/Art/PZ_Tiles_Copy/furniture_storage_01/furniture_storage_01_10.png')
-		drop = (Normalize-ResPath 'res://Assets/Art/PZ_Tiles_Copy/stashes_01/stashes_01_17.png')
+		container = (Normalize-ResPath 'res://Assets/Art/PZ_Tiles/furniture_storage_01/furniture_storage_01_10.png')
+		drop = (Normalize-ResPath 'res://Assets/Art/PZ_Tiles/stashes_01/stashes_01_17.png')
 	}
 }
 $compatTileMapping.terrain['void'] = 'BLACK TILE'

@@ -84,7 +84,7 @@ public sealed class ItemWorldRenderRegistryTests
 
 		Assert.True(registry.TryResolve("generator", "misc", out var spec));
 		Assert.Equal(ItemWorldRenderKind.CatalogTexture, spec.Kind);
-		Assert.StartsWith("res://Assets/Art/PZ_Tiles_Copy/", spec.Value, StringComparison.OrdinalIgnoreCase);
+		Assert.StartsWith("res://Assets/Art/PZ_Tiles/", spec.Value, StringComparison.OrdinalIgnoreCase);
 		Assert.EndsWith(".png", spec.Value, StringComparison.OrdinalIgnoreCase);
 		Assert.Equal(new Vector2(0.5f, 0.5f), spec.Scale);
 	}

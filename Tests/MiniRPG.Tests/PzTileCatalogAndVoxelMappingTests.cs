@@ -15,12 +15,12 @@ namespace MiniRPG.Tests;
 public sealed class PzTileCatalogAndVoxelMappingTests
 {
 	[Fact]
-	public void PzTileCatalog_CoversEveryPngUnderCopyRoot()
+	public void PzTileCatalog_CoversEveryPngUnderRoot()
 	{
 		var catalog = PzTileCatalogStore.Load();
 		var repoRoot = GetRepoRoot();
-		var copyRoot = Path.Combine(repoRoot, "Assets", "Art", "PZ_Tiles_Copy");
-		var expectedPaths = Directory.EnumerateFiles(copyRoot, "*.png", SearchOption.AllDirectories)
+		var pzTilesRoot = Path.Combine(repoRoot, "Assets", "Art", "PZ_Tiles");
+		var expectedPaths = Directory.EnumerateFiles(pzTilesRoot, "*.png", SearchOption.AllDirectories)
 			.Select(path => ToResPath(repoRoot, path))
 			.Select(PzTilePathUtility.NormalizeAssetPath)
 			.OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
@@ -39,7 +39,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 	}
 
 	[Fact]
-	public void PzTileCatalog_UsesUniqueIds_ExistingPaths_AndCopyRootOnly()
+	public void PzTileCatalog_UsesUniqueIds_ExistingPaths_AndRootOnly()
 	{
 		var catalog = PzTileCatalogStore.Load();
 		var duplicateIds = catalog.Entries
@@ -49,7 +49,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 			.ToArray();
 		var invalidRootPaths = catalog.Entries
 			.Select(static entry => entry.Path)
-			.Where(path => !PzTilePathUtility.IsUnderCopyRoot(path))
+			.Where(path => !PzTilePathUtility.IsUnderRoot(path))
 			.ToArray();
 		var missingFiles = catalog.Entries
 			.Select(static entry => entry.Path)
@@ -57,7 +57,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 			.ToArray();
 
 		Assert.True(duplicateIds.Length == 0, "Duplicate catalog ids: " + string.Join(", ", duplicateIds));
-		Assert.True(invalidRootPaths.Length == 0, "Catalog entries outside PZ_Tiles_Copy: " + string.Join(", ", invalidRootPaths.Take(20)));
+		Assert.True(invalidRootPaths.Length == 0, "Catalog entries outside PZ_Tiles root: " + string.Join(", ", invalidRootPaths.Take(20)));
 		Assert.True(missingFiles.Length == 0, "Catalog file path missing on disk: " + string.Join(", ", missingFiles.Take(20)));
 	}
 
@@ -94,11 +94,11 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 	}
 
 	[Fact]
-	public void PzTilePathUtility_IsPzTilesAssetPath_CoversCopyRoot_LegacyRoot_AndNonPzPaths()
+	public void PzTilePathUtility_IsPzTilesAssetPath_CoversRoot_LegacyCopyRoot_AndNonPzPaths()
 	{
-		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
 		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png"));
-		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("Assets/Art/PZ_Tiles/overlays/trash_01_0.png"));
 		Assert.False(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/Generated/voxel_tiles/grass_top.png"));
 		Assert.False(PzTilePathUtility.IsPzTilesAssetPath(null));
 	}
@@ -129,7 +129,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 	}
 
 	[Fact]
-	public void VoxelTileMapping_UsesCatalogBackedTopTiles_ExplicitSides_AndNoLegacyRootPaths()
+	public void VoxelTileMapping_UsesCatalogBackedTopTiles_ExplicitSides_AndNoLegacyCopyPaths()
 	{
 		TestSupport.EnsureGameplayDataLoaded();
 
@@ -147,7 +147,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 			if (!string.IsNullOrWhiteSpace(entry.TopTilePath))
 			{
 				var normalizedTop = PzTilePathUtility.NormalizeAssetPath(entry.TopTilePath);
-				if (normalizedTop.Contains("/PZ_Tiles/", StringComparison.OrdinalIgnoreCase))
+				if (normalizedTop.Contains("/PZ_Tiles_Copy/", StringComparison.OrdinalIgnoreCase))
 					legacyPaths.Add($"{entry.TerrainId}: {entry.TopTilePath}");
 				if (!catalogPaths.Contains(normalizedTop))
 					missingTopPaths.Add($"{entry.TerrainId}: {normalizedTop}");
@@ -164,7 +164,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 
 			foreach (var path in EnumerateTilePaths(entry))
 			{
-				if (path.Contains("/PZ_Tiles/", StringComparison.OrdinalIgnoreCase))
+				if (path.Contains("/PZ_Tiles_Copy/", StringComparison.OrdinalIgnoreCase))
 					legacyPaths.Add($"{entry.TerrainId}: {path}");
 			}
 		}
@@ -172,7 +172,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		Assert.True(missingTopPaths.Count == 0, "Mapping topTilePath not found in catalog: " + string.Join(" | ", missingTopPaths));
 		Assert.True(invalidLeftSides.Count == 0, "Invalid left side mapping: " + string.Join(" | ", invalidLeftSides));
 		Assert.True(invalidRightSides.Count == 0, "Invalid right side mapping: " + string.Join(" | ", invalidRightSides));
-		Assert.True(legacyPaths.Count == 0, "Legacy PZ_Tiles path remains: " + string.Join(" | ", legacyPaths));
+		Assert.True(legacyPaths.Count == 0, "Legacy PZ_Tiles_Copy path remains: " + string.Join(" | ", legacyPaths));
 	}
 
 	[Fact]
@@ -250,10 +250,10 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		var entry = Assert.Single(roundTripped!.Entries);
 		Assert.Equal("test_fixture", entry.TerrainId);
 		Assert.Equal("fixture", entry.Category);
-		Assert.Equal("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png", entry.TopTilePath);
+		Assert.Equal("res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png", entry.TopTilePath);
 		Assert.True(entry.TopIsIso);
 		Assert.Equal("texture", entry.LeftSideMode);
-		Assert.Equal("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_1.png", entry.LeftSideTilePath);
+		Assert.Equal("res://Assets/Art/PZ_Tiles/overlays/trash_01_1.png", entry.LeftSideTilePath);
 		Assert.True(entry.LeftIsIso);
 		Assert.Equal("color", entry.RightSideMode);
 		Assert.Equal("#abcdef", entry.RightSideColor);
@@ -351,9 +351,9 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		Assert.Equal(expectedTerrainIds, terrainIds);
 		Assert.All(generated.Entries, static entry =>
 		{
-			Assert.DoesNotContain("/PZ_Tiles/", entry.TopTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-			Assert.DoesNotContain("/PZ_Tiles/", entry.LeftSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-			Assert.DoesNotContain("/PZ_Tiles/", entry.RightSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+			Assert.DoesNotContain("/PZ_Tiles_Copy/", entry.TopTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+			Assert.DoesNotContain("/PZ_Tiles_Copy/", entry.LeftSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+			Assert.DoesNotContain("/PZ_Tiles_Copy/", entry.RightSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 		});
 	}
 

@@ -1895,7 +1895,7 @@ public partial class VoxelTilePreviewTool : Control
 				$"右侧: {right.SummaryText}\n" +
 				$"当前条目完整: {(status.IsComplete ? "是" : "否")}\n" +
 				$"全局覆盖: terrain 映射 {completed}/{_terrains.Count}，失效引用 {invalid}\n" +
-				$"资源根: {PzTilePathUtility.CopyRoot}";
+				$"资源根: {PzTilePathUtility.Root}";
 		}
 
 		return

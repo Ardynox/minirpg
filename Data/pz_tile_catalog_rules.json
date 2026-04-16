@@ -1,5 +1,5 @@
 {
-  "sourceRoot": "Assets/Art/PZ_Tiles_Copy",
+  "sourceRoot": "Assets/Art/PZ_Tiles",
   "outputPath": "Data/pz_tile_catalog.json",
   "renamePlanCsvPaths": [
     "Assets/Art/PZ_Tiles/rename_plan.csv"
