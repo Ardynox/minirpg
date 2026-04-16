@@ -75,6 +75,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MenuModule _menu = null!;
 	private MiniRPG.Core.Events.GameEventConsequenceRouter _consequenceRouter = null!;
 	private MiniRPG.Core.Events.IncidentStatistics _incidentStatistics = null!;
+	private MiniRPG.Core.Social.RelationshipModule _relationships = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
 
