@@ -18,6 +18,7 @@ public partial class Main
 		OnSessionStartedAudio();
 		_incidentStatistics?.Reset();
 		_relationships?.Reset();
+		_actorMemories?.Reset();
 		_mapRender?.ResetActorMotionState();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)
