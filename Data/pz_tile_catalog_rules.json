@@ -1,0 +1,642 @@
+{
+  "sourceRoot": "Assets/Art/PZ_Tiles_Copy",
+  "outputPath": "Data/pz_tile_catalog.json",
+  "renamePlanCsvPaths": [
+    "Assets/Art/PZ_Tiles/rename_plan.csv"
+  ],
+  "directoryRules": [
+    {
+      "directory": "floors",
+      "group": "PZ 地表混合",
+      "groupEn": "PZ Floor Blends",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["pz", "terrain", "floor", "blend"]
+    },
+    {
+      "directory": "floors_burnt_01",
+      "group": "烧毁地面",
+      "groupEn": "Burnt Floors",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["pz", "terrain", "burnt", "floor"]
+    },
+    {
+      "directory": "floors_exterior_natural_01",
+      "group": "自然地表边角",
+      "groupEn": "Natural Ground Edges",
+      "kind": "iso_piece",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "terrain", "ground", "natural", "edge"]
+    },
+    {
+      "directory": "floors_interior_tilesandwood_01",
+      "group": "室内地板与木板",
+      "groupEn": "Interior Tiles And Wood",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["pz", "floor", "interior", "wood", "tile"]
+    },
+    {
+      "directory": "floors_rugs_01",
+      "group": "地毯铺面",
+      "groupEn": "Rug Floors",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["pz", "floor", "rug", "interior"]
+    },
+    {
+      "directory": "overlays",
+      "group": "叠加覆盖",
+      "groupEn": "Overlay Details",
+      "kind": "overlay",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "overlay"]
+    },
+    {
+      "directory": "erosion",
+      "group": "侵蚀环境",
+      "groupEn": "Erosion Details",
+      "kind": "overlay",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "erosion"]
+    },
+    {
+      "directory": "Fire_01",
+      "group": "小型火焰",
+      "groupEn": "Small Fire",
+      "kind": "effect",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["pz", "effect", "fire"]
+    },
+    {
+      "directory": "Fire_02",
+      "group": "中型火焰",
+      "groupEn": "Medium Fire",
+      "kind": "effect",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["pz", "effect", "fire"]
+    },
+    {
+      "directory": "Fire_03",
+      "group": "大型火焰",
+      "groupEn": "Large Fire",
+      "kind": "effect",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["pz", "effect", "fire"]
+    },
+    {
+      "directory": "trash_01",
+      "group": "垃圾与废弃物",
+      "groupEn": "Trash And Debris",
+      "kind": "sprite",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["pz", "trash", "debris"]
+    },
+    {
+      "directory": "security_01",
+      "group": "安防设备",
+      "groupEn": "Security Equipment",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "security"]
+    },
+    {
+      "directory": "stashes_01",
+      "group": "藏匿点物资",
+      "groupEn": "Stash Supplies",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "stash"]
+    },
+    {
+      "directory": "recreational_01",
+      "group": "娱乐设施",
+      "groupEn": "Recreational Equipment",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "recreational"]
+    },
+    {
+      "directory": "carpentry_01",
+      "group": "木工搭建",
+      "groupEn": "Carpentry Constructions",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "carpentry"]
+    },
+    {
+      "directory": "constructedobjects_01",
+      "group": "建造物件",
+      "groupEn": "Constructed Objects",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["pz", "constructed"]
+    },
+    {
+      "directory": "appliances_misc_01",
+      "group": "杂项家电",
+      "groupEn": "Misc Appliances",
+      "kind": "sprite",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["pz", "appliance", "misc"]
+    }
+  ],
+  "prefixRules": [
+    {
+      "directory": "floors",
+      "prefix": "blends_natural_01_",
+      "group": "自然地表混合",
+      "groupEn": "Natural Ground Blends",
+      "displayNameZhBase": "自然地表",
+      "displayNameEnBase": "Natural Ground",
+      "kind": "iso_tile",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ground", "natural", "blend"]
+    },
+    {
+      "directory": "floors",
+      "prefix": "blends_natural_02_",
+      "group": "寒霜地表混合",
+      "groupEn": "Cold Ground Blends",
+      "displayNameZhBase": "寒霜地表",
+      "displayNameEnBase": "Cold Ground",
+      "kind": "iso_tile",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ground", "cold", "ice", "blend"]
+    },
+    {
+      "directory": "floors",
+      "prefix": "blends_street_01_",
+      "group": "街道石地混合",
+      "groupEn": "Street Stone Blends",
+      "displayNameZhBase": "街道石地",
+      "displayNameEnBase": "Street Stone",
+      "kind": "iso_tile",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "street", "stone", "blend"]
+    },
+    {
+      "directory": "floors",
+      "prefix": "floors_interior_carpet_01_",
+      "group": "室内地毯",
+      "groupEn": "Interior Carpet",
+      "displayNameZhBase": "室内地毯",
+      "displayNameEnBase": "Interior Carpet",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["floor", "interior", "carpet"]
+    },
+    {
+      "directory": "floors",
+      "prefix": "floors_interior_tilesandwood_01_",
+      "group": "室内砖木地板",
+      "groupEn": "Interior Tile And Wood Floors",
+      "displayNameZhBase": "室内砖木地板",
+      "displayNameEnBase": "Interior Tile And Wood Floor",
+      "kind": "iso_tile",
+      "confidence": "medium",
+      "mappingEligible": true,
+      "tags": ["floor", "interior", "tile", "wood"]
+    },
+    {
+      "directory": "floors",
+      "prefix": "floors_rugs_01_",
+      "group": "地毯铺面",
+      "groupEn": "Rug Floors",
+      "displayNameZhBase": "地毯铺面",
+      "displayNameEnBase": "Rug Floor",
+      "kind": "iso_tile",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["floor", "rug", "interior"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "appliances_cooking_ON_01_",
+      "group": "烹饪加热覆盖",
+      "groupEn": "Cooking Heat Overlays",
+      "displayNameZhBase": "烹饪加热覆盖",
+      "displayNameEnBase": "Cooking Heat Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "appliance", "cooking", "heat"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "floors_overlay_street_01_",
+      "group": "街道裂纹覆盖",
+      "groupEn": "Street Crack Overlays",
+      "displayNameZhBase": "街道裂纹覆盖",
+      "displayNameEnBase": "Street Crack Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "street", "crack"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "floors_overlay_tiles_01_",
+      "group": "瓷砖裂纹覆盖",
+      "groupEn": "Tile Crack Overlays",
+      "displayNameZhBase": "瓷砖裂纹覆盖",
+      "displayNameEnBase": "Tile Crack Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "tile", "crack"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "floors_overlay_tiles_02_",
+      "group": "瓷砖重裂覆盖",
+      "groupEn": "Heavy Tile Crack Overlays",
+      "displayNameZhBase": "瓷砖重裂覆盖",
+      "displayNameEnBase": "Heavy Tile Crack Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "tile", "crack"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "floors_overlay_wood_01_",
+      "group": "木地板磨损覆盖",
+      "groupEn": "Wood Floor Wear Overlays",
+      "displayNameZhBase": "木地板磨损覆盖",
+      "displayNameEnBase": "Wood Floor Wear Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wood", "floor", "wear"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "walls_house_blocks_01_",
+      "group": "块墙裂缝覆盖",
+      "groupEn": "Block Wall Crack Overlays",
+      "displayNameZhBase": "块墙裂缝覆盖",
+      "displayNameEnBase": "Block Wall Crack Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wall", "block", "crack"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "walls_house_brick_01_",
+      "group": "砖墙裂缝覆盖",
+      "groupEn": "Brick Wall Crack Overlays",
+      "displayNameZhBase": "砖墙裂缝覆盖",
+      "displayNameEnBase": "Brick Wall Crack Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wall", "brick", "crack"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "walls_house_smooth_01_",
+      "group": "平整墙面裂纹覆盖",
+      "groupEn": "Smooth Wall Overlays",
+      "displayNameZhBase": "平整墙面裂纹覆盖",
+      "displayNameEnBase": "Smooth Wall Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wall", "smooth"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "walls_house_stone_01_",
+      "group": "自然石墙裂纹覆盖",
+      "groupEn": "Stone Wall Overlays",
+      "displayNameZhBase": "自然石墙裂纹覆盖",
+      "displayNameEnBase": "Stone Wall Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wall", "stone"]
+    },
+    {
+      "directory": "overlays",
+      "prefix": "walls_house_wood_01_",
+      "group": "木墙裂纹覆盖",
+      "groupEn": "Wood Wall Overlays",
+      "displayNameZhBase": "木墙裂纹覆盖",
+      "displayNameEnBase": "Wood Wall Overlay",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["overlay", "wall", "wood"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "d_floorleaves_1_",
+      "group": "落叶覆盖",
+      "groupEn": "Floor Leaves",
+      "displayNameZhBase": "落叶覆盖",
+      "displayNameEnBase": "Floor Leaves",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "leaf", "floor"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "d_streetcracks_1_",
+      "group": "街道裂缝侵蚀",
+      "groupEn": "Street Cracks",
+      "displayNameZhBase": "街道裂缝侵蚀",
+      "displayNameEnBase": "Street Crack",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "street", "crack"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "d_wallcracks_1_",
+      "group": "墙面裂缝侵蚀",
+      "groupEn": "Wall Cracks",
+      "displayNameZhBase": "墙面裂缝侵蚀",
+      "displayNameEnBase": "Wall Crack",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "wall", "crack"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "e_newgrass_1_",
+      "group": "新草生长",
+      "groupEn": "New Grass",
+      "displayNameZhBase": "新草生长",
+      "displayNameEnBase": "New Grass",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "grass"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "e_roof_snow_1_",
+      "group": "屋顶积雪",
+      "groupEn": "Roof Snow",
+      "displayNameZhBase": "屋顶积雪",
+      "displayNameEnBase": "Roof Snow",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "roof", "snow"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "f_bushes_1_",
+      "group": "灌木生长",
+      "groupEn": "Bush Growth",
+      "displayNameZhBase": "灌木生长",
+      "displayNameEnBase": "Bush Growth",
+      "kind": "sprite",
+      "confidence": "medium",
+      "mappingEligible": false,
+      "tags": ["erosion", "bush"]
+    },
+    {
+      "directory": "erosion",
+      "prefix": "f_wallvines_1_",
+      "group": "墙面藤蔓",
+      "groupEn": "Wall Vines",
+      "displayNameZhBase": "墙面藤蔓",
+      "displayNameEnBase": "Wall Vine",
+      "kind": "overlay",
+      "confidence": "high",
+      "mappingEligible": false,
+      "tags": ["erosion", "wall", "vine"]
+    }
+  ],
+  "fileOverrides": [
+    {
+      "path": "floors/blends_street_01_0.png",
+      "displayNameZh": "街道石地 浅灰",
+      "displayNameEn": "Street Stone Light Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "floor", "stone", "gray"]
+    },
+    {
+      "path": "floors/blends_natural_01_0.png",
+      "displayNameZh": "自然砂地 浅米",
+      "displayNameEn": "Natural Sand Pale Beige",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "sand", "beige"]
+    },
+    {
+      "path": "floors/blends_natural_01_21.png",
+      "displayNameZh": "自然草地 深绿",
+      "displayNameEn": "Natural Grass Dark Green",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "grass", "green"]
+    },
+    {
+      "path": "floors/blends_natural_01_22.png",
+      "displayNameZh": "自然草地 中绿",
+      "displayNameEn": "Natural Grass Mid Green",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "grass", "green"]
+    },
+    {
+      "path": "floors/blends_natural_01_48.png",
+      "displayNameZh": "自然苔地 深橄榄",
+      "displayNameEn": "Natural Moss Ground Dark Olive",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "moss", "olive"]
+    },
+    {
+      "path": "floors/blends_natural_01_53.png",
+      "displayNameZh": "自然湿地 橄榄绿",
+      "displayNameEn": "Natural Wet Ground Olive Green",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "wetland", "olive"]
+    },
+    {
+      "path": "floors/blends_natural_01_64.png",
+      "displayNameZh": "自然泥地 棕褐",
+      "displayNameEn": "Natural Dirt Brown",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "dirt", "brown"]
+    },
+    {
+      "path": "floors/blends_natural_01_69.png",
+      "displayNameZh": "自然土石 褐灰",
+      "displayNameEn": "Natural Soil Stone Brown Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "soil", "brown", "gray"]
+    },
+    {
+      "path": "floors/blends_natural_02_0.png",
+      "displayNameZh": "寒霜地表 浅蓝",
+      "displayNameEn": "Cold Ground Pale Blue",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ice", "blue"]
+    },
+    {
+      "path": "floors/blends_natural_02_5.png",
+      "displayNameZh": "寒霜石地 冷蓝灰",
+      "displayNameEn": "Cold Stone Blue Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ice", "stone", "blue", "gray"]
+    },
+    {
+      "path": "floors/blends_street_01_64.png",
+      "displayNameZh": "街道碎石 中灰",
+      "displayNameEn": "Street Gravel Mid Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "gravel", "gray"]
+    },
+    {
+      "path": "floors/blends_street_01_70.png",
+      "displayNameZh": "街道石地 深灰",
+      "displayNameEn": "Street Stone Dark Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "stone", "gray"]
+    },
+    {
+      "path": "floors/blends_street_01_96.png",
+      "displayNameZh": "街道花岗石 淡灰",
+      "displayNameEn": "Street Granite Light Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "granite", "gray"]
+    },
+    {
+      "path": "floors/blends_street_01_101.png",
+      "displayNameZh": "街道积雪 灰白",
+      "displayNameEn": "Street Snow Gray White",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "snow", "white"]
+    },
+    {
+      "path": "floors_burnt_01/floors_burnt_01_24.png",
+      "displayNameZh": "烧毁碎砾 暗灰",
+      "displayNameEn": "Burnt Rubble Dark Gray",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "rubble", "burnt", "dark"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_82.png",
+      "displayNameZh": "紫灰地毯 折线纹",
+      "displayNameEn": "Purple Gray Rug Chevron Pattern",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "purple", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_84.png",
+      "displayNameZh": "紫灰地毯 几何章纹",
+      "displayNameEn": "Purple Gray Rug Geometric Crest",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "crystal", "purple", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_85.png",
+      "displayNameZh": "紫灰地毯 菱纹章饰",
+      "displayNameEn": "Purple Gray Rug Diamond Crest",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "crystal", "purple", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_90.png",
+      "displayNameZh": "蓝灰地毯 水纹",
+      "displayNameEn": "Blue Gray Rug Water Pattern",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "water", "blue", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_93.png",
+      "displayNameZh": "灰绿地毯 漩纹",
+      "displayNameEn": "Gray Green Rug Spiral Pattern",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "swamp", "green", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_96.png",
+      "displayNameZh": "赤褐地毯 炽热纹",
+      "displayNameEn": "Red Brown Rug Heat Pattern",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "lava", "red", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_100.png",
+      "displayNameZh": "铜红地毯 小章纹",
+      "displayNameEn": "Copper Red Rug Small Crest",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ore", "copper", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_101.png",
+      "displayNameZh": "金棕地毯 小章纹",
+      "displayNameEn": "Gold Brown Rug Small Crest",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ore", "gold", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_104.png",
+      "displayNameZh": "炭黑地毯 深色块纹",
+      "displayNameEn": "Charcoal Rug Dark Block Pattern",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "obsidian", "dark", "rug"]
+    },
+    {
+      "path": "floors_rugs_01/floors_rugs_01_109.png",
+      "displayNameZh": "炭灰地毯 暗章纹",
+      "displayNameEn": "Coal Gray Rug Dark Crest",
+      "confidence": "high",
+      "mappingEligible": true,
+      "tags": ["terrain", "ore", "coal", "rug"]
+    }
+  ]
+}
