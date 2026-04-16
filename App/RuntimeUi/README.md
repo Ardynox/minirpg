@@ -1,32 +1,52 @@
-# RuntimeUi
+# App/RuntimeUi
 
-这个目录负责运行时编排。
-它承接 `App/Main*.cs` 下沉出来的启动、输入、主流程、多人联机、运行时视图和事件到表现的协调逻辑。
+这个目录承接从 `App/Main*.cs` 下沉的运行时编排职责。30+ 个文件按三条主线阅读，不要逐个打开。
 
-## 从哪开始读
+## 阅读顺序
 
-- 先看 `MainRuntimeComposition.cs`：这里定义运行时服务、UI 引用和钩子分组。
-- 启动与资源预热：`MainStartupCoordinator.cs`
-- 输入路由与模态层：`MainInputCoordinator.cs`、`InputHandlerSet.cs`、`ModalStateController.cs`
-- 主菜单、会话切换、设置、世界管理、地图编辑入口：`MainAppFlowCoordinator.cs`
-- 运行时刷新与脏面板处理：`RuntimeViewCoordinator.cs`
-- `GameEvent -> 日志 / UI / FX`：`GameEventPresentationRouter.cs`
-- 多人相关入口：`MultiplayerFlowCoordinator.cs`、`MultiplayerHubCoordinator.cs`、`MultiplayerRuntimeCoordinator.cs`
+启动链先读，运行时流再读，多人联机最后读。遇到具体问题再进下面对应小节。
 
-## 常见改动去哪里
+### 启动链
 
-- 改启动阶段、重资源加载、启动失败处理：`MainStartupCoordinator.cs`
-- 改键盘、鼠标、面板拖拽、模态输入优先级：`MainInputCoordinator.cs`
-- 改菜单进入游戏、返回主菜单、继续游戏、存档切换：`MainAppFlowCoordinator.cs`
-- 改地图刷新、面板脏标记、运行时视图同步：`RuntimeViewCoordinator.cs`
-- 改战斗事件、对话/交易打开、玩家死亡表现：`GameEventPresentationRouter.cs`
+- `MainStartupCoordinator` — 入口。按阶段装配服务、UI 引用、输入、协调器。
+- `MainRuntimeComposition` — 装配结果打包成三组：服务、UI 引用、钩子。
+- `InputHandlerSet` — 注册所有 `IModalInputLayer` 到 `InputModule`。
 
-## 不要在这里解决什么
+其他启动期辅助：`WorldManagerContext`、`RuntimeUiResetReason`、`RuntimeUiModeSnapshot`、`RuntimeStatusPanelPlacementPolicy`。
 
-- 不把玩法真相或领域规则塞回协调器，状态真相仍在 `GameState` / `MiniRPG.Shared/Core/*`
-- 不在这里实现存档目录、继续游戏持久化、backend 细节，相关逻辑看 `GameSessionModule`、`ContinueStateService`、`MiniRPG.Shared/Module/Session/*`
-- 不在这里堆具体渲染细节，地图和天气表现看 `Module/Render/*`
+### 运行时流
 
-## 什么时候更新这份 README
+- `MainAppFlowCoordinator` — 菜单 / 新游戏 / 读档 / 世界管理 / 地图编辑 / 载入中 UI 的主入口。
+- `GameplayCommandCoordinator` — 键鼠命令 → `ClientCommand` 路由。
+- `MainInputCoordinator` — 和 `InputModule` 对接，分发到 gameplay / panel / debug 三条路线。
+- `RuntimeViewCoordinator` + `RuntimeCameraController` + `RuntimeCameraRightDragHandler` — 视图、相机、拖拽。
+- `GameEventPresentationRouter` — `GameEvent` → UI / FX / 日志的翻译层（本目录最重要的解耦点之一）。
+- `AutoNavigationCoordinator` + `PlayerTargetingCoordinator` + `LimbTargetCoordinator` — 自动寻路 / 锁定 / 部位选择。
 
-- 只有当稳定入口、主协调器分工、或“改某类问题先看哪个文件”发生变化时才更新
+以及若干面板 / 模态 / overlay：`ModalStateController`、`SettingsFlowModalInputAdapter`、`DebugPanelController`、`RuntimeStatusPanelController`、`TurnControllerPanelController`、`ChestCoordinator`、`MapEditorCoordinator`、`RuntimeWorldToolSession`、`AltLabelOverlayController`。
+
+`MainAppFlowCoordinator` 长时间是这块最胖的点。抽出的 `WorldManagerStatusBanner` 和 `WorldManagerDeletionRouter` 承担 World Manager 面板的状态与删除操作。
+
+### 多人联机链
+
+- `MultiplayerFlowCoordinator` — 大厅 → 加入房间 → 进入会话的阶段切换。
+- `MultiplayerHubCoordinator` — 大厅面板的对接。
+- `MultiplayerRuntimeCoordinator` — 进入会话后，负责接 `MultiplayerSessionBackend` 的事件、做客户端预测与回滚。
+- `ClientCommandRouter` — `ClientCommand` 的最终发送点：单机直接过 `LocalSessionBackend`，联机走 `MultiplayerRuntimeCoordinator.TrySubmitClientCommand`。
+- `ClientPredictionState` — 预测队列与回滚判定，配置来自 `PredictionConfig`。
+
+入口全链路的权威 vs 预测边界见 [`../../Docs/多人联机契约.md`](../../Docs/多人联机契约.md)。
+
+## 新增协调器的落点判断
+
+- 是"Godot 节点获取、组合根装配"？留在 `App/Main*.cs`，不要进这里。
+- 是"会话生命周期的编排"？下沉到 `MiniRPG.Shared/Module/GameSessionModule.cs` 或 `MiniRPG.Shared/Module/Session/*`。
+- 是"运行时交互流 / 输入流 / 事件呈现"？进这个目录。
+
+新增一个 `*Coordinator` 前，先问：现有哪个是否已经承担了该责任、能否往里并一小步。默认不引入新协调器。
+
+## 相关文档
+
+- 架构主线：[`../../Docs/架构现状.md`](../../Docs/架构现状.md)
+- 会话切换清理：[`../../Docs/会话生命周期.md`](../../Docs/会话生命周期.md)
+- 多人联机契约：[`../../Docs/多人联机契约.md`](../../Docs/多人联机契约.md)
