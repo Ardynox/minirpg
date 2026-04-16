@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Weather;
 using Xunit;
@@ -304,6 +305,27 @@ public sealed class TimelineTurnManagerTests
 
 		Assert.True(result.ActionConsumed);
 		Assert.Contains(result.Events, evt => evt.Type == "combat_block");
+	}
+
+	[Fact]
+	public void SubmitPlayerAction_ClimbEmitsFullSourceAndTargetCoordinates()
+	{
+		var (state, player, _) = SkillCastingTestHelper.CreateCombatState(enemyX: 10, enemyY: 10);
+		state.World!.SetTerrain(player.X, player.Y, player.Z + 1, Terrains.Floor);
+		state.World.SetFixture(player.X, player.Y, player.Z, "L", Entities.Ladder);
+		TimelineTurnManager.Reset(state);
+
+		var result = TimelineTurnManager.SubmitPlayerAction(state, TimelinePlayerAction.Climb(+1));
+
+		Assert.True(result.ActionConsumed);
+		var climbEvent = Assert.Single(result.Events, evt => evt.Type == "actor_climbed");
+		Assert.Equal(player.Id, climbEvent.InitiatorId);
+		Assert.Equal(1, climbEvent.SourceX);
+		Assert.Equal(1, climbEvent.SourceY);
+		Assert.Equal(0, climbEvent.SourceZ);
+		Assert.Equal(1, climbEvent.TargetX);
+		Assert.Equal(1, climbEvent.TargetY);
+		Assert.Equal(1, climbEvent.TargetZ);
 	}
 
 	[Fact]

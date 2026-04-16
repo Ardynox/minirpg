@@ -15,6 +15,8 @@ public partial class Main
 		_watchTimer += delta;
 		if (_watchTimer < autoAdvanceIntervalSeconds)
 			return;
+		if (!(_fastTurnModeEnabled && !_watchModeEnabled) && _mapRender?.HasBlockingActorMotion == true)
+			return;
 
 		_watchTimer = 0;
 		WatchModeTick();
@@ -85,7 +87,7 @@ public partial class Main
 	}
 
 	private bool IsTimelineInputLocked() =>
-		!PlayerDead && (_timelineAutoAdvancePending || _watchModeEnabled);
+		!PlayerDead && (_timelineAutoAdvancePending || _watchModeEnabled || _mapRender?.HasBlockingActorMotion == true);
 
 	private void SubmitPlayerAction(TimelinePlayerAction action)
 	{

@@ -16,6 +16,7 @@ public partial class Main
 		SyncSettingsUiState();
 		SyncTimelineAutoAdvanceState();
 		OnSessionStartedAudio();
+		_mapRender?.ResetActorMotionState();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)
 			_skillBar.Open(ActorModule.GetPlayer(_state));
@@ -40,6 +41,7 @@ public partial class Main
 		_multiplayerHub.Close();
 		_menu.EnterGame();
 		_inputModule.EnterActionMode();
+		_mapRender?.ResetActorMotionState();
 		SyncTimelineAutoAdvanceState();
 		FlushMap();
 	}

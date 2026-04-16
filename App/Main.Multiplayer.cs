@@ -13,7 +13,11 @@ public partial class Main
 
 	private bool TrySubmitPredictedMove(int dx, int dy) =>
 		_multiplayerRuntimeCoordinator != null
-		&& _multiplayerRuntimeCoordinator.TrySubmitPredictedMove(dx, dy, IsMultiplayerSession);
+		&& _multiplayerRuntimeCoordinator.TrySubmitPredictedMove(
+			dx,
+			dy,
+			IsMultiplayerSession,
+			ResolveCurrentPlayerMotionTimingTier());
 
 	private void EmitPredictionMetricsIfDue() => _multiplayerRuntimeCoordinator?.EmitPredictionMetricsIfDue();
 

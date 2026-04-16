@@ -99,6 +99,29 @@ public sealed class GameEventPresentationRouterTests
 	}
 
 	[Theory]
+	[InlineData("actor_moved")]
+	[InlineData("actor_climbed")]
+	public void Dispatch_MovementEvents_PresentActorMotion(string eventType)
+	{
+		using var harness = new Harness();
+
+		var motionEvent = new GameEvent(eventType)
+		{
+			InitiatorId = harness.Player.Id,
+			SourceX = 1,
+			SourceY = 1,
+			SourceZ = 0,
+			TargetX = 2,
+			TargetY = 1,
+			TargetZ = eventType == "actor_climbed" ? 1 : 0,
+		};
+
+		harness.Router.Dispatch([motionEvent]);
+
+		Assert.Same(motionEvent, Assert.Single(harness.MotionEvents));
+	}
+
+	[Theory]
 	[InlineData("actor_killed", "killed")]
 	[InlineData("death_blood_loss", "blood_loss")]
 	[InlineData("death_infection", "infection")]
@@ -140,6 +163,7 @@ public sealed class GameEventPresentationRouterTests
 				IncidentAlerts,
 				playCombatFx: e => CombatFxEvents.Add(e),
 				playWeatherLightningFx: e => LightningFxEvents.Add(e),
+				presentActorMotion: e => MotionEvents.Add(e),
 				handlePlayerDeath: reason => DeathReasons.Add(reason),
 				setCurrentTarget: (actor, _) => CurrentTargets.Add(actor),
 				closeDialogPanel: () => CloseDialogCalls++,
@@ -165,6 +189,7 @@ public sealed class GameEventPresentationRouterTests
 		public GameEventPresentationRouter Router { get; }
 		public List<GameEvent> CombatFxEvents { get; } = [];
 		public List<GameEvent> LightningFxEvents { get; } = [];
+		public List<GameEvent> MotionEvents { get; } = [];
 		public List<string> DeathReasons { get; } = [];
 		public List<Actor> CurrentTargets { get; } = [];
 		public bool EnsureTradeUiCalled { get; private set; }

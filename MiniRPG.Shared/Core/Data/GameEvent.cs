@@ -35,6 +35,7 @@ public class GameEvent
 	public string? ActionName { get; set; }
 	public int SourceX { get; set; }
 	public int SourceY { get; set; }
+	public int SourceZ { get; set; }
 	public string? DamageType { get; set; }
 	public string? SkillId { get; set; }
 	public string? FailureReason { get; set; }

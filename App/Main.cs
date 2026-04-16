@@ -320,6 +320,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessDirtyPanels();
 		_mapRender?.AdvanceAnimations(delta);
+		if (_session.GameStarted && !_menu.InMenu && _mapRender?.HasAnyActorMotion == true)
+			FlushMap();
 		if (MapEditorActive) _mapEditorCoordinator.Tick((float)delta);
 		EmitPredictionMetricsIfDue();
 		if (snapshot.PausesGameplayLoop)

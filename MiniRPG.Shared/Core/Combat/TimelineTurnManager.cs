@@ -891,6 +891,7 @@ public static class TimelineTurnManager
 		var x = player.X;
 		var y = player.Y;
 		var z = player.Z;
+		var targetZ = z + action.Dz;
 
 		if (ClimbingService.CanAutoClimb(world, x, y, z, action.Dz))
 		{
@@ -899,6 +900,12 @@ public static class TimelineTurnManager
 			events.Add(new GameEvent("actor_climbed")
 			{
 				InitiatorId = player.Id,
+				SourceX = x,
+				SourceY = y,
+				SourceZ = z,
+				TargetX = x,
+				TargetY = y,
+				TargetZ = targetZ,
 				Damage = action.Dz,
 			});
 			return PlayerActionOutcome.ConsumedTurn;
@@ -914,6 +921,12 @@ public static class TimelineTurnManager
 				events.Add(new GameEvent("actor_climbed")
 				{
 					InitiatorId = player.Id,
+					SourceX = x,
+					SourceY = y,
+					SourceZ = z,
+					TargetX = x,
+					TargetY = y,
+					TargetZ = targetZ,
 					Damage = action.Dz,
 				});
 			}

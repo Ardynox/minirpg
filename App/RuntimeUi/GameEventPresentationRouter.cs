@@ -13,6 +13,7 @@ internal sealed class GameEventPresentationRouter
 	private readonly IncidentAlertModule _incidentAlerts;
 	private readonly Action<GameEvent> _playCombatFx;
 	private readonly Action<GameEvent> _playWeatherLightningFx;
+	private readonly Action<GameEvent> _presentActorMotion;
 	private readonly Action<string> _handlePlayerDeath;
 	private readonly Action<Actor, PlayerTargetSource> _setCurrentTarget;
 	private readonly Action _closeDialogPanel;
@@ -29,6 +30,7 @@ internal sealed class GameEventPresentationRouter
 		IncidentAlertModule incidentAlerts,
 		Action<GameEvent> playCombatFx,
 		Action<GameEvent> playWeatherLightningFx,
+		Action<GameEvent> presentActorMotion,
 		Action<string> handlePlayerDeath,
 		Action<Actor, PlayerTargetSource> setCurrentTarget,
 		Action closeDialogPanel,
@@ -44,6 +46,7 @@ internal sealed class GameEventPresentationRouter
 		_incidentAlerts = incidentAlerts;
 		_playCombatFx = playCombatFx;
 		_playWeatherLightningFx = playWeatherLightningFx;
+		_presentActorMotion = presentActorMotion;
 		_handlePlayerDeath = handlePlayerDeath;
 		_setCurrentTarget = setCurrentTarget;
 		_closeDialogPanel = closeDialogPanel;
@@ -105,12 +108,17 @@ internal sealed class GameEventPresentationRouter
 				_state.KillCount++;
 				_combatUi.HandleActorKilled(e);
 				break;
+			case "actor_moved":
+				_presentActorMotion(e);
+				if (e.InitiatorId == _state.PlayerId)
+					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Walk");
+				break;
+			case "actor_climbed":
+				_presentActorMotion(e);
+				break;
 			case "actor_incapacitated" when e.TargetId == _state.PlayerId:
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 				_handlePlayerDeath("incapacitated");
-				break;
-			case "actor_moved" when e.InitiatorId == _state.PlayerId:
-				ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Walk");
 				break;
 			case "interaction":
 				DispatchInteraction(e);

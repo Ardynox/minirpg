@@ -5,6 +5,7 @@ using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.World;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG;
 
@@ -39,6 +40,7 @@ internal sealed class AutoNavigationCoordinator
 	private long _inFlightActivityVersion;
 	private string? _lastStopReason;
 	private bool _executingStep;
+	private ActorMotionTimingTier _currentPlayerMotionTimingTier = ActorMotionTiming.ResolveManualPlayerTier();
 
 	private Vector3I? _previewTarget;
 	private List<Vector3I>? _previewPath;
@@ -87,6 +89,7 @@ internal sealed class AutoNavigationCoordinator
 	public bool IsPreviewActive => _previewTarget != null;
 	public bool IsExecutingStep => _executingStep;
 	public AutoNavigationInterruptPolicy InterruptPolicy => _interruptPolicy;
+	public ActorMotionTimingTier CurrentPlayerMotionTimingTier => _currentPlayerMotionTimingTier;
 
 	public Action<bool> SetPlayerRestModeActive { get; set; } = _ => { };
 
@@ -140,6 +143,7 @@ internal sealed class AutoNavigationCoordinator
 		var hadState = _targetWorldCell != null || _inFlightKind != AutoNavigationInFlightKind.None;
 		_targetWorldCell = null;
 		ClearInFlight();
+		ResetCurrentPlayerMotionTimingTier();
 		_lastStopReason = reason.ToString();
 
 		if (emitLog && hadState)
@@ -349,10 +353,12 @@ internal sealed class AutoNavigationCoordinator
 			return true;
 		}
 
+		var confirmedPathLength = _previewPath?.Count ?? 0;
 		_previewTarget = null;
 		_previewPath = null;
 
 		_targetWorldCell = targetCell;
+		_currentPlayerMotionTimingTier = ResolveAutoNavigationMotionTimingTier(confirmedPathLength);
 		ClearInFlight();
 		_lastStopReason = null;
 		SetPlayerRestModeActive(false);
@@ -437,6 +443,14 @@ internal sealed class AutoNavigationCoordinator
 		_inFlightStartTurn = 0;
 		_inFlightActivityVersion = 0L;
 	}
+
+	private void ResetCurrentPlayerMotionTimingTier()
+	{
+		_currentPlayerMotionTimingTier = ActorMotionTiming.ResolveManualPlayerTier();
+	}
+
+	internal static ActorMotionTimingTier ResolveAutoNavigationMotionTimingTier(int pathLength) =>
+		ActorMotionTiming.ResolveAutoNavigationTier(pathLength);
 
 	private bool ShouldStopForNearbyHostile(Actor player)
 	{

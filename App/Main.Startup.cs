@@ -564,6 +564,8 @@ public partial class Main
 			RefreshVisiblePanels,
 			RefreshPlayerCharacterVisual,
 			FlushMap,
+			request => _mapRender?.PresentActorMotion(request),
+			() => _mapRender?.ResetActorMotionState(),
 			FinalizeSessionPanels,
 			DoEnterGame,
 			(status, isError) =>
@@ -643,6 +645,7 @@ public partial class Main
 			_incidentAlerts,
 			PlayCombatFx,
 			PlayWeatherLightningFx,
+			PresentActorMotion,
 			HandlePlayerDeath,
 			SetCurrentTarget,
 			CloseDialogPanel,

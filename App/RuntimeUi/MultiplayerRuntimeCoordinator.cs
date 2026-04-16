@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Multiplayer;
+using MiniRPG.Module.Render;
 using MiniRPG.Module.Session;
 
 namespace MiniRPG;
@@ -19,6 +20,8 @@ internal sealed class MultiplayerRuntimeCoordinator
 	private readonly Action _refreshVisiblePanels;
 	private readonly Action _refreshPlayerCharacterVisual;
 	private readonly Action _flushMap;
+	private readonly Action<ActorMotionPresentationRequest> _presentPredictedActorMotion;
+	private readonly Action _resetActorMotionState;
 	private readonly Action<bool> _finalizeSessionPanels;
 	private readonly Action _doEnterGame;
 	private readonly Action<string, bool> _openHubWithStatus;
@@ -41,6 +44,8 @@ internal sealed class MultiplayerRuntimeCoordinator
 		Action refreshVisiblePanels,
 		Action refreshPlayerCharacterVisual,
 		Action flushMap,
+		Action<ActorMotionPresentationRequest> presentPredictedActorMotion,
+		Action resetActorMotionState,
 		Action<bool> finalizeSessionPanels,
 		Action doEnterGame,
 		Action<string, bool> openHubWithStatus,
@@ -57,6 +62,8 @@ internal sealed class MultiplayerRuntimeCoordinator
 		_refreshVisiblePanels = refreshVisiblePanels;
 		_refreshPlayerCharacterVisual = refreshPlayerCharacterVisual;
 		_flushMap = flushMap;
+		_presentPredictedActorMotion = presentPredictedActorMotion;
+		_resetActorMotionState = resetActorMotionState;
 		_finalizeSessionPanels = finalizeSessionPanels;
 		_doEnterGame = doEnterGame;
 		_openHubWithStatus = openHubWithStatus;
@@ -129,7 +136,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		return true;
 	}
 
-	public bool TrySubmitPredictedMove(int dx, int dy, bool isMultiplayerSession)
+	public bool TrySubmitPredictedMove(int dx, int dy, bool isMultiplayerSession, ActorMotionTimingTier timingTier)
 	{
 		if (!isMultiplayerSession || _backend == null)
 			return false;
@@ -145,7 +152,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 			Dy = dy,
 			ClientTick = _clientPrediction.NextClientTick,
 		};
-		ApplyPredictedMove(command.RequestId, dx, dy);
+		ApplyPredictedMove(actorId, command.RequestId, dx, dy, timingTier);
 		_ = SubmitMultiplayerCommandAsync(command);
 		return true;
 	}
@@ -198,14 +205,27 @@ internal sealed class MultiplayerRuntimeCoordinator
 			_log.Add(result.FailureReason);
 	}
 
-	private void ApplyPredictedMove(string requestId, int dx, int dy)
+	private void ApplyPredictedMove(string actorId, string requestId, int dx, int dy, ActorMotionTimingTier timingTier)
 	{
+		var sourceX = _state.PlayerX;
+		var sourceY = _state.PlayerY;
+		var sourceZ = _state.PlayerZ;
 		var predictedX = _state.PlayerX + dx;
 		var predictedY = _state.PlayerY + dy;
 		var predictedZ = _state.PlayerZ;
 		_clientPrediction.CreateMovePrediction(requestId, dx, dy, predictedX, predictedY, predictedZ);
 		_state.PlayerX = predictedX;
 		_state.PlayerY = predictedY;
+		_presentPredictedActorMotion(new ActorMotionPresentationRequest(
+			actorId,
+			sourceX,
+			sourceY,
+			sourceZ,
+			predictedX,
+			predictedY,
+			predictedZ,
+			timingTier,
+			Blocking: true));
 		_markUiDirty();
 		_flushMap();
 	}
@@ -229,6 +249,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		_state.PlayerX = decision.ReplayedX;
 		_state.PlayerY = decision.ReplayedY;
 		_state.PlayerZ = decision.ReplayedZ;
+		_resetActorMotionState();
 		// correction smoothing handled by render module owner.
 		_log.Add($"[Prediction] rollback req={authoritativeRequestId ?? ""} distance={decision.ManhattanDistance} total={_clientPrediction.TotalRollbackCount} dx={correctionDx} dy={correctionDy}");
 	}
@@ -249,6 +270,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 			primaryActorId: null,
 			envelope.Snapshot);
 		ActivityVersion++;
+		_resetActorMotionState();
 		ApplyPredictionReconciliation(envelope.RequestId);
 		_refreshVisiblePanels();
 		_refreshPlayerCharacterVisual();
@@ -306,6 +328,7 @@ internal sealed class MultiplayerRuntimeCoordinator
 		_state.PlayerZ = actor.Z;
 		ActivityVersion++;
 		_clientPrediction.Configure(_predictionConfigProvider());
+		_resetActorMotionState();
 		RoomRuntimeModule.SyncLegacyPlayerAlias(_state);
 		_refreshPlayerCharacterVisual();
 		_markUiDirty();

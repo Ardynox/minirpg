@@ -20,6 +20,9 @@ public static class ActionModule
 		}
 
 		var events = new List<GameEvent>();
+		var sourceX = actor.X;
+		var sourceY = actor.Y;
+		var sourceZ = actor.Z;
 		var nx = actor.X + dx;
 		var ny = actor.Y + dy;
 
@@ -43,8 +46,12 @@ public static class ActionModule
 		events.Add(new GameEvent("actor_moved")
 		{
 			InitiatorId = actor.Id,
+			SourceX = sourceX,
+			SourceY = sourceY,
+			SourceZ = sourceZ,
 			TargetX = nx,
 			TargetY = ny,
+			TargetZ = sourceZ,
 		});
 		return events;
 	}

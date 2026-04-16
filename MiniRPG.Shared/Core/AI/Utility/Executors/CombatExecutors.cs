@@ -50,8 +50,24 @@ public sealed class ChaseEnemyExecutor : IUtilityExecutor
 			var goDown = target.Z > actor.Z;
 			if (state.World.CanTraverseVertical(actor.X, actor.Y, actor.Z, goDown))
 			{
+				var sourceX = actor.X;
+				var sourceY = actor.Y;
+				var sourceZ = actor.Z;
+				var dz = goDown ? 1 : -1;
 				ClimbingService.MoveActorVertical(state, actor, goDown ? 1 : -1);
-				return new ActionExecutionResult { Consumed = true };
+				var result = new ActionExecutionResult { Consumed = true };
+				result.Events.Add(new GameEvent("actor_climbed")
+				{
+					InitiatorId = actor.Id,
+					SourceX = sourceX,
+					SourceY = sourceY,
+					SourceZ = sourceZ,
+					TargetX = sourceX,
+					TargetY = sourceY,
+					TargetZ = sourceZ + dz,
+					Damage = dz,
+				});
+				return result;
 			}
 		}
 

@@ -144,6 +144,8 @@ public partial class IsometricVoxelRenderer
 	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
 	private float _playerVisualCorrectionRemaining;
 	private float _playerVisualCorrectionDuration;
+	private readonly Dictionary<string, ActorMotionState> _actorMotions = new(StringComparer.Ordinal);
+	private bool _hasBlockingActorMotion;
 	private RenderTraceSample _lastRenderTraceSample = RenderTraceSample.Empty;
 
 	private static readonly (string Key, IsometricLightingSettings Lighting)[] LightingProfiles =
@@ -224,6 +226,8 @@ public partial class IsometricVoxelRenderer
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
 	public bool IsRevealAll => _fogTracker.RevealAll;
 	public IAnimatable? PlayerAnimatable => _playerAnim;
+	public bool HasAnyActorMotion => _actorMotions.Count > 0;
+	public bool HasBlockingActorMotion => _hasBlockingActorMotion;
 
 	internal VisibleWorldWindow GetVisibleWorldWindow()
 	{
@@ -469,6 +473,54 @@ public partial class IsometricVoxelRenderer
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
 		=> _weatherFxController?.SetTuning(tuning, _editorViewActive);
 
+	public void PresentActorMotion(ActorMotionPresentationRequest request)
+	{
+		if (string.IsNullOrWhiteSpace(request.ActorId))
+			return;
+
+		if (!ShouldAnimateActorMotion(request))
+		{
+			ClearActorMotion(request.ActorId);
+			return;
+		}
+
+		_actorMotions[request.ActorId] = new ActorMotionState(
+			request.SourceX,
+			request.SourceY,
+			request.SourceZ,
+			request.TargetX,
+			request.TargetY,
+			request.TargetZ,
+			_tileAnimationClockSeconds,
+			ActorMotionTiming.ResolveDurationSeconds(request.TimingTier),
+			request.Blocking);
+		UpdateActorMotionFlags();
+	}
+
+	public void ClearActorMotion(string actorId)
+	{
+		if (string.IsNullOrWhiteSpace(actorId))
+			return;
+
+		_actorMotions.Remove(actorId);
+		UpdateActorMotionFlags();
+	}
+
+	public void ResetActorMotionState()
+	{
+		_actorMotions.Clear();
+		_hasBlockingActorMotion = false;
+	}
+
+	internal Vector3 ResolveActorVisualWorldPosition(string actorId)
+	{
+		var actor = ActorModule.GetById(_state, actorId);
+		return actor == null ? Vector3.Zero : ResolveActorVisualWorldPosition(actor);
+	}
+
+	internal Vector2 ResolveRuntimeCameraScreenTarget() =>
+		ResolveRuntimeCameraTarget(_viewCenterX, _viewCenterY, _viewCenterZ);
+
 	public void Flush()
 	{
 		var frameStartUsec = Time.GetTicksUsec();
@@ -477,6 +529,7 @@ public partial class IsometricVoxelRenderer
 
 		if (_state.World == null)
 		{
+			ResetActorMotionState();
 			_weatherFxController?.ClearScreenFxTarget();
 			_weatherFxController?.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 			_weatherFxController?.EndFrame();
@@ -511,6 +564,7 @@ public partial class IsometricVoxelRenderer
 		_tileDrawCommandCount = _lastDrawCommandCount;
 		_weatherFxController?.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 		_weatherFxController?.EndFrame();
+		PruneCompletedActorMotions();
 		CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 	}
 
@@ -520,7 +574,93 @@ public partial class IsometricVoxelRenderer
 		_tileAnimationClockSeconds += delta;
 		_weatherFxController?.UpdateWeatherScreenFxOverlay(delta, _tileAnimationClockSeconds);
 		AdvancePlayerCorrectionSmoothing((float)delta);
+		UpdateActorMotionFlags();
 		AdvanceEditorCameraSmoothing((float)delta);
+	}
+
+	private void UpdateActorMotionFlags()
+	{
+		_hasBlockingActorMotion = false;
+		foreach (var motion in _actorMotions.Values)
+		{
+			if (motion.Blocking && GetActorMotionProgress(motion, _tileAnimationClockSeconds) < 1f)
+			{
+				_hasBlockingActorMotion = true;
+				break;
+			}
+		}
+	}
+
+	private void PruneCompletedActorMotions()
+	{
+		if (_actorMotions.Count == 0)
+			return;
+
+		var completedActorIds = new List<string>();
+		foreach (var (actorId, motion) in _actorMotions)
+		{
+			if (GetActorMotionProgress(motion, _tileAnimationClockSeconds) >= 1f)
+				completedActorIds.Add(actorId);
+		}
+
+		for (var i = 0; i < completedActorIds.Count; i++)
+			_actorMotions.Remove(completedActorIds[i]);
+
+		UpdateActorMotionFlags();
+	}
+
+	private bool ShouldAnimateActorMotion(ActorMotionPresentationRequest request)
+	{
+		if (!IsStandardActorMotion(request))
+			return false;
+
+		if (string.Equals(request.ActorId, PartyModule.GetActiveId(_state), StringComparison.Ordinal))
+			return true;
+
+		return IsActorMotionRenderable(request.SourceX, request.SourceY, request.SourceZ)
+			|| IsActorMotionRenderable(request.TargetX, request.TargetY, request.TargetZ);
+	}
+
+	private static bool IsStandardActorMotion(ActorMotionPresentationRequest request)
+	{
+		var dx = Math.Abs(request.TargetX - request.SourceX);
+		var dy = Math.Abs(request.TargetY - request.SourceY);
+		var dz = Math.Abs(request.TargetZ - request.SourceZ);
+		return (dz == 0 && dx + dy == 1) || (dx == 0 && dy == 0 && dz == 1);
+	}
+
+	private bool IsActorMotionRenderable(int worldX, int worldY, int worldZ)
+	{
+		var visibleWindow = GetVisibleWorldWindow();
+		var visibleDepth = GetVisibleDepthWindow(visibleWindow);
+		var zMin = _viewCenterZ - visibleDepth.Above;
+		var zMax = _viewCenterZ + visibleDepth.Below;
+		return Math.Abs(worldX - _viewCenterX) <= visibleWindow.HalfX + 1
+			&& Math.Abs(worldY - _viewCenterY) <= visibleWindow.HalfY + 1
+			&& worldZ >= zMin
+			&& worldZ <= zMax
+			&& _fogTracker.GetVisionBand(worldX, worldY, worldZ) != PlayerVisionBand.Unknown;
+	}
+
+	private Vector3 ResolveActorVisualWorldPosition(Actor actor)
+	{
+		if (!_actorMotions.TryGetValue(actor.Id, out var motion))
+			return new Vector3(actor.X, actor.Y, actor.Z);
+
+		var progress = GetActorMotionProgress(motion, _tileAnimationClockSeconds);
+		return new Vector3(
+			Mathf.Lerp(motion.SourceX, motion.TargetX, progress),
+			Mathf.Lerp(motion.SourceY, motion.TargetY, progress),
+			Mathf.Lerp(motion.SourceZ, motion.TargetZ, progress));
+	}
+
+	private static float GetActorMotionProgress(ActorMotionState motion, double clockSeconds)
+	{
+		if (motion.DurationSeconds <= 0f)
+			return 1f;
+
+		var elapsed = (float)(clockSeconds - motion.StartTimeSeconds);
+		return Mathf.Clamp(elapsed / motion.DurationSeconds, 0f, 1f);
 	}
 
 	private void AdvanceEditorCameraSmoothing(float delta)
@@ -615,7 +755,7 @@ public partial class IsometricVoxelRenderer
 		if (_editorViewActive && _camera != null)
 			return _camera.Position;
 		if (_runtimeViewActive)
-			return _runtimeCameraView.ScreenCenterTarget;
+			return ResolveRuntimeCameraScreenTarget();
 		return _camera?.Position ?? Vector2.Zero;
 	}
 
@@ -1687,14 +1827,15 @@ public partial class IsometricVoxelRenderer
 		{
 			foreach (var actor in _state.Actors.Values)
 			{
-				if (actor.Z < zMin || actor.Z > zMax) continue;
-				if (Math.Abs(actor.X - cx) > halfW || Math.Abs(actor.Y - cy) > halfH) continue;
+				var visualWorld = ResolveActorVisualWorldPosition(actor);
+				if (visualWorld.Z < zMin || visualWorld.Z > zMax) continue;
+				if (Math.Abs(visualWorld.X - cx) > halfW || Math.Abs(visualWorld.Y - cy) > halfH) continue;
 				if (_fogTracker.GetVisionBand(actor.X, actor.Y, actor.Z) == PlayerVisionBand.Unknown) continue;
 				var tint = GetVisionTint(actor.X, actor.Y, actor.Z);
 				var label = actor.Id == _state.PlayerId ? "P" : (actor.Faction == Factions.Hostile ? "!" : "?");
 				_entityCommands.Add(new EntityDrawCommand(
 					IsoCoordUtil.SortKey(actor.X, actor.Y, actor.Z),
-					IsoCoordUtil.WorldToScreen(actor.X, actor.Y, actor.Z),
+					IsoCoordUtil.WorldToScreen(visualWorld.X, visualWorld.Y, visualWorld.Z),
 					actor,
 					null,
 					null,
@@ -2769,12 +2910,27 @@ public partial class IsometricVoxelRenderer
 		return _spritePool.Acquire(_root!);
 	}
 
+	private Vector2 ResolveRuntimeCameraTarget(int cx, int cy, int cz)
+	{
+		if (_runtimeViewActive && _runtimeCameraView.Mode == RuntimeCameraMode.FollowActor)
+		{
+			var activeActor = PartyModule.GetActiveActor(_state);
+			if (activeActor != null)
+			{
+				var visualWorld = ResolveActorVisualWorldPosition(activeActor);
+				return IsoCoordUtil.WorldToScreen(visualWorld.X, visualWorld.Y, visualWorld.Z);
+			}
+		}
+
+		return _runtimeViewActive
+			? _runtimeCameraView.ScreenCenterTarget
+			: IsoCoordUtil.WorldToScreen(cx, cy, cz);
+	}
+
 	private void UpdateCamera(int cx, int cy, int cz)
 	{
 		if (_camera == null) return;
-		var target = _runtimeViewActive
-			? _runtimeCameraView.ScreenCenterTarget
-			: IsoCoordUtil.WorldToScreen(cx, cy, cz);
+		var target = ResolveRuntimeCameraTarget(cx, cy, cz);
 		if (_editorViewActive)
 			_editorCameraTarget = target;
 		else
@@ -2969,6 +3125,17 @@ public partial class IsometricVoxelRenderer
 		Rect2? Region,
 		Vector2 Scale,
 		Vector2 Offset);
+
+	private readonly record struct ActorMotionState(
+		float SourceX,
+		float SourceY,
+		float SourceZ,
+		float TargetX,
+		float TargetY,
+		float TargetZ,
+		double StartTimeSeconds,
+		float DurationSeconds,
+		bool Blocking);
 
 	private record struct CachedBlockTextures(Texture2D? Top, Texture2D? Left, Texture2D? Right);
 }

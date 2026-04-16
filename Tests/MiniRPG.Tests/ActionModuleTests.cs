@@ -51,6 +51,21 @@ public sealed class ActionModuleTests
 	}
 
 	[Fact]
+	public void TryMove_EmitsFullSourceAndTargetCoordinates()
+	{
+		var (state, player, _) = SkillCastingTestHelper.CreateCombatState(enemyX: 10, enemyY: 10);
+
+		var moveEvent = Assert.Single(ActionModule.TryMove(state, player, 1, 0), evt => evt.Type == "actor_moved");
+
+		Assert.Equal(1, moveEvent.SourceX);
+		Assert.Equal(1, moveEvent.SourceY);
+		Assert.Equal(0, moveEvent.SourceZ);
+		Assert.Equal(2, moveEvent.TargetX);
+		Assert.Equal(1, moveEvent.TargetY);
+		Assert.Equal(0, moveEvent.TargetZ);
+	}
+
+	[Fact]
 	public void TryCastSkill_RangedAttackSucceeds_WhenTargetInRangeAndVisible()
 	{
 		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState(enemyX: 4, enemyY: 1);
