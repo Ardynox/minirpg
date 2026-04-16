@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Reflection;
 using MiniRPG.Core.Config;
 using Xunit;
 
@@ -86,6 +88,66 @@ public sealed class AppSettingsStoreTests
 	}
 
 	[Fact]
+	public void AudioVolumes_CanRoundTripAndClamp()
+	{
+		var originalMaster = AppSettingsStore.LoadMasterVolume();
+		var originalMusic = AppSettingsStore.LoadMusicVolume();
+		var originalSfx = AppSettingsStore.LoadSfxVolume();
+		try
+		{
+			AppSettingsStore.SaveMasterVolume(0.25f);
+			AppSettingsStore.SaveMusicVolume(0.5f);
+			AppSettingsStore.SaveSfxVolume(0.75f);
+
+			Assert.Equal(0.25f, AppSettingsStore.LoadMasterVolume(), 3);
+			Assert.Equal(0.5f, AppSettingsStore.LoadMusicVolume(), 3);
+			Assert.Equal(0.75f, AppSettingsStore.LoadSfxVolume(), 3);
+
+			AppSettingsStore.SaveMasterVolume(-0.25f);
+			AppSettingsStore.SaveMusicVolume(1.5f);
+			AppSettingsStore.SaveSfxVolume(0.4f);
+
+			Assert.Equal(0f, AppSettingsStore.LoadMasterVolume(), 3);
+			Assert.Equal(1f, AppSettingsStore.LoadMusicVolume(), 3);
+			Assert.Equal(0.4f, AppSettingsStore.LoadSfxVolume(), 3);
+		}
+		finally
+		{
+			AppSettingsStore.SaveMasterVolume(originalMaster);
+			AppSettingsStore.SaveMusicVolume(originalMusic);
+			AppSettingsStore.SaveSfxVolume(originalSfx);
+		}
+	}
+
+	[Fact]
+	public void AudioVolumes_DefaultToOne_WhenMissingFromSettingsFile()
+	{
+		var path = ResolveSettingsPath();
+		var snapshot = CaptureSettingsFile(path);
+		try
+		{
+			var directory = Path.GetDirectoryName(path);
+			if (!string.IsNullOrWhiteSpace(directory))
+				Directory.CreateDirectory(directory);
+
+			File.WriteAllText(path, """
+			{
+			  "version": 8,
+			  "locale": "en"
+			}
+			""");
+
+			Assert.Equal(1f, AppSettingsStore.LoadMasterVolume(), 3);
+			Assert.Equal(1f, AppSettingsStore.LoadMusicVolume(), 3);
+			Assert.Equal(1f, AppSettingsStore.LoadSfxVolume(), 3);
+		}
+		finally
+		{
+			RestoreSettingsFile(path, snapshot);
+		}
+	}
+
+	[Fact]
 	public void MultiplayerSettings_CanRoundTripIncludingReconnectTicket()
 	{
 		var original = AppSettingsStore.LoadMultiplayerSettings();
@@ -141,5 +203,29 @@ public sealed class AppSettingsStoreTests
 		{
 			AppSettingsStore.SaveMultiplayerSettings(original);
 		}
+	}
+
+	private static (bool Exists, string? Content) CaptureSettingsFile(string path) =>
+		File.Exists(path)
+			? (true, File.ReadAllText(path))
+			: (false, null);
+
+	private static void RestoreSettingsFile(string path, (bool Exists, string? Content) snapshot)
+	{
+		if (snapshot.Exists)
+		{
+			File.WriteAllText(path, snapshot.Content ?? string.Empty);
+			return;
+		}
+
+		if (File.Exists(path))
+			File.Delete(path);
+	}
+
+	private static string ResolveSettingsPath()
+	{
+		var method = typeof(AppSettingsStore).GetMethod("GetSettingsPath", BindingFlags.NonPublic | BindingFlags.Static);
+		Assert.NotNull(method);
+		return Assert.IsType<string>(method!.Invoke(null, null));
 	}
 }

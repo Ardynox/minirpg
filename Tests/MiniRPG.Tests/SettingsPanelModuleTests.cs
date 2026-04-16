@@ -16,6 +16,7 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Contains("private const string ContentScrollPath = \"Margin/VBox/ContentScroll\";", moduleSource);
 		Assert.Contains("private const string LanguageRowPath = GeneralPagePath + \"/DisplaySection/Margin/VBox/LanguageRow\";", moduleSource);
+		Assert.Contains("private const string AudioSettingsHostPath = GeneralPagePath + \"/AudioSection/Margin/AudioSettingsHost\";", moduleSource);
 		Assert.Contains("private const string AutoNavigationInterruptPolicyRowPath = ControlsPagePath + \"/ControlOptionsSection/Margin/VBox/AutoNavigationInterruptPolicyRow\";", moduleSource);
 		Assert.Contains("private const string BindingsRowPath = ControlsPagePath + \"/BindingsSection/Margin/VBox/BindingsRow\";", moduleSource);
 		Assert.Contains("private const string KeyBindingsRootPath = ControlsPagePath + \"/BindingsSection/Margin/VBox/KeyBindingsView\";", moduleSource);
@@ -23,6 +24,8 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Contains("[node name=\"ContentScroll\" type=\"ScrollContainer\" parent=\"Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"LanguageRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/GeneralPage/DisplaySection/Margin/VBox\"]", sceneSource);
+		Assert.Contains("[node name=\"AudioSection\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/GeneralPage\"]", sceneSource);
+		Assert.Contains("[node name=\"AudioSettingsHost\" type=\"VBoxContainer\" parent=\"Margin/VBox/ContentScroll/Pages/GeneralPage/AudioSection/Margin\"]", sceneSource);
 		Assert.Contains("[node name=\"AutoNavigationInterruptPolicyRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/ControlOptionsSection/Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"BindingsRow\" type=\"PanelContainer\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox\"]", sceneSource);
 		Assert.Contains("[node name=\"KeyBindingsView\" parent=\"Margin/VBox/ContentScroll/Pages/ControlsPage/BindingsSection/Margin/VBox\" instance=ExtResource(\"1_keybindings\")]", sceneSource);

@@ -6,6 +6,7 @@ namespace MiniRPG.Module.Audio;
 public sealed class AudioSettingsModule
 {
 	private readonly VBoxContainer _container;
+	private readonly Label _sectionTitleLabel;
 	private readonly HSlider _masterSlider;
 	private readonly HSlider _musicSlider;
 	private readonly HSlider _sfxSlider;
@@ -15,6 +16,7 @@ public sealed class AudioSettingsModule
 	private readonly Label _masterValueLabel;
 	private readonly Label _musicValueLabel;
 	private readonly Label _sfxValueLabel;
+	private bool _suppressVolumeChangedSignals;
 
 	public event Action<float>? MasterVolumeChanged;
 	public event Action<float>? MusicVolumeChanged;
@@ -24,11 +26,12 @@ public sealed class AudioSettingsModule
 	{
 		_container = new VBoxContainer();
 		_container.Name = "AudioSection";
+		_container.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
-		var sectionTitle = new Label();
-		sectionTitle.Text = LocalizationService.TOrFallback("ui.settings.section.audio", "Audio");
-		sectionTitle.AddThemeColorOverride("font_color", new Color(0.85f, 0.78f, 0.55f));
-		_container.AddChild(sectionTitle);
+		_sectionTitleLabel = new Label();
+		_sectionTitleLabel.Text = LocalizationService.TOrFallback("ui.settings.section.audio", "Audio");
+		_sectionTitleLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.78f, 0.55f));
+		_container.AddChild(_sectionTitleLabel);
 
 		var separator = new HSeparator();
 		separator.CustomMinimumSize = new Vector2(0, 8);
@@ -38,43 +41,18 @@ public sealed class AudioSettingsModule
 		(_musicLabel, _musicSlider, _musicValueLabel) = CreateSliderRow("ui.settings.audio.music", "Music");
 		(_sfxLabel, _sfxSlider, _sfxValueLabel) = CreateSliderRow("ui.settings.audio.sfx", "SFX");
 
-		_masterSlider.Value = AudioBusSetup.GetMasterVolume() * 100;
-		_musicSlider.Value = AudioBusSetup.GetMusicVolume() * 100;
-		_sfxSlider.Value = AudioBusSetup.GetSfxVolume() * 100;
-
-		UpdateValueLabel(_masterValueLabel, _masterSlider.Value);
-		UpdateValueLabel(_musicValueLabel, _musicSlider.Value);
-		UpdateValueLabel(_sfxValueLabel, _sfxSlider.Value);
-
-		_masterSlider.ValueChanged += v =>
-		{
-			var linear = (float)v / 100f;
-			AudioBusSetup.SetMasterVolume(linear);
-			UpdateValueLabel(_masterValueLabel, v);
-			MasterVolumeChanged?.Invoke(linear);
-		};
-
-		_musicSlider.ValueChanged += v =>
-		{
-			var linear = (float)v / 100f;
-			AudioBusSetup.SetMusicVolume(linear);
-			UpdateValueLabel(_musicValueLabel, v);
-			MusicVolumeChanged?.Invoke(linear);
-		};
-
-		_sfxSlider.ValueChanged += v =>
-		{
-			var linear = (float)v / 100f;
-			AudioBusSetup.SetSfxVolume(linear);
-			UpdateValueLabel(_sfxValueLabel, v);
-			SfxVolumeChanged?.Invoke(linear);
-		};
+		_masterSlider.ValueChanged += HandleMasterSliderChanged;
+		_musicSlider.ValueChanged += HandleMusicSliderChanged;
+		_sfxSlider.ValueChanged += HandleSfxSliderChanged;
 
 		parent.AddChild(_container);
+		RefreshTexts();
+		SyncFromBus();
 	}
 
 	public void RefreshTexts()
 	{
+		_sectionTitleLabel.Text = LocalizationService.TOrFallback("ui.settings.section.audio", "Audio");
 		_masterLabel.Text = LocalizationService.TOrFallback("ui.settings.audio.master", "Master");
 		_musicLabel.Text = LocalizationService.TOrFallback("ui.settings.audio.music", "Music");
 		_sfxLabel.Text = LocalizationService.TOrFallback("ui.settings.audio.sfx", "SFX");
@@ -82,15 +60,16 @@ public sealed class AudioSettingsModule
 
 	public void SyncFromBus()
 	{
-		_masterSlider.Value = AudioBusSetup.GetMasterVolume() * 100;
-		_musicSlider.Value = AudioBusSetup.GetMusicVolume() * 100;
-		_sfxSlider.Value = AudioBusSetup.GetSfxVolume() * 100;
+		SetSliderValueSilently(_masterSlider, _masterValueLabel, AudioBusSetup.GetMasterVolume() * 100f);
+		SetSliderValueSilently(_musicSlider, _musicValueLabel, AudioBusSetup.GetMusicVolume() * 100f);
+		SetSliderValueSilently(_sfxSlider, _sfxValueLabel, AudioBusSetup.GetSfxVolume() * 100f);
 	}
 
 	private (Label title, HSlider slider, Label value) CreateSliderRow(string locKey, string fallback)
 	{
 		var row = new HBoxContainer();
 		row.CustomMinimumSize = new Vector2(0, 32);
+		row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
 		var label = new Label();
 		label.Text = LocalizationService.TOrFallback(locKey, fallback);
@@ -118,5 +97,43 @@ public sealed class AudioSettingsModule
 	private static void UpdateValueLabel(Label label, double value)
 	{
 		label.Text = $"{(int)value}%";
+	}
+
+	private void HandleMasterSliderChanged(double value)
+	{
+		HandleVolumeSliderChanged(value, _masterValueLabel, AudioBusSetup.SetMasterVolume, MasterVolumeChanged);
+	}
+
+	private void HandleMusicSliderChanged(double value)
+	{
+		HandleVolumeSliderChanged(value, _musicValueLabel, AudioBusSetup.SetMusicVolume, MusicVolumeChanged);
+	}
+
+	private void HandleSfxSliderChanged(double value)
+	{
+		HandleVolumeSliderChanged(value, _sfxValueLabel, AudioBusSetup.SetSfxVolume, SfxVolumeChanged);
+	}
+
+	private void HandleVolumeSliderChanged(
+		double value,
+		Label valueLabel,
+		Action<float> applyVolume,
+		Action<float>? changed)
+	{
+		UpdateValueLabel(valueLabel, value);
+		if (_suppressVolumeChangedSignals)
+			return;
+
+		var linear = (float)value / 100f;
+		applyVolume(linear);
+		changed?.Invoke(linear);
+	}
+
+	private void SetSliderValueSilently(HSlider slider, Label valueLabel, float percent)
+	{
+		_suppressVolumeChangedSignals = true;
+		slider.Value = percent;
+		UpdateValueLabel(valueLabel, slider.Value);
+		_suppressVolumeChangedSignals = false;
 	}
 }

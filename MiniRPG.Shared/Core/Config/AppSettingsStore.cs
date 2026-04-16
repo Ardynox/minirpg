@@ -7,7 +7,7 @@ namespace MiniRPG.Core.Config;
 
 public static class AppSettingsStore
 {
-	private const int SchemaVersion = 8;
+	private const int SchemaVersion = 9;
 
 	public static string LoadLocale()
 	{
@@ -107,6 +107,39 @@ public static class AppSettingsStore
 			if (settings.MapZoomMin is { } min && settings.MapZoomMax < min)
 				settings.MapZoomMin = settings.MapZoomMax;
 		}, "map zoom max setting");
+	}
+
+	public static float LoadMasterVolume()
+	{
+		var settings = LoadSettings();
+		return ClampNormalizedVolume(settings.MasterVolume);
+	}
+
+	public static void SaveMasterVolume(float value)
+	{
+		SaveSettings(settings => settings.MasterVolume = ClampNormalizedVolume(value), "master volume setting");
+	}
+
+	public static float LoadMusicVolume()
+	{
+		var settings = LoadSettings();
+		return ClampNormalizedVolume(settings.MusicVolume);
+	}
+
+	public static void SaveMusicVolume(float value)
+	{
+		SaveSettings(settings => settings.MusicVolume = ClampNormalizedVolume(value), "music volume setting");
+	}
+
+	public static float LoadSfxVolume()
+	{
+		var settings = LoadSettings();
+		return ClampNormalizedVolume(settings.SfxVolume);
+	}
+
+	public static void SaveSfxVolume(float value)
+	{
+		SaveSettings(settings => settings.SfxVolume = ClampNormalizedVolume(value), "sfx volume setting");
 	}
 
 	public static ContinueState LoadContinueState()
@@ -238,6 +271,14 @@ public static class AppSettingsStore
 
 	private static float ClampZoomValue(float value) => Math.Clamp(value, 0.2f, 4.0f);
 
+	private static float ClampNormalizedVolume(float? value)
+	{
+		if (!value.HasValue || float.IsNaN(value.Value) || float.IsInfinity(value.Value))
+			return 1f;
+
+		return Math.Clamp(value.Value, 0f, 1f);
+	}
+
 	private static AutoNavigationInterruptPolicy ParseAutoNavigationInterruptPolicy(string? value) => value switch
 	{
 		"manual_only" => AutoNavigationInterruptPolicy.ManualOnly,
@@ -277,6 +318,15 @@ public static class AppSettingsStore
 
 		[JsonPropertyName("mapZoomMax")]
 		public float? MapZoomMax { get; set; }
+
+		[JsonPropertyName("masterVolume")]
+		public float? MasterVolume { get; set; }
+
+		[JsonPropertyName("musicVolume")]
+		public float? MusicVolume { get; set; }
+
+		[JsonPropertyName("sfxVolume")]
+		public float? SfxVolume { get; set; }
 
 		[JsonPropertyName("lastContinueKind")]
 		public string? LastContinueKind { get; set; }
@@ -358,6 +408,9 @@ public static class AppSettingsStore
 		FastTurnMode = true,
 		MapZoomMin = 0.6f,
 		MapZoomMax = 2.4f,
+		MasterVolume = 1f,
+		MusicVolume = 1f,
+		SfxVolume = 1f,
 		LastContinueKind = null,
 		LastWorldId = null,
 		LastCharacterId = null,

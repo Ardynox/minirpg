@@ -189,6 +189,7 @@ public partial class Main
 		_multiplayerRoomPanel.RefreshTexts();
 		_multiplayerHubCoordinator.SetTemplates(BuildMultiplayerHubTemplates());
 		_settingsFlow.RefreshTexts();
+		_audioSettings?.RefreshTexts();
 		SyncSettingsUiState();
 		_worldManager.RefreshTexts();
 		_worldSettingsDialog.RefreshTexts();

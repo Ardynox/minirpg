@@ -13,6 +13,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string ControlsPagePath = "Margin/VBox/ContentScroll/Pages/ControlsPage";
 	private const string SessionPagePath = "Margin/VBox/ContentScroll/Pages/SessionPage";
 	private const string LanguageRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/LanguageRow";
+	private const string AudioSettingsHostPath = GeneralPagePath + "/AudioSection/Margin/AudioSettingsHost";
 	private const string RenderRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/RenderRow";
 	private const string MapZoomMinRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMinRow";
 	private const string MapZoomMaxRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMaxRow";
@@ -32,6 +33,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _titleLabel;
 	private readonly Label _subtitleLabel;
 	private readonly Label _footerHintLabel;
+	private readonly Control _audioSettingsHost;
 	private readonly ScrollContainer _contentScroll;
 	private readonly Button _generalTabButton;
 	private readonly Button _controlsTabButton;
@@ -104,6 +106,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 
 	public string PanelId => "settings";
 	public PanelContainer PanelNode => _panel;
+	public Control AudioSettingsHost => _audioSettingsHost;
 	public bool Visible { get => _panel.Visible; set => _panel.Visible = value; }
 	public bool ConsumeUnhandledKeys => true;
 	public bool Dirty { get; set; }
@@ -208,6 +211,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_titleLabel = panel.GetNode<Label>("Margin/VBox/Header/Title");
 		_subtitleLabel = panel.GetNode<Label>("Margin/VBox/Header/Subtitle");
 		_footerHintLabel = panel.GetNode<Label>("Margin/VBox/Footer/HintLabel");
+		_audioSettingsHost = panel.GetNode<Control>(AudioSettingsHostPath);
 		_contentScroll = panel.GetNode<ScrollContainer>(ContentScrollPath);
 		var tabBar = panel.GetNode<HBoxContainer>("Margin/VBox/TabBar");
 		_generalTabButton = tabBar.GetNode<Button>("GeneralTab");

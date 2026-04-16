@@ -26,39 +26,39 @@ public sealed class AudioBusSetup
 	{
 		var idx = AudioServer.GetBusIndex(MasterBus);
 		if (idx >= 0)
-			AudioServer.SetBusVolumeDb(idx, LinearToDb(linear));
+			AudioServer.SetBusVolumeDb(idx, LinearToDb(ClampLinear(linear)));
 	}
 
 	public static void SetMusicVolume(float linear)
 	{
 		var idx = AudioServer.GetBusIndex(MusicBus);
 		if (idx >= 0)
-			AudioServer.SetBusVolumeDb(idx, LinearToDb(linear));
+			AudioServer.SetBusVolumeDb(idx, LinearToDb(ClampLinear(linear)));
 	}
 
 	public static void SetSfxVolume(float linear)
 	{
 		var idx = AudioServer.GetBusIndex(SfxBus);
 		if (idx >= 0)
-			AudioServer.SetBusVolumeDb(idx, LinearToDb(linear));
+			AudioServer.SetBusVolumeDb(idx, LinearToDb(ClampLinear(linear)));
 	}
 
 	public static float GetMusicVolume()
 	{
 		var idx = AudioServer.GetBusIndex(MusicBus);
-		return idx >= 0 ? DbToLinear(AudioServer.GetBusVolumeDb(idx)) : 1f;
+		return idx >= 0 ? ClampLinear(DbToLinear(AudioServer.GetBusVolumeDb(idx))) : 1f;
 	}
 
 	public static float GetSfxVolume()
 	{
 		var idx = AudioServer.GetBusIndex(SfxBus);
-		return idx >= 0 ? DbToLinear(AudioServer.GetBusVolumeDb(idx)) : 1f;
+		return idx >= 0 ? ClampLinear(DbToLinear(AudioServer.GetBusVolumeDb(idx))) : 1f;
 	}
 
 	public static float GetMasterVolume()
 	{
 		var idx = AudioServer.GetBusIndex(MasterBus);
-		return idx >= 0 ? DbToLinear(AudioServer.GetBusVolumeDb(idx)) : 1f;
+		return idx >= 0 ? ClampLinear(DbToLinear(AudioServer.GetBusVolumeDb(idx))) : 1f;
 	}
 
 	private static void EnsureBus(string busName, string sendTo)
@@ -105,4 +105,12 @@ public sealed class AudioBusSetup
 
 	private static float DbToLinear(float db) =>
 		MathF.Pow(10f, db / 20f);
+
+	private static float ClampLinear(float linear)
+	{
+		if (float.IsNaN(linear) || float.IsInfinity(linear))
+			return 1f;
+
+		return Math.Clamp(linear, 0f, 1f);
+	}
 }
