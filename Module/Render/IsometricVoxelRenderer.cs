@@ -108,8 +108,7 @@ public partial class IsometricVoxelRenderer
 	private Vector2 _playerVisualCorrectionOffset = Vector2.Zero;
 	private float _playerVisualCorrectionRemaining;
 	private float _playerVisualCorrectionDuration;
-	private readonly Dictionary<string, ActorMotionState> _actorMotions = new(StringComparer.Ordinal);
-	private bool _hasBlockingActorMotion;
+	private readonly ActorMotionTracker _motionTracker = new();
 	private RenderTraceSample _lastRenderTraceSample = RenderTraceSample.Empty;
 
 	private static readonly (string Key, IsometricLightingSettings Lighting)[] LightingProfiles =
@@ -187,8 +186,8 @@ public partial class IsometricVoxelRenderer
 	public Vector2 MapViewportContainerSize => _viewportContainer?.Size ?? Vector2.Zero;
 	public bool IsRevealAll => _fogTracker.RevealAll;
 	public IAnimatable? PlayerAnimatable => _playerAnim;
-	public bool HasAnyActorMotion => _actorMotions.Count > 0;
-	public bool HasBlockingActorMotion => _hasBlockingActorMotion;
+	public bool HasAnyActorMotion => _motionTracker.HasAny;
+	public bool HasBlockingActorMotion => _motionTracker.HasBlocking;
 
 	internal VisibleWorldWindow GetVisibleWorldWindow()
 	{
@@ -445,7 +444,8 @@ public partial class IsometricVoxelRenderer
 			return;
 		}
 
-		_actorMotions[request.ActorId] = new ActorMotionState(
+		_motionTracker.Record(
+			request.ActorId,
 			request.SourceX,
 			request.SourceY,
 			request.SourceZ,
@@ -455,22 +455,16 @@ public partial class IsometricVoxelRenderer
 			_tileAnimationClockSeconds,
 			request.DurationSecondsOverride ?? ActorMotionTiming.ResolveDurationSeconds(request.TimingTier),
 			request.Blocking);
-		UpdateActorMotionFlags();
 	}
 
 	internal void ClearActorMotion(string actorId)
 	{
-		if (string.IsNullOrWhiteSpace(actorId))
-			return;
-
-		_actorMotions.Remove(actorId);
-		UpdateActorMotionFlags();
+		_motionTracker.Remove(actorId);
 	}
 
 	internal void ResetActorMotionState()
 	{
-		_actorMotions.Clear();
-		_hasBlockingActorMotion = false;
+		_motionTracker.Clear();
 	}
 
 	internal Vector3 ResolveActorVisualWorldPosition(string actorId)
@@ -525,7 +519,7 @@ public partial class IsometricVoxelRenderer
 		_tileDrawCommandCount = _lastDrawCommandCount;
 		_weatherFxController?.UpdateWeatherScreenFxOverlay(0d, _tileAnimationClockSeconds);
 		_weatherFxController?.EndFrame();
-		PruneCompletedActorMotions();
+		_motionTracker.Prune(_tileAnimationClockSeconds);
 		CommitPerfFrame((Time.GetTicksUsec() - frameStartUsec) / 1000.0);
 	}
 
@@ -535,44 +529,13 @@ public partial class IsometricVoxelRenderer
 		_tileAnimationClockSeconds += delta;
 		_weatherFxController?.UpdateWeatherScreenFxOverlay(delta, _tileAnimationClockSeconds);
 		AdvancePlayerCorrectionSmoothing((float)delta);
-		UpdateActorMotionFlags();
+		_motionTracker.UpdateBlockingFlag(_tileAnimationClockSeconds);
 		AdvanceEditorCameraSmoothing((float)delta);
-	}
-
-	private void UpdateActorMotionFlags()
-	{
-		_hasBlockingActorMotion = false;
-		foreach (var motion in _actorMotions.Values)
-		{
-			if (motion.Blocking && GetActorMotionProgress(motion, _tileAnimationClockSeconds) < 1f)
-			{
-				_hasBlockingActorMotion = true;
-				break;
-			}
-		}
-	}
-
-	private void PruneCompletedActorMotions()
-	{
-		if (_actorMotions.Count == 0)
-			return;
-
-		var completedActorIds = new List<string>();
-		foreach (var (actorId, motion) in _actorMotions)
-		{
-			if (GetActorMotionProgress(motion, _tileAnimationClockSeconds) >= 1f)
-				completedActorIds.Add(actorId);
-		}
-
-		for (var i = 0; i < completedActorIds.Count; i++)
-			_actorMotions.Remove(completedActorIds[i]);
-
-		UpdateActorMotionFlags();
 	}
 
 	private bool ShouldAnimateActorMotion(ActorMotionPresentationRequest request)
 	{
-		if (!IsStandardActorMotion(request))
+		if (!ActorMotionTracker.IsStandardStep(request))
 			return false;
 
 		if (string.Equals(request.ActorId, PartyModule.GetActiveId(_state), StringComparison.Ordinal))
@@ -580,14 +543,6 @@ public partial class IsometricVoxelRenderer
 
 		return IsActorMotionRenderable(request.SourceX, request.SourceY, request.SourceZ)
 			|| IsActorMotionRenderable(request.TargetX, request.TargetY, request.TargetZ);
-	}
-
-	private static bool IsStandardActorMotion(ActorMotionPresentationRequest request)
-	{
-		var dx = Math.Abs(request.TargetX - request.SourceX);
-		var dy = Math.Abs(request.TargetY - request.SourceY);
-		var dz = Math.Abs(request.TargetZ - request.SourceZ);
-		return (dz == 0 && dx + dy == 1) || (dx == 0 && dy == 0 && dz == 1);
 	}
 
 	private bool IsActorMotionRenderable(int worldX, int worldY, int worldZ)
@@ -605,23 +560,9 @@ public partial class IsometricVoxelRenderer
 
 	private Vector3 ResolveActorVisualWorldPosition(Actor actor)
 	{
-		if (!_actorMotions.TryGetValue(actor.Id, out var motion))
-			return new Vector3(actor.X, actor.Y, actor.Z);
-
-		var progress = GetActorMotionProgress(motion, _tileAnimationClockSeconds);
-		return new Vector3(
-			Mathf.Lerp(motion.SourceX, motion.TargetX, progress),
-			Mathf.Lerp(motion.SourceY, motion.TargetY, progress),
-			Mathf.Lerp(motion.SourceZ, motion.TargetZ, progress));
-	}
-
-	private static float GetActorMotionProgress(ActorMotionState motion, double clockSeconds)
-	{
-		if (motion.DurationSeconds <= 0f)
-			return 1f;
-
-		var elapsed = (float)(clockSeconds - motion.StartTimeSeconds);
-		return Mathf.Clamp(elapsed / motion.DurationSeconds, 0f, 1f);
+		return _motionTracker.TryGetInterpolatedPosition(actor.Id, _tileAnimationClockSeconds, out var position)
+			? position
+			: new Vector3(actor.X, actor.Y, actor.Z);
 	}
 
 	private void AdvanceEditorCameraSmoothing(float delta)
@@ -2533,17 +2474,6 @@ public partial class IsometricVoxelRenderer
 		Rect2? Region,
 		Vector2 Scale,
 		Vector2 Offset);
-
-	private readonly record struct ActorMotionState(
-		float SourceX,
-		float SourceY,
-		float SourceZ,
-		float TargetX,
-		float TargetY,
-		float TargetZ,
-		double StartTimeSeconds,
-		float DurationSeconds,
-		bool Blocking);
 
 	private record struct CachedBlockTextures(Texture2D? Top, Texture2D? Left, Texture2D? Right);
 }
