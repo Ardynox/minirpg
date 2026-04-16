@@ -7,6 +7,7 @@
 
 - 先读 `Docs/README.md`。
 - 如果任务明确落在某个复杂目录，先看该目录下的 `README.md`，再按需读代码。
+- 默认只在这些主目录里找代码和配置：`App/`、`MiniRPG.Shared/`、`Module/`、`Data/`、`Tools/`、`Tests/`。
 - 按任务类型只补读 1 到 2 份：
   - 入口、边界、主流程：`Docs/架构现状.md`
   - 默认策略、协作规则、文档规则：`Docs/开发约定.md`
@@ -17,12 +18,13 @@
 ## 不要默认读什么
 
 - `Artifacts/` 下的一次性报告
-- `.claude/`、`.codex/`、`.cursor/` 下的历史产物
-- `.godot/`、`.ruff_cache/`、`obj-gen/` 等生成物或缓存
+- `.claude/worktrees/`、`.codex_tmp/`、`.codex/`、`.cursor/` 下的历史产物或临时素材
+- `.godot/`、`bin/`、`obj/`、`.ruff_cache/`、`obj-gen/`、`Build/` 等生成物或缓存
 - `build-diag.txt` 这类大体积诊断输出
 - 日期型审计、扫描、占位设计稿
 
 只有在任务明确要求时，才读取这些内容。
+如果搜索结果先命中这些路径，先收紧搜索范围，不要继续展开。
 
 ## 文档规则
 

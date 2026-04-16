@@ -17,6 +17,8 @@ Tools/tile_name_to_id.json
 *.uid
 export_presets.cfg
 .claude/settings.local.json
+.claude/worktrees/
+.codex_tmp/
 new_c_sharp_script.cs
 
 # Test build outputs
