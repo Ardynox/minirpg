@@ -8,7 +8,7 @@ namespace MiniRPG.Tests;
 public sealed class SettingsFlowModalInputAdapterTests
 {
 	[Fact]
-	public void HandleInput_ReturnsFalse_WhenNoOverlayIsVisible()
+	public void HandleKeyInput_NoVisibleOverlay_ReturnsFalse()
 	{
 		var harness = new Harness();
 
@@ -16,19 +16,12 @@ public sealed class SettingsFlowModalInputAdapterTests
 		Assert.False(harness.Adapter.HandleKeyInputCore(
 			harness.SettingsOverlay.HandleKey,
 			harness.HandlePanelKey));
-		Assert.False(harness.Adapter.HandleMouseInputCore(
-			harness.SettingsOverlay.HandleMouse,
-			harness.CloseFocusedPanel,
-			isPressedRightClick: true));
 		Assert.Equal(0, harness.SettingsOverlay.HandleKeyCalls);
-		Assert.Equal(0, harness.SettingsOverlay.HandleMouseCalls);
 		Assert.Equal(0, harness.PanelKeyCalls);
-		Assert.Equal(0, harness.CloseFocusedCalls);
-		Assert.Equal(0, harness.FlushMapCalls);
 	}
 
 	[Fact]
-	public void HandleKeyInput_UsesSettingsOverlayBeforePanelManager()
+	public void HandleKeyInput_CapturesOverlayBeforePanelManager()
 	{
 		var harness = new Harness();
 		harness.SettingsOverlay.HandleKeyResult = true;
@@ -82,7 +75,7 @@ public sealed class SettingsFlowModalInputAdapterTests
 	}
 
 	[Fact]
-	public void HandleMouseInput_DoesNotFlushForNonRightClick()
+	public void HandleMouseInput_NonRightClick_IgnoresCloseFocusedPanel()
 	{
 		var harness = new Harness
 		{
@@ -102,7 +95,7 @@ public sealed class SettingsFlowModalInputAdapterTests
 	}
 
 	[Fact]
-	public void HandleMouseInput_DoesNotFlushWhenNoFocusedPanelCloses()
+	public void HandleMouseInput_RightClickWithoutFocusedClose_DoesNotFlushMap()
 	{
 		var harness = new Harness();
 		harness.OpenSettingsOverlay();
@@ -115,6 +108,24 @@ public sealed class SettingsFlowModalInputAdapterTests
 		Assert.False(handled);
 		Assert.Equal(1, harness.SettingsOverlay.HandleMouseCalls);
 		Assert.Equal(1, harness.CloseFocusedCalls);
+		Assert.Equal(0, harness.FlushMapCalls);
+	}
+
+	[Fact]
+	public void HandleMouseInput_VisibleOverlayHandledBySettingsLayer_DoesNotCallPanelClose()
+	{
+		var harness = new Harness();
+		harness.SettingsOverlay.HandleMouseResult = true;
+		harness.OpenSettingsOverlay();
+
+		var handled = harness.Adapter.HandleMouseInputCore(
+			harness.SettingsOverlay.HandleMouse,
+			harness.CloseFocusedPanel,
+			isPressedRightClick: true);
+
+		Assert.True(handled);
+		Assert.Equal(1, harness.SettingsOverlay.HandleMouseCalls);
+		Assert.Equal(0, harness.CloseFocusedCalls);
 		Assert.Equal(0, harness.FlushMapCalls);
 	}
 

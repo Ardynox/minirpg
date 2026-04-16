@@ -16,7 +16,9 @@ public class LogModule
 	private const int MaxLines = 200;
 	private const int TrimBatch = 50;
 
-	private readonly RichTextLabel _panel;
+	private readonly Action<string> _appendText;
+	private readonly Action _clearText;
+	private readonly Action<int> _removeParagraph;
 	private readonly List<string> _lines = [];
 	private int _lineCount;
 
@@ -24,13 +26,23 @@ public class LogModule
 	public IReadOnlyList<string> Lines => _lines;
 	public string? LastLine => _lines.Count == 0 ? null : _lines[^1];
 
-	public LogModule(RichTextLabel panel) => _panel = panel;
+	public LogModule(RichTextLabel panel)
+		: this(panel.AppendText, panel.Clear, index => panel.RemoveParagraph(index))
+	{
+	}
+
+	internal LogModule(Action<string> appendText, Action clearText, Action<int> removeParagraph)
+	{
+		_appendText = appendText;
+		_clearText = clearText;
+		_removeParagraph = removeParagraph;
+	}
 
 	public void Add(string msg)
 	{
 		if (_lineCount > 0)
-			_panel.AppendText("\n");
-		_panel.AppendText(msg);
+			_appendText("\n");
+		_appendText(msg);
 		_lines.Add(msg);
 		_lineCount++;
 
@@ -40,7 +52,7 @@ public class LogModule
 
 	public void Clear()
 	{
-		_panel.Clear();
+		_clearText();
 		_lines.Clear();
 		_lineCount = 0;
 	}
@@ -49,7 +61,7 @@ public class LogModule
 	{
 		var toRemove = TrimBatch;
 		for (var i = 0; i < toRemove; i++)
-			_panel.RemoveParagraph(0);
+			_removeParagraph(0);
 		if (_lines.Count <= toRemove)
 			_lines.Clear();
 		else

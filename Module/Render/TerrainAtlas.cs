@@ -5,6 +5,8 @@ using System.Text.Json;
 using Godot;
 using MiniRPG.Core.World;
 using MiniRPG.Tools;
+using VoxelTileMappingDocument = MiniRPG.Tools.VoxelTileMappingDocument;
+using VoxelTileMappingEntry = MiniRPG.Tools.VoxelTileMappingEntry;
 
 namespace MiniRPG.Module.Render;
 

@@ -123,6 +123,96 @@ public sealed class ModalStateControllerTests
 			Assert.Equal(expectedActions.Contains(actionId) ? 1 : 0, harness.GetCount(actionId));
 	}
 
+	[Fact]
+	public void Prepare_UnknownReason_DoesNotThrow()
+	{
+		var harness = new Harness();
+		var unknownReason = (RuntimeUiResetReason)999;
+
+		var exception = Record.Exception(() => harness.Controller.Prepare(unknownReason));
+
+		Assert.Null(exception);
+		foreach (var actionId in ActionIds.All)
+			Assert.Equal(0, harness.GetCount(actionId));
+	}
+
+	[Fact]
+	public void Prepare_CalledTwice_IsIdempotentForSameReason()
+	{
+		var settingsHidden = false;
+		var worldManagerClosed = false;
+		var hideSettingsTransitions = 0;
+		var closeWorldManagerTransitions = 0;
+		var controller = new ModalStateController(
+			() => { },
+			() =>
+			{
+				if (settingsHidden)
+					return;
+
+				settingsHidden = true;
+				hideSettingsTransitions++;
+			},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() =>
+			{
+				if (worldManagerClosed)
+					return;
+
+				worldManagerClosed = true;
+				closeWorldManagerTransitions++;
+			},
+			() => { },
+			() => { },
+			() => { });
+
+		controller.Prepare(RuntimeUiResetReason.OpenMenuSettings);
+		controller.Prepare(RuntimeUiResetReason.OpenMenuSettings);
+
+		Assert.Equal(1, hideSettingsTransitions);
+		Assert.Equal(1, closeWorldManagerTransitions);
+	}
+
+	[Fact]
+	public void Prepare_EnterMapEditor_DoesNotCloseWorldManagerIfAlreadyClosed()
+	{
+		var worldManagerClosed = true;
+		var closeWorldManagerTransitions = 0;
+		var hideSettingsPanelsCalls = 0;
+		var controller = new ModalStateController(
+			() => { },
+			() => hideSettingsPanelsCalls++,
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() => { },
+			() =>
+			{
+				if (worldManagerClosed)
+					return;
+
+				worldManagerClosed = true;
+				closeWorldManagerTransitions++;
+			},
+			() => { },
+			() => { },
+			() => { });
+
+		controller.Prepare(RuntimeUiResetReason.EnterMapEditor);
+
+		Assert.Equal(1, hideSettingsPanelsCalls);
+		Assert.Equal(0, closeWorldManagerTransitions);
+	}
+
 	private static class ActionIds
 	{
 		public const string ClosePanelChromeSettings = "close_panel_chrome_settings";
