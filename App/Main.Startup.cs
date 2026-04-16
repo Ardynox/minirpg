@@ -367,7 +367,7 @@ public partial class Main
 		var groundNode = GetNode<PanelContainer>($"{HudRootPath}/GroundPanel");
 		_groundPanel = new GroundPanelModule(groundNode, this);
 
-		_panels = new PanelManager();
+		_panels = new PanelManager(_inputBindings);
 		_panels.SetFloatingCheck(_panelDrag.IsFloating);
 		_panelDrag.LayoutChanged += RefreshAllBorders;
 		_panels.RegisterPassive(_mapPanelNode, "map", canFocus: true, consumeUnhandledKeys: false, allowGlobalClose: false);
@@ -621,16 +621,17 @@ public partial class Main
 		_mainInputCoordinator = new MainInputCoordinator(
 			_modalInputLayers,
 			() => GetViewport().SetInputAsHandled(),
-			@event => _panelChrome.HandleInput(@event, enabled: true),
-			_panelDrag.HandleGlobalInput,
-			HandleLayoutEditKeyInput,
-			HandleLayoutEditInput,
-			HandleMapEditorKeyInput,
-			HandleMapEditorMouseInput,
-			HandleRuntimeWorldToolKey,
-			_panels.HandleKey,
-			_inputModule.HandleKeyInput,
-			HandleGameplayMouseInput);
+			new InputHandlerSet(
+				HandlePanelChromeInput: @event => _panelChrome.HandleInput(@event, enabled: true),
+				HandlePanelDragInput: _panelDrag.HandleGlobalInput,
+				HandleLayoutEditKeyInput: HandleLayoutEditKeyInput,
+				HandleLayoutEditInput: HandleLayoutEditInput,
+				HandleMapEditorKeyInput: _mapEditorCoordinator.HandleKeyInput,
+				HandleMapEditorInput: _mapEditorCoordinator.HandleMouseInput,
+				HandleInspectModeKeyInput: HandleRuntimeWorldToolKey,
+				HandlePanelManagerKeyInput: _panels.HandleKey,
+				HandleInputModuleKeyInput: _inputModule.HandleKeyInput,
+				HandleGameplayMouseInput: HandleGameplayMouseInput));
 		_inputModule.CommandReceived += OnCommand;
 
 		_combatUI = new CombatUIModule(this);
@@ -687,6 +688,7 @@ public partial class Main
 		_multiplayerHubCoordinator.SetTemplates(BuildMultiplayerHubTemplates());
 		_settingsFlow.RefreshTexts();
 		SyncSettingsUiState();
+		InitAudioSystem();
 		ShowMainMenuWithCurrentContinue();
 		RefreshStartupUi();
 		BeginHeavyStartupLoad();

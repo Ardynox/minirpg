@@ -119,6 +119,9 @@ public sealed class NeedSystemTests
 		npc.Inventory.Add(PresetDB.CloneItem("meal_simple"));
 		NeedSystem.SetNeedValue(npc, NeedIds.Hunger, 10f);
 		npc.AwarenessState = AwarenessState.Alerted;
+		npc.AlertTargetActorId = player.Id;
+		npc.LastKnownTargetX = player.X;
+		npc.LastKnownTargetY = player.Y;
 
 		var ignore = AIDispatcher.DecideAndExecuteAnyResult(state, npc, tickBuffs: false);
 
@@ -136,8 +139,8 @@ public sealed class NeedSystemTests
 		ActorModule.Add(state, nearHostile);
 		ActorModule.Add(state, farHostile);
 
-		Assert.True(NeedBehaviorModule.HasNearbyThreat(state, actor, radius: 2));
-		Assert.False(NeedBehaviorModule.HasNearbyThreat(state, actor, radius: 1));
+		Assert.True(ThreatDetection.HasNearbyThreat(state, actor, radius: 2));
+		Assert.False(ThreatDetection.HasNearbyThreat(state, actor, radius: 1));
 	}
 
 	private static GameState CreateState()

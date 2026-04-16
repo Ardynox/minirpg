@@ -210,5 +210,6 @@ public partial class Main
 	private void Dispatch(List<GameEvent> events)
 	{
 		_gameEventPresentationRouter.Dispatch(events);
+		DispatchAudioEvents(events);
 	}
 }

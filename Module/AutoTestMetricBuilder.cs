@@ -23,6 +23,7 @@ internal static class AutoTestMetricBuilder
 		["capacity_calls"] = metrics.CapacityCalls,
 		["max_candidates_per_observer"] = metrics.MaxCandidatesPerObserver,
 		["max_shortlist_per_observer"] = metrics.MaxShortlistPerObserver,
+		["los_cache_hits"] = metrics.LosCacheHits,
 	};
 
 	internal static Dictionary<string, double> CreateTurnTickMetrics(TurnTickMetrics metrics)
@@ -32,10 +33,6 @@ internal static class AutoTestMetricBuilder
 		result["advance_world_ms"] = metrics.AdvanceWorldMs;
 		result["ai_dispatch_ms"] = metrics.AIDispatchMs;
 		result["awareness_ms"] = metrics.AIDispatch.AwarenessMs;
-		result["health_behavior_ms"] = metrics.AIDispatch.HealthBehaviorMs;
-		result["fire_behavior_ms"] = metrics.AIDispatch.FireBehaviorMs;
-		result["temperature_behavior_ms"] = metrics.AIDispatch.TemperatureBehaviorMs;
-		result["need_behavior_ms"] = metrics.AIDispatch.NeedBehaviorMs;
 		result["brain_decide_ms"] = metrics.AIDispatch.BrainDecideMs;
 		result["decision_execute_ms"] = metrics.AIDispatch.DecisionExecuteMs;
 		return result;

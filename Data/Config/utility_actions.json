@@ -1,0 +1,380 @@
+{
+  "actions": [
+    {
+      "id": "self_extinguish",
+      "executor": "self_extinguish",
+      "bonusScore": 0.95,
+      "considerations": [
+        { "input": "self_on_fire", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["survival", "urgent"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "flee_fire",
+      "executor": "flee_fire",
+      "bonusScore": 0.85,
+      "considerations": [
+        { "input": "cell_fire_danger", "curve": { "type": "linear", "slope": 1.5, "offset": 0.0 } }
+      ],
+      "tags": ["survival", "urgent"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "extinguish_nearby_fire",
+      "executor": "extinguish_nearby_fire",
+      "bonusScore": 0.45,
+      "considerations": [
+        { "input": "nearby_fire_exists", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_altruism", "curve": { "type": "linear", "slope": 0.6, "offset": 0.4 } }
+      ],
+      "tags": ["survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "equip_warm_clothing",
+      "executor": "equip_warm_clothing",
+      "bonusScore": 0.6,
+      "considerations": [
+        { "input": "is_cold", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "has_portable_heat", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "seek_campfire",
+      "executor": "seek_campfire",
+      "bonusScore": 0.55,
+      "considerations": [
+        { "input": "is_cold", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "nearby_campfire", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "light_fire_warmth",
+      "executor": "light_fire",
+      "bonusScore": 0.5,
+      "considerations": [
+        { "input": "is_cold", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "cold_severity", "curve": { "type": "linear", "slope": 1.0, "offset": 0.3 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "seek_cool_area",
+      "executor": "seek_cool_area",
+      "bonusScore": 0.55,
+      "considerations": [
+        { "input": "is_hot", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "hot_severity", "curve": { "type": "linear", "slope": 1.0, "offset": 0.3 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "attack_enemy",
+      "executor": "attack_enemy",
+      "bonusScore": 0.75,
+      "considerations": [
+        { "input": "can_attack_target", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_aggression", "curve": { "type": "linear", "slope": 0.5, "offset": 0.5 } },
+        { "input": "personality_bravery", "curve": { "type": "linear", "slope": 0.3, "offset": 0.5 } }
+      ],
+      "tags": ["combat"],
+      "requiresTarget": true,
+      "targetType": "enemy",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "chase_enemy",
+      "executor": "chase_enemy",
+      "bonusScore": 0.65,
+      "considerations": [
+        { "input": "has_enemy_in_vision", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "closest_enemy_distance_inv", "curve": { "type": "linear", "slope": 0.8, "offset": 0.2 } },
+        { "input": "personality_aggression", "curve": { "type": "linear", "slope": 0.4, "offset": 0.5 } },
+        { "input": "hp_ratio", "curve": { "type": "linear", "slope": 0.6, "offset": 0.3 } }
+      ],
+      "tags": ["combat"],
+      "requiresTarget": true,
+      "targetType": "enemy",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "flee_combat",
+      "executor": "flee_combat",
+      "bonusScore": 0.7,
+      "considerations": [
+        { "input": "has_enemy_in_vision", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "hp_ratio", "curve": { "type": "inverse" } },
+        { "input": "personality_caution", "curve": { "type": "linear", "slope": 0.6, "offset": 0.3 } },
+        { "input": "personality_bravery", "curve": { "type": "inverse" } }
+      ],
+      "tags": ["combat"],
+      "requiresTarget": true,
+      "targetType": "enemy",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "investigate_suspicious",
+      "executor": "investigate_suspicious",
+      "bonusScore": 0.6,
+      "considerations": [
+        { "input": "awareness_suspicious", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "has_tracked_target", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_curiosity", "curve": { "type": "linear", "slope": 0.4, "offset": 0.5 } }
+      ],
+      "tags": ["combat"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "search_area",
+      "executor": "search_area",
+      "bonusScore": 0.55,
+      "considerations": [
+        { "input": "awareness_searching", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "has_tracked_target", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_curiosity", "curve": { "type": "linear", "slope": 0.3, "offset": 0.5 } }
+      ],
+      "tags": ["combat"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "eat_food",
+      "executor": "eat_food",
+      "bonusScore": 0.6,
+      "considerations": [
+        { "input": "hunger_urgency", "curve": { "type": "exponential", "exponent": 2.0 } },
+        { "input": "food_available", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.2 } }
+      ],
+      "tags": ["needs"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "rest_sleep",
+      "executor": "rest_sleep",
+      "bonusScore": 0.55,
+      "considerations": [
+        { "input": "rest_urgency", "curve": { "type": "exponential", "exponent": 2.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["needs"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "tend_self",
+      "executor": "tend_self",
+      "bonusScore": 0.65,
+      "considerations": [
+        { "input": "can_tend_self", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "worst_condition_severity", "curve": { "type": "linear", "slope": 1.0, "offset": 0.2 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.1 } }
+      ],
+      "tags": ["needs", "survival"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "tend_other",
+      "executor": "tend_other",
+      "bonusScore": 0.55,
+      "considerations": [
+        { "input": "ally_wounded_nearby", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_altruism", "curve": { "type": "linear", "slope": 0.6, "offset": 0.3 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "manipulation", "curve": { "type": "step", "threshold": 0.1, "high": 1.0, "low": 0.0 } }
+      ],
+      "tags": ["needs", "social"],
+      "requiresTarget": true,
+      "targetType": "ally_wounded",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "rescue_ally_fire",
+      "executor": "rescue_ally_fire",
+      "bonusScore": 0.7,
+      "considerations": [
+        { "input": "target_on_fire", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_altruism", "curve": { "type": "linear", "slope": 0.8, "offset": 0.2 } },
+        { "input": "relationship_opinion", "curve": { "type": "linear", "slope": 0.8, "offset": 0.2 } },
+        { "input": "personality_bravery", "curve": { "type": "linear", "slope": 0.4, "offset": 0.4 } }
+      ],
+      "tags": ["social", "survival"],
+      "requiresTarget": true,
+      "targetType": "ally_fire",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "social_interact",
+      "executor": "social_interact",
+      "bonusScore": 0.3,
+      "considerations": [
+        { "input": "has_social_target_nearby", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "social_cooldown_ready", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_sociability", "curve": { "type": "linear", "slope": 0.7, "offset": 0.2 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["social"],
+      "requiresTarget": true,
+      "targetType": "social",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "job_work",
+      "executor": "job_execute",
+      "bonusScore": 0.45,
+      "considerations": [
+        { "input": "is_worker", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "has_matching_ticket", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_diligence", "curve": { "type": "linear", "slope": 0.5, "offset": 0.5 } },
+        { "input": "job_specialization_match", "curve": { "type": "linear", "slope": 0.6, "offset": 0.3 } }
+      ],
+      "tags": ["work"],
+      "requiresTarget": true,
+      "targetType": "work_ticket",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "follow_leader",
+      "executor": "follow_leader",
+      "bonusScore": 0.6,
+      "considerations": [
+        { "input": "is_party_member", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "follow_target_distance_norm", "curve": { "type": "step", "threshold": 0.1, "high": 1.0, "low": 0.0 } },
+        { "input": "personality_loyalty", "curve": { "type": "linear", "slope": 0.4, "offset": 0.5 } }
+      ],
+      "tags": ["movement"],
+      "requiresTarget": true,
+      "targetType": "follow",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "return_home",
+      "executor": "return_home",
+      "bonusScore": 0.3,
+      "considerations": [
+        { "input": "has_home", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "distance_from_home_norm", "curve": { "type": "linear", "slope": 1.0, "offset": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["movement"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "wander",
+      "executor": "wander",
+      "bonusScore": 0.15,
+      "considerations": [
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.3 } },
+        { "input": "personality_curiosity", "curve": { "type": "linear", "slope": 0.4, "offset": 0.4 } }
+      ],
+      "tags": ["movement"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "idle",
+      "executor": "idle",
+      "bonusScore": 0.1,
+      "considerations": [
+        { "input": "constant_true", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["movement"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "mental_break_berserk",
+      "executor": "mental_break_berserk",
+      "bonusScore": 0.98,
+      "considerations": [
+        { "input": "mood_crisis", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_aggression", "curve": { "type": "linear", "slope": 0.7, "offset": 0.2 } }
+      ],
+      "tags": ["mental_break"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "mental_break_catatonic",
+      "executor": "mental_break_catatonic",
+      "bonusScore": 0.98,
+      "considerations": [
+        { "input": "mood_crisis", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_patience", "curve": { "type": "linear", "slope": 0.5, "offset": 0.2 } },
+        { "input": "personality_aggression", "curve": { "type": "inverse" } }
+      ],
+      "tags": ["mental_break"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "mental_break_binge_eat",
+      "executor": "mental_break_binge_eat",
+      "bonusScore": 0.98,
+      "considerations": [
+        { "input": "mood_crisis", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "hunger_urgency", "curve": { "type": "linear", "slope": 0.5, "offset": 0.3 } },
+        { "input": "personality_greed", "curve": { "type": "linear", "slope": 0.5, "offset": 0.3 } }
+      ],
+      "tags": ["mental_break"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "mental_break_flee",
+      "executor": "mental_break_flee",
+      "bonusScore": 0.98,
+      "considerations": [
+        { "input": "mood_crisis", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "personality_caution", "curve": { "type": "linear", "slope": 0.5, "offset": 0.3 } },
+        { "input": "personality_bravery", "curve": { "type": "inverse" } }
+      ],
+      "tags": ["mental_break"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    }
+  ]
+}

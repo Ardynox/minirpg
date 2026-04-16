@@ -1,0 +1,46 @@
+{
+  "axes": [
+    { "id": "bravery",      "min": 0, "max": 1, "default": 0.5 },
+    { "id": "altruism",     "min": 0, "max": 1, "default": 0.5 },
+    { "id": "diligence",    "min": 0, "max": 1, "default": 0.5 },
+    { "id": "curiosity",    "min": 0, "max": 1, "default": 0.5 },
+    { "id": "aggression",   "min": 0, "max": 1, "default": 0.5 },
+    { "id": "sociability",  "min": 0, "max": 1, "default": 0.5 },
+    { "id": "patience",     "min": 0, "max": 1, "default": 0.5 },
+    { "id": "greed",        "min": 0, "max": 1, "default": 0.5 },
+    { "id": "loyalty",      "min": 0, "max": 1, "default": 0.5 },
+    { "id": "caution",      "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "race_offsets": {
+    "human":   {},
+    "goblin":  { "bravery": -0.15, "aggression": 0.2,  "diligence": -0.1, "greed": 0.2 },
+    "orc":     { "bravery": 0.2,   "aggression": 0.25, "patience": -0.15, "loyalty": 0.15 },
+    "elf":     { "altruism": 0.15, "curiosity": 0.1,   "patience": 0.2,   "caution": 0.1 },
+    "undead":  { "altruism": -0.3, "bravery": 0.3,     "sociability": -0.3, "patience": 0.2 },
+    "slime":   { "curiosity": -0.2, "aggression": 0.1, "sociability": -0.4, "patience": 0.3 },
+    "wolf":    { "bravery": 0.1,   "aggression": 0.15, "loyalty": 0.3,    "sociability": 0.1 },
+    "bear":    { "bravery": 0.25,  "aggression": 0.2,  "sociability": -0.3, "patience": 0.1 },
+    "spider":  { "caution": 0.2,   "patience": 0.25,   "sociability": -0.4 },
+    "scorpion":{ "aggression": 0.15, "caution": 0.15,  "patience": 0.2 },
+    "treant":  { "patience": 0.35, "altruism": 0.1,    "aggression": -0.2, "caution": 0.15 },
+    "rat":     { "bravery": -0.2,  "caution": 0.25,    "curiosity": 0.15,  "greed": 0.15 }
+  },
+  "profession_offsets": {
+    "soldier":   { "bravery": 0.15,  "aggression": 0.1,  "loyalty": 0.1 },
+    "guard":     { "bravery": 0.2,   "loyalty": 0.15,    "patience": 0.1 },
+    "merchant":  { "diligence": 0.1, "greed": 0.15,      "sociability": 0.1 },
+    "herbalist": { "altruism": 0.15, "patience": 0.1,    "curiosity": 0.1 },
+    "cook":      { "diligence": 0.1, "patience": 0.1,    "altruism": 0.05 },
+    "blacksmith":{ "diligence": 0.15, "patience": 0.15 },
+    "miner":     { "diligence": 0.15, "patience": 0.1 },
+    "lumberjack":{ "diligence": 0.1, "bravery": 0.05 },
+    "hunter":    { "bravery": 0.1,   "caution": 0.1,     "patience": 0.1 },
+    "scout":     { "curiosity": 0.2, "caution": 0.1,     "bravery": 0.1 },
+    "tailor":    { "diligence": 0.1, "patience": 0.15 },
+    "farmer":    { "diligence": 0.15, "patience": 0.2 },
+    "elder":     { "patience": 0.2,  "altruism": 0.1,    "caution": 0.1 },
+    "shaman":    { "curiosity": 0.15, "altruism": 0.1,   "bravery": 0.1 }
+  },
+  "random_range": 0.15,
+  "mutation_range": 0.1
+}

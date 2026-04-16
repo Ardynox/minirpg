@@ -128,6 +128,7 @@ public sealed class AutoTestRegressionTests
 		Assert.NotEmpty(sightLimbs);
 		Assert.True(sightLimbs.Count > 1);
 		sightLimbs[0].Durability = 0;
+		player.InvalidateCapacityCache();
 		var partialSight = player.GetCapacity(Caps.Sight);
 
 		var clearProbe = AutoTestVisionProbeHelper.Create(

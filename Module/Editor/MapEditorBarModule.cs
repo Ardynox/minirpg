@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Weather;
-using MiniRPG.Module.Render;
 
 namespace MiniRPG.Module.Editor;
 
@@ -40,45 +39,13 @@ public sealed class MapEditorBarModule
 	private readonly Button _centerButton;
 	private readonly Button _saveButton;
 	private readonly Button _exitButton;
-	private readonly Dictionary<MapEditorBrushPreview, Texture2D?> _brushPreviewCache = [];
+	private readonly Dictionary<BrushPreview, Texture2D?> _brushPreviewCache = [];
 
 	private IReadOnlyList<MapEditorBrush> _lastBrushes = Array.Empty<MapEditorBrush>();
 	private int _lastSelectedIndex = -1;
 	private MapEditorBrushCategory _lastCategory = MapEditorBrushCategory.Terrain;
 	private bool _suppressEvents;
 
-	// ── Terrain color swatches (matches IsometricVoxelRenderer.TerrainColors) ──
-	private static readonly Dictionary<string, Color> TerrainSwatchColors = new()
-	{
-		["grass_block"] = new Color(0.3f, 0.7f, 0.2f),
-		["grass"] = new Color(0.3f, 0.7f, 0.2f),
-		["dirt"] = new Color(0.55f, 0.35f, 0.15f),
-		["stone"] = new Color(0.5f, 0.5f, 0.5f),
-		["sand"] = new Color(0.9f, 0.85f, 0.6f),
-		["water"] = new Color(0.2f, 0.4f, 0.8f),
-		["mountain"] = new Color(0.4f, 0.4f, 0.45f),
-		["wall_stone"] = new Color(0.45f, 0.45f, 0.45f),
-		["wall_soil"] = new Color(0.5f, 0.3f, 0.15f),
-		["wall_granite"] = new Color(0.35f, 0.35f, 0.38f),
-		["wall_obsidian"] = new Color(0.15f, 0.12f, 0.18f),
-		["wall_iron"] = new Color(0.55f, 0.55f, 0.6f),
-		["tree"] = new Color(0.15f, 0.45f, 0.1f),
-		["lava"] = new Color(1.0f, 0.3f, 0.0f),
-		["snow"] = new Color(0.95f, 0.95f, 1.0f),
-		["ice"] = new Color(0.7f, 0.85f, 1.0f),
-		["floor"] = new Color(0.6f, 0.55f, 0.45f),
-		["rubble"] = new Color(0.5f, 0.45f, 0.35f),
-		["swamp"] = new Color(0.3f, 0.45f, 0.2f),
-		["marsh"] = new Color(0.35f, 0.5f, 0.3f),
-		["gravel"] = new Color(0.6f, 0.58f, 0.55f),
-		["fungus"] = new Color(0.5f, 0.3f, 0.5f),
-		["crystal_vein"] = new Color(0.6f, 0.4f, 0.8f),
-		["ore_coal"] = new Color(0.2f, 0.2f, 0.2f),
-		["ore_iron"] = new Color(0.55f, 0.45f, 0.35f),
-		["ore_copper"] = new Color(0.7f, 0.45f, 0.2f),
-	};
-
-	private static readonly Color DefaultSwatchColor = new(0.5f, 0.5f, 0.5f);
 	private static readonly string[] WeatherOptionTextKeys =
 	[
 		"weather.type.clear",
@@ -269,6 +236,9 @@ public sealed class MapEditorBarModule
 		if (isBrushCategory && shouldRebuildBrushGrid)
 			RebuildBrushGrid(brushes, selectedIndex, category);
 
+		if (isBrushCategory)
+			BrushSwatchHelper.EnsureSelectedBrushVisible(_brushScroll, _brushGrid, selectedIndex);
+
 		UpdateCurrentBrushLabel();
 	}
 
@@ -341,18 +311,11 @@ public sealed class MapEditorBarModule
 
 			if (category == MapEditorBrushCategory.Terrain)
 			{
-				// Color swatch for terrain
-				var color = TerrainSwatchColors.GetValueOrDefault(brush.Id, DefaultSwatchColor);
-				var styleNormal = new StyleBoxFlat { BgColor = color, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4 };
-				var stylePressed = new StyleBoxFlat { BgColor = color, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, BorderColor = new Color(1f, 0.85f, 0.3f), BorderWidthBottom = 3, BorderWidthTop = 3, BorderWidthLeft = 3, BorderWidthRight = 3 };
-				btn.AddThemeStyleboxOverride("normal", styleNormal);
-				btn.AddThemeStyleboxOverride("hover", styleNormal);
-				btn.AddThemeStyleboxOverride("pressed", stylePressed);
-				btn.AddThemeStyleboxOverride("focus", stylePressed);
+				BrushSwatchHelper.ApplyTerrainSwatchStyle(btn, brush.Id);
 			}
 			else
 			{
-				if (!TryConfigureFixtureBrushButton(btn, brush))
+				if (!BrushSwatchHelper.TryConfigurePreviewButton(btn, brush.Preview, _brushPreviewCache))
 					btn.Text = brush.Glyph ?? brush.Id[..Math.Min(2, brush.Id.Length)];
 			}
 
@@ -373,71 +336,6 @@ public sealed class MapEditorBarModule
 		var clampedIndex = Math.Clamp(_lastSelectedIndex, 0, _lastBrushes.Count - 1);
 		var brush = _lastBrushes[clampedIndex];
 		_currentBrushLabel.Text = $"[{brush.Id}] {brush.Label}";
-	}
-
-	private bool TryConfigureFixtureBrushButton(Button button, MapEditorBrush brush)
-	{
-		if (brush.Preview is not { } preview)
-			return false;
-
-		var texture = ResolveBrushPreviewTexture(preview);
-		if (texture == null)
-			return false;
-
-		button.Text = string.Empty;
-		button.Icon = texture;
-		button.ExpandIcon = true;
-		button.IconAlignment = HorizontalAlignment.Center;
-		button.VerticalIconAlignment = VerticalAlignment.Center;
-		return true;
-	}
-
-	private Texture2D? ResolveBrushPreviewTexture(MapEditorBrushPreview preview)
-	{
-		if (_brushPreviewCache.TryGetValue(preview, out var cached))
-			return cached;
-
-		var texture = ResAccess.Get<Texture2D>(preview.TexturePath);
-		Texture2D? resolved = null;
-		if (texture != null)
-			resolved = preview.Region is { } region
-				? CreateRegionPreviewTexture(texture, region)
-				: texture;
-
-		_brushPreviewCache[preview] = resolved;
-		return resolved;
-	}
-
-	private static Texture2D CreateRegionPreviewTexture(Texture2D texture, Rect2I region)
-	{
-		var clampedRegion = ClampPreviewRegion(texture, region);
-		if (clampedRegion.Position == Vector2I.Zero &&
-			clampedRegion.Size.X == texture.GetWidth() &&
-			clampedRegion.Size.Y == texture.GetHeight())
-		{
-			return texture;
-		}
-
-		return new AtlasTexture
-		{
-			Atlas = texture,
-			Region = new Rect2(
-				clampedRegion.Position.X,
-				clampedRegion.Position.Y,
-				clampedRegion.Size.X,
-				clampedRegion.Size.Y),
-		};
-	}
-
-	private static Rect2I ClampPreviewRegion(Texture2D texture, Rect2I region)
-	{
-		var textureWidth = Math.Max(1, (int)texture.GetWidth());
-		var textureHeight = Math.Max(1, (int)texture.GetHeight());
-		var x = Math.Clamp(region.Position.X, 0, textureWidth - 1);
-		var y = Math.Clamp(region.Position.Y, 0, textureHeight - 1);
-		var width = Math.Clamp(region.Size.X, 1, textureWidth - x);
-		var height = Math.Clamp(region.Size.Y, 1, textureHeight - y);
-		return new Rect2I(x, y, width, height);
 	}
 
 	private void RebuildEnvironmentOptions()

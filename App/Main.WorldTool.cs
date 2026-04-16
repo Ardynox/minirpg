@@ -14,6 +14,7 @@ public partial class Main
 	{
 		_runtimeCameraController = new RuntimeCameraController(_state);
 		_runtimeWorldToolSession = new RuntimeWorldToolSession(_state);
+		_cameraRightDrag = new RuntimeCameraRightDragHandler(_panels);
 		_runtimeWorldToolHasLastPointerGlobalPosition = false;
 
 		var toolPanel = new PanelContainer
@@ -64,7 +65,7 @@ public partial class Main
 			return;
 
 		_runtimeCameraController.ResetForSession();
-		ResetPendingRuntimeCameraRightDrag();
+		_cameraRightDrag.Reset(_runtimeCameraController);
 		_runtimeWorldToolSession.ResetForSession();
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
@@ -274,7 +275,7 @@ public partial class Main
 			return;
 
 		_runtimeCameraController.CenterOnActiveActor();
-		ResetPendingRuntimeCameraRightDrag();
+		_cameraRightDrag.Reset(_runtimeCameraController);
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldToolHoverFromLastPointer();
@@ -305,7 +306,7 @@ public partial class Main
 		}
 
 		_runtimeCameraController.ReturnToFollowActor();
-		ResetPendingRuntimeCameraRightDrag();
+		_cameraRightDrag.Reset(_runtimeCameraController);
 		_runtimeWorldToolDragActive = false;
 		_runtimeWorldToolLastDraggedHoverCell = null;
 		RefreshRuntimeWorldToolHoverFromLastPointer();
@@ -345,8 +346,44 @@ public partial class Main
 			return changed;
 		}
 
-		if (!key.Pressed || key.Echo || key.AltPressed || key.CtrlPressed || key.ShiftPressed)
+		if (!key.Pressed || key.Echo)
 			return false;
+
+		if (key.ShiftPressed && !key.AltPressed && !key.CtrlPressed)
+		{
+			switch (key.Keycode)
+			{
+				case Key.S:
+					_runtimeWorldToolSession.SetToolMode(WorldToolMode.Select);
+					RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+					FlushMap();
+					return true;
+				case Key.B:
+					_runtimeWorldToolSession.SetToolMode(WorldToolMode.Build);
+					RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+					FlushMap();
+					return true;
+				case Key.D:
+					_runtimeWorldToolSession.SetToolMode(WorldToolMode.Demolish);
+					RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+					FlushMap();
+					return true;
+			}
+		}
+
+		if (key.AltPressed || key.CtrlPressed || key.ShiftPressed)
+			return false;
+
+		if (key.Keycode == Key.Tab)
+		{
+			var nextCategory = _runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Terrain
+				? WorldToolCategory.Facility
+				: WorldToolCategory.Terrain;
+			_runtimeWorldToolSession.SetCategory(nextCategory);
+			RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+			FlushMap();
+			return true;
+		}
 
 		if (key.Keycode == Key.R
 			&& _runtimeWorldToolSession.CurrentCategory == WorldToolCategory.Facility)

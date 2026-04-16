@@ -766,7 +766,7 @@ public static class TimelineTurnManager
 		Actor player,
 		List<GameEvent> events)
 	{
-		if (NeedBehaviorModule.HasNearbyThreat(state, player))
+		if (AI.ThreatDetection.HasNearbyThreat(state, player))
 		{
 			NeedSystem.ApplyThought(player, "sleep_interrupted", state.Turn, NeedThoughtSources.Sleep, events, state);
 			return PlayerActionOutcome.ConsumedTurn;

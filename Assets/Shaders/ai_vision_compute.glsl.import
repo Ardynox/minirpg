@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ic7q2c8l63kk"
+path="res://.godot/imported/ai_vision_compute.glsl-10b0b84ca6cecbdb067f293c292c153e.res"
+
+[deps]
+
+source_file="res://Assets/Shaders/ai_vision_compute.glsl"
+dest_files=["res://.godot/imported/ai_vision_compute.glsl-10b0b84ca6cecbdb067f293c292c153e.res"]
+
+[params]
+

@@ -219,7 +219,7 @@ public sealed class RuntimeWorldToolSessionTests
 		var brush = Assert.Single(
 			session.FacilityBrushes,
 			entry => string.Equals(entry.Id, FacilityIds.Bed, StringComparison.Ordinal));
-		var preview = Assert.IsType<MapEditorBrushPreview>(brush.Preview);
+		var preview = Assert.IsType<BrushPreview>(brush.Preview);
 
 		Assert.Equal("res://Assets/Art/Generated/facilities/facility_bed_4dir.png", preview.TexturePath);
 		Assert.Equal(new Rect2I(0, 0, 256, 256), preview.Region);
@@ -228,7 +228,7 @@ public sealed class RuntimeWorldToolSessionTests
 	[Fact]
 	public void EntityPreviewResolver_ReturnsNullForMissingEntry()
 	{
-		Assert.Null(MapEditorBrushPreviewResolver.ResolveEntityPreview("runtime_tool_missing_preview"));
+		Assert.Null(BrushPreviewResolver.ResolveEntityPreview("runtime_tool_missing_preview"));
 	}
 
 	private static GameState CreateState(

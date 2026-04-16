@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MiniRPG.Core.AI.Utility;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
@@ -23,6 +24,9 @@ internal static class SkillCastingTestHelper
 
 		if (!HasExpectedTerrain(Terrains.Floor) || !HasExpectedTerrain(Terrains.Water))
 			TerrainRegistry.Load("terrains.json");
+		UtilityActionRegistry.EnsureLoaded();
+		ExecutorRegistry.EnsureInitialized();
+		PersonalityModule.EnsureLoaded();
 	}
 
 	private static bool HasExpectedTerrain(string terrainId) =>

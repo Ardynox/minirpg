@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using MiniRPG.Module;
 
 namespace MiniRPG.Module.Panel;
 
@@ -15,9 +16,15 @@ public class PanelManager
 	private readonly List<PanelContainer> _allNodes = [];
 	private readonly List<IPanel> _focusStack = [];
 	private readonly Dictionary<PanelContainer, string> _nodePanelIds = [];
+	private readonly InputBindingService? _bindings;
 	private IPanel? _focused;
 	private bool _switching;
 	private Func<string, bool>? _isFloatingCheck;
+
+	public PanelManager(InputBindingService? bindings = null)
+	{
+		_bindings = bindings;
+	}
 
 	public IPanel? Focused => _focused;
 	public bool HasFocus => _focused != null;
@@ -352,31 +359,45 @@ public class PanelManager
 		}
 	}
 
-	private static string? MapKeyToCommand(InputEventKey key) => key.Keycode switch
+	private string? MapKeyToCommand(InputEventKey key)
 	{
-		Key.W or Key.Up => "up",
-		Key.S or Key.Down => "down",
-		Key.A or Key.Left => "left",
-		Key.D or Key.Right => "right",
-		Key.Enter => "confirm",
-		Key.Escape => "close",
-		Key.E => "action1",
-		Key.Q => "action2",
-		Key.R => "action3",
-		Key.P => "action4",
-		Key.U => "action5",
-		Key.Tab => key.ShiftPressed ? "tab_prev" : "tab_next",
-		Key.Key1 => "1",
-		Key.Key2 => "2",
-		Key.Key3 => "3",
-		Key.Key4 => "4",
-		Key.Key5 => "5",
-		Key.Key6 => "6",
-		Key.Key7 => "7",
-		Key.Key8 => "8",
-		Key.Key9 => "9",
-		_ => null,
-	};
+		if (_bindings != null && _bindings.Resolve(InputBindingContext.Action, key, out var actionId, out _))
+		{
+			var cmd = actionId switch
+			{
+				"move_north" => "up",
+				"move_south" => "down",
+				"move_west" => "left",
+				"move_east" => "right",
+				"open_settings" => "close",
+				"interact" => "confirm",
+				_ => null,
+			};
+			if (cmd != null) return cmd;
+		}
+
+		return key.Keycode switch
+		{
+			Key.Enter => "confirm",
+			Key.Escape => "close",
+			Key.E => "action1",
+			Key.Q => "action2",
+			Key.R => "action3",
+			Key.P => "action4",
+			Key.U => "action5",
+			Key.Tab => key.ShiftPressed ? "tab_prev" : "tab_next",
+			Key.Key1 => "1",
+			Key.Key2 => "2",
+			Key.Key3 => "3",
+			Key.Key4 => "4",
+			Key.Key5 => "5",
+			Key.Key6 => "6",
+			Key.Key7 => "7",
+			Key.Key8 => "8",
+			Key.Key9 => "9",
+			_ => null,
+		};
+	}
 
 	private static bool ShouldTrapDirectionalInput(IPanel focused, string cmd)
 	{

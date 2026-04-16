@@ -80,12 +80,6 @@ public partial class Main
 
 	private void RefreshMapEditorBar() => _mapEditorCoordinator.RefreshBar();
 
-	private bool HandleMapEditorKeyInput(InputEventKey key) =>
-		_mapEditorCoordinator.HandleKeyInput(key);
-
-	private bool HandleMapEditorMouseInput(InputEvent @event) =>
-		_mapEditorCoordinator.HandleMouseInput(@event);
-
 	private void HandleMapEditorSaveRequested() =>
 		_mapEditorCoordinator.HandleSaveRequested();
 

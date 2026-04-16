@@ -25,6 +25,12 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 	[Fact] public void PerfLog_60Enemies()  => RunPerfLog(60);
 	[Fact] public void PerfLog_100Enemies() => RunPerfLog(100);
 
+	[Fact] public void PerfLog_60Enemies_MultiLayer()  => RunPerfLog3D(60, 5);
+	[Fact] public void PerfLog_100Enemies_MultiLayer() => RunPerfLog3D(100, 5);
+	[Fact] public void PerfLog_200Enemies_MultiLayer() => RunPerfLog3D(200, 5);
+
+	[Fact] public void PerfLog_Vision3D_Isolated() => RunVisionIsolated();
+
 	// ──────────────────────────────────────────────
 	//  核心测试逻辑
 	// ──────────────────────────────────────────────
@@ -50,7 +56,8 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		// 分项微基准：隔离各阶段成本
 		var awarenessCtx = AwarenessModule.CreateTurnContext(benchState);
 		var awarenessMs = MeasureMs(100, () => AwarenessModule.UpdateForTurn(benchState, benchEnemy, perception, awarenessCtx));
-		var brainMs = MeasureMs(100, () => new SimpleBrain().Decide(perception, new Random(42)));
+		var brainMs = MeasureMs(100, () => new MiniRPG.Core.AI.Utility.UtilityBrain().Evaluate(
+			benchState, benchEnemy, perception, new AIBehaviorContext(benchState), SimDetail.Full, new Random(42)));
 		var healthSyncMs = MeasureMs(100, () => HealthSystem.Sync(benchEnemy, benchState.Turn,
 			DefaultEnvironmentExposureProvider.Instance.Capture(benchState, benchEnemy)));
 		var captureMs = MeasureMs(200, () => DefaultEnvironmentExposureProvider.Instance.Capture(benchState, benchEnemy));
@@ -155,6 +162,8 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 			output.WriteLine($"║  Sum          : {sumMs,8:F2} ms");
 		}
 
+		PrintVisionMetrics("Vision Batch Metrics");
+
 		// Fast-turn 模式测量
 		var fastState = CreatePerfState(enemyCount);
 		TimelineTurnManager.Reset(fastState);
@@ -173,11 +182,165 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		output.WriteLine($"╚══");
 	}
 
+	private void RunPerfLog3D(int enemyCount, int layerCount)
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+
+		output.WriteLine($"");
+		output.WriteLine($"╔══ 3D Multi-Layer Perf: {enemyCount} enemies across {layerCount} layers ══");
+
+		var state = CreateMultiLayerPerfState(enemyCount, layerCount);
+		TimelineTurnManager.Reset(state);
+
+		var benchEnemy = state.Actors.Values.First(a => a.Faction == Factions.Hostile);
+		state.SnapshotCache = new TimelineSnapshotCache();
+
+		var visionMs = MeasureMs(50, () => PerceptionBuilder.Build(state, benchEnemy, SimDetail.Full));
+		var visionMetrics = AIVisionBatch.LastMetrics;
+		output.WriteLine($"╠── 单次 Vision (per-actor, Full detail)");
+		output.WriteLine($"║  vision     : {visionMs,8:F3} ms/call");
+		PrintVisionMetrics("Single-actor Vision");
+
+		var batchRequests = new List<AIVisionRequest>();
+		foreach (var actor in state.Actors.Values)
+		{
+			if (actor.BrainId == null) continue;
+			if (CombatModule.IsDead(actor)) continue;
+			batchRequests.Add(new AIVisionRequest(actor, SimDetail.Full));
+		}
+
+		var batchMs = MeasureMs(10, () => AIVisionBatch.Build(state, batchRequests));
+		output.WriteLine($"╠── 批量 Vision ({batchRequests.Count} observers)");
+		output.WriteLine($"║  batch total: {batchMs,8:F3} ms");
+		output.WriteLine($"║  per observer:{batchMs / batchRequests.Count,8:F4} ms");
+		PrintVisionMetrics("Batch Vision");
+
+		state.SnapshotCache = null;
+
+		Assert.True(TimelineTurnManager.IsPlayerTurn(state), "Reset 后应是玩家回合");
+		var playerAction = TimelineTurnManager.SubmitPlayerAction(state, TimelinePlayerAction.Move(1, 0));
+		Assert.True(playerAction.ActionConsumed, "玩家移动应被消耗");
+
+		var stepTimes = new List<double>(enemyCount * 2);
+		TimelineTurnManager.EnableStepProfiling();
+		var sw = Stopwatch.StartNew();
+		TimelineStepResult result;
+		var stepSw = new Stopwatch();
+		do
+		{
+			stepSw.Restart();
+			result = TimelineTurnManager.AdvanceAuto(state, watchModeEnabled: false, fastTurnModeEnabled: false);
+			stepSw.Stop();
+			stepTimes.Add(stepSw.Elapsed.TotalMilliseconds);
+		} while (result.HasPendingAutoStep && !result.PlayerTurnReady && stepTimes.Count < enemyCount * 4);
+		sw.Stop();
+		var stageStats = TimelineTurnManager.DisableStepProfilingAndRead();
+
+		var totalMs = sw.Elapsed.TotalMilliseconds;
+		var steps = stepTimes.Count;
+		stepTimes.Sort();
+		output.WriteLine($"╠── 完整回合循环");
+		output.WriteLine($"║  steps      : {steps}");
+		output.WriteLine($"║  total      : {totalMs,8:F1} ms");
+		output.WriteLine($"║  avg/step   : {totalMs / steps,8:F2} ms");
+		output.WriteLine($"║  p50/step   : {stepTimes[steps / 2],8:F2} ms");
+		output.WriteLine($"║  p95/step   : {stepTimes[(int)(steps * 0.95)],8:F2} ms");
+		output.WriteLine($"║  max/step   : {stepTimes[^1],8:F2} ms");
+
+		if (stageStats.Steps > 0)
+		{
+			var aiMs = TimelineTurnManager.TicksToMs(stageStats.AiDispatchTicks);
+			var n = stageStats.Steps;
+			output.WriteLine($"╠── AI Dispatch 阶段");
+			output.WriteLine($"║  total      : {aiMs,8:F2} ms  ({aiMs / n,6:F3} ms/step)");
+		}
+
+		PrintVisionMetrics("Final Vision Batch");
+		output.WriteLine($"╚══");
+	}
+
+	private void RunVisionIsolated()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+
+		output.WriteLine($"");
+		output.WriteLine($"╔══ Vision 3D Isolated Benchmark ══");
+
+		var configs = new[]
+		{
+			(Label: "100 same-layer", Count: 100, Layers: 1),
+			(Label: "100 multi-layer (5)", Count: 100, Layers: 5),
+			(Label: "200 same-layer", Count: 200, Layers: 1),
+			(Label: "200 multi-layer (5)", Count: 200, Layers: 5),
+			(Label: "500 same-layer", Count: 500, Layers: 1),
+			(Label: "500 multi-layer (5)", Count: 500, Layers: 5),
+		};
+
+		foreach (var (label, count, layers) in configs)
+		{
+			var state = layers == 1
+				? CreatePerfState(count)
+				: CreateMultiLayerPerfState(count, layers);
+
+			var requests = new List<AIVisionRequest>();
+			foreach (var actor in state.Actors.Values)
+			{
+				if (actor.BrainId == null) continue;
+				if (CombatModule.IsDead(actor)) continue;
+				requests.Add(new AIVisionRequest(actor, SimDetail.Full));
+			}
+
+			for (var warmup = 0; warmup < 3; warmup++)
+				AIVisionBatch.Build(state, requests);
+
+			const int iterations = 20;
+			var times = new double[iterations];
+			for (var i = 0; i < iterations; i++)
+			{
+				state.SnapshotCache = new TimelineSnapshotCache();
+				var iterSw = Stopwatch.StartNew();
+				AIVisionBatch.Build(state, requests);
+				iterSw.Stop();
+				times[i] = iterSw.Elapsed.TotalMilliseconds;
+			}
+
+			Array.Sort(times);
+			var m = AIVisionBatch.LastMetrics;
+			output.WriteLine($"╠── {label}");
+			output.WriteLine($"║  observers  : {m.ObserverCount}");
+			output.WriteLine($"║  candidates : {m.CandidateCount}  (max/obs: {m.MaxCandidatesPerObserver})");
+			output.WriteLine($"║  shortlist  : {m.ShortlistCount}  (max/obs: {m.MaxShortlistPerObserver})");
+			output.WriteLine($"║  LOS checks : {m.LosChecks}  (cache hits: {m.LosCacheHits})");
+			output.WriteLine($"║  visible    : {m.VisibleActorCount}");
+			output.WriteLine($"║  median     : {times[iterations / 2],8:F3} ms");
+			output.WriteLine($"║  p95        : {times[(int)(iterations * 0.95)],8:F3} ms");
+			output.WriteLine($"║  min        : {times[0],8:F3} ms");
+			output.WriteLine($"║  max        : {times[^1],8:F3} ms");
+		}
+
+		output.WriteLine($"╚══");
+	}
+
+	private void PrintVisionMetrics(string label)
+	{
+		var m = AIVisionBatch.LastMetrics;
+		output.WriteLine($"╠── {label}");
+		output.WriteLine($"║  observers  : {m.ObserverCount}");
+		output.WriteLine($"║  candidates : {m.CandidateCount}  (max/obs: {m.MaxCandidatesPerObserver})");
+		output.WriteLine($"║  shortlist  : {m.ShortlistCount}  (max/obs: {m.MaxShortlistPerObserver})");
+		output.WriteLine($"║  LOS checks : {m.LosChecks}  (cache hits: {m.LosCacheHits})");
+		output.WriteLine($"║  visible    : {m.VisibleActorCount}");
+		output.WriteLine($"║  elapsed    : {m.ElapsedMs,8:F3} ms");
+		output.WriteLine($"║    candidate: {m.CandidateScanMs,8:F3} ms");
+		output.WriteLine($"║    rank     : {m.RankMs,8:F3} ms");
+		output.WriteLine($"║    LOS      : {m.LosMs,8:F3} ms");
+		output.WriteLine($"║    local ctx: {m.LocalContextMs,8:F3} ms");
+	}
+
 	// ──────────────────────────────────────────────
 	//  辅助方法
 	// ──────────────────────────────────────────────
 
-	/// <summary>执行 <paramref name="n"/> 次 <paramref name="action"/>，返回单次平均毫秒。</summary>
 	private static double MeasureMs(int n, Action action)
 	{
 		var sw = Stopwatch.StartNew();
@@ -214,8 +377,6 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		player.BrainId = null;
 		ActorModule.Add(state, player);
 
-		// 敌人分布在玩家周围的网格（x 5..14, y 0..N/10）
-		// 使用 "player" 模板确保生物有 Moving/Consciousness/Metabolism 参与 timeline
 		for (var i = 0; i < enemyCount; i++)
 		{
 			var enemy = PresetDB.SpawnActor("player", $"e{i}");
@@ -231,19 +392,85 @@ public sealed class TimelineTurnCyclePerfTests(ITestOutputHelper output)
 		return state;
 	}
 
+	private static GameState CreateMultiLayerPerfState(int enemyCount, int layerCount)
+	{
+		var state = new GameState
+		{
+			WorldSeed = 20260411,
+			PlayerId  = "player",
+			PlayerX   = 0,
+			PlayerY   = 0,
+			PlayerZ   = 0,
+			GeneratorId = "multi_layer",
+			ViewModeId  = "single_layer",
+			World = new WorldMap(20260411, new MultiLayerGenerator(layerCount)),
+		};
+		state.Weather.DebugOverride = new WeatherDebugOverride
+		{
+			Type      = WeatherType.Clear,
+			Intensity = WeatherIntensity.Normal,
+		};
+
+		var player = PresetDB.SpawnActor("player", "player");
+		player.X       = 0;
+		player.Y       = 0;
+		player.Z       = 0;
+		player.FacingX = 1;
+		player.FacingY = 0;
+		player.BrainId = null;
+		ActorModule.Add(state, player);
+
+		var halfLayers = layerCount / 2;
+		var perLayer = enemyCount / layerCount;
+		var remainder = enemyCount % layerCount;
+		var idx = 0;
+		for (var layer = 0; layer < layerCount; layer++)
+		{
+			var z = layer - halfLayers;
+			var countThisLayer = perLayer + (layer < remainder ? 1 : 0);
+			for (var i = 0; i < countThisLayer; i++)
+			{
+				var enemy = PresetDB.SpawnActor("player", $"e{idx}");
+				enemy.X          = 3 + (i % 10);
+				enemy.Y          = i / 10;
+				enemy.Z          = z;
+				enemy.Faction    = Factions.Hostile;
+				enemy.BrainId    = "simple";
+				enemy.DisplayName = $"Enemy{idx}";
+				ActorModule.Add(state, enemy);
+				idx++;
+			}
+		}
+
+		return state;
+	}
+
 	private sealed class FlatFloorGenerator : IMapGenerator
 	{
 		public string Id   => "flat_floor";
 		public string Name => "Flat Floor";
 		public void GenerateChunk(ChunkData chunk, int worldSeed)
 		{
-			// z=0 is walkable floor. Deeper layers are solid so ApplyGravity stops immediately.
-			// Without this, FlatFloor would create an infinite well and the player would fall to death
-			// after every consumed action (via ClimbingService.ApplyPlayerGravityAndDamage).
 			var terrainId = chunk.Coord.Cz == 0
 				? TerrainRegistry.GetId(Terrains.Floor)
 				: TerrainRegistry.GetId(Terrains.WallStone);
 			chunk.Fill(terrainId);
+		}
+		public void PopulateChunk(ChunkData chunk, int worldSeed) { }
+	}
+
+	private sealed class MultiLayerGenerator(int layerCount) : IMapGenerator
+	{
+		public string Id   => "multi_layer";
+		public string Name => "Multi Layer";
+		public void GenerateChunk(ChunkData chunk, int worldSeed)
+		{
+			var halfLayers = layerCount / 2;
+			var z = chunk.Coord.Cz;
+			if (z >= -halfLayers && z <= halfLayers)
+				chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+			else
+				chunk.Fill(TerrainRegistry.GetId(Terrains.WallStone));
 		}
 		public void PopulateChunk(ChunkData chunk, int worldSeed) { }
 	}

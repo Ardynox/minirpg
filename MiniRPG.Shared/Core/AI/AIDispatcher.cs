@@ -1,27 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.AI.Utility;
 using MiniRPG.Core.Data;
-using MiniRPG.Core.Job;
+using MiniRPG.Core.Health;
+using MiniRPG.Core.Needs;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI;
 
-/// <summary>
-/// Builds AI perception, runs the selected brain, and executes the chosen action.
-/// </summary>
 public static class AIDispatcher
 {
-	private static readonly Dictionary<string, IBrainModule> _brains = new();
-
-	static AIDispatcher()
-	{
-		Register("simple", new SimpleBrain());
-		Register(WorkBrainIds.DomainWorker, new SimpleBrain());
-		Register(FollowerBrain.BrainId, new FollowerBrain());
-	}
-
-	public static void Register(string id, IBrainModule brain) => _brains[id] = brain;
+	private static readonly UtilityBrain _utilityBrain = new();
+	private static readonly Dictionary<string, UtilityDecisionCache> _decisionCaches = new(StringComparer.Ordinal);
 
 	public static List<GameEvent> TickAll(GameState state, int viewCenterX, int viewCenterY, int viewRange) =>
 		TickAll(state, [new WorldCoord(viewCenterX, viewCenterY, state.PlayerZ)], viewRange);
@@ -41,15 +32,14 @@ public static class AIDispatcher
 		int viewRange,
 		bool captureProfile)
 	{
+		UtilityActionRegistry.EnsureLoaded();
+		ExecutorRegistry.EnsureInitialized();
+
 		var events = new List<GameEvent>();
 		var requests = new List<AIVisionRequest>();
 		var activeActors = new List<Actor>();
+		var actorDetails = new Dictionary<string, SimDetail>(StringComparer.Ordinal);
 		double awarenessMs = 0d;
-		double healthBehaviorMs = 0d;
-		double fireBehaviorMs = 0d;
-		double temperatureBehaviorMs = 0d;
-		double needBehaviorMs = 0d;
-		double jobBehaviorMs = 0d;
 		double brainDecideMs = 0d;
 		double decisionExecuteMs = 0d;
 		var dispatchStart = captureProfile ? ProfilingClock.Start() : 0L;
@@ -79,21 +69,18 @@ public static class AIDispatcher
 				&& state.Turn % simplifiedUpdateInterval != 0)
 				continue;
 
-			if (!_brains.ContainsKey(actor.BrainId!))
-				continue;
-
 			requests.Add(new AIVisionRequest(actor, detail));
 			activeActors.Add(actor);
+			actorDetails[actor.Id] = detail;
 		}
 
 		var perceptions = captureProfile
 			? AIVisionBatch.BuildProfiled(state, requests)
 			: PerceptionBuilder.BuildBatch(state, requests);
+
 		foreach (var actor in activeActors)
 		{
 			if (!state.Actors.ContainsKey(actor.Id) || CombatModule.IsDead(actor))
-				continue;
-			if (!_brains.TryGetValue(actor.BrainId!, out var brain))
 				continue;
 			if (!perceptions.TryGetValue(actor.Id, out var perception))
 				continue;
@@ -111,116 +98,45 @@ public static class AIDispatcher
 			}
 			events.AddRange(awarenessEvents);
 
-			ActionExecutionResult healthResult;
-			if (captureProfile)
-			{
-				var stageStart = ProfilingClock.Start();
-				healthResult = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-				healthBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
-			}
-			else
-			{
-				healthResult = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-			}
-			if (healthResult.Consumed)
-			{
-				events.AddRange(healthResult.Events);
-				continue;
-			}
+			var exposure = behaviorContext.GetCurrentExposure(actor);
+			HealthSystem.Sync(actor, state.Turn, exposure, events, state);
+			NeedSystem.Sync(actor, state.Turn, events, state);
 
-			ActionExecutionResult fireResult;
-			if (captureProfile)
-			{
-				var stageStart = ProfilingClock.Start();
-				fireResult = FireBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-				fireBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
-			}
-			else
-			{
-				fireResult = FireBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-			}
-			if (fireResult.Consumed)
-			{
-				events.AddRange(fireResult.Events);
-				continue;
-			}
+			var detail = actorDetails.TryGetValue(actor.Id, out var d) ? d : SimDetail.Full;
+			_decisionCaches.TryGetValue(actor.Id, out var cache);
 
-			ActionExecutionResult temperatureResult;
+			UtilityEvalResult evalResult;
 			if (captureProfile)
 			{
 				var stageStart = ProfilingClock.Start();
-				temperatureResult = TemperatureBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-				temperatureBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
-			}
-			else
-			{
-				temperatureResult = TemperatureBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-			}
-			if (temperatureResult.Consumed)
-			{
-				events.AddRange(temperatureResult.Events);
-				continue;
-			}
-
-			ActionExecutionResult needResult;
-			if (captureProfile)
-			{
-				var stageStart = ProfilingClock.Start();
-				needResult = NeedBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-				needBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
-			}
-			else
-			{
-				needResult = NeedBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-			}
-			if (needResult.Consumed)
-			{
-				events.AddRange(needResult.Events);
-				continue;
-			}
-
-			// ── Job 行为：工人自动执行工作任务 ──
-			ActionExecutionResult jobResult;
-			if (captureProfile)
-			{
-				var stageStart = ProfilingClock.Start();
-				jobResult = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-				jobBehaviorMs += ProfilingClock.ElapsedMs(stageStart);
-			}
-			else
-			{
-				jobResult = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: true, behaviorContext);
-			}
-			if (jobResult.Consumed)
-			{
-				events.AddRange(jobResult.Events);
-				continue;
-			}
-
-			var rng = CreateActorRng(state, actor);
-			Decision decision;
-			if (captureProfile)
-			{
-				var stageStart = ProfilingClock.Start();
-				decision = brain.Decide(perception, rng);
+				evalResult = EvaluateActor(state, actor, perception, behaviorContext, detail, cache);
 				brainDecideMs += ProfilingClock.ElapsedMs(stageStart);
 			}
 			else
 			{
-				decision = brain.Decide(perception, rng);
+				evalResult = EvaluateActor(state, actor, perception, behaviorContext, detail, cache);
 			}
+
+			if (evalResult.Action == null)
+				continue;
+
+			if (evalResult.Action != null)
+				_decisionCaches[actor.Id] = UtilityCache.CreateCache(state, actor, perception, evalResult);
 
 			ActionExecutionResult executionResult;
 			if (captureProfile)
 			{
 				var stageStart = ProfilingClock.Start();
-				executionResult = ExecuteDecision(state, actor, decision, tickBuffs: true);
+				executionResult = ExecuteUtilityAction(state, actor, perception, evalResult);
 				decisionExecuteMs += ProfilingClock.ElapsedMs(stageStart);
 			}
 			else
 			{
-				executionResult = ExecuteDecision(state, actor, decision, tickBuffs: true);
+				executionResult = ExecuteUtilityAction(state, actor, perception, evalResult);
 			}
+
+			if (executionResult.Consumed)
+				actor.TickBuffs();
 			events.AddRange(executionResult.Events);
 		}
 
@@ -234,15 +150,59 @@ public static class AIDispatcher
 					? ProfilingClock.ElapsedMs(dispatchStart)
 					: 0d,
 				AwarenessMs = awarenessMs,
-				HealthBehaviorMs = healthBehaviorMs,
-				FireBehaviorMs = fireBehaviorMs,
-				TemperatureBehaviorMs = temperatureBehaviorMs,
-				NeedBehaviorMs = needBehaviorMs,
-				JobBehaviorMs = jobBehaviorMs,
 				BrainDecideMs = brainDecideMs,
 				DecisionExecuteMs = decisionExecuteMs,
 			},
 		};
+	}
+
+	private static UtilityEvalResult EvaluateActor(
+		GameState state,
+		Actor actor,
+		Perception perception,
+		AIBehaviorContext behaviorContext,
+		SimDetail detail,
+		UtilityDecisionCache? cache)
+	{
+		var rng = CreateActorRng(state, actor);
+
+		if (cache != null && !UtilityCache.NeedsQuickReevaluation(state, actor, perception, detail, cache))
+		{
+			var cachedAction = UtilityActionRegistry.Get(cache.ActionId);
+			if (cachedAction != null)
+			{
+				return new UtilityEvalResult
+				{
+					Action = cachedAction,
+					Score = cache.Score,
+					TargetActor = cache.TargetActorId != null && state.Actors.TryGetValue(cache.TargetActorId, out var ta) ? ta : null,
+					TargetTicket = cache.TargetTicketId != null && state.JobBoardState.Tickets.TryGetValue(cache.TargetTicketId, out var tt) ? tt : null,
+					TargetPos = cache.TargetPos,
+				};
+			}
+		}
+
+		IReadOnlyList<UtilityActionDef>? subset = null;
+		if (!UtilityCache.NeedsFullReevaluation(state, actor, perception, detail, cache))
+			subset = UtilityCache.GetContextualSubset(actor, perception);
+
+		return _utilityBrain.Evaluate(state, actor, perception, behaviorContext, detail, rng, subset);
+	}
+
+	private static ActionExecutionResult ExecuteUtilityAction(
+		GameState state,
+		Actor actor,
+		Perception perception,
+		UtilityEvalResult eval)
+	{
+		if (eval.Action == null)
+			return new ActionExecutionResult();
+
+		var executor = ExecutorRegistry.Get(eval.Action.Executor);
+		if (executor == null)
+			return new ActionExecutionResult();
+
+		return executor.Execute(state, actor, perception, eval);
 	}
 
 	public static List<GameEvent> DecideAndExecuteOne(GameState state, Actor actor) =>
@@ -253,20 +213,37 @@ public static class AIDispatcher
 
 	public static ActionExecutionResult DecideAndExecuteOneResult(GameState state, Actor actor, bool tickBuffs)
 	{
-		var brainId = actor.BrainId ?? "simple";
-		if (!_brains.TryGetValue(brainId, out var brain))
-			return new ActionExecutionResult();
+		UtilityActionRegistry.EnsureLoaded();
+		ExecutorRegistry.EnsureInitialized();
 
 		var perception = ResolvePerception(state, actor);
 		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
-		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
-		if (behaviorExecution.Consumed)
-			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
+		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
+
+		var exposure = behaviorContext.GetCurrentExposure(actor);
+		HealthSystem.Sync(actor, state.Turn, exposure, new List<GameEvent>(), state);
 
 		var rng = CreateActorRng(state, actor);
-		var decision = brain.Decide(perception, rng);
-		return ExecuteDecisionWithAwareness(state, actor, decision, tickBuffs, awarenessEvents, attackOnly: true);
+		var eval = _utilityBrain.Evaluate(state, actor, perception, behaviorContext, SimDetail.Full, rng);
+
+		var result = new ActionExecutionResult();
+		result.Events.AddRange(awarenessEvents);
+
+		if (eval.Action == null)
+		{
+			result.Consumed = true;
+			return result;
+		}
+
+		var execution = ExecuteUtilityAction(state, actor, perception, eval);
+		if (execution.Consumed && tickBuffs)
+			actor.TickBuffs();
+		result.Consumed = execution.Consumed;
+		result.Events.AddRange(execution.Events);
+		if (!result.Consumed)
+			result.Consumed = true;
+		return result;
 	}
 
 	public static List<GameEvent> DecideAndExecuteAny(GameState state, Actor actor) =>
@@ -277,20 +254,35 @@ public static class AIDispatcher
 
 	public static ActionExecutionResult DecideAndExecuteAnyResult(GameState state, Actor actor, bool tickBuffs)
 	{
-		var brainId = actor.BrainId ?? "simple";
-		if (!_brains.TryGetValue(brainId, out var brain))
-			return new ActionExecutionResult();
+		UtilityActionRegistry.EnsureLoaded();
+		ExecutorRegistry.EnsureInitialized();
 
 		var perception = ResolvePerception(state, actor);
 		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
-		var behaviorExecution = TryExecuteBehaviorChain(state, actor, perception, tickBuffs);
-		if (behaviorExecution.Consumed)
-			return MergeAwarenessWithExecution(awarenessEvents, behaviorExecution);
+		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
+
+		var exposure = behaviorContext.GetCurrentExposure(actor);
+		HealthSystem.Sync(actor, state.Turn, exposure, new List<GameEvent>(), state);
 
 		var rng = CreateActorRng(state, actor);
-		var decision = brain.Decide(perception, rng);
-		return ExecuteDecisionWithAwareness(state, actor, decision, tickBuffs, awarenessEvents, attackOnly: false);
+		var eval = _utilityBrain.Evaluate(state, actor, perception, behaviorContext, SimDetail.Full, rng);
+
+		var result = new ActionExecutionResult();
+		result.Events.AddRange(awarenessEvents);
+
+		if (eval.Action == null)
+		{
+			result.Consumed = true;
+			return result;
+		}
+
+		var execution = ExecuteUtilityAction(state, actor, perception, eval);
+		if (execution.Consumed && tickBuffs)
+			actor.TickBuffs();
+		result.Consumed = true;
+		result.Events.AddRange(execution.Events);
+		return result;
 	}
 
 	private static Perception ResolvePerception(GameState state, Actor actor)
@@ -302,7 +294,6 @@ public static class AIDispatcher
 		if (cache.TryGetValue(actor.Id, out var cached))
 			return cached;
 
-		// 首次 miss：批量构建所有 timeline 参与者的感知，填充缓存。
 		var requests = new List<AIVisionRequest>();
 		foreach (var entry in state.Timeline.Actors)
 		{
@@ -329,7 +320,7 @@ public static class AIDispatcher
 			: PerceptionBuilder.Build(state, actor, SimDetail.Full);
 	}
 
-	private static Random CreateActorRng(GameState state, Actor actor)
+	public static Random CreateActorRng(GameState state, Actor actor)
 	{
 		var stableActorHash = ComputeStableStringHash(actor.Id);
 		var seed = unchecked(state.RngSeed * 31 + state.Turn * 17 + stableActorHash);
@@ -347,64 +338,6 @@ public static class AIDispatcher
 		}
 	}
 
-	private static ActionExecutionResult ExecuteDecisionWithAwareness(
-		GameState state,
-		Actor actor,
-		Decision decision,
-		bool tickBuffs,
-		IReadOnlyList<GameEvent> awarenessEvents,
-		bool attackOnly)
-	{
-		var result = new ActionExecutionResult();
-		result.Events.AddRange(awarenessEvents);
-		if (attackOnly && decision.Type != DecisionType.Attack)
-			return result;
-
-		var execution = ExecuteDecision(state, actor, decision, tickBuffs);
-		result.Consumed = execution.Consumed;
-		result.Events.AddRange(execution.Events);
-		return result;
-	}
-
-	private static ActionExecutionResult TryExecuteBehaviorChain(GameState state, Actor actor, Perception perception, bool tickBuffs)
-	{
-		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
-		var healthExecution = HealthBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (healthExecution.Consumed)
-			return healthExecution;
-
-		var fireExecution = FireBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (fireExecution.Consumed)
-			return fireExecution;
-
-		var temperatureExecution = TemperatureBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (temperatureExecution.Consumed)
-			return temperatureExecution;
-
-		var needExecution = NeedBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (needExecution.Consumed)
-			return needExecution;
-
-		var jobExecution = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs, behaviorContext);
-		if (jobExecution.Consumed)
-			return jobExecution;
-
-		return new ActionExecutionResult();
-	}
-
-	private static ActionExecutionResult MergeAwarenessWithExecution(
-		IReadOnlyList<GameEvent> awarenessEvents,
-		ActionExecutionResult execution)
-	{
-		var result = new ActionExecutionResult
-		{
-			Consumed = execution.Consumed,
-		};
-		result.Events.AddRange(awarenessEvents);
-		result.Events.AddRange(execution.Events);
-		return result;
-	}
-
 	public static SimDetail Classify(GameState state, Actor actor, int cx, int cy, int range)
 	{
 		return Classify(state, actor, [new WorldCoord(cx, cy, actor.Z)], range);
@@ -416,6 +349,7 @@ public static class AIDispatcher
 			return SimDetail.Summary;
 
 		var simplifiedMultiplier = Math.Max(1, GameConfig.AIVision.SimplifiedActivationRangeMultiplier);
+		var maxVerticalLayers = Math.Max(0, GameConfig.AIVision.MaxVerticalVisionLayers);
 		var scaledRange = VisionRangeScaler.ScaleRadius(range, actor.GetCapacity(Caps.Sight));
 		if (actor.Z == 0
 			&& state.World != null
@@ -428,10 +362,11 @@ public static class AIDispatcher
 		var bestDist = int.MaxValue;
 		foreach (var anchor in anchors)
 		{
-			if (anchor.Z != actor.Z)
+			var dz = Math.Abs(anchor.Z - actor.Z);
+			if (dz > maxVerticalLayers)
 				continue;
 
-			var anchorDistance = Math.Abs(actor.X - anchor.X) + Math.Abs(actor.Y - anchor.Y);
+			var anchorDistance = Math.Abs(actor.X - anchor.X) + Math.Abs(actor.Y - anchor.Y) + dz;
 			if (anchorDistance < bestDist)
 				bestDist = anchorDistance;
 		}
@@ -447,68 +382,8 @@ public static class AIDispatcher
 		return SimDetail.Summary;
 	}
 
-	private static ActionExecutionResult ExecuteDecision(GameState state, Actor actor, Decision decision, bool tickBuffs)
+	public static void ClearCaches()
 	{
-		var result = new ActionExecutionResult();
-		switch (decision.Type)
-		{
-			case DecisionType.Wander:
-			case DecisionType.MoveTo:
-			case DecisionType.Flee:
-				if (decision.TargetPos is var (targetX, targetY))
-				{
-					var dx = targetX - actor.X;
-					var dy = targetY - actor.Y;
-					result.Events.AddRange(ActionModule.TryMove(state, actor, dx, dy));
-					result.Consumed = true;
-				}
-				break;
-
-			case DecisionType.MoveVertical:
-				result = ExecuteVerticalMove(state, actor, decision.TargetZ);
-				break;
-
-			case DecisionType.Attack:
-				result = ExecuteAttack(state, actor, decision);
-				break;
-
-			case DecisionType.Idle:
-				result.Consumed = true;
-				break;
-		}
-
-		if (tickBuffs && result.Consumed)
-			actor.TickBuffs();
-
-		return result;
-	}
-
-	private static ActionExecutionResult ExecuteVerticalMove(GameState state, Actor actor, int? targetZ)
-	{
-		var result = new ActionExecutionResult();
-		if (targetZ == null || targetZ.Value == actor.Z || state.World == null)
-			return result;
-
-		var dz = targetZ.Value > actor.Z ? 1 : -1;
-		if (!ClimbingService.CanAutoClimb(state.World, actor.X, actor.Y, actor.Z, dz))
-			return result;
-
-		ClimbingService.MoveActorVertical(state, actor, dz);
-		result.Consumed = true;
-		return result;
-	}
-
-	private static ActionExecutionResult ExecuteAttack(GameState state, Actor actor, Decision decision)
-	{
-		if (string.IsNullOrEmpty(decision.ActionDefId))
-			return new ActionExecutionResult();
-
-		return ActionModule.TryCastSkill(
-			state,
-			actor,
-			decision.ActionDefId,
-			SkillTargetType.Actor,
-			targetActorId: decision.TargetActorId,
-			targetLimbId: decision.TargetLimbId);
+		_decisionCaches.Clear();
 	}
 }

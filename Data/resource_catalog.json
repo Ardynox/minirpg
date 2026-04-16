@@ -2116,6 +2116,30 @@
       "kind": "tile",
       "sourceMode": "single",
       "sourceImagePath": "res://Assets/Art/Placeholders/portraits/portrait_villager.png"
+    },
+    {
+      "id": "fx_explosion",
+      "displayName": "爆炸特效",
+      "description": "爆炸的特效动画序列帧。",
+      "tags": [
+        "fx",
+        "explosion"
+      ],
+      "category": "effects",
+      "kind": "animation",
+      "sourceMode": "frames",
+      "sourceFolderPath": "res://Assets/Art/Placeholders/effects/fx_explosion",
+      "frames": [
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_00.png", "order": 0 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_01.png", "order": 1 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_02.png", "order": 2 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_03.png", "order": 3 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_04.png", "order": 4 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_05.png", "order": 5 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_06.png", "order": 6 },
+        { "imagePath": "res://Assets/Art/Placeholders/effects/fx_explosion/fx_explosion_07.png", "order": 7 }
+      ],
+      "fps": 24.0
     }
   ]
 }

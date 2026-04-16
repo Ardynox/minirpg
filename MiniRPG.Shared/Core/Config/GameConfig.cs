@@ -111,6 +111,18 @@ public sealed class AIVisionConfig
 
 	[JsonPropertyName("gpu_usage_ratio_threshold")]
 	public double GpuUsageRatioThreshold { get; set; } = 0.25;
+
+	[JsonPropertyName("max_vertical_vision_layers")]
+	public int MaxVerticalVisionLayers { get; set; } = 4;
+
+	[JsonPropertyName("vertical_perception_decay")]
+	public float VerticalPerceptionDecay { get; set; } = 0.7f;
+
+	[JsonPropertyName("cross_layer_shortlist_limit")]
+	public int CrossLayerShortlistLimit { get; set; } = 4;
+
+	[JsonPropertyName("enable_gpu_vision")]
+	public bool EnableGpuVision { get; set; } = true;
 }
 
 public sealed class WorldRuntimeConfig

@@ -356,6 +356,8 @@ public static class PresetDB
 		NeedSystem.EnsureInitialized(actor, currentTurn: 0);
 		HealthSystem.EnsureInitialized(actor, currentTurn: 0);
 
+		AI.Utility.PersonalityModule.GeneratePersonality(actor, new Random(instanceId.GetHashCode()));
+
 		return actor;
 	}
 

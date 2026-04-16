@@ -67,7 +67,7 @@ public sealed class MultiplayerRegressionSuiteTests
 		Assert.Equal(requestId, rejected.RequestId);
 		Assert.Equal(ErrorCode.UnauthorizedActor.ToWireCode(), rejected.Code);
 
-		var audit = Assert.Single(roomHost.AuditLogs.Where(entry => string.Equals(entry.RequestId, requestId, StringComparison.Ordinal)));
+		var audit = Assert.Single(roomHost.AuditLogs, entry => string.Equals(entry.RequestId, requestId, StringComparison.Ordinal));
 		Assert.Equal("rejected", audit.Result);
 		Assert.Equal(ErrorCode.UnauthorizedActor.ToWireCode(), audit.Code);
 	}

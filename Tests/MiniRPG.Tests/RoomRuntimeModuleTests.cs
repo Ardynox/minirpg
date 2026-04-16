@@ -70,7 +70,7 @@ public sealed class RoomRuntimeModuleTests
 
 		var actors = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false);
 
-		Assert.Single(actors.Where(actor => actor.Id == "hero"));
+		Assert.Single(actors, actor => actor.Id == "hero");
 	}
 
 	[Fact]
@@ -299,7 +299,7 @@ public sealed class RoomRuntimeModuleTests
 			TargetActorId = "scout",
 		});
 
-		var startTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(startMessages.Where(msg => msg is ModeTransitionMessage)));
+		var startTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(startMessages, msg => msg is ModeTransitionMessage));
 		Assert.Equal(RoomSimulationMode.ExploreRealtime, startTransition.FromMode);
 		Assert.Equal(RoomSimulationMode.CombatTurnBased, startTransition.ToMode);
 		Assert.Equal("StartCombat", startTransition.Trigger);
@@ -314,7 +314,7 @@ public sealed class RoomRuntimeModuleTests
 			ActorId = "hero",
 		});
 
-		var endTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(endMessages.Where(msg => msg is ModeTransitionMessage)));
+		var endTransition = Assert.IsType<ModeTransitionMessage>(Assert.Single(endMessages, msg => msg is ModeTransitionMessage));
 		Assert.Equal(RoomSimulationMode.CombatTurnBased, endTransition.FromMode);
 		Assert.Equal(RoomSimulationMode.ExploreRealtime, endTransition.ToMode);
 		Assert.Equal("EndCombat", endTransition.Trigger);

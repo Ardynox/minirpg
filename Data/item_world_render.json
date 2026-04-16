@@ -413,6 +413,154 @@
     "bionic_eye": {
       "kind": "tile",
       "value": "Misc D2_N"
+    },
+    "crowbar": {
+      "kind": "tile",
+      "value": "Misc C5_N"
+    },
+    "machete": {
+      "kind": "tile",
+      "value": "Misc C2_N"
+    },
+    "assault_rifle": {
+      "kind": "tile",
+      "value": "Misc C1_N"
+    },
+    "sniper_rifle": {
+      "kind": "tile",
+      "value": "Misc C2_N"
+    },
+    "smg": {
+      "kind": "tile",
+      "value": "Misc C1_N"
+    },
+    "molotov": {
+      "kind": "tile",
+      "value": "Misc B9_N"
+    },
+    "pipe_bomb": {
+      "kind": "tile",
+      "value": "Misc B9_N"
+    },
+    "bear_trap": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "gas_mask": {
+      "kind": "tile",
+      "value": "Misc E9_N"
+    },
+    "riot_helmet": {
+      "kind": "tile",
+      "value": "Misc E10_N"
+    },
+    "bullet_vest_camo": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "boots_biker": {
+      "kind": "tile",
+      "value": "Misc E11_N"
+    },
+    "gloves_black": {
+      "kind": "tile",
+      "value": "Misc D2_N"
+    },
+    "welding_mask": {
+      "kind": "tile",
+      "value": "Misc E10_N"
+    },
+    "flashlight": {
+      "kind": "tile",
+      "value": "Misc A5_N"
+    },
+    "shovel": {
+      "kind": "tile",
+      "value": "Misc C14_N"
+    },
+    "handsaw": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "compass": {
+      "kind": "tile",
+      "value": "Misc A6_N"
+    },
+    "syringe": {
+      "kind": "tile",
+      "value": "Misc B8_N"
+    },
+    "stethoscope": {
+      "kind": "tile",
+      "value": "Misc C13_N"
+    },
+    "water_bottle": {
+      "kind": "tile",
+      "value": "Misc B10_N"
+    },
+    "apple": {
+      "kind": "tile",
+      "value": "Flora B1_N"
+    },
+    "bread": {
+      "kind": "tile",
+      "value": "Misc B11_N"
+    },
+    "cheese": {
+      "kind": "tile",
+      "value": "Misc B12_N"
+    },
+    "chocolate": {
+      "kind": "tile",
+      "value": "Misc B13_N"
+    },
+    "alcohol": {
+      "kind": "tile",
+      "value": "Misc B9_N"
+    },
+    "cigarette": {
+      "kind": "tile",
+      "value": "Misc B5_N"
+    },
+    "mat_nails": {
+      "kind": "tile",
+      "value": "Misc B15_N"
+    },
+    "mat_duct_tape": {
+      "kind": "tile",
+      "value": "Misc B16_N"
+    },
+    "mat_wire": {
+      "kind": "tile",
+      "value": "Misc B17_N"
+    },
+    "mat_yarn": {
+      "kind": "tile",
+      "value": "Misc B26_N"
+    },
+    "candle": {
+      "kind": "tile",
+      "value": "Misc A5_N"
+    },
+    "generator": {
+      "kind": "tile",
+      "value": "Misc E8_N"
+    },
+    "petrol": {
+      "kind": "tile",
+      "value": "Misc B15_N"
+    },
+    "propane_tank": {
+      "kind": "tile",
+      "value": "Misc B15_N"
+    },
+    "walkie_talkie": {
+      "kind": "tile",
+      "value": "Misc A6_N"
+    },
+    "map": {
+      "kind": "tile",
+      "value": "Misc A6_N"
     }
   }
 }

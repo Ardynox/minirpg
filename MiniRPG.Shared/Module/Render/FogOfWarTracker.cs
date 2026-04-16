@@ -110,15 +110,16 @@ public class FogOfWarTracker
 				MinimumRearVisionRadius,
 				AmbientLight);
 
+			var blind = baseVision.FrontRadius <= 0 && baseVision.RearRadius <= 0;
 			var maxDepth = Math.Max(0, VerticalVisionDepth);
 			for (var dz = -maxDepth; dz <= maxDepth; dz++)
 			{
 				var targetZ = actor.Z + dz;
 				var absDz = Math.Abs(dz);
-				var frontRadius = Math.Max(
+				var frontRadius = blind ? 0 : Math.Max(
 					MinimumVisionRadius,
 					baseVision.FrontRadius - absDz * Math.Max(0, VerticalRadiusFalloffPerLevel));
-				var rearRadius = Math.Max(
+				var rearRadius = blind ? 0 : Math.Max(
 					MinimumRearVisionRadius,
 					baseVision.RearRadius - absDz * Math.Max(0, VerticalRadiusFalloffPerLevel));
 

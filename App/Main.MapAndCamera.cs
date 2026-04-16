@@ -152,6 +152,7 @@ public partial class Main
 			ResolveRuntimeRenderHoverCell(_runtimeWorldToolSession.HoverWorld, runtimePreviewState),
 			runtimePreviewState,
 			ResolvePrimaryTargetCursorWorldCell(),
+			ResolveAutoNavigationPathHighlightCells(),
 			MapEditorActive,
 			_mapEditor.CameraX,
 			_mapEditor.CameraY,
@@ -277,7 +278,7 @@ public partial class Main
 
 		if (_mapRender == null || !snapshot.AllowGameplayInput || _menu.InMenu)
 		{
-			ResetPendingRuntimeCameraRightDrag(endPanDrag: true);
+			_cameraRightDrag.Reset(_runtimeCameraController, endPanDrag: true);
 			_runtimeWorldToolDragActive = false;
 			_runtimeWorldToolLastDraggedHoverCell = null;
 			_runtimeWorldToolSession.SetHover(null);
@@ -287,7 +288,7 @@ public partial class Main
 		}
 
 		var cameraChanged = false;
-		var promotedRightDrag = TryPromotePendingRuntimeCameraRightDrag(motion);
+		var promotedRightDrag = _cameraRightDrag.TryPromoteToPan(motion, _runtimeCameraController);
 		if (_runtimeCameraController != null
 			&& _runtimeCameraController.IsPanDragActive
 			&& _mapRender.TryGetMapLocalDeltaFromGlobalMotion(motion.Relative, out var cameraPanDelta))

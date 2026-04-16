@@ -51,6 +51,8 @@ public static class CoordUtil
 	public static ChunkCoord WorldToChunk(int x, int y, int z) =>
 		new(FloorDiv(x, ChunkSize), FloorDiv(y, ChunkSize), z);
 
+	public static int WorldToChunkAxis(int v) => FloorDiv(v, ChunkSize);
+
 	public static ChunkCoord WorldToChunk(WorldCoord w) =>
 		WorldToChunk(w.X, w.Y, w.Z);
 

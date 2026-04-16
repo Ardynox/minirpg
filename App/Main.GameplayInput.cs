@@ -4,8 +4,6 @@ namespace MiniRPG;
 
 public partial class Main
 {
-	private const float RuntimeCameraRightDragStartThreshold = 4f;
-
 	private bool _zoomHintShown;
 	private ulong _lastZoomLimitLogAtMsec;
 
@@ -62,7 +60,7 @@ public partial class Main
 
 		if (mb.ButtonIndex == MouseButton.Right)
 		{
-			if (TryBeginPendingRuntimeCameraRightDrag(mb.GlobalPosition, hit))
+			if (_cameraRightDrag.TryBegin(mb.GlobalPosition, hit, _mapRender))
 				return true;
 
 			return ExecuteGameplayRightClick(mb.GlobalPosition);
@@ -119,6 +117,12 @@ public partial class Main
 
 	private bool ExecuteGameplayRightClick(Vector2 globalPosition)
 	{
+		if (IsAutoNavigationPreviewActive)
+		{
+			CancelAutoNavigationPreview();
+			return true;
+		}
+
 		if (GetArmedSkill() != null)
 		{
 			if (TryCastArmedSkillAtMouse(globalPosition))
@@ -140,12 +144,12 @@ public partial class Main
 
 	private bool HandleGameplayRightMouseRelease()
 	{
-		if (!_runtimeCameraRightClickPending && !_runtimeCameraRightClickPromotedToPan)
+		if (!_cameraRightDrag.IsPending && !_cameraRightDrag.IsPromotedToPan)
 			return false;
 
-		var clickPosition = _runtimeCameraRightClickPressGlobalPosition;
-		var promotedToPan = _runtimeCameraRightClickPromotedToPan;
-		ResetPendingRuntimeCameraRightDrag(endPanDrag: promotedToPan);
+		var clickPosition = _cameraRightDrag.PressGlobalPosition;
+		var promotedToPan = _cameraRightDrag.IsPromotedToPan;
+		_cameraRightDrag.Reset(_runtimeCameraController, endPanDrag: promotedToPan);
 		if (promotedToPan)
 			return true;
 
@@ -154,64 +158,6 @@ public partial class Main
 
 		return ExecuteGameplayRightClick(clickPosition);
 	}
-
-	private bool TryBeginPendingRuntimeCameraRightDrag(Vector2 globalPosition, Module.Panel.IPanel? hit)
-	{
-		if (_mapRender == null)
-			return false;
-		if (hit != null && hit.PanelId != "map")
-			return false;
-		if (!_mapRender.TryGetWorldCellFromGlobalPosition(globalPosition, out _))
-			return false;
-
-		_runtimeCameraRightClickPending = true;
-		_runtimeCameraRightClickStartedOnMap = true;
-		_runtimeCameraRightClickPromotedToPan = false;
-		_runtimeCameraRightClickPressGlobalPosition = globalPosition;
-		return true;
-	}
-
-	private bool TryPromotePendingRuntimeCameraRightDrag(InputEventMouseMotion motion)
-	{
-		if (_runtimeCameraController == null
-			|| !_runtimeCameraRightClickPending
-			|| !_runtimeCameraRightClickStartedOnMap
-			|| _runtimeCameraRightClickPromotedToPan)
-		{
-			return false;
-		}
-
-		if (!IsRightMouseButtonPressed(motion.ButtonMask)
-			&& !Input.IsMouseButtonPressed(MouseButton.Right))
-		{
-			return false;
-		}
-
-		if (motion.GlobalPosition.DistanceSquaredTo(_runtimeCameraRightClickPressGlobalPosition)
-			< RuntimeCameraRightDragStartThreshold * RuntimeCameraRightDragStartThreshold)
-		{
-			return false;
-		}
-
-		_runtimeCameraRightClickPromotedToPan = _runtimeCameraController.BeginPanDragFromCurrentView();
-		if (_runtimeCameraRightClickPromotedToPan)
-			_panels.SetFocus("map");
-		return _runtimeCameraRightClickPromotedToPan;
-	}
-
-	private void ResetPendingRuntimeCameraRightDrag(bool endPanDrag = false)
-	{
-		if (endPanDrag)
-			_runtimeCameraController?.EndPanDrag();
-
-		_runtimeCameraRightClickPending = false;
-		_runtimeCameraRightClickStartedOnMap = false;
-		_runtimeCameraRightClickPromotedToPan = false;
-		_runtimeCameraRightClickPressGlobalPosition = Vector2.Zero;
-	}
-
-	private static bool IsRightMouseButtonPressed(MouseButtonMask buttonMask) =>
-		(buttonMask & MouseButtonMask.Right) != 0;
 
 	private bool HandleGameplayMouseWheelInput(InputEventMouseButton mb, RuntimeUiModeSnapshot snapshot)
 	{
@@ -223,9 +169,14 @@ public partial class Main
 
 		if (MapPanelFocused)
 		{
-			if (mb.AltPressed && !mb.CtrlPressed && !mb.ShiftPressed)
+			if (_inputModule.HandleMouseButtonInput(mb))
+				return true;
+
+			if (mb.ShiftPressed && !mb.CtrlPressed && !mb.AltPressed && _runtimeWorldToolSession != null)
 			{
-				OnCommand(mb.ButtonIndex == MouseButton.WheelUp ? ":skill_prev" : ":skill_next");
+				_runtimeWorldToolSession.StepBrush(mb.ButtonIndex == MouseButton.WheelUp ? -1 : 1);
+				RefreshRuntimeWorldHoverPresentation(_runtimeWorldToolSession.HoverWorld);
+				FlushMap();
 				return true;
 			}
 

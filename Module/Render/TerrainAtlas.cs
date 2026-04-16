@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using Godot;
 using MiniRPG.Core.World;
+using MiniRPG.Tools;
 
 namespace MiniRPG.Module.Render;
 
@@ -38,6 +41,7 @@ public sealed class TerrainAtlas
 		_regions.Clear();
 		_atlasTexture?.Dispose();
 		_atlasTexture = null;
+		LoadCustomMappings();
 
 		var terrains = TerrainRegistry.All;
 		if (terrains.Count == 0)
@@ -132,6 +136,9 @@ public sealed class TerrainAtlas
 	private const float NonSolidSideEdgeStrength = 0.06f;
 
 	private const string VoxelTileRoot = "res://Assets/Art/Generated/voxel_tiles";
+	private const string VoxelTileMappingPath = "Data/voxel_tile_mapping.json";
+
+	private Dictionary<string, VoxelTileMappingEntry> _customMappings = new(StringComparer.OrdinalIgnoreCase);
 
 	// ── Fallback terrain colors (when no tile image available) ──
 	private static readonly Dictionary<string, Color> TerrainColors = new()
@@ -206,6 +213,25 @@ public sealed class TerrainAtlas
 
 	private Image GenerateTopFace(TerrainDef terrain)
 	{
+		if (_customMappings.TryGetValue(terrain.StringId, out var custom) && !string.IsNullOrWhiteSpace(custom.TopTilePath))
+		{
+			var customTex = LoadTexture(custom.TopTilePath);
+			if (customTex != null)
+			{
+				var customImg = ExtractImage(customTex);
+				if (customImg != null)
+				{
+					if (custom.TopIsIso)
+					{
+						var scaled = ScaleToFit(customImg, VoxelFaceImageUtil.TopFaceWidth, VoxelFaceImageUtil.TopFaceHeight, custom.TopScaleX, custom.TopScaleY, custom.TopOffsetX, custom.TopOffsetY);
+						return scaled;
+					}
+					var diamond = VoxelFaceImageUtil.BuildTopDiamond(customImg);
+					return VoxelFaceImageUtil.EnhanceTopFaceEdges(diamond, GetTopEdgeStrength(terrain));
+				}
+			}
+		}
+
 		var topPath = ResolveVoxelTopTexturePath(terrain);
 		if (!string.IsNullOrWhiteSpace(topPath))
 		{
@@ -230,18 +256,55 @@ public sealed class TerrainAtlas
 
 	private Image GenerateSideFace(TerrainDef terrain, bool isRight)
 	{
-		Image? sideSourceImage = null;
-
-		// Try side-specific texture first
-		var sidePath = ResolveVoxelSideTexturePath(terrain);
-		if (!string.IsNullOrWhiteSpace(sidePath))
+		if (_customMappings.TryGetValue(terrain.StringId, out var custom))
 		{
-			var sideTexture = LoadTexture(sidePath);
-			if (sideTexture != null)
-				sideSourceImage = ExtractImage(sideTexture);
+			var showSide = isRight ? custom.ShowRightSide : custom.ShowLeftSide;
+			if (!showSide)
+				return Image.CreateEmpty(VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureHeight, false, Image.Format.Rgba8);
 		}
 
-		// Fallback to top texture
+		Image? sideSourceImage = null;
+
+		if (custom != null)
+		{
+			var mode = isRight ? custom.RightSideMode : custom.LeftSideMode;
+			var path = isRight ? custom.RightSideTilePath : custom.LeftSideTilePath;
+			var colorHex = isRight ? custom.RightSideColor : custom.LeftSideColor;
+			var isIso = isRight ? custom.RightIsIso : custom.LeftIsIso;
+
+			if (mode == "color" && !string.IsNullOrEmpty(colorHex))
+			{
+				sideSourceImage = CreateSolidImage(VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureHeight, new Color(colorHex));
+			}
+			else if (mode == "texture" && !string.IsNullOrEmpty(path))
+			{
+				var customTex = LoadTexture(path);
+				if (customTex != null)
+				{
+					var img = ExtractImage(customTex);
+					if (img != null && isIso)
+					{
+						var sideOx = isRight ? custom.RightOffsetX : custom.LeftOffsetX;
+						var sideOy = isRight ? custom.RightOffsetY : custom.LeftOffsetY;
+						var scaled = ScaleToFit(img, VoxelFaceImageUtil.SideTextureWidth, VoxelFaceImageUtil.SideTextureHeight, custom.TopScaleX, custom.TopScaleY, sideOx, sideOy);
+						return scaled;
+					}
+					sideSourceImage = img;
+				}
+			}
+		}
+
+		if (sideSourceImage == null)
+		{
+			var sidePath = ResolveVoxelSideTexturePath(terrain);
+			if (!string.IsNullOrWhiteSpace(sidePath))
+			{
+				var sideTexture = LoadTexture(sidePath);
+				if (sideTexture != null)
+					sideSourceImage = ExtractImage(sideTexture);
+			}
+		}
+
 		if (sideSourceImage == null)
 		{
 			var topPath = ResolveVoxelTopTexturePath(terrain);
@@ -253,7 +316,6 @@ public sealed class TerrainAtlas
 			}
 		}
 
-		// Last resort: solid-color side
 		if (sideSourceImage == null)
 		{
 			var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
@@ -264,7 +326,12 @@ public sealed class TerrainAtlas
 		var darken = isRight
 			? (wallLike ? WallRightSideDarken : RightDarken)
 			: (wallLike ? WallLeftSideDarken : LeftDarken);
-		var faceHeight = wallLike ? VoxelFaceImageUtil.WallSideFaceHeight : VoxelFaceImageUtil.SideFaceHeight;
+		var perSideHeight = isRight
+			? (custom is { RightHeight: > 0 } ? custom.RightHeight : 0)
+			: (custom is { LeftHeight: > 0 } ? custom.LeftHeight : 0);
+		var faceHeight = perSideHeight > 0
+			? perSideHeight
+			: (wallLike ? VoxelFaceImageUtil.WallSideFaceHeight : VoxelFaceImageUtil.SideFaceHeight);
 
 		var image = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight, darken, faceHeight);
 		VoxelFaceImageUtil.EnhanceSideFaceEdge(image, isRight, GetSideEdgeStrength(terrain));
@@ -386,11 +453,62 @@ public sealed class TerrainAtlas
 		return image;
 	}
 
+	private static Image ScaleToFit(Image src, int targetW, int targetH, float customScaleX = 1f, float customScaleY = 1f, float customOffsetX = 0f, float customOffsetY = 0f)
+	{
+		var sw = src.GetWidth();
+		var sh = src.GetHeight();
+
+		var scaleX = targetW / (float)sw * customScaleX;
+		var scaleY = targetH / (float)sh * customScaleY;
+		var scale = Math.Min(scaleX, scaleY);
+		var newW = Math.Max(1, (int)Math.Round(sw * scale));
+		var newH = Math.Max(1, (int)Math.Round(sh * scale));
+
+		var scaled = (Image)src.Duplicate();
+		scaled.Resize(newW, newH, Image.Interpolation.Bilinear);
+
+		var result = Image.CreateEmpty(targetW, targetH, false, Image.Format.Rgba8);
+		var offsetX = (targetW - newW) / 2 + (int)customOffsetX;
+		var offsetY = (int)customOffsetY;
+		result.BlitRect(scaled, new Rect2I(0, 0, newW, newH), new Vector2I(offsetX, offsetY));
+		return result;
+	}
+
 	/// <summary>将 src 图像复制到 dest 的 (destX, destY) 位置。</summary>
 	private static void BlitImage(Image dest, Image src, int destX, int destY)
 	{
 		var srcW = src.GetWidth();
 		var srcH = src.GetHeight();
 		dest.BlitRect(src, new Rect2I(0, 0, srcW, srcH), new Vector2I(destX, destY));
+	}
+
+	private static readonly JsonSerializerOptions MappingJsonOpts = new()
+	{
+		PropertyNameCaseInsensitive = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+	};
+
+	private void LoadCustomMappings()
+	{
+		_customMappings.Clear();
+		var fullPath = ProjectSettings.GlobalizePath($"res://{VoxelTileMappingPath}");
+		if (!File.Exists(fullPath)) return;
+		try
+		{
+			var json = File.ReadAllText(fullPath);
+			var doc = JsonSerializer.Deserialize<VoxelTileMappingDocument>(json, MappingJsonOpts);
+			if (doc?.Entries == null) return;
+			foreach (var e in doc.Entries)
+			{
+				if (!string.IsNullOrWhiteSpace(e.TerrainId))
+					_customMappings[e.TerrainId] = e;
+			}
+			if (_customMappings.Count > 0)
+				GD.Print($"[TerrainAtlas] Loaded {_customMappings.Count} custom tile mappings.");
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"[TerrainAtlas] Failed to load custom mappings: {ex.Message}");
+		}
 	}
 }

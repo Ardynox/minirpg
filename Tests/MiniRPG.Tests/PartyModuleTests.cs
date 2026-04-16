@@ -57,7 +57,7 @@ public class PartyModuleTests
 		Assert.True(result.Success);
 		Assert.Equal(2, state.Party.MemberIds.Count);
 		Assert.True(PartyModule.IsPartyMember(state, "npc1"));
-		Assert.Equal(FollowerBrain.BrainId, state.Actors["npc1"].BrainId);
+		Assert.Equal("party_follower", state.Actors["npc1"].BrainId);
 	}
 
 	[Fact]
@@ -85,7 +85,7 @@ public class PartyModuleTests
 	public void TryDismiss_RemovesFromParty()
 	{
 		var state = CreateState();
-		state.Actors["npc1"] = new Actor { Id = "npc1", Faction = Factions.Player, BrainId = FollowerBrain.BrainId };
+		state.Actors["npc1"] = new Actor { Id = "npc1", Faction = Factions.Player, BrainId = "party_follower" };
 		state.Party.MemberIds.Add("npc1");
 
 		var result = PartyModule.TryDismiss(state, "npc1");
@@ -165,7 +165,7 @@ public class PartyModuleTests
 	public void Dismiss_ActiveMember_SwitchesToLeader()
 	{
 		var state = CreateState();
-		state.Actors["npc1"] = new Actor { Id = "npc1", Faction = Factions.Player, BrainId = FollowerBrain.BrainId };
+		state.Actors["npc1"] = new Actor { Id = "npc1", Faction = Factions.Player, BrainId = "party_follower" };
 		state.Party.MemberIds.Add("npc1");
 		state.Party.ActiveId = "npc1";
 

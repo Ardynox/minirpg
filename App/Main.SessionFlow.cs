@@ -15,6 +15,7 @@ public partial class Main
 		RefreshPlayerCharacterVisual();
 		SyncSettingsUiState();
 		SyncTimelineAutoAdvanceState();
+		OnSessionStartedAudio();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)
 			_skillBar.Open(ActorModule.GetPlayer(_state));

@@ -5,24 +5,24 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.0
-custom_minimum_size = Vector2(220, 0)
+custom_minimum_size = Vector2(230, 0)
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
 
 [node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="HeaderBar" type="Control" parent="MarginContainer/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 52)
 size_flags_horizontal = 3
 
 [node name="NameInfo" type="Label" parent="MarginContainer/VBox/HeaderBar"]
@@ -45,7 +45,7 @@ layout_mode = 2
 
 [node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 4
 
 [node name="ContentText" type="RichTextLabel" parent="MarginContainer/VBox"]
 layout_mode = 2

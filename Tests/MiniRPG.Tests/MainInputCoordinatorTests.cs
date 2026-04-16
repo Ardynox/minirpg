@@ -226,56 +226,57 @@ public sealed class MainInputCoordinatorTests
 					Calls.Add("mark");
 					MarkHandledCount++;
 				},
-				_ =>
-				{
-					Calls.Add("panel_chrome");
-					return PanelChromeResult;
-				},
-				_ =>
-				{
-					Calls.Add("panel_drag");
-					return PanelDragResult;
-				},
-				_ =>
-				{
-					Calls.Add("layout_key");
-					return LayoutEditKeyResult;
-				},
-				_ =>
-				{
-					Calls.Add("layout_input");
-					return LayoutEditInputResult;
-				},
-				_ =>
-				{
-					Calls.Add("map_key");
-					return MapEditorKeyResult;
-				},
-				_ =>
-				{
-					Calls.Add("map_input");
-					return MapEditorInputResult;
-				},
-				_ =>
-				{
-					Calls.Add("inspect_key");
-					return InspectKeyResult;
-				},
-				_ =>
-				{
-					Calls.Add("panel_key");
-					return PanelManagerResult;
-				},
-				_ =>
-				{
-					Calls.Add("input_key");
-					return InputModuleResult;
-				},
-				(_, _) =>
-				{
-					Calls.Add("gameplay_input");
-					return GameplayInputResult;
-				});
+				new InputHandlerSet(
+					HandlePanelChromeInput: _ =>
+					{
+						Calls.Add("panel_chrome");
+						return PanelChromeResult;
+					},
+					HandlePanelDragInput: _ =>
+					{
+						Calls.Add("panel_drag");
+						return PanelDragResult;
+					},
+					HandleLayoutEditKeyInput: _ =>
+					{
+						Calls.Add("layout_key");
+						return LayoutEditKeyResult;
+					},
+					HandleLayoutEditInput: _ =>
+					{
+						Calls.Add("layout_input");
+						return LayoutEditInputResult;
+					},
+					HandleMapEditorKeyInput: _ =>
+					{
+						Calls.Add("map_key");
+						return MapEditorKeyResult;
+					},
+					HandleMapEditorInput: _ =>
+					{
+						Calls.Add("map_input");
+						return MapEditorInputResult;
+					},
+					HandleInspectModeKeyInput: _ =>
+					{
+						Calls.Add("inspect_key");
+						return InspectKeyResult;
+					},
+					HandlePanelManagerKeyInput: _ =>
+					{
+						Calls.Add("panel_key");
+						return PanelManagerResult;
+					},
+					HandleInputModuleKeyInput: _ =>
+					{
+						Calls.Add("input_key");
+						return InputModuleResult;
+					},
+					HandleGameplayMouseInput: (_, _) =>
+					{
+						Calls.Add("gameplay_input");
+						return GameplayInputResult;
+					}));
 		}
 
 		public List<string> Calls { get; } = [];

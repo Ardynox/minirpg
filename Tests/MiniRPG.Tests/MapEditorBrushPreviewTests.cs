@@ -22,7 +22,7 @@ public sealed class MapEditorBrushPreviewTests
 		var brush = Assert.Single(
 			session.FixtureBrushes,
 			entry => string.Equals(entry.Id, Entities.Door, StringComparison.Ordinal));
-		var preview = Assert.IsType<MapEditorBrushPreview>(brush.Preview);
+		var preview = Assert.IsType<BrushPreview>(brush.Preview);
 
 		Assert.Equal("res://Assets/Art/Generated/fixtures/door.png", preview.TexturePath);
 		Assert.Null(preview.Region);
@@ -36,7 +36,7 @@ public sealed class MapEditorBrushPreviewTests
 		var brush = Assert.Single(
 			session.FixtureBrushes,
 			entry => string.Equals(entry.Id, Entities.House, StringComparison.Ordinal));
-		var preview = Assert.IsType<MapEditorBrushPreview>(brush.Preview);
+		var preview = Assert.IsType<BrushPreview>(brush.Preview);
 
 		Assert.Equal(
 			"res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileset_Godot/Environment/Sprites/Roof A1_N.png",

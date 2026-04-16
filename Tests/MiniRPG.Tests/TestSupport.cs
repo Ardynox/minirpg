@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using MiniRPG.Core.AI.Utility;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Farm;
@@ -26,6 +27,9 @@ internal static class TestSupport
 		}
 		if (!HasExpectedTerrain(Terrains.Floor) || !HasExpectedTerrain(Terrains.Water))
 			TerrainRegistry.Load("terrains.json");
+		UtilityActionRegistry.EnsureLoaded();
+		ExecutorRegistry.EnsureInitialized();
+		PersonalityModule.EnsureLoaded();
 	}
 
 	private static bool HasExpectedTerrain(string terrainId) =>

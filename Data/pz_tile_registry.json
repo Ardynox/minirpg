@@ -1,0 +1,265 @@
+{
+  "description": "PZ tile resource registry. Maps logical categories to asset directories under res://Assets/Art/PZ_Tiles/.",
+  "categories": {
+    "terrain_natural": {
+      "path": "floors_exterior_natural_01",
+      "description": "Natural ground surfaces (grass, dirt, sand, gravel)"
+    },
+    "terrain_indoor": {
+      "path": "floors_interior_tilesandwood_01",
+      "description": "Indoor floor surfaces (tiles, wood planks)"
+    },
+    "terrain_burnt": {
+      "path": "floors_burnt_01",
+      "description": "Burnt/scorched ground surfaces"
+    },
+    "terrain_rugs": {
+      "path": "floors_rugs_01",
+      "description": "Decorative floor rugs"
+    },
+    "floors_blends": {
+      "path": "floors",
+      "description": "Floor blend transitions and overlays (452 tiles)"
+    },
+    "walls_exterior_house_01": {
+      "path": "walls_exterior_house_01",
+      "description": "Exterior house walls variant 1"
+    },
+    "walls_exterior_house_02": {
+      "path": "walls_exterior_house_02",
+      "description": "Exterior house walls variant 2"
+    },
+    "walls_exterior_house_03": {
+      "path": "walls_exterior_house_03",
+      "description": "Exterior house walls variant 3"
+    },
+    "walls_exterior_wooden_01": {
+      "path": "walls_exterior_wooden_01",
+      "description": "Exterior wooden walls"
+    },
+    "walls_exterior_wooden_02": {
+      "path": "walls_exterior_wooden_02",
+      "description": "Exterior wooden walls variant 2"
+    },
+    "walls_interior_house_01": {
+      "path": "walls_interior_house_01",
+      "description": "Interior house walls variant 1"
+    },
+    "walls_interior_house_02": {
+      "path": "walls_interior_house_02",
+      "description": "Interior house walls variant 2"
+    },
+    "walls_interior_house_03": {
+      "path": "walls_interior_house_03",
+      "description": "Interior house walls variant 3"
+    },
+    "walls_interior_house_04": {
+      "path": "walls_interior_house_04",
+      "description": "Interior house walls variant 4"
+    },
+    "walls_interior_house_05": {
+      "path": "walls_interior_house_05",
+      "description": "Interior house walls variant 5"
+    },
+    "walls_commercial_01": {
+      "path": "walls_commercial_01",
+      "description": "Commercial building walls variant 1"
+    },
+    "walls_commercial_02": {
+      "path": "walls_commercial_02",
+      "description": "Commercial building walls variant 2"
+    },
+    "walls_commercial_03": {
+      "path": "walls_commercial_03",
+      "description": "Commercial building walls variant 3"
+    },
+    "overlays": {
+      "path": "overlays",
+      "description": "Wall/floor overlay textures (brick, stone, wood, etc.)"
+    },
+    "erosion": {
+      "path": "erosion",
+      "description": "Environmental decay/erosion overlays (cracks, vines, leaves, trash)"
+    },
+    "fixtures_doors": {
+      "path": "fixtures_doors_01",
+      "description": "Door fixtures"
+    },
+    "fixtures_doors_02": {
+      "path": "fixtures_doors_02",
+      "description": "Door fixtures variant 2"
+    },
+    "fixtures_stairs": {
+      "path": "fixtures_stairs_01",
+      "description": "Staircase fixtures"
+    },
+    "fixtures_windows": {
+      "path": "fixtures_windows_01",
+      "description": "Window fixtures"
+    },
+    "fixtures_fireplaces": {
+      "path": "fixtures_fireplaces_01",
+      "description": "Fireplace fixtures"
+    },
+    "fixtures_bathroom_01": {
+      "path": "fixtures_bathroom_01",
+      "description": "Bathroom fixtures variant 1"
+    },
+    "fixtures_bathroom_02": {
+      "path": "fixtures_bathroom_02",
+      "description": "Bathroom fixtures variant 2"
+    },
+    "fixtures_counters": {
+      "path": "fixtures_counters_01",
+      "description": "Counter fixtures"
+    },
+    "fixtures_sinks": {
+      "path": "fixtures_sinks_01",
+      "description": "Sink fixtures"
+    },
+    "furniture_seating_indoor_01": {
+      "path": "furniture_seating_indoor_01",
+      "description": "Indoor seating variant 1"
+    },
+    "furniture_seating_indoor_02": {
+      "path": "furniture_seating_indoor_02",
+      "description": "Indoor seating variant 2"
+    },
+    "furniture_seating_outdoor": {
+      "path": "furniture_seating_outdoor_01",
+      "description": "Outdoor seating"
+    },
+    "furniture_storage_01": {
+      "path": "furniture_storage_01",
+      "description": "Storage furniture variant 1"
+    },
+    "furniture_storage_02": {
+      "path": "furniture_storage_02",
+      "description": "Storage furniture variant 2"
+    },
+    "furniture_tables_high": {
+      "path": "furniture_tables_high_01",
+      "description": "High tables"
+    },
+    "furniture_tables_low": {
+      "path": "furniture_tables_low_01",
+      "description": "Low/coffee tables"
+    },
+    "furniture_bedding": {
+      "path": "furniture_bedding_01",
+      "description": "Beds and bedding"
+    },
+    "furniture_shelving": {
+      "path": "furniture_shelving_01",
+      "description": "Shelving units"
+    },
+    "appliances_cooking": {
+      "path": "appliances_cooking_01",
+      "description": "Cooking appliances (stoves, ovens)"
+    },
+    "appliances_refrigeration": {
+      "path": "appliances_refrigeration_01",
+      "description": "Refrigeration appliances"
+    },
+    "appliances_television": {
+      "path": "appliances_television_01",
+      "description": "Televisions and monitors"
+    },
+    "lighting_indoor": {
+      "path": "lighting_indoor_01",
+      "description": "Indoor lighting fixtures"
+    },
+    "lighting_outdoor": {
+      "path": "lighting_outdoor_01",
+      "description": "Outdoor lighting (street lamps, etc.)"
+    },
+    "vegetation_farm": {
+      "path": "vegetation_farm_01",
+      "description": "Farm crops and vegetation"
+    },
+    "vegetation_farming": {
+      "path": "vegetation_farming_01",
+      "description": "Farming equipment and plots"
+    },
+    "vegetation_ornamental": {
+      "path": "vegetation_ornamental_01",
+      "description": "Ornamental plants and flowers"
+    },
+    "vegetation_indoor": {
+      "path": "vegetation_indoor_01",
+      "description": "Indoor potted plants"
+    },
+    "fire_01": {
+      "path": "Fire_01",
+      "description": "Fire animation tiles set 1"
+    },
+    "fire_02": {
+      "path": "Fire_02",
+      "description": "Fire animation tiles set 2"
+    },
+    "fire_03": {
+      "path": "Fire_03",
+      "description": "Fire animation tiles set 3"
+    },
+    "roofs_01": {
+      "path": "roofs_01",
+      "description": "Roof tiles variant 1"
+    },
+    "roofs_02": {
+      "path": "roofs_02",
+      "description": "Roof tiles variant 2"
+    },
+    "fencing": {
+      "path": "fencing_01",
+      "description": "Fence tiles"
+    },
+    "street_curbs": {
+      "path": "street_curbs_01",
+      "description": "Street curbs and sidewalks"
+    },
+    "street_roadsigns": {
+      "path": "street_roadsigns_01",
+      "description": "Road signs"
+    },
+    "carpentry": {
+      "path": "carpentry_01",
+      "description": "Carpentry/construction objects"
+    },
+    "constructed_objects": {
+      "path": "constructedobjects_01",
+      "description": "Player-constructed objects"
+    },
+    "weapons": {
+      "path": "weapons_01",
+      "description": "Weapon world sprites"
+    },
+    "food_01": {
+      "path": "food_01",
+      "description": "Food world sprites set 1"
+    },
+    "food_02": {
+      "path": "food_02",
+      "description": "Food world sprites set 2"
+    },
+    "stashes": {
+      "path": "stashes_01",
+      "description": "Hidden stash containers"
+    },
+    "trash": {
+      "path": "trash_01",
+      "description": "Trash and debris"
+    },
+    "security": {
+      "path": "security_01",
+      "description": "Security equipment"
+    },
+    "recreational": {
+      "path": "recreational_01",
+      "description": "Recreational items and equipment"
+    },
+    "jumbo_trees": {
+      "path": "jumbo_trees",
+      "description": "Large multi-tile tree sprites"
+    }
+  }
+}

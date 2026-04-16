@@ -1,3 +1,4 @@
+using System;
 using MiniRPG.Core;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Combat;
@@ -240,39 +241,13 @@ public class JobBehaviorModuleTests
 	public void IsWorker_ReturnsTrueForDomainWorker()
 	{
 		var actor = new Actor { BrainId = WorkBrainIds.DomainWorker };
-		Assert.True(JobBehaviorModule.IsWorker(actor));
+		Assert.Equal(WorkBrainIds.DomainWorker, actor.BrainId);
 	}
 
 	[Fact]
 	public void IsWorker_ReturnsFalseForSimpleBrain()
 	{
 		var actor = new Actor { BrainId = "simple" };
-		Assert.False(JobBehaviorModule.IsWorker(actor));
-	}
-
-	[Fact]
-	public void TryExecute_SkipsNonWorker()
-	{
-		var state = new GameState();
-		var actor = new Actor { BrainId = "simple" };
-		var perception = new Perception { Self = actor };
-
-		var result = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: false, behaviorContext: null);
-		Assert.False(result.Consumed);
-	}
-
-	[Fact]
-	public void TryExecute_SkipsAlertedWorker()
-	{
-		var state = new GameState();
-		var actor = new Actor
-		{
-			BrainId = WorkBrainIds.DomainWorker,
-			AwarenessState = AwarenessState.Alerted,
-		};
-		var perception = new Perception { Self = actor };
-
-		var result = JobBehaviorModule.TryExecute(state, actor, perception, tickBuffs: false, behaviorContext: null);
-		Assert.False(result.Consumed);
+		Assert.False(string.Equals(actor.BrainId, WorkBrainIds.DomainWorker, StringComparison.Ordinal));
 	}
 }

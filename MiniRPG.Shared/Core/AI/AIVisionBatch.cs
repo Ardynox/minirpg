@@ -6,21 +6,12 @@ using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI;
 
-/// <summary>
-/// AI 过回合快照缓存：在单次 AdvanceAuto 调用期间由 TimelineTurnManager 管理生命周期，
-/// 供 AIVisionBatch 复用，将 BuildActorSnapshots 从 O(N)×N 降为 O(N)×1。
-/// </summary>
 public sealed class TimelineSnapshotCache
 {
 	internal List<VisionActorSnapshot> Snapshots { get; } = new();
 	internal Dictionary<string, VisionActorSnapshot> ById { get; } = new(StringComparer.Ordinal);
 	public bool IsDirty { get; set; } = true;
 
-	/// <summary>
-	/// 刷新所有 snapshot 的坐标、IsDead、SightCapacity。
-	/// 此时 ComputeCapacities() 均为缓存命中，每次调用代价约 O(1)。
-	/// 同步更新 ById 映射以保持观察者查找时的一致性。
-	/// </summary>
 	internal void RefreshFromActors()
 	{
 		for (var i = 0; i < Snapshots.Count; i++)
@@ -50,9 +41,6 @@ public sealed class TimelineSnapshotCache
 	}
 }
 
-/// <summary>
-/// AI 视觉批处理入口：当前为 CPU 实现，未来 GPU 方案只替换这一层。
-/// </summary>
 public readonly record struct AIVisionRequest(Actor Observer, SimDetail Detail);
 
 public sealed class AIVisionMetrics
@@ -73,6 +61,7 @@ public sealed class AIVisionMetrics
 	public int CapacityCalls { get; init; }
 	public int MaxCandidatesPerObserver { get; init; }
 	public int MaxShortlistPerObserver { get; init; }
+	public int LosCacheHits { get; init; }
 }
 
 internal readonly record struct VisionActorSnapshot(
@@ -83,6 +72,53 @@ internal readonly record struct VisionActorSnapshot(
 	string Faction,
 	bool IsDead,
 	float SightCapacity);
+
+internal sealed class VisionLosCache
+{
+	private readonly Dictionary<long, bool> _cache = new();
+
+	public bool TryGet(string idA, string idB, out bool visible)
+	{
+		var key = MakeKey(idA, idB);
+		return _cache.TryGetValue(key, out visible);
+	}
+
+	public void Set(string idA, string idB, bool visible)
+	{
+		var key = MakeKey(idA, idB);
+		_cache[key] = visible;
+	}
+
+	public int Count => _cache.Count;
+
+	private static long MakeKey(string a, string b)
+	{
+		var ha = (long)(uint)a.GetHashCode();
+		var hb = (long)(uint)b.GetHashCode();
+		return ha <= hb ? (ha << 32) | hb : (hb << 32) | ha;
+	}
+}
+
+internal sealed class CachedBlocksSightProvider : VisibilityUtil.IBlocksSightProvider
+{
+	private readonly WorldMap _world;
+	private readonly Dictionary<long, bool> _cache = new();
+
+	public CachedBlocksSightProvider(WorldMap world) => _world = world;
+
+	public bool BlocksSight(int x, int y, int z)
+	{
+		var key = Pack(x, y, z);
+		if (_cache.TryGetValue(key, out var cached))
+			return cached;
+		var result = _world.BlocksSight(x, y, z);
+		_cache[key] = result;
+		return result;
+	}
+
+	private static long Pack(int x, int y, int z) =>
+		((long)(ushort)x << 32) | ((long)(ushort)y << 16) | (ushort)z;
+}
 
 public static class AIVisionBatch
 {
@@ -113,6 +149,7 @@ public static class AIVisionBatch
 		var batchStart = ProfilingClock.Start();
 		var config = GameConfig.AIVision;
 		var localContextRadius = Math.Max(0, config.LocalContextRadius);
+		var maxVerticalLayers = Math.Max(0, config.MaxVerticalVisionLayers);
 		int candidateCount = 0;
 		int shortlistCount = 0;
 		int losChecks = 0;
@@ -135,7 +172,6 @@ public static class AIVisionBatch
 			var cache = state.SnapshotCache;
 			if (cache != null && !cache.IsDirty && cache.Snapshots.Count > 0)
 			{
-				// Reuse cached snapshots — only refresh mutable fields (cheap due to Actor capacity cache).
 				var refreshStart = captureDetailedProfile ? ProfilingClock.Start() : 0L;
 				cache.RefreshFromActors();
 				if (captureDetailedProfile)
@@ -145,9 +181,6 @@ public static class AIVisionBatch
 			}
 			else
 			{
-				// When snapshot cache is enabled, compute sight for ALL actors so the cache
-				// is reusable across different observer sets across subsequent AI steps.
-				// Otherwise only observers need sight capacity (targets never read it).
 				var observerIds = new HashSet<string>(StringComparer.Ordinal);
 				if (cache != null)
 				{
@@ -183,6 +216,9 @@ public static class AIVisionBatch
 			}
 		}
 
+		var losCache = new VisionLosCache();
+		var blocksSightCache = new CachedBlocksSightProvider(world);
+
 		foreach (var request in requests)
 		{
 			var observer = request.Observer;
@@ -215,12 +251,14 @@ public static class AIVisionBatch
 						ref capacityCalls);
 
 				var candidateScanStart = captureDetailedProfile ? ProfilingClock.Start() : 0L;
-				var candidates = CollectCandidates(
+				var candidates = CollectCandidates3D(
 					state,
 					observerSnapshot,
 					actorSnapshots,
+					actorSnapshotsById,
 					request.Detail,
-					config);
+					config,
+					maxVerticalLayers);
 				candidateCount += candidates.Count;
 				maxCandidatesPerObserver = Math.Max(maxCandidatesPerObserver, candidates.Count);
 				if (captureDetailedProfile)
@@ -246,33 +284,44 @@ public static class AIVisionBatch
 				{
 					var target = candidates[si];
 					losChecks++;
-					var canSeeTarget = false;
+
+					if (losCache.TryGet(observer.Id, target.Actor.Id, out var cachedVisible))
+					{
+						if (cachedVisible)
+							visibleActors.Add(target.Actor);
+						continue;
+					}
+
+					bool canSeeTarget;
 					if (captureDetailedProfile)
 					{
 						var losStart = ProfilingClock.Start();
-						canSeeTarget = VisibilityUtil.HasLineOfSight(
-							world,
+						canSeeTarget = VisibilityUtil.HasLineOfSight3D(
+							blocksSightCache,
 							observerSnapshot.X,
 							observerSnapshot.Y,
+							observerSnapshot.Z,
 							target.X,
 							target.Y,
-							observerSnapshot.Z);
+							target.Z);
 						losMs += ProfilingClock.ElapsedMs(losStart);
 					}
 					else
 					{
-						canSeeTarget = VisibilityUtil.HasLineOfSight(
-							world,
+						canSeeTarget = VisibilityUtil.HasLineOfSight3D(
+							blocksSightCache,
 							observerSnapshot.X,
 							observerSnapshot.Y,
+							observerSnapshot.Z,
 							target.X,
 							target.Y,
-							observerSnapshot.Z);
+							target.Z);
 					}
-					if (!canSeeTarget)
-						continue;
 
-					visibleActors.Add(target.Actor);
+					losCache.Set(observer.Id, target.Actor.Id, canSeeTarget);
+
+					if (canSeeTarget)
+						visibleActors.Add(target.Actor);
 				}
 
 				visibleActorCount += visibleActors.Count;
@@ -308,6 +357,7 @@ public static class AIVisionBatch
 			CapacityCalls = capacityCalls,
 			MaxCandidatesPerObserver = maxCandidatesPerObserver,
 			MaxShortlistPerObserver = maxShortlistPerObserver,
+			LosCacheHits = losCache.Count,
 		};
 
 		return result;
@@ -328,7 +378,6 @@ public static class AIVisionBatch
 		var snapshotsById = new Dictionary<string, VisionActorSnapshot>(state.Actors.Count, StringComparer.Ordinal);
 		foreach (var actor in state.Actors.Values)
 		{
-			// Only compute sight capacity for observer actors — targets never use it.
 			var computeSight = observerIds.Contains(actor.Id);
 			var snapshot = CreateActorSnapshot(
 				actor,
@@ -373,7 +422,6 @@ public static class AIVisionBatch
 		float sightCapacity;
 		if (!computeSight)
 		{
-			// Target actors: sight capacity is never used — skip the expensive ComputeCapacities call.
 			sightCapacity = 1.0f;
 		}
 		else if (captureDetailedProfile)
@@ -434,12 +482,14 @@ public static class AIVisionBatch
 		return nearbyFixtures;
 	}
 
-	private static List<VisionActorSnapshot> CollectCandidates(
+	private static List<VisionActorSnapshot> CollectCandidates3D(
 		GameState state,
 		VisionActorSnapshot observer,
 		IReadOnlyList<VisionActorSnapshot> actorSnapshots,
+		Dictionary<string, VisionActorSnapshot> snapshotsById,
 		SimDetail detail,
-		AIVisionConfig config)
+		AIVisionConfig config,
+		int maxVerticalLayers)
 	{
 		var result = new List<VisionActorSnapshot>();
 		var range = RangeFor(detail, config);
@@ -459,17 +509,51 @@ public static class AIVisionBatch
 		int rearRange = vision.RearRadius;
 		long frontSq = (long)frontRange * frontRange;
 		long rearSq = (long)rearRange * rearRange;
+		int maxRange = Math.Max(frontRange, rearRange);
+
+		var actorIndex = state.World?.Actors;
+		var useIndex = actorIndex != null && state.World!.Chunks.LoadedChunks.Count > 0;
+		if (useIndex)
+		{
+			var nearby = new List<Actor>();
+			actorIndex!.CollectActorsInRange(
+				observer.X, observer.Y, observer.Z,
+				maxRange, maxVerticalLayers,
+				state.Actors, nearby);
+
+			if (nearby.Count > 0 || state.Actors.Count <= 1)
+			{
+				foreach (var actor in nearby)
+				{
+					if (actor.Id == observer.Actor.Id) continue;
+					if (!snapshotsById.TryGetValue(actor.Id, out var other)) continue;
+					if (other.IsDead) continue;
+
+					int dx = other.X - observer.X;
+					int dy = other.Y - observer.Y;
+					int dz = other.Z - observer.Z;
+					long distSq = (long)dx * dx + (long)dy * dy + (long)dz * dz;
+					int dot = dx * observer.Actor.FacingX + dy * observer.Actor.FacingY;
+					long maxSq = dot >= 0 ? frontSq : rearSq;
+					if (distSq > maxSq) continue;
+
+					result.Add(other);
+				}
+				return result;
+			}
+		}
 
 		foreach (var other in actorSnapshots)
 		{
 			if (other.Actor.Id == observer.Actor.Id) continue;
-			if (other.Z != observer.Z) continue;
-			if (other.IsDead)
-				continue;
+			if (other.IsDead) continue;
+
+			int dz = other.Z - observer.Z;
+			if (Math.Abs(dz) > maxVerticalLayers) continue;
 
 			int dx = other.X - observer.X;
 			int dy = other.Y - observer.Y;
-			long distSq = (long)dx * dx + (long)dy * dy;
+			long distSq = (long)dx * dx + (long)dy * dy + (long)dz * dz;
 			int dot = dx * observer.Actor.FacingX + dy * observer.Actor.FacingY;
 			long maxSq = dot >= 0 ? frontSq : rearSq;
 			if (distSq > maxSq) continue;
@@ -484,12 +568,14 @@ public static class AIVisionBatch
 	{
 		int dx = target.X - observer.X;
 		int dy = target.Y - observer.Y;
-		long distSq = (long)dx * dx + (long)dy * dy;
+		int dz = target.Z - observer.Z;
+		long distSq = (long)dx * dx + (long)dy * dy + (long)dz * dz;
 		int dot = dx * observer.Actor.FacingX + dy * observer.Actor.FacingY;
 		int hostilityPenalty = FactionRelation.IsHostile(observer.Faction, target.Faction) ? 0 : 10000;
 		int rearPenalty = dot < 0 ? 2000 : 0;
+		int crossLayerPenalty = dz != 0 ? 1000 : 0;
 
-		return hostilityPenalty + rearPenalty + (int)Math.Min(distSq, int.MaxValue / 4);
+		return hostilityPenalty + rearPenalty + crossLayerPenalty + (int)Math.Min(distSq, int.MaxValue / 4);
 	}
 
 	private static int RangeFor(SimDetail detail, AIVisionConfig config) => detail switch
@@ -506,36 +592,51 @@ public static class AIVisionBatch
 		_ => 0,
 	};
 
-	/// <summary>
-	/// 就地将 list 中 score 最小的 K 个元素移到前 K 位（部分排序）。
-	/// 返回实际 top-K 数量（min(K, list.Count)）。
-	/// O(N×K) 但 K 通常 ≤8，远快于 O(N log N) 全排序。
-	/// </summary>
 	private static int PartialSortTopK(List<VisionActorSnapshot> list, VisionActorSnapshot observer, int k)
 	{
 		var n = list.Count;
+		if (n == 0) return 0;
+
+		var scores = new int[n];
+		for (var i = 0; i < n; i++)
+			scores[i] = CandidateScore(observer, list[i]);
+
 		if (n <= k)
 		{
-			list.Sort((a, b) => CandidateScore(observer, a).CompareTo(CandidateScore(observer, b)));
+			for (var i = 1; i < n; i++)
+			{
+				var key = scores[i];
+				var keySnap = list[i];
+				var j = i - 1;
+				while (j >= 0 && scores[j] > key)
+				{
+					scores[j + 1] = scores[j];
+					list[j + 1] = list[j];
+					j--;
+				}
+				scores[j + 1] = key;
+				list[j + 1] = keySnap;
+			}
 			return n;
 		}
 
-		// 选择排序前 K 个
 		for (var i = 0; i < k; i++)
 		{
 			var bestIdx = i;
-			var bestScore = CandidateScore(observer, list[i]);
+			var bestScore = scores[i];
 			for (var j = i + 1; j < n; j++)
 			{
-				var score = CandidateScore(observer, list[j]);
-				if (score < bestScore)
+				if (scores[j] < bestScore)
 				{
-					bestScore = score;
+					bestScore = scores[j];
 					bestIdx = j;
 				}
 			}
 			if (bestIdx != i)
+			{
 				(list[i], list[bestIdx]) = (list[bestIdx], list[i]);
+				(scores[i], scores[bestIdx]) = (scores[bestIdx], scores[i]);
+			}
 		}
 		return k;
 	}

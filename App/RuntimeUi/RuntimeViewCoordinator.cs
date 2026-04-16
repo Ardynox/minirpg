@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Module.Editor;
@@ -23,6 +24,7 @@ internal sealed class RuntimeViewCoordinator
 		Vector3I? gameplayHoverWorldCell,
 		WorldToolPreviewState? runtimeWorldToolPreviewState,
 		Vector3I? targetCursorWorldCell,
+		IReadOnlyList<Vector3I>? pathHighlightCells,
 		bool mapEditorActive,
 		int mapEditorCameraX,
 		int mapEditorCameraY,
@@ -39,6 +41,7 @@ internal sealed class RuntimeViewCoordinator
 		syncViewToActiveActor();
 		var editorPreviewState = MapEditorWorldToolPreviewAdapter.FromMapEditorHoverState(mapEditorHoverState);
 		_ui.MapRender.TargetCursorWorldCell = targetCursorWorldCell;
+		_ui.MapRender.PathHighlightCells = pathHighlightCells;
 		_ui.MapRender.HoverWorldCell = mapEditorActive ? mapEditorHoverWorld : gameplayHoverWorldCell;
 		_ui.MapRender.EditorHoverState = mapEditorActive ? mapEditorHoverState : null;
 		_ui.MapRender.WorldToolPreviewState = mapEditorActive ? editorPreviewState : runtimeWorldToolPreviewState;

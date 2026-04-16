@@ -109,13 +109,12 @@ public sealed class HealthSystemTests
 		var healer = CreateActor("healer", "human", faction: Factions.Friendly, x: 2, y: 2);
 		var patient = CreateActor("patient", "human", faction: Factions.Friendly, x: 3, y: 2);
 		healer.Inventory.Add(PresetDB.CloneItem("bandage"));
-		HealthSystem.AddOrUpdateInjury(healer, HealthConditionIds.CutWound, healer.Limbs[0].Id, 4f, "test", 0);
-		HealthSystem.AddOrUpdateInjury(patient, HealthConditionIds.CutWound, patient.Limbs[0].Id, 8f, "test", 0);
+		HealthSystem.AddOrUpdateInjury(healer, HealthConditionIds.CutWound, healer.Limbs[0].Id, 10f, "test", 0);
+		HealthSystem.AddOrUpdateInjury(patient, HealthConditionIds.CutWound, patient.Limbs[0].Id, 20f, "test", 0);
 		ActorModule.Add(state, healer);
 		ActorModule.Add(state, patient);
 
-		var perception = PerceptionBuilder.Build(state, healer, SimDetail.Full);
-		var result = HealthBehaviorModule.TryExecute(state, healer, perception, tickBuffs: false);
+		var result = AIDispatcher.DecideAndExecuteAnyResult(state, healer, tickBuffs: false);
 
 		Assert.True(result.Consumed);
 		Assert.True(healer.HealthConditions.Single(condition => condition.Id == HealthConditionIds.CutWound).TendedOnTurn >= 0);

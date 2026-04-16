@@ -15,7 +15,7 @@ internal readonly record struct RuntimeWorldToolBrush(
 	string Id,
 	string Label,
 	string? Glyph = null,
-	MapEditorBrushPreview? Preview = null);
+	BrushPreview? Preview = null);
 
 internal sealed class RuntimeWorldToolSession
 {
@@ -308,10 +308,7 @@ internal sealed class RuntimeWorldToolSession
 		TerrainBuildTargetResolver.ResolveBuildTargetCell(_state.World, hoverCell, reverseStack);
 
 	private Vector3I? ResolveTerrainOccupiedTargetCell(Vector3I hoverCell)
-	{
-		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
-		return pickedTerrain is Terrains.Air or Terrains.Void ? null : hoverCell;
-	}
+		=> TerrainBuildTargetResolver.ResolveOccupiedTargetCell(_state.World!, hoverCell);
 
 	private FacilityInstance BuildPreviewFacility(string facilityDefId, Vector3I hoverCell) => new()
 	{
@@ -418,7 +415,7 @@ internal sealed class RuntimeWorldToolSession
 				def.Id,
 				GameLocalizer.HumanizeId(def.Id),
 				def.Glyph,
-				MapEditorBrushPreviewResolver.ResolveFacilityPreview(def.Id)));
+				BrushPreviewResolver.ResolveFacilityPreview(def.Id)));
 		}
 
 		_facilityBrushIndex = ResolveBrushIndex(_facilityBrushes, selectedId);

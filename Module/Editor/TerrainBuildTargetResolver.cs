@@ -31,4 +31,10 @@ internal static class TerrainBuildTargetResolver
 
 		return null;
 	}
+
+	public static Vector3I? ResolveOccupiedTargetCell(WorldMap world, Vector3I hoverCell)
+	{
+		var pickedTerrain = world.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
+		return pickedTerrain is Terrains.Air or Terrains.Void ? null : hoverCell;
+	}
 }

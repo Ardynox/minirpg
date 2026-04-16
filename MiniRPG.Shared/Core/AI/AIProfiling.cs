@@ -10,11 +10,6 @@ public sealed class AIDispatchMetrics
 	public AIVisionMetrics Vision { get; init; } = new();
 	public double ElapsedMs { get; init; }
 	public double AwarenessMs { get; init; }
-	public double HealthBehaviorMs { get; init; }
-	public double FireBehaviorMs { get; init; }
-	public double TemperatureBehaviorMs { get; init; }
-	public double NeedBehaviorMs { get; init; }
-	public double JobBehaviorMs { get; init; }
 	public double BrainDecideMs { get; init; }
 	public double DecisionExecuteMs { get; init; }
 }

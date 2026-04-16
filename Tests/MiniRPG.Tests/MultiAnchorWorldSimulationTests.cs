@@ -42,9 +42,9 @@ public sealed class MultiAnchorWorldSimulationTests
 		manager.UpdateLoadedChunks(anchors, currentTurn: 10);
 		manager.ProcessPendingLoads(currentTurn: 10, budgetOverride: 999);
 
-		Assert.True(manager.LoadedChunks.Keys.Any(c => c.Cx == 0 && c.Cy == 0 && c.Cz == 0));
-		Assert.True(manager.LoadedChunks.Keys.Any(c => c.Cx == 4 && c.Cy == 0 && c.Cz == 0));
-		Assert.True(manager.LoadedChunks.Keys.Any(c => c.Cx == 4 && c.Cy == 0 && c.Cz == 1));
+		Assert.Contains(manager.LoadedChunks.Keys, c => c.Cx == 0 && c.Cy == 0 && c.Cz == 0);
+		Assert.Contains(manager.LoadedChunks.Keys, c => c.Cx == 4 && c.Cy == 0 && c.Cz == 0);
+		Assert.Contains(manager.LoadedChunks.Keys, c => c.Cx == 4 && c.Cy == 0 && c.Cz == 1);
 		Assert.True(manager.LoadedChunks.Count > 0);
 	}
 
@@ -66,7 +66,14 @@ public sealed class MultiAnchorWorldSimulationTests
 			hostile,
 			[new WorldCoord(12, 10, 1)],
 			range: 6);
-		Assert.Equal(SimDetail.Summary, detailWrongZ);
+		Assert.Equal(SimDetail.Full, detailWrongZ);
+
+		var detailFarZ = AIDispatcher.Classify(
+			state,
+			hostile,
+			[new WorldCoord(12, 10, 10)],
+			range: 6);
+		Assert.Equal(SimDetail.Summary, detailFarZ);
 
 		var detailNoAnchors = AIDispatcher.Classify(state, hostile, Array.Empty<WorldCoord>(), range: 6);
 		Assert.Equal(SimDetail.Summary, detailNoAnchors);

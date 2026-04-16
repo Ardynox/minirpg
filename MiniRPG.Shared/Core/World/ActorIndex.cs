@@ -96,6 +96,35 @@ public class ActorIndex
 	public Actor? GetHostileActorAt(int x, int y, int z, Dictionary<string, Actor> actors) =>
 		GetActorsAt(x, y, z, actors).FirstOrDefault(static actor => actor.Faction == Factions.Hostile);
 
+	public void CollectActorsInRange(
+		int cx, int cy, int cz,
+		int rangeXY, int rangeZ,
+		Dictionary<string, Actor> actors,
+		List<Actor> result)
+	{
+		var minChunkX = CoordUtil.WorldToChunkAxis(cx - rangeXY);
+		var maxChunkX = CoordUtil.WorldToChunkAxis(cx + rangeXY);
+		var minChunkY = CoordUtil.WorldToChunkAxis(cy - rangeXY);
+		var maxChunkY = CoordUtil.WorldToChunkAxis(cy + rangeXY);
+		var minZ = cz - rangeZ;
+		var maxZ = cz + rangeZ;
+
+		for (var chunkZ = minZ; chunkZ <= maxZ; chunkZ++)
+		for (var chunkY = minChunkY; chunkY <= maxChunkY; chunkY++)
+		for (var chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+		{
+			var coord = new ChunkCoord(chunkX, chunkY, chunkZ);
+			if (!_chunks.IsLoaded(coord)) continue;
+			var chunk = _chunks.GetOrLoad(coord);
+			if (chunk.ActorIds.Count == 0) continue;
+			foreach (var actorId in chunk.ActorIds)
+			{
+				if (!actors.TryGetValue(actorId, out var actor)) continue;
+				result.Add(actor);
+			}
+		}
+	}
+
 	private static List<Actor> ScanActorsAt(int x, int y, int z, Dictionary<string, Actor> actors) =>
 		actors.Values
 			.Where(actor => actor.X == x && actor.Y == y && actor.Z == z)

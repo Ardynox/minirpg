@@ -40,13 +40,13 @@ public enum MapEditorBrushApplyResult
 	ConnectivityRequired,
 }
 
-public readonly record struct MapEditorBrushPreview(string TexturePath, Rect2I? Region = null);
+public readonly record struct BrushPreview(string TexturePath, Rect2I? Region = null);
 
 public readonly record struct MapEditorBrush(
 	string Id,
 	string Label,
 	string? Glyph = null,
-	MapEditorBrushPreview? Preview = null);
+	BrushPreview? Preview = null);
 
 internal readonly record struct MapEditorHoverState(
 	MapEditorToolMode ToolMode,
@@ -544,13 +544,7 @@ public sealed class MapEditorSession
 		=> TerrainBuildTargetResolver.ResolveBuildTargetCell(_state.World, hoverCell, reverseStack);
 
 	private Vector3I? ResolveTerrainOccupiedTargetCell(Vector3I hoverCell)
-	{
-		var pickedTerrain = _state.World!.GetTerrain(hoverCell.X, hoverCell.Y, hoverCell.Z).StringId;
-		if (pickedTerrain is not (Terrains.Air or Terrains.Void))
-			return hoverCell;
-
-		return null;
-	}
+		=> TerrainBuildTargetResolver.ResolveOccupiedTargetCell(_state.World!, hoverCell);
 
 	private static MapEditorHoverState CreateHoverState(
 		MapEditorToolMode toolMode,
@@ -591,7 +585,7 @@ public sealed class MapEditorSession
 		foreach (var (id, def) in FixtureRegistry.All)
 		{
 			var glyph = EntityAccess.ResolveFixtureGlyph(id);
-			var preview = MapEditorBrushPreviewResolver.ResolveFixturePreview(id);
+			var preview = BrushPreviewResolver.ResolveFixturePreview(id);
 			_fixtureBrushes.Add(new MapEditorBrush(
 				id,
 				GameLocalizer.LocalizeFixtureName(id),

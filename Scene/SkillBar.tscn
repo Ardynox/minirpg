@@ -4,9 +4,9 @@
 anchors_preset = 0
 offset_left = 12.0
 offset_top = 12.0
-offset_right = 488.0
-offset_bottom = 388.0
-custom_minimum_size = Vector2(476, 320)
+offset_right = 500.0
+offset_bottom = 400.0
+custom_minimum_size = Vector2(488, 340)
 visible = false
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
@@ -16,20 +16,20 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
 
 [node name="VBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="HeaderBar" type="Control" parent="MarginContainer/VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 52)
 size_flags_horizontal = 3
 
 [node name="Header" type="RichTextLabel" parent="MarginContainer/VBox/HeaderBar"]
@@ -52,7 +52,7 @@ text = "ui.skill_bar.title"
 
 [node name="TabBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="Sep1" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -65,7 +65,7 @@ horizontal_scroll_mode = 0
 [node name="GridHost" type="VBoxContainer" parent="MarginContainer/VBox/GridScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8
 
 [node name="EmptyLabel" type="Label" parent="MarginContainer/VBox/GridScroll/GridHost"]
 visible = false
@@ -79,14 +79,14 @@ text = "ui.skill_bar.empty"
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 6
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
 
 [node name="Sep2" type="HSeparator" parent="MarginContainer/VBox"]
 layout_mode = 2
 
 [node name="DetailScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
-custom_minimum_size = Vector2(0, 88)
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 horizontal_scroll_mode = 0
 
@@ -99,7 +99,7 @@ scroll_active = false
 
 [node name="ActionBar" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="CloseBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2

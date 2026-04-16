@@ -1149,6 +1149,7 @@ public class AutoTestModule
 			var durabilitySnapshot = SnapshotDurability(sightLimbs);
 
 			sightLimbs[0].Durability = 0;
+			player.InvalidateCapacityCache();
 			var partialVisionProbe = AutoTestVisionProbeHelper.Create(
 				context.FogTracker.BaseVisionRadius,
 				player.GetCapacity(Caps.Sight),
@@ -1179,6 +1180,7 @@ public class AutoTestModule
 
 			foreach (var limb in sightLimbs)
 				limb.Durability = 0;
+			player.InvalidateCapacityCache();
 			context.FogTracker.Clear();
 			context.FogTracker.Update(state);
 			context.Check(
@@ -1193,6 +1195,7 @@ public class AutoTestModule
 				$"Expected blind adjacent tile vision_band=Unknown; actual vision_band={context.FogTracker.GetVisionBand(px + 1, py, pz)}.");
 
 			RestoreDurability(durabilitySnapshot);
+			player.InvalidateCapacityCache();
 			context.FogTracker.Clear();
 			context.FogTracker.Update(state);
 		}

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MiniRPG.Core.Data;
 
@@ -66,6 +67,20 @@ public class WorldQuery
 		}
 
 		return true;
+	}
+
+	public bool BlocksSightVertical(int x, int y, int zFrom, int zTo)
+	{
+		var zMin = Math.Min(zFrom, zTo);
+		var zMax = Math.Max(zFrom, zTo);
+		for (var z = zMin + 1; z < zMax; z++)
+		{
+			if (_terrain.GetTerrain(x, y, z).Solid)
+				return true;
+			if (_facilities.BlocksSight(x, y, z))
+				return true;
+		}
+		return false;
 	}
 
 	public bool CanTraverseVertical(int x, int y, int z, bool goDown)

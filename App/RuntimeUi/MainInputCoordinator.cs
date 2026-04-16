@@ -8,29 +8,11 @@ namespace MiniRPG;
 internal sealed class MainInputCoordinator(
 	IReadOnlyList<IModalInputLayer> modalLayers,
 	Action markInputHandled,
-	Func<InputEvent, bool> handlePanelChromeInput,
-	Func<InputEvent, bool> handlePanelDragInput,
-	Func<InputEventKey, bool> handleLayoutEditKeyInput,
-	Func<InputEvent, bool> handleLayoutEditInput,
-	Func<InputEventKey, bool> handleMapEditorKeyInput,
-	Func<InputEvent, bool> handleMapEditorInput,
-	Func<InputEventKey, bool> handleInspectModeKeyInput,
-	Func<InputEventKey, bool> handlePanelManagerKeyInput,
-	Func<InputEventKey, bool> handleInputModuleKeyInput,
-	Func<InputEvent, RuntimeUiModeSnapshot, bool> handleGameplayMouseInput)
+	InputHandlerSet handlers)
 {
 	private readonly IReadOnlyList<IModalInputLayer> _modalLayers = modalLayers;
 	private readonly Action _markInputHandled = markInputHandled;
-	private readonly Func<InputEvent, bool> _handlePanelChromeInput = handlePanelChromeInput;
-	private readonly Func<InputEvent, bool> _handlePanelDragInput = handlePanelDragInput;
-	private readonly Func<InputEventKey, bool> _handleLayoutEditKeyInput = handleLayoutEditKeyInput;
-	private readonly Func<InputEvent, bool> _handleLayoutEditInput = handleLayoutEditInput;
-	private readonly Func<InputEventKey, bool> _handleMapEditorKeyInput = handleMapEditorKeyInput;
-	private readonly Func<InputEvent, bool> _handleMapEditorInput = handleMapEditorInput;
-	private readonly Func<InputEventKey, bool> _handleInspectModeKeyInput = handleInspectModeKeyInput;
-	private readonly Func<InputEventKey, bool> _handlePanelManagerKeyInput = handlePanelManagerKeyInput;
-	private readonly Func<InputEventKey, bool> _handleInputModuleKeyInput = handleInputModuleKeyInput;
-	private readonly Func<InputEvent, RuntimeUiModeSnapshot, bool> _handleGameplayMouseInput = handleGameplayMouseInput;
+	private readonly InputHandlerSet _handlers = handlers;
 
 	public bool HandleUnhandledKey(InputEventKey key, RuntimeUiModeSnapshot snapshot) =>
 		HandleUnhandledKey(key, snapshot, key.Pressed);
@@ -54,19 +36,19 @@ internal sealed class MainInputCoordinator(
 
 		if (snapshot.LayoutEditActive)
 		{
-			if (_handleLayoutEditKeyInput(key!) || keyPressed)
+			if (_handlers.HandleLayoutEditKeyInput(key!) || keyPressed)
 				_markInputHandled();
 			return true;
 		}
 
 		if (snapshot.MapEditorActive)
 		{
-			if (_handleMapEditorKeyInput(key!) || keyPressed)
+			if (_handlers.HandleMapEditorKeyInput(key!) || keyPressed)
 				_markInputHandled();
 			return true;
 		}
 
-		if (_handleInspectModeKeyInput(key!))
+		if (_handlers.HandleInspectModeKeyInput(key!))
 		{
 			_markInputHandled();
 			return true;
@@ -75,7 +57,7 @@ internal sealed class MainInputCoordinator(
 		if (snapshot.InMenu && !snapshot.SettingsOverlayVisible)
 			return true;
 
-		if (_handlePanelManagerKeyInput(key!) || (!snapshot.InMenu && _handleInputModuleKeyInput(key!)))
+		if (_handlers.HandlePanelManagerKeyInput(key!) || (!snapshot.InMenu && _handlers.HandleInputModuleKeyInput(key!)))
 		{
 			_markInputHandled();
 			return true;
@@ -97,13 +79,13 @@ internal sealed class MainInputCoordinator(
 			return true;
 		}
 
-		if (snapshot.AllowPanelChrome && _handlePanelChromeInput(inputEvent))
+		if (snapshot.AllowPanelChrome && _handlers.HandlePanelChromeInput(inputEvent))
 		{
 			_markInputHandled();
 			return true;
 		}
 
-		if (snapshot.AllowPanelDrag && _handlePanelDragInput(inputEvent))
+		if (snapshot.AllowPanelDrag && _handlers.HandlePanelDragInput(inputEvent))
 		{
 			_markInputHandled();
 			return true;
@@ -123,14 +105,14 @@ internal sealed class MainInputCoordinator(
 
 		if (snapshot.LayoutEditActive)
 		{
-			if (_handleLayoutEditInput(inputEvent))
+			if (_handlers.HandleLayoutEditInput(inputEvent))
 				_markInputHandled();
 			return true;
 		}
 
 		if (snapshot.MapEditorActive)
 		{
-			if (_handleMapEditorInput(inputEvent))
+			if (_handlers.HandleMapEditorInput(inputEvent))
 			{
 				_markInputHandled();
 				return true;
@@ -138,14 +120,12 @@ internal sealed class MainInputCoordinator(
 			return isKeyEvent;
 		}
 
-		if (_handleGameplayMouseInput(inputEvent, snapshot))
+		if (_handlers.HandleGameplayMouseInput(inputEvent, snapshot))
 		{
 			_markInputHandled();
 			return true;
 		}
 
-		// Do not swallow mouse input globally when gameplay is blocked (e.g. main menu),
-		// otherwise Control buttons can hover but never receive click events.
 		return snapshot.BlocksGameplayInput && isKeyEvent;
 	}
 

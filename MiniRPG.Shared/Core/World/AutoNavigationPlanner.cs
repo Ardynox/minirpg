@@ -54,6 +54,23 @@ public readonly record struct AutoNavigationPlanningResult(
 			FailureReason: reason);
 }
 
+public readonly record struct AutoNavigationFullPathResult(
+	bool Success,
+	IReadOnlyList<AutoNavigationPathNode> Path,
+	AutoNavigationFailureReason FailureReason)
+{
+	public static AutoNavigationFullPathResult Reached() =>
+		new(Success: true, Path: [], FailureReason: AutoNavigationFailureReason.None);
+
+	public static AutoNavigationFullPathResult Planned(IReadOnlyList<AutoNavigationPathNode> path) =>
+		new(Success: true, Path: path, FailureReason: AutoNavigationFailureReason.None);
+
+	public static AutoNavigationFullPathResult Failed(AutoNavigationFailureReason reason) =>
+		new(Success: false, Path: [], FailureReason: reason);
+}
+
+public readonly record struct AutoNavigationPathNode(int X, int Y, int Z);
+
 public static class AutoNavigationPlanner
 {
 	private const int MaxSearchNodes = 8192;
@@ -65,6 +82,66 @@ public static class AutoNavigationPlanner
 		(-1, 0),
 		(1, 0),
 	];
+
+	public static AutoNavigationFullPathResult PlanFullPath(
+		WorldMap world,
+		int startX,
+		int startY,
+		int startZ,
+		int targetX,
+		int targetY,
+		int targetZ)
+	{
+		ArgumentNullException.ThrowIfNull(world);
+
+		var start = new AutoNavigationNode(startX, startY, startZ);
+		var goal = new AutoNavigationNode(targetX, targetY, targetZ);
+		if (start == goal)
+			return AutoNavigationFullPathResult.Reached();
+
+		if (!world.IsWalkable(goal.X, goal.Y, goal.Z))
+			return AutoNavigationFullPathResult.Failed(AutoNavigationFailureReason.InvalidTarget);
+
+		var open = new PriorityQueue<AutoNavigationNode, int>();
+		var cameFrom = new Dictionary<AutoNavigationNode, AutoNavigationNode>();
+		var gScore = new Dictionary<AutoNavigationNode, int>
+		{
+			[start] = 0,
+		};
+		var closed = new HashSet<AutoNavigationNode>();
+		open.Enqueue(start, Heuristic(start, goal));
+
+		var expandedNodes = 0;
+		while (open.Count > 0)
+		{
+			var current = open.Dequeue();
+			if (!closed.Add(current))
+				continue;
+
+			if (current == goal)
+				return BuildFullPathResult(cameFrom, start, goal);
+
+			if (++expandedNodes > MaxSearchNodes)
+				return AutoNavigationFullPathResult.Failed(AutoNavigationFailureReason.SearchLimitExceeded);
+
+			var currentG = gScore[current];
+			foreach (var neighbor in EnumerateNeighbors(world, current))
+			{
+				if (closed.Contains(neighbor))
+					continue;
+
+				var tentativeG = currentG + 1;
+				if (gScore.TryGetValue(neighbor, out var existingG) && tentativeG >= existingG)
+					continue;
+
+				cameFrom[neighbor] = current;
+				gScore[neighbor] = tentativeG;
+				open.Enqueue(neighbor, tentativeG + Heuristic(neighbor, goal));
+			}
+		}
+
+		return AutoNavigationFullPathResult.Failed(AutoNavigationFailureReason.Unreachable);
+	}
 
 	public static AutoNavigationPlanningResult PlanNextStep(
 		WorldMap world,
@@ -140,6 +217,24 @@ public static class AutoNavigationPlanner
 			yield return new AutoNavigationNode(current.X, current.Y, current.Z - 1);
 		if (ClimbingService.CanAutoClimb(world, current.X, current.Y, current.Z, +1))
 			yield return new AutoNavigationNode(current.X, current.Y, current.Z + 1);
+	}
+
+	private static AutoNavigationFullPathResult BuildFullPathResult(
+		Dictionary<AutoNavigationNode, AutoNavigationNode> cameFrom,
+		AutoNavigationNode start,
+		AutoNavigationNode goal)
+	{
+		var path = new List<AutoNavigationPathNode>();
+		var current = goal;
+		while (current != start)
+		{
+			path.Add(new AutoNavigationPathNode(current.X, current.Y, current.Z));
+			if (!cameFrom.TryGetValue(current, out var previous))
+				break;
+			current = previous;
+		}
+		path.Reverse();
+		return AutoNavigationFullPathResult.Planned(path);
 	}
 
 	private static AutoNavigationPlanningResult BuildPlanningResult(

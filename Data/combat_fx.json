@@ -154,6 +154,34 @@
         "tint": "#8fd7ff",
         "layer": 30
       }
+    },
+    "explosion": {
+      "primary": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_explosion",
+        "duration": 0.5,
+        "scale": 0.6,
+        "tint": "#ffaa44",
+        "layer": 14
+      },
+      "hit": {
+        "kind": "sprite",
+        "anchor": "target",
+        "resourceId": "fx_explosion",
+        "duration": 0.35,
+        "scale": 0.4,
+        "tint": "#ff6622",
+        "layer": 12
+      },
+      "text": {
+        "mode": "damage",
+        "anchor": "target",
+        "duration": 0.6,
+        "risePixels": 64,
+        "tint": "#ff8844",
+        "layer": 30
+      }
     }
   }
 }

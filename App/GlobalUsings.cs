@@ -1,6 +1,7 @@
 global using MiniRPG.Core.Config;
 global using MiniRPG.Core.Data;
 global using MiniRPG.Core.Combat;
+global using MiniRPG.Core.AI;
 global using MiniRPG.Core.Map;
 global using MiniRPG.Core.Needs;
 global using MiniRPG.Core.Health;

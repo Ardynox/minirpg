@@ -10,5 +10,9 @@
   "rear_vision_ratio": 0.5,
   "gpu_observer_threshold": 200,
   "gpu_turn_budget_ms": 4.0,
-  "gpu_usage_ratio_threshold": 0.25
+  "gpu_usage_ratio_threshold": 0.25,
+  "max_vertical_vision_layers": 4,
+  "vertical_perception_decay": 0.7,
+  "cross_layer_shortlist_limit": 4,
+  "enable_gpu_vision": true
 }

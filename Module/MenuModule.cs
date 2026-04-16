@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using MiniRPG.Core.Config;
+using MiniRPG.Module.Panel;
 
 namespace MiniRPG.Module;
 
@@ -15,6 +16,8 @@ public class MenuModule
 	private readonly Button _multiplayerBtn;
 	private readonly Button _mapEditorBtn;
 	private readonly Button _autoTestBtn;
+	private readonly TextureRect _logo;
+	private readonly VBoxContainer _buttonBox;
 
 	public Screen CurrentScreen { get; private set; } = Screen.MainMenu;
 	public bool InMenu => CurrentScreen != Screen.InGame;
@@ -32,11 +35,13 @@ public class MenuModule
 	{
 		_mainMenu = root.GetNode<PanelContainer>("OverlayLayer/MainMenu");
 		_gameUI = root.GetNode<VBoxContainer>("HudLayer/UI");
+		_buttonBox = root.GetNode<VBoxContainer>("OverlayLayer/MainMenu/Content/Center/VBox");
 		_continueBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/ContinueBtn");
 		_worldsBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/WorldsBtn");
 		_multiplayerBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/MultiplayerBtn");
 		_mapEditorBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/MapEditorBtn");
 		_autoTestBtn = root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/AutoTestBtn");
+		_logo = root.GetNodeOrNull<TextureRect>("OverlayLayer/MainMenu/Content/Logo");
 
 		_continueBtn.Pressed += () => OnContinue?.Invoke();
 		_worldsBtn.Pressed += () => OnWorlds?.Invoke();
@@ -45,6 +50,8 @@ public class MenuModule
 		root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/SettingsBtn").Pressed += () => OnOpenSettings?.Invoke();
 		_autoTestBtn.Pressed += () => OnAutoTest?.Invoke();
 		root.GetNode<Button>("OverlayLayer/MainMenu/Content/Center/VBox/QuitBtn").Pressed += () => OnQuit?.Invoke();
+
+		ButtonHoverEffect.AttachAll(_buttonBox);
 	}
 
 	public void ShowMainMenu(bool canContinue, bool resourcesReady, string? continueButtonText = null)
@@ -53,6 +60,7 @@ public class MenuModule
 		_mainMenu.Visible = true;
 		_gameUI.Visible = false;
 		RefreshMainMenuState(canContinue, resourcesReady, continueButtonText);
+		PlayMenuEntrance();
 	}
 
 	public void RefreshMainMenuState(bool canContinue, bool resourcesReady, string? continueButtonText = null)
@@ -87,5 +95,50 @@ public class MenuModule
 		CurrentScreen = Screen.MultiplayerHub;
 		_mainMenu.Visible = false;
 		_gameUI.Visible = false;
+	}
+
+	private void PlayMenuEntrance()
+	{
+		if (_logo != null && GodotObject.IsInstanceValid(_logo))
+			AnimateLogoFloat(_logo);
+
+		AnimateButtonStagger(_buttonBox);
+	}
+
+	private static void AnimateLogoFloat(TextureRect logo)
+	{
+		var baseY = logo.Position.Y;
+		var tween = logo.CreateTween();
+		tween.SetLoops();
+		tween.SetTrans(Tween.TransitionType.Sine);
+		tween.SetEase(Tween.EaseType.InOut);
+		tween.TweenProperty(logo, "position:y", baseY - 4.0f, 2.5f);
+		tween.TweenProperty(logo, "position:y", baseY + 4.0f, 2.5f);
+	}
+
+	private static void AnimateButtonStagger(VBoxContainer box)
+	{
+		var delay = 0f;
+		foreach (var child in box.GetChildren())
+		{
+			if (child is not Button btn)
+				continue;
+
+			btn.Modulate = new Color(1f, 1f, 1f, 0f);
+			btn.PivotOffset = btn.Size * 0.5f;
+			var startY = btn.Position.Y + 18f;
+
+			var tween = btn.CreateTween();
+			tween.SetTrans(Tween.TransitionType.Back);
+			tween.SetEase(Tween.EaseType.Out);
+
+			tween.TweenInterval(delay);
+			tween.TweenProperty(btn, "modulate:a", 1.0f, 0.3f);
+			var endY = btn.Position.Y;
+			btn.Position = new Vector2(btn.Position.X, startY);
+			tween.Parallel().TweenProperty(btn, "position:y", endY, 0.35f);
+
+			delay += 0.06f;
+		}
 	}
 }
