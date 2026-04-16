@@ -923,7 +923,7 @@ public sealed class IsometricRenderTests
 		world.SetTerrain(10, 12, 0, Terrains.WallStone);
 		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(10, 12, 0));
 
-		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+		var entries = ChunkTerrainSurfaceCacheStore.BuildEntries(
 			world,
 			chunk,
 			out var emptyCellCount,
@@ -953,7 +953,7 @@ public sealed class IsometricRenderTests
 		world.SetTerrain(14, 9, -1, Terrains.WallStone);
 		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(14, 9, 0));
 
-		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+		var entries = ChunkTerrainSurfaceCacheStore.BuildEntries(
 			world,
 			chunk,
 			out _,
@@ -973,7 +973,7 @@ public sealed class IsometricRenderTests
 		world.SetTerrain(19, 6, 0, Terrains.WallStone);
 		var chunk = world.Chunks.GetOrLoad(CoordUtil.WorldToChunk(18, 6, 0));
 
-		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+		var entries = ChunkTerrainSurfaceCacheStore.BuildEntries(
 			world,
 			chunk,
 			out _,
@@ -996,7 +996,7 @@ public sealed class IsometricRenderTests
 		world.SetTerrain(31, 32, 0, Terrains.WallStone);
 		var chunk = world.Chunks.GetOrLoad(new ChunkCoord(0, 0, 0));
 
-		var entries = IsometricVoxelRenderer.BuildChunkTerrainSurfaceEntries(
+		var entries = ChunkTerrainSurfaceCacheStore.BuildEntries(
 			world,
 			chunk,
 			out _,
