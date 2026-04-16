@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://h6qvv32m3w7e"
+
+[deps]
+
+files=["res://Assets/Art/PZ_Tiles/rename_plan.suggested.translation", "res://Assets/Art/PZ_Tiles/rename_plan.suggested.translation", "res://Assets/Art/PZ_Tiles/rename_plan.description.translation", "res://Assets/Art/PZ_Tiles/rename_plan.confidence.translation", "res://Assets/Art/PZ_Tiles/rename_plan.notes.translation"]
+
+source_file="res://Assets/Art/PZ_Tiles/rename_plan.csv"
+dest_files=["res://Assets/Art/PZ_Tiles/rename_plan.suggested.translation", "res://Assets/Art/PZ_Tiles/rename_plan.suggested.translation", "res://Assets/Art/PZ_Tiles/rename_plan.description.translation", "res://Assets/Art/PZ_Tiles/rename_plan.confidence.translation", "res://Assets/Art/PZ_Tiles/rename_plan.notes.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

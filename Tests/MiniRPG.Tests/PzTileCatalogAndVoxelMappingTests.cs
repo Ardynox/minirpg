@@ -62,6 +62,38 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 	}
 
 	[Fact]
+	public void PzTileCatalog_UsageMetadata_IsWellFormed()
+	{
+		var catalog = PzTileCatalogStore.Load();
+		var allowedPlacements = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			string.Empty,
+			"floor",
+			"wall",
+			"roof",
+			"object",
+			"mixed",
+		};
+
+		var invalidPlacements = catalog.Entries
+			.Where(entry => !allowedPlacements.Contains(entry.Placement))
+			.Select(entry => $"{entry.Id}: {entry.Placement}")
+			.ToArray();
+		var invalidUsageDomains = catalog.Entries
+			.Where(entry => entry.UsageDomains.Any(static value => string.IsNullOrWhiteSpace(value)))
+			.Select(static entry => entry.Id)
+			.ToArray();
+		var invalidUsageRoles = catalog.Entries
+			.Where(entry => entry.UsageRoles.Any(static value => string.IsNullOrWhiteSpace(value)))
+			.Select(static entry => entry.Id)
+			.ToArray();
+
+		Assert.True(invalidPlacements.Length == 0, "Invalid catalog placements: " + string.Join(", ", invalidPlacements.Take(20)));
+		Assert.True(invalidUsageDomains.Length == 0, "Invalid usageDomains entries: " + string.Join(", ", invalidUsageDomains.Take(20)));
+		Assert.True(invalidUsageRoles.Length == 0, "Invalid usageRoles entries: " + string.Join(", ", invalidUsageRoles.Take(20)));
+	}
+
+	[Fact]
 	public void PzTilePathUtility_IsPzTilesAssetPath_CoversCopyRoot_LegacyRoot_AndNonPzPaths()
 	{
 		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
@@ -214,7 +246,8 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 				ReadCommentHandling = JsonCommentHandling.Skip,
 			});
 
-		var entry = Assert.Single(Assert.NotNull(roundTripped).Entries);
+		Assert.NotNull(roundTripped);
+		var entry = Assert.Single(roundTripped!.Entries);
 		Assert.Equal("test_fixture", entry.TerrainId);
 		Assert.Equal("fixture", entry.Category);
 		Assert.Equal("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png", entry.TopTilePath);
@@ -237,6 +270,91 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 		Assert.Equal(156, entry.RightHeight);
 		Assert.False(entry.ShowLeftSide);
 		Assert.True(entry.ShowRightSide);
+	}
+
+	[Fact]
+	public void PzWorldVisualRegistry_ReferencesValidCatalogEntries_AndCoversAllRuntimeTerrains()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+
+		var catalog = PzTileCatalogStore.Load();
+		var catalogIds = catalog.Entries
+			.Select(static entry => entry.Id)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var registry = PzWorldVisualRegistryStore.Load();
+
+		var expectedTerrainIds = TerrainRegistry.All
+			.Where(static terrain => terrain != null)
+			.Select(static terrain => terrain.StringId)
+			.Where(static terrainId => terrainId is not Terrains.Void and not Terrains.Air)
+			.OrderBy(static terrainId => terrainId, StringComparer.OrdinalIgnoreCase)
+			.ToArray();
+		var actualTerrainIds = registry.Terrain
+			.Select(static entry => entry.TerrainId)
+			.OrderBy(static terrainId => terrainId, StringComparer.OrdinalIgnoreCase)
+			.ToArray();
+
+		Assert.Equal(expectedTerrainIds, actualTerrainIds);
+
+		var missingCatalogIds = new List<string>();
+		foreach (var terrain in registry.Terrain)
+		{
+			CollectMissingCatalogId(terrain.TerrainId, terrain.TopCatalogId, catalogIds, missingCatalogIds);
+			CollectMissingCatalogId(terrain.TerrainId, terrain.Left.CatalogId, catalogIds, missingCatalogIds);
+			CollectMissingCatalogId(terrain.TerrainId, terrain.Right.CatalogId, catalogIds, missingCatalogIds);
+		}
+
+		foreach (var entry in registry.Fixture)
+			CollectMissingCatalogIds(entry.Id, entry, catalogIds, missingCatalogIds);
+		foreach (var entry in registry.ItemWorld.Items)
+			CollectMissingCatalogIds(entry.Id, entry, catalogIds, missingCatalogIds);
+		foreach (var entry in registry.ItemWorld.Categories)
+			CollectMissingCatalogIds("category:" + entry.Id, entry, catalogIds, missingCatalogIds);
+		CollectMissingCatalogIds("default", registry.ItemWorld.Default, catalogIds, missingCatalogIds);
+		foreach (var entry in registry.Fx)
+			CollectMissingCatalogIds(entry.Id, entry, catalogIds, missingCatalogIds);
+
+		var invalidDecorPools = registry.DecorPools
+			.Where(static entry => entry.CatalogIds.Count != entry.Weights.Count)
+			.Select(static entry => entry.PoolId)
+			.ToArray();
+		var invalidDecorPoolIds = registry.DecorPools
+			.SelectMany(pool => pool.CatalogIds
+				.Where(catalogId => !catalogIds.Contains(catalogId))
+				.Select(catalogId => $"{pool.PoolId}: {catalogId}"))
+			.ToArray();
+
+		Assert.True(missingCatalogIds.Count == 0, "Registry references missing catalog ids: " + string.Join(" | ", missingCatalogIds));
+		Assert.True(invalidDecorPools.Length == 0, "Decor pool weights mismatch: " + string.Join(", ", invalidDecorPools));
+		Assert.True(invalidDecorPoolIds.Length == 0, "Decor pool missing catalog ids: " + string.Join(", ", invalidDecorPoolIds));
+	}
+
+	[Fact]
+	public void PzWorldVisualRegistry_GeneratesCompatVoxelMapping_WithoutLosingTerrainCoverage()
+	{
+		TestSupport.EnsureGameplayDataLoaded();
+
+		var catalog = PzTileCatalogStore.Load();
+		var registry = PzWorldVisualRegistryStore.Load();
+		var generated = PzWorldVisualRegistryStore.GenerateVoxelTileMappingDocument(registry, catalog);
+		var terrainIds = generated.Entries
+			.Select(static entry => entry.TerrainId)
+			.OrderBy(static entry => entry, StringComparer.OrdinalIgnoreCase)
+			.ToArray();
+		var expectedTerrainIds = TerrainRegistry.All
+			.Where(static terrain => terrain != null)
+			.Select(static terrain => terrain.StringId)
+			.Where(static terrainId => terrainId is not Terrains.Void and not Terrains.Air)
+			.OrderBy(static terrainId => terrainId, StringComparer.OrdinalIgnoreCase)
+			.ToArray();
+
+		Assert.Equal(expectedTerrainIds, terrainIds);
+		Assert.All(generated.Entries, static entry =>
+		{
+			Assert.DoesNotContain("/PZ_Tiles/", entry.TopTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+			Assert.DoesNotContain("/PZ_Tiles/", entry.LeftSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+			Assert.DoesNotContain("/PZ_Tiles/", entry.RightSideTilePath ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+		});
 	}
 
 	private static bool IsValidExplicitSide(
@@ -308,6 +426,32 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 
 		color = Colors.Transparent;
 		return false;
+	}
+
+	private static void CollectMissingCatalogIds(
+		string ownerId,
+		PzWorldVisualEntry? entry,
+		HashSet<string> catalogIds,
+		List<string> issues)
+	{
+		if (entry == null)
+			return;
+
+		CollectMissingCatalogId(ownerId, entry.CatalogId, catalogIds, issues);
+		foreach (var catalogId in entry.CatalogIds)
+			CollectMissingCatalogId(ownerId, catalogId, catalogIds, issues);
+	}
+
+	private static void CollectMissingCatalogId(
+		string ownerId,
+		string? catalogId,
+		HashSet<string> catalogIds,
+		List<string> issues)
+	{
+		if (string.IsNullOrWhiteSpace(catalogId))
+			return;
+		if (!catalogIds.Contains(catalogId))
+			issues.Add($"{ownerId}: {catalogId}");
 	}
 
 	private static string GetRepoRoot()

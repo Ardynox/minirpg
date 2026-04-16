@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Godot;
+using MiniRPG.Core.Data;
 using MiniRPG.Module.Render;
 using Xunit;
 
@@ -62,6 +63,33 @@ public sealed class ItemWorldRenderRegistryTests
 	}
 
 	[Fact]
+	public void FromJson_ResolvesCatalogTextureIntoTexturePath()
+	{
+		var catalogId = PzTileCatalogStore.Load().Entries
+			.First(static entry => string.Equals(entry.Group, "杂项家电", StringComparison.OrdinalIgnoreCase))
+			.Id;
+		var json = $$"""
+		{
+		  "items": {
+		    "generator": {
+		      "kind": "catalog_texture",
+		      "value": "{{catalogId}}",
+		      "scale": [0.5, 0.5]
+		    }
+		  }
+		}
+		""";
+
+		var registry = ItemWorldRenderRegistry.FromJson(json);
+
+		Assert.True(registry.TryResolve("generator", "misc", out var spec));
+		Assert.Equal(ItemWorldRenderKind.CatalogTexture, spec.Kind);
+		Assert.StartsWith("res://Assets/Art/PZ_Tiles_Copy/", spec.Value, StringComparison.OrdinalIgnoreCase);
+		Assert.EndsWith(".png", spec.Value, StringComparison.OrdinalIgnoreCase);
+		Assert.Equal(new Vector2(0.5f, 0.5f), spec.Scale);
+	}
+
+	[Fact]
 	public void ItemWorldRenderMapping_CoversEveryPresetItemId()
 	{
 		var mappingPath = GetRepoPath("Data", "item_world_render.json");
@@ -89,6 +117,24 @@ public sealed class ItemWorldRenderRegistryTests
 		Assert.True(
 			missingIds.Length == 0,
 			"Missing item world render mapping ids: " + string.Join(", ", missingIds));
+	}
+
+	[Fact]
+	public void ItemWorldRenderMapping_UsesSupportedKinds()
+	{
+		var mappingPath = GetRepoPath("Data", "item_world_render.json");
+		var mappingRoot = JsonSerializer.Deserialize<ItemWorldRenderRegistry.ItemWorldRenderConfig>(
+			File.ReadAllText(mappingPath));
+
+		Assert.NotNull(mappingRoot);
+		Assert.NotNull(mappingRoot!.Items);
+
+		var unsupported = mappingRoot.Items!
+			.Where(static pair => pair.Value.Kind is not ("tile" or "texture" or "catalog_texture"))
+			.Select(static pair => $"{pair.Key}: {pair.Value.Kind}")
+			.ToArray();
+
+		Assert.True(unsupported.Length == 0, "Unsupported item world kinds: " + string.Join(", ", unsupported));
 	}
 
 	private static string GetRepoPath(params string[] segments)

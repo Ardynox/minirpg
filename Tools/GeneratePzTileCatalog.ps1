@@ -1,6 +1,7 @@
 param(
 	[string]$RulePath = "Data/pz_tile_catalog_rules.json",
-	[string]$OutputPath = ""
+	[string]$OutputPath = "",
+	[switch]$PreserveExistingCatalogMetadata = $false
 )
 
 Set-StrictMode -Version Latest
@@ -9,13 +10,45 @@ $ErrorActionPreference = "Stop"
 function Get-NormalizedRelativePath {
 	param([string]$Path)
 
+	if ([string]::IsNullOrWhiteSpace($Path)) {
+		return ""
+	}
+
 	return $Path.Trim().Replace('\', '/').TrimStart('/')
 }
 
-function Get-OrderedJson {
-	param([object]$Value)
+function ConvertTo-Hashtable {
+	param($InputObject)
 
-	return $Value | ConvertTo-Json -Depth 16
+	if ($null -eq $InputObject) {
+		return $null
+	}
+
+	if ($InputObject -is [System.Collections.IDictionary]) {
+		$result = @{}
+		foreach ($key in $InputObject.Keys) {
+			$result[$key] = ConvertTo-Hashtable $InputObject[$key]
+		}
+		return $result
+	}
+
+	if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+		$result = @()
+		foreach ($item in $InputObject) {
+			$result += ,(ConvertTo-Hashtable $item)
+		}
+		return $result
+	}
+
+	if ($InputObject -is [pscustomobject]) {
+		$result = @{}
+		foreach ($property in $InputObject.PSObject.Properties) {
+			$result[$property.Name] = ConvertTo-Hashtable $property.Value
+		}
+		return $result
+	}
+
+	return $InputObject
 }
 
 function Convert-ToEnglishTitle {
@@ -31,14 +64,11 @@ function Convert-ToEnglishTitle {
 	$parts = $normalized.Split('_', [System.StringSplitOptions]::RemoveEmptyEntries)
 	$textInfo = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo
 	$words = foreach ($part in $parts) {
-		switch ($part.ToLowerInvariant()) {
-			"on" { "On" }
-			"off" { "Off" }
-			"jumbo" { "Jumbo" }
-			default {
-				if ($part -match '^\d+$') { $part }
-				else { $textInfo.ToTitleCase($part.ToLowerInvariant()) }
-			}
+		if ($part -match '^\d+$') {
+			$part
+		}
+		else {
+			$textInfo.ToTitleCase($part.ToLowerInvariant())
 		}
 	}
 
@@ -92,129 +122,25 @@ function Get-TokenTags {
 	return $tags
 }
 
-function Get-ZhTokenMap {
-	return @{
-		"appliances" = "家电"
-		"bathroom" = "浴室"
-		"blends" = "混合"
-		"blocks" = "块墙"
-		"brick" = "砖墙"
-		"burnt" = "烧毁"
-		"cooking" = "烹饪"
-		"carpentry" = "木工"
-		"clapboard" = "木挂板"
-		"commercial" = "商业"
-		"constructedobjects" = "建造物件"
-		"construction" = "施工"
-		"counters" = "柜台"
-		"curbs" = "路缘"
-		"debug" = "调试"
-		"diner" = "餐馆"
-		"doors" = "门"
-		"erosion" = "侵蚀"
-		"escalators" = "扶梯"
-		"exterior" = "外部"
-		"farm" = "农场"
-		"farming" = "农业"
-		"fencing" = "围栏"
-		"fire" = "火焰"
-		"fixtures" = "装置"
-		"flatstone" = "平石"
-		"floor" = "地面"
-		"floors" = "地面"
-		"food" = "食物"
-		"furniture" = "家具"
-		"generic" = "通用"
-		"house" = "房屋"
-		"hospitality" = "旅馆"
-		"indoor" = "室内"
-		"industry" = "工业"
-		"interior" = "室内"
-		"invisible" = "隐藏"
-		"jumbo" = "巨型"
-		"light" = "亮色"
-		"lighting" = "照明"
-		"location" = "场景"
-		"mall" = "商场"
-		"mirrored" = "镜像"
-		"misc" = "杂项"
-		"natural" = "自然"
-		"newgrass" = "新草"
-		"newgrassbase" = "新草基底"
-		"on" = "开启"
-		"ornamental" = "装饰植物"
-		"outdoor" = "室外"
-		"overlay" = "覆盖"
-		"overlays" = "覆盖"
-		"plants" = "植物"
-		"railroad" = "铁路"
-		"recreational" = "娱乐"
-		"refrigeration" = "制冷"
-		"restaurant" = "餐馆"
-		"roadsigns" = "路牌"
-		"roof" = "屋顶"
-		"roofs" = "屋顶"
-		"rugs" = "地毯"
-		"security" = "安防"
-		"seating" = "座椅"
-		"sewer" = "下水道"
-		"shop" = "商店"
-		"sinks" = "水槽"
-		"smooth" = "平整"
-		"snow" = "积雪"
-		"sports" = "运动"
-		"stairs" = "楼梯"
-		"stashes" = "藏匿点"
-		"stone" = "石墙"
-		"storage" = "储物"
-		"street" = "街道"
-		"streetcracks" = "街道裂缝"
-		"tables" = "桌子"
-		"television" = "电视"
-		"tiles" = "瓷砖"
-		"tilesandstone" = "砖石"
-		"tilesandwood" = "砖木"
-		"bedding" = "寝具"
-		"trailer" = "拖车"
-		"trash" = "垃圾"
-		"tree" = "树"
-		"trees" = "树木"
-		"trucks" = "卡车"
-		"vines" = "藤蔓"
-		"vegetation" = "植被"
-		"wall" = "墙面"
-		"wallcracks" = "墙面裂缝"
-		"walls" = "墙面"
-		"weapons" = "武器"
-		"windows" = "窗户"
-		"wood" = "木质"
-		"wooden" = "木质"
-	}
-}
+function Merge-UniqueStrings {
+	param([object[]]$Sources)
 
-function Convert-ToZhTitle {
-	param([string]$Value)
-
-	if ([string]::IsNullOrWhiteSpace($Value)) {
-		return ""
-	}
-
-	$map = Get-ZhTokenMap
-	$normalized = [System.IO.Path]::GetFileNameWithoutExtension($Value.Trim())
-	$normalized = $normalized -creplace '([a-z])([A-Z])', '$1_$2'
-	$parts = $normalized.Replace('-', '_').Split('_', [System.StringSplitOptions]::RemoveEmptyEntries)
-	$words = foreach ($part in $parts) {
-		$key = $part.ToLowerInvariant()
-		if ($map.ContainsKey($key)) {
-			$map[$key]
+	$result = New-Object System.Collections.Generic.List[string]
+	foreach ($source in $Sources) {
+		if ($null -eq $source) {
+			continue
 		}
-		else {
-			if ($part -match '^\d+$') { $part }
-			else { $part }
+
+		foreach ($value in @($source)) {
+			if ([string]::IsNullOrWhiteSpace([string]$value)) {
+				continue
+			}
+
+			$result.Add(([string]$value).Trim())
 		}
 	}
 
-	return ($words -join ' ').Trim()
+	return $result.ToArray() | Sort-Object -Unique
 }
 
 function Get-MatchedDirectoryRule {
@@ -225,7 +151,7 @@ function Get-MatchedDirectoryRule {
 
 	$normalizedDirectory = Get-NormalizedRelativePath $Directory
 	foreach ($rule in $Rules) {
-		if ((Get-NormalizedRelativePath $rule.directory) -ieq $normalizedDirectory) {
+		if ((Get-NormalizedRelativePath ([string]$rule.directory)) -ieq $normalizedDirectory) {
 			return $rule
 		}
 	}
@@ -243,12 +169,16 @@ function Get-MatchedPrefixRule {
 
 	$normalizedDirectory = Get-NormalizedRelativePath $Directory
 	foreach ($rule in $Rules) {
-		$ruleDirectory = if ($rule.ContainsKey("directory")) { Get-NormalizedRelativePath $rule.directory } else { "" }
+		$ruleDirectory = if ($rule.ContainsKey("directory")) { Get-NormalizedRelativePath ([string]$rule.directory) } else { "" }
 		if (-not [string]::IsNullOrWhiteSpace($ruleDirectory) -and $ruleDirectory -ine $normalizedDirectory) {
 			continue
 		}
 
 		$prefix = [string]$rule.prefix
+		if ([string]::IsNullOrWhiteSpace($prefix)) {
+			continue
+		}
+
 		if ($FileName.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase) -or
 			$BaseName.StartsWith($prefix.TrimEnd('_'), [System.StringComparison]::OrdinalIgnoreCase)) {
 			return $rule
@@ -259,69 +189,219 @@ function Get-MatchedPrefixRule {
 }
 
 function Get-OverrideMap {
-	param(
-		[hashtable]$Rules,
-		[string]$RepoRoot
-	)
+	param([hashtable]$Rules)
 
 	$overrideMap = @{}
-
-	if ($Rules.ContainsKey("renamePlanCsvPaths")) {
-		foreach ($csvPath in $Rules.renamePlanCsvPaths) {
-			$fullCsvPath = Join-Path $RepoRoot $csvPath
-			if (-not (Test-Path $fullCsvPath)) {
-				continue
-			}
-
-			foreach ($row in (Import-Csv $fullCsvPath)) {
-				$relativePath = Get-NormalizedRelativePath ([string]$row.original_path)
-				$overrideMap[$relativePath] = @{
-					path = $relativePath
-					displayNameZh = ([string]$row.suggested_name_zh).Trim()
-					displayNameEn = Convert-ToEnglishTitle ([string]$row.suggested_basename)
-					confidence = ([string]$row.confidence).Trim()
-				}
-			}
-		}
-	}
-
 	if ($Rules.ContainsKey("fileOverrides")) {
 		foreach ($override in $Rules.fileOverrides) {
 			$relativePath = Get-NormalizedRelativePath ([string]$override.path)
-			if (-not $overrideMap.ContainsKey($relativePath)) {
-				$overrideMap[$relativePath] = @{ path = $relativePath }
-			}
-
-			foreach ($key in $override.Keys) {
-				$overrideMap[$relativePath][$key] = $override[$key]
-			}
+			$overrideMap[$relativePath] = $override
 		}
 	}
 
 	return $overrideMap
 }
 
-function Get-MergedTags {
+function Get-ExistingCatalogMap {
+	param([string]$OutputFilePath)
+
+	$map = @{}
+	if (-not (Test-Path $OutputFilePath)) {
+		return $map
+	}
+
+	try {
+		$existing = ConvertTo-Hashtable (Get-Content -Raw -Encoding utf8 $OutputFilePath | ConvertFrom-Json)
+	}
+	catch {
+		return $map
+	}
+	if ($null -eq $existing -or -not $existing.ContainsKey("entries")) {
+		return $map
+	}
+
+	foreach ($entry in $existing.entries) {
+		$path = [string]$entry.path
+		if ([string]::IsNullOrWhiteSpace($path)) {
+			continue
+		}
+
+		$relativePath = $path.Replace('res://Assets/Art/PZ_Tiles_Copy/', '')
+		$relativePath = Get-NormalizedRelativePath $relativePath
+		$map[$relativePath] = $entry
+	}
+
+	return $map
+}
+
+function Get-ResolvedListValue {
 	param(
-		[object[]]$TagSources
+		$FileOverride,
+		$PrefixRule,
+		$DirectoryRule,
+		$ExistingEntry,
+		[string]$Key,
+		[object[]]$Fallback = @()
 	)
 
-	$tags = New-Object System.Collections.Generic.List[string]
-	foreach ($source in $TagSources) {
+	foreach ($source in @($FileOverride, $PrefixRule, $DirectoryRule, $ExistingEntry)) {
 		if ($null -eq $source) {
 			continue
 		}
 
-		foreach ($tag in @($source)) {
-			if ([string]::IsNullOrWhiteSpace([string]$tag)) {
-				continue
-			}
-
-			$tags.Add(([string]$tag).Trim().ToLowerInvariant())
+		if ($source.ContainsKey($Key) -and $null -ne $source[$Key]) {
+			return Merge-UniqueStrings @($source[$Key])
 		}
 	}
 
-	return $tags.ToArray() | Sort-Object -Unique
+	return Merge-UniqueStrings @($Fallback)
+}
+
+function Get-ResolvedStringValue {
+	param(
+		$FileOverride,
+		$PrefixRule,
+		$DirectoryRule,
+		$ExistingEntry,
+		[string]$Key,
+		[string]$Fallback = ""
+	)
+
+	foreach ($source in @($FileOverride, $PrefixRule, $DirectoryRule, $ExistingEntry)) {
+		if ($null -eq $source) {
+			continue
+		}
+
+		if ($source.ContainsKey($Key) -and -not [string]::IsNullOrWhiteSpace([string]$source[$Key])) {
+			return ([string]$source[$Key]).Trim()
+		}
+	}
+
+	return $Fallback
+}
+
+function Resolve-UsageDomains {
+	param(
+		[string]$RelativeDirectory,
+		[string]$Kind,
+		[string[]]$Tags
+	)
+
+	$dir = $RelativeDirectory.ToLowerInvariant()
+	switch -Regex ($dir) {
+		'^floors' { return @('terrain') }
+		'^overlays$' { return @('decor') }
+		'^erosion$' { return @('decor') }
+		'^fire_0[1-3]$' { return @('fx') }
+		'^food_0[1-2]$' { return @('itemWorld') }
+		'^weapons_01$' { return @('itemWorld') }
+		'^trash_01$' { return @('decor', 'itemWorld') }
+		'^stashes_01$' { return @('itemWorld', 'decor') }
+		'^appliances_misc_01$' { return @('itemWorld', 'fixture') }
+		'^security_01$' { return @('fixture') }
+		'^recreational_01$' { return @('fixture') }
+		'^carpentry_01$' { return @('fixture') }
+		'^constructedobjects_01$' { return @('fixture') }
+		'^furniture_' { return @('fixture') }
+		'^fixtures_' { return @('fixture') }
+		'^fencing_' { return @('fixture') }
+		'^lighting_' { return @('fixture') }
+		'^street_' { return @('fixture', 'decor') }
+		'^walls_' { return @('fixture') }
+		'^roofs_' { return @('fixture') }
+		'^vegetation_' { return @('decor') }
+		'^jumbo_trees$' { return @('decor') }
+		default {
+			if ($Kind -eq 'overlay') {
+				return @('decor')
+			}
+			if ($Tags -contains 'terrain') {
+				return @('terrain')
+			}
+			return @()
+		}
+	}
+}
+
+function Resolve-UsageRoles {
+	param(
+		[string]$RelativeDirectory,
+		[string]$Kind,
+		[string[]]$Tags
+	)
+
+	$dir = $RelativeDirectory.ToLowerInvariant()
+	switch -Regex ($dir) {
+		'^floors' { return @('top') }
+		'^overlays$' { return @('overlay') }
+		'^erosion$' { return @('overlay', 'ambient') }
+		'^fire_0[1-3]$' { return @('fire_anim') }
+		'^food_0[1-2]$' { return @('drop', 'prop') }
+		'^weapons_01$' { return @('drop', 'prop') }
+		'^trash_01$' { return @('drop', 'ambient') }
+		'^stashes_01$' { return @('drop', 'prop') }
+		'^security_01$' { return @('prop') }
+		'^carpentry_01$' { return @('prop') }
+		'^constructedobjects_01$' { return @('prop') }
+		'^furniture_' { return @('prop') }
+		'^fixtures_' { return @('prop') }
+		'^fencing_' { return @('prop') }
+		'^lighting_' { return @('prop', 'ambient') }
+		'^street_' { return @('prop', 'ambient') }
+		'^walls_' { return @('prop') }
+		'^roofs_' { return @('prop') }
+		'^vegetation_' { return @('ambient') }
+		'^jumbo_trees$' { return @('ambient') }
+		default {
+			if ($Kind -eq 'overlay') {
+				return @('overlay')
+			}
+			return @()
+		}
+	}
+}
+
+function Resolve-Placement {
+	param(
+		[string]$RelativeDirectory,
+		[string]$Kind
+	)
+
+	$dir = $RelativeDirectory.ToLowerInvariant()
+	if ($dir -match '^roofs_') { return 'roof' }
+	if ($dir -match '^walls_' -or $dir -match '^security_' -or $dir -match '^fixtures_windows_' -or $dir -match '^fixtures_doors_' -or $dir -match '^lighting_indoor_') { return 'wall' }
+	if ($dir -match '^floors' -or $dir -match '^overlays$' -or $dir -match '^erosion$' -or $dir -match '^trash_01$' -or $dir -match '^street_') { return 'floor' }
+	if ($dir -match '^vegetation_' -or $dir -match '^jumbo_trees$') { return 'mixed' }
+	if ($Kind -eq 'iso_tile') { return 'floor' }
+	if ($Kind -eq 'overlay') { return 'mixed' }
+	return 'object'
+}
+
+function Resolve-VariantGroup {
+	param(
+		[string]$RelativeDirectory,
+		[string]$BaseName
+	)
+
+	$dir = $RelativeDirectory.ToLowerInvariant()
+	switch ($dir) {
+		'fire_01' { return 'fire_small' }
+		'fire_02' { return 'fire_medium' }
+		'fire_03' { return 'fire_large' }
+		default {
+			$variantBase = $BaseName -replace '_[0-9]+$', ''
+			$variantBase = $variantBase -replace '_MIRRORED$', ''
+			$variantBase = $variantBase -replace '_LIGHT$', ''
+			$variantBase = $variantBase.Trim('_')
+			if (-not [string]::IsNullOrWhiteSpace($variantBase) -and $variantBase -ine $BaseName) {
+				return $variantBase.ToLowerInvariant()
+			}
+			if (-not [string]::IsNullOrWhiteSpace($dir)) {
+				return $dir.Replace('/', '_')
+			}
+			return ''
+		}
+	}
 }
 
 function Get-ResolvedName {
@@ -353,7 +433,7 @@ if (-not (Test-Path $ruleFilePath)) {
 	throw "Rule file not found: $ruleFilePath"
 }
 
-$rules = (Get-Content -Raw $ruleFilePath | ConvertFrom-Json -AsHashtable)
+$rules = ConvertTo-Hashtable (Get-Content -Raw -Encoding utf8 $ruleFilePath | ConvertFrom-Json)
 $sourceRoot = Join-Path $repoRoot ([string]$rules.sourceRoot)
 $resolvedOutputPath = if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 	Join-Path $repoRoot ([string]$rules.outputPath)
@@ -368,7 +448,13 @@ if (-not (Test-Path $sourceRoot)) {
 
 $directoryRules = @($rules.directoryRules)
 $prefixRules = @($rules.prefixRules | Sort-Object { [string]$_.prefix } -Descending)
-$overrideMap = Get-OverrideMap -Rules $rules -RepoRoot $repoRoot
+$overrideMap = Get-OverrideMap -Rules $rules
+$existingCatalogMap = if ($PreserveExistingCatalogMetadata) {
+	Get-ExistingCatalogMap -OutputFilePath $resolvedOutputPath
+}
+else {
+	@{}
+}
 
 $entries = New-Object System.Collections.Generic.List[object]
 $sourceRootPrefix = (Resolve-Path $sourceRoot).Path.TrimEnd('\', '/')
@@ -383,76 +469,94 @@ foreach ($file in (Get-ChildItem $sourceRoot -Recurse -File -Filter *.png | Sort
 	$directoryRule = Get-MatchedDirectoryRule -Rules $directoryRules -Directory $relativeDirectory
 	$prefixRule = Get-MatchedPrefixRule -Rules $prefixRules -Directory $relativeDirectory -FileName $file.Name -BaseName $baseName
 	$fileOverride = if ($overrideMap.ContainsKey($relativePath)) { $overrideMap[$relativePath] } else { $null }
+	$existingEntry = if ($existingCatalogMap.ContainsKey($relativePath)) { $existingCatalogMap[$relativePath] } else { $null }
 
-	$group = if ($fileOverride -and $fileOverride.ContainsKey("group") -and -not [string]::IsNullOrWhiteSpace([string]$fileOverride.group)) {
-		([string]$fileOverride.group).Trim()
-	}
-	elseif ($prefixRule -and $prefixRule.ContainsKey("group") -and -not [string]::IsNullOrWhiteSpace([string]$prefixRule.group)) {
-		([string]$prefixRule.group).Trim()
-	}
-	elseif ($directoryRule -and $directoryRule.ContainsKey("group") -and -not [string]::IsNullOrWhiteSpace([string]$directoryRule.group)) {
-		([string]$directoryRule.group).Trim()
-	}
-	else {
-		Convert-ToZhTitle ($relativeDirectory -replace '/', '_')
-	}
+	$group = Get-ResolvedStringValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'group' `
+		-Fallback (Convert-ToEnglishTitle ($relativeDirectory -replace '/', '_'))
 
 	$displayNameZh = Get-ResolvedName `
-		-ExactName ($(if ($fileOverride) { [string]$fileOverride.displayNameZh } else { "" })) `
-		-BaseName ($(if ($prefixRule) { [string]$prefixRule.displayNameZhBase } else { "" })) `
-		-Sequence $sequence `
-		-FallbackBuilder { Get-ResolvedName -ExactName "" -BaseName (Convert-ToZhTitle $baseName) -Sequence $sequence -FallbackBuilder { Convert-ToZhTitle $file.Name } }
-
-	$displayNameEn = Get-ResolvedName `
-		-ExactName ($(if ($fileOverride) { [string]$fileOverride.displayNameEn } else { "" })) `
-		-BaseName ($(if ($prefixRule) { [string]$prefixRule.displayNameEnBase } else { "" })) `
+		-ExactName (Get-ResolvedStringValue -FileOverride $fileOverride -PrefixRule $null -DirectoryRule $null -ExistingEntry $existingEntry -Key 'displayNameZh') `
+		-BaseName (Get-ResolvedStringValue -FileOverride $null -PrefixRule $prefixRule -DirectoryRule $directoryRule -ExistingEntry $null -Key 'displayNameZhBase') `
 		-Sequence $sequence `
 		-FallbackBuilder { Get-ResolvedName -ExactName "" -BaseName (Convert-ToEnglishTitle $baseName) -Sequence $sequence -FallbackBuilder { Convert-ToEnglishTitle $file.Name } }
 
-	$kind = if ($fileOverride -and $fileOverride.ContainsKey("kind") -and -not [string]::IsNullOrWhiteSpace([string]$fileOverride.kind)) {
-		([string]$fileOverride.kind).Trim()
-	}
-	elseif ($prefixRule -and $prefixRule.ContainsKey("kind") -and -not [string]::IsNullOrWhiteSpace([string]$prefixRule.kind)) {
-		([string]$prefixRule.kind).Trim()
-	}
-	elseif ($directoryRule -and $directoryRule.ContainsKey("kind") -and -not [string]::IsNullOrWhiteSpace([string]$directoryRule.kind)) {
-		([string]$directoryRule.kind).Trim()
-	}
-	else {
-		"sprite"
-	}
+	$displayNameEn = Get-ResolvedName `
+		-ExactName (Get-ResolvedStringValue -FileOverride $fileOverride -PrefixRule $null -DirectoryRule $null -ExistingEntry $existingEntry -Key 'displayNameEn') `
+		-BaseName (Get-ResolvedStringValue -FileOverride $null -PrefixRule $prefixRule -DirectoryRule $directoryRule -ExistingEntry $null -Key 'displayNameEnBase') `
+		-Sequence $sequence `
+		-FallbackBuilder { Get-ResolvedName -ExactName "" -BaseName (Convert-ToEnglishTitle $baseName) -Sequence $sequence -FallbackBuilder { Convert-ToEnglishTitle $file.Name } }
 
-	$confidence = if ($fileOverride -and $fileOverride.ContainsKey("confidence") -and -not [string]::IsNullOrWhiteSpace([string]$fileOverride.confidence)) {
-		([string]$fileOverride.confidence).Trim()
-	}
-	elseif ($prefixRule -and $prefixRule.ContainsKey("confidence") -and -not [string]::IsNullOrWhiteSpace([string]$prefixRule.confidence)) {
-		([string]$prefixRule.confidence).Trim()
-	}
-	elseif ($directoryRule -and $directoryRule.ContainsKey("confidence") -and -not [string]::IsNullOrWhiteSpace([string]$directoryRule.confidence)) {
-		([string]$directoryRule.confidence).Trim()
-	}
-	else {
-		"medium"
-	}
+	$kind = Get-ResolvedStringValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'kind' `
+		-Fallback 'sprite'
 
-	$mappingEligible = $false
-	if ($directoryRule -and $directoryRule.ContainsKey("mappingEligible")) {
-		$mappingEligible = [bool]$directoryRule.mappingEligible
+	$confidence = Get-ResolvedStringValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'confidence' `
+		-Fallback 'medium'
+
+	$mappingEligibleValue = $null
+	foreach ($source in @($fileOverride, $prefixRule, $directoryRule, $existingEntry)) {
+		if ($null -eq $source) {
+			continue
+		}
+
+		if ($source.ContainsKey('mappingEligible')) {
+			$mappingEligibleValue = [bool]$source.mappingEligible
+			break
+		}
 	}
-	if ($prefixRule -and $prefixRule.ContainsKey("mappingEligible")) {
-		$mappingEligible = [bool]$prefixRule.mappingEligible
-	}
-	if ($fileOverride -and $fileOverride.ContainsKey("mappingEligible")) {
-		$mappingEligible = [bool]$fileOverride.mappingEligible
-	}
+	$mappingEligible = if ($null -ne $mappingEligibleValue) { $mappingEligibleValue } else { $false }
 
 	$derivedTags = Get-TokenTags @($relativeDirectory, $baseName, $file.Name)
-	$tags = Get-MergedTags -TagSources @(
+	$tags = Merge-UniqueStrings @(
+		$(if ($existingEntry -and $existingEntry.ContainsKey("tags")) { $existingEntry.tags } else { @() }),
 		$(if ($directoryRule) { $directoryRule.tags } else { @() }),
 		$(if ($prefixRule) { $prefixRule.tags } else { @() }),
 		$(if ($fileOverride -and $fileOverride.ContainsKey("tags")) { $fileOverride.tags } else { @() }),
 		$derivedTags
-	)
+	) | ForEach-Object { ([string]$_).ToLowerInvariant() }
+
+	$usageDomains = Get-ResolvedListValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'usageDomains' `
+		-Fallback (Resolve-UsageDomains -RelativeDirectory $relativeDirectory -Kind $kind -Tags $tags)
+	$usageRoles = Get-ResolvedListValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'usageRoles' `
+		-Fallback (Resolve-UsageRoles -RelativeDirectory $relativeDirectory -Kind $kind -Tags $tags)
+	$placement = Get-ResolvedStringValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'placement' `
+		-Fallback (Resolve-Placement -RelativeDirectory $relativeDirectory -Kind $kind)
+	$variantGroup = Get-ResolvedStringValue `
+		-FileOverride $fileOverride `
+		-PrefixRule $prefixRule `
+		-DirectoryRule $directoryRule `
+		-ExistingEntry $existingEntry `
+		-Key 'variantGroup' `
+		-Fallback (Resolve-VariantGroup -RelativeDirectory $relativeDirectory -BaseName $baseName)
 
 	$entries.Add([ordered]@{
 		id = Convert-ToId $relativePath
@@ -461,21 +565,22 @@ foreach ($file in (Get-ChildItem $sourceRoot -Recurse -File -Filter *.png | Sort
 		originalFileName = $file.Name
 		displayNameZh = $displayNameZh
 		displayNameEn = $displayNameEn
-		tags = @($tags)
+		tags = @($tags | Sort-Object -Unique)
+		usageDomains = @($usageDomains)
+		usageRoles = @($usageRoles)
+		placement = $placement
+		variantGroup = $variantGroup
 		kind = $kind
 		confidence = $confidence
 		mappingEligible = $mappingEligible
 	})
 }
 
-$document = @{
-	entries = $entries.ToArray()
-}
-
+$document = @{ entries = $entries.ToArray() }
 $outputDirectory = Split-Path $resolvedOutputPath -Parent
 if (-not [string]::IsNullOrWhiteSpace($outputDirectory)) {
 	New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 }
 
-Set-Content -Path $resolvedOutputPath -Value (Get-OrderedJson $document) -Encoding UTF8
+$document | ConvertTo-Json -Depth 24 | Set-Content -Path $resolvedOutputPath -Encoding UTF8
 Write-Output ("Generated {0} catalog entries at {1}" -f $entries.Count, $resolvedOutputPath)

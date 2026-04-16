@@ -82,6 +82,7 @@ public partial class VoxelTilePreviewTool : Control
 	private readonly Dictionary<string, Button> _categoryButtons = new(StringComparer.OrdinalIgnoreCase);
 
 	private PzTileCatalogDocument _catalog = new();
+	private PzWorldVisualRegistryDocument _worldRegistry = new();
 	private string _activeCategory = TerrainCategory;
 	private FaceSlot _activeSlot = FaceSlot.Top;
 	private int _browserPage;
@@ -98,6 +99,10 @@ public partial class VoxelTilePreviewTool : Control
 	private LineEdit _searchEdit = null!;
 	private OptionButton _groupFilter = null!;
 	private OptionButton _tagFilter = null!;
+	private OptionButton _usageDomainFilter = null!;
+	private OptionButton _usageRoleFilter = null!;
+	private OptionButton _placementFilter = null!;
+	private OptionButton _variantGroupFilter = null!;
 	private CheckBox _mappingEligibleOnlyCheck = null!;
 	private VBoxContainer _browserResults = null!;
 	private Button _previousPageButton = null!;
@@ -247,11 +252,42 @@ public partial class VoxelTilePreviewTool : Control
 			_categoryButtons[category] = button;
 		}
 
+		var toolbar = new HBoxContainer
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		toolbar.AddThemeConstantOverride("separation", 6);
+		content.AddChild(toolbar);
+
+		var addButton = new Button
+		{
+			Text = "+ 新增",
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		addButton.Pressed += OnAddNewEntry;
+		toolbar.AddChild(addButton);
+
+		_saveButton = new Button
+		{
+			Text = "保存映射",
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		_saveButton.Pressed += SaveMappings;
+		toolbar.AddChild(_saveButton);
+
 		_terrainListSummaryLabel = new Label
 		{
 			AutowrapMode = TextServer.AutowrapMode.WordSmart,
 		};
 		content.AddChild(_terrainListSummaryLabel);
+
+		var listContainer = new VBoxContainer
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+			SizeFlagsVertical = SizeFlags.ExpandFill,
+		};
+		listContainer.AddThemeConstantOverride("separation", 6);
+		content.AddChild(listContainer);
 
 		_terrainList = new ItemList
 		{
@@ -261,21 +297,7 @@ public partial class VoxelTilePreviewTool : Control
 			SelectMode = ItemList.SelectModeEnum.Single,
 		};
 		_terrainList.ItemSelected += OnTerrainSelected;
-		content.AddChild(_terrainList);
-
-		var addButton = new Button
-		{
-			Text = "+ 新增",
-		};
-		addButton.Pressed += OnAddNewEntry;
-		content.AddChild(addButton);
-
-		_saveButton = new Button
-		{
-			Text = "保存映射",
-		};
-		_saveButton.Pressed += SaveMappings;
-		content.AddChild(_saveButton);
+		listContainer.AddChild(_terrainList);
 	}
 
 	private void BuildCenterPanel(HBoxContainer root)
@@ -480,6 +502,42 @@ public partial class VoxelTilePreviewTool : Control
 		};
 		_tagFilter.ItemSelected += _ => RefreshBrowser(resetPage: true);
 		filterRow.AddChild(_tagFilter);
+
+		var filterRow2 = new HBoxContainer();
+		filterRow2.AddThemeConstantOverride("separation", 8);
+		content.AddChild(filterRow2);
+
+		_usageDomainFilter = new OptionButton
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		_usageDomainFilter.ItemSelected += _ => RefreshBrowser(resetPage: true);
+		filterRow2.AddChild(_usageDomainFilter);
+
+		_usageRoleFilter = new OptionButton
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		_usageRoleFilter.ItemSelected += _ => RefreshBrowser(resetPage: true);
+		filterRow2.AddChild(_usageRoleFilter);
+
+		var filterRow3 = new HBoxContainer();
+		filterRow3.AddThemeConstantOverride("separation", 8);
+		content.AddChild(filterRow3);
+
+		_placementFilter = new OptionButton
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		_placementFilter.ItemSelected += _ => RefreshBrowser(resetPage: true);
+		filterRow3.AddChild(_placementFilter);
+
+		_variantGroupFilter = new OptionButton
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+		};
+		_variantGroupFilter.ItemSelected += _ => RefreshBrowser(resetPage: true);
+		filterRow3.AddChild(_variantGroupFilter);
 
 		_mappingEligibleOnlyCheck = new CheckBox
 		{
@@ -851,6 +909,7 @@ public partial class VoxelTilePreviewTool : Control
 			TerrainRegistry.Load("terrains.json");
 
 		_catalog = PzTileCatalogStore.Load();
+		_worldRegistry = LoadWorldRegistryOrDefault();
 		_catalogByPath.Clear();
 		foreach (var entry in _catalog.Entries)
 		{
@@ -860,8 +919,16 @@ public partial class VoxelTilePreviewTool : Control
 		}
 
 		_mappings.Clear();
-		var mappingDocument = VoxelTileMappingStore.Load();
+		var mappingDocument = _worldRegistry.Terrain.Count > 0
+			? PzWorldVisualRegistryStore.GenerateVoxelTileMappingDocument(_worldRegistry, _catalog)
+			: VoxelTileMappingStore.Load();
+		var legacyMappingDocument = VoxelTileMappingStore.Load();
 		foreach (var entry in mappingDocument.Entries)
+		{
+			if (!string.IsNullOrWhiteSpace(entry.TerrainId))
+				_mappings[entry.TerrainId] = entry;
+		}
+		foreach (var entry in legacyMappingDocument.Entries.Where(entry => !string.Equals(entry.Category, TerrainCategory, StringComparison.OrdinalIgnoreCase)))
 		{
 			if (!string.IsNullOrWhiteSpace(entry.TerrainId))
 				_mappings[entry.TerrainId] = entry;
@@ -876,6 +943,22 @@ public partial class VoxelTilePreviewTool : Control
 				continue;
 			_terrains.Add(terrain);
 		}
+	}
+
+	private PzWorldVisualRegistryDocument LoadWorldRegistryOrDefault()
+	{
+		try
+		{
+			var registryPath = PzWorldVisualRegistryStore.GetProjectFilePath();
+			if (File.Exists(registryPath))
+				return PzWorldVisualRegistryStore.Load();
+		}
+		catch
+		{
+			// Fall back to legacy-only loading so the preview tool stays usable.
+		}
+
+		return new PzWorldVisualRegistryDocument();
 	}
 
 	private void RefreshFilterOptions()
@@ -896,6 +979,30 @@ public partial class VoxelTilePreviewTool : Control
 		foreach (var pair in GetTagCounts())
 			AddFilterItem(_tagFilter, $"{pair.Key} ({pair.Value})", pair.Key);
 		_tagFilter.Select(0);
+
+		_usageDomainFilter.Clear();
+		AddFilterItem(_usageDomainFilter, "全部用途域", string.Empty);
+		foreach (var pair in GetListValueCounts(static entry => entry.UsageDomains))
+			AddFilterItem(_usageDomainFilter, $"{pair.Key} ({pair.Value})", pair.Key);
+		_usageDomainFilter.Select(0);
+
+		_usageRoleFilter.Clear();
+		AddFilterItem(_usageRoleFilter, "全部用途角色", string.Empty);
+		foreach (var pair in GetListValueCounts(static entry => entry.UsageRoles))
+			AddFilterItem(_usageRoleFilter, $"{pair.Key} ({pair.Value})", pair.Key);
+		_usageRoleFilter.Select(0);
+
+		_placementFilter.Clear();
+		AddFilterItem(_placementFilter, "全部放置面", string.Empty);
+		foreach (var pair in GetScalarValueCounts(static entry => entry.Placement))
+			AddFilterItem(_placementFilter, $"{pair.Key} ({pair.Value})", pair.Key);
+		_placementFilter.Select(0);
+
+		_variantGroupFilter.Clear();
+		AddFilterItem(_variantGroupFilter, "全部变体组", string.Empty);
+		foreach (var pair in GetScalarValueCounts(static entry => entry.VariantGroup))
+			AddFilterItem(_variantGroupFilter, $"{pair.Key} ({pair.Value})", pair.Key);
+		_variantGroupFilter.Select(0);
 	}
 
 	private void RefreshBrowser(bool resetPage)
@@ -1305,19 +1412,98 @@ public partial class VoxelTilePreviewTool : Control
 
 	private void SaveMappings()
 	{
-		var document = new VoxelTileMappingDocument
+		_worldRegistry.Terrain = BuildTerrainRegistryEntries();
+		WriteWorldRegistryAndCompatFiles();
+		RefreshSelectionState();
+	}
+
+	private List<PzTerrainVisualEntry> BuildTerrainRegistryEntries()
+	{
+		return _mappings.Values
+			.Where(entry => string.Equals(entry.Category, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+			.OrderBy(static entry => entry.TerrainId, StringComparer.OrdinalIgnoreCase)
+			.Select(entry => new PzTerrainVisualEntry
+			{
+				TerrainId = entry.TerrainId,
+				TopCatalogId = FindCatalogId(entry.TopTilePath),
+				TopPath = NormalizePath(entry.TopTilePath),
+				TopIsIso = entry.TopIsIso,
+				TopScaleX = entry.TopScaleX,
+				TopScaleY = entry.TopScaleY,
+				TopOffsetX = entry.TopOffsetX,
+				TopOffsetY = entry.TopOffsetY,
+				Left = new PzTerrainSideVisualSpec
+				{
+					Mode = entry.LeftSideMode,
+					CatalogId = FindCatalogId(entry.LeftSideTilePath),
+					Path = NormalizePath(entry.LeftSideTilePath),
+					Color = entry.LeftSideColor,
+					IsIso = entry.LeftIsIso,
+					OffsetX = entry.LeftOffsetX,
+					OffsetY = entry.LeftOffsetY,
+					Height = entry.LeftHeight,
+					Visible = entry.ShowLeftSide,
+				},
+				Right = new PzTerrainSideVisualSpec
+				{
+					Mode = entry.RightSideMode,
+					CatalogId = FindCatalogId(entry.RightSideTilePath),
+					Path = NormalizePath(entry.RightSideTilePath),
+					Color = entry.RightSideColor,
+					IsIso = entry.RightIsIso,
+					OffsetX = entry.RightOffsetX,
+					OffsetY = entry.RightOffsetY,
+					Height = entry.RightHeight,
+					Visible = entry.ShowRightSide,
+				},
+			})
+			.ToList();
+	}
+
+	private void WriteWorldRegistryAndCompatFiles()
+	{
+		var registryPath = PzWorldVisualRegistryStore.GetProjectFilePath();
+		EnsureParentDirectory(registryPath);
+		File.WriteAllText(registryPath, PzWorldVisualRegistryStore.Serialize(_worldRegistry));
+
+		var terrainCompatDocument = PzWorldVisualRegistryStore.GenerateVoxelTileMappingDocument(_worldRegistry, _catalog);
+		foreach (var entry in _mappings.Values
+			.Where(entry => !string.Equals(entry.Category, TerrainCategory, StringComparison.OrdinalIgnoreCase))
+			.OrderBy(static entry => entry.TerrainId, StringComparer.OrdinalIgnoreCase))
 		{
-			Entries = _mappings.Values
-				.OrderBy(static entry => entry.TerrainId, StringComparer.OrdinalIgnoreCase)
-				.ToList(),
-		};
-		var outputPath = VoxelTileMappingStore.GetProjectFilePath();
-		var directory = Path.GetDirectoryName(outputPath);
+			terrainCompatDocument.Entries.Add(entry);
+		}
+		terrainCompatDocument.Entries = terrainCompatDocument.Entries
+			.OrderBy(static entry => entry.Category, StringComparer.OrdinalIgnoreCase)
+			.ThenBy(static entry => entry.TerrainId, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
+		var voxelMappingPath = VoxelTileMappingStore.GetProjectFilePath();
+		EnsureParentDirectory(voxelMappingPath);
+		File.WriteAllText(voxelMappingPath, VoxelTileMappingStore.Serialize(terrainCompatDocument));
+
+		var itemWorldCompat = PzWorldVisualRegistryStore.GenerateItemWorldRenderConfig(_worldRegistry, _catalog);
+		var itemWorldPath = GameDataLocator.GetProjectDataPathOrThrow("item_world_render.json");
+		EnsureParentDirectory(itemWorldPath);
+		File.WriteAllText(itemWorldPath, JsonSerializer.Serialize(itemWorldCompat, JsonWriteOptions));
+
+		var legacyTileMapping = PzWorldVisualRegistryStore.GenerateLegacyTileMappingDocument(_worldRegistry, _catalog);
+		var tileMappingPath = GameDataLocator.GetProjectDataPathOrThrow("tile_mapping.json");
+		EnsureParentDirectory(tileMappingPath);
+		File.WriteAllText(tileMappingPath, PzWorldVisualRegistryStore.SerializeLegacyTileMapping(legacyTileMapping));
+	}
+
+	private string? FindCatalogId(string? path)
+	{
+		var normalizedPath = NormalizePath(path);
+		return _catalogByPath.TryGetValue(normalizedPath, out var entry) ? entry.Id : null;
+	}
+
+	private static void EnsureParentDirectory(string filePath)
+	{
+		var directory = Path.GetDirectoryName(filePath);
 		if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
 			Directory.CreateDirectory(directory);
-
-		File.WriteAllText(outputPath, VoxelTileMappingStore.Serialize(document));
-		RefreshSelectionState();
 	}
 
 	private void AddFilterItem(OptionButton optionButton, string label, string value)
@@ -1338,6 +1524,36 @@ public partial class VoxelTilePreviewTool : Control
 					continue;
 				counts[tag] = counts.TryGetValue(tag, out var count) ? count + 1 : 1;
 			}
+		}
+
+		return counts;
+	}
+
+	private SortedDictionary<string, int> GetListValueCounts(Func<PzTileCatalogEntry, IEnumerable<string>> selector)
+	{
+		var counts = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		foreach (var entry in _catalog.Entries)
+		{
+			foreach (var value in selector(entry))
+			{
+				if (!ShouldExposeTag(value))
+					continue;
+				counts[value] = counts.TryGetValue(value, out var count) ? count + 1 : 1;
+			}
+		}
+
+		return counts;
+	}
+
+	private SortedDictionary<string, int> GetScalarValueCounts(Func<PzTileCatalogEntry, string> selector)
+	{
+		var counts = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		foreach (var entry in _catalog.Entries)
+		{
+			var value = selector(entry);
+			if (!ShouldExposeTag(value))
+				continue;
+			counts[value] = counts.TryGetValue(value, out var count) ? count + 1 : 1;
 		}
 
 		return counts;
@@ -1381,6 +1597,34 @@ public partial class VoxelTilePreviewTool : Control
 			return false;
 		}
 
+		var usageDomainValue = GetSelectedFilterValue(_usageDomainFilter);
+		if (!string.IsNullOrWhiteSpace(usageDomainValue)
+			&& !entry.UsageDomains.Any(value => string.Equals(value, usageDomainValue, StringComparison.OrdinalIgnoreCase)))
+		{
+			return false;
+		}
+
+		var usageRoleValue = GetSelectedFilterValue(_usageRoleFilter);
+		if (!string.IsNullOrWhiteSpace(usageRoleValue)
+			&& !entry.UsageRoles.Any(value => string.Equals(value, usageRoleValue, StringComparison.OrdinalIgnoreCase)))
+		{
+			return false;
+		}
+
+		var placementValue = GetSelectedFilterValue(_placementFilter);
+		if (!string.IsNullOrWhiteSpace(placementValue)
+			&& !string.Equals(entry.Placement, placementValue, StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+
+		var variantGroupValue = GetSelectedFilterValue(_variantGroupFilter);
+		if (!string.IsNullOrWhiteSpace(variantGroupValue)
+			&& !string.Equals(entry.VariantGroup, variantGroupValue, StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+
 		var keyword = _searchEdit.Text.Trim();
 		if (string.IsNullOrWhiteSpace(keyword))
 			return true;
@@ -1393,7 +1637,11 @@ public partial class VoxelTilePreviewTool : Control
 			entry.OriginalFileName,
 			entry.Group,
 			directory,
-			string.Join(' ', entry.Tags));
+			entry.Placement,
+			entry.VariantGroup,
+			string.Join(' ', entry.Tags),
+			string.Join(' ', entry.UsageDomains),
+			string.Join(' ', entry.UsageRoles));
 		return searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase);
 	}
 

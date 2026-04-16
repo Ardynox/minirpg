@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Render;
 
@@ -10,6 +11,7 @@ public enum ItemWorldRenderKind
 {
 	Tile,
 	Texture,
+	CatalogTexture,
 }
 
 public readonly record struct ItemWorldVisualSpec(
@@ -42,6 +44,8 @@ public static class GroundItemStackLayout
 
 public sealed class ItemWorldRenderRegistry
 {
+	private static readonly Lazy<Dictionary<string, string>> CatalogTexturePaths = new(BuildCatalogTexturePaths);
+
 	public static readonly ItemWorldRenderRegistry Empty = new(
 		new Dictionary<string, ItemWorldVisualSpec>(StringComparer.Ordinal),
 		new Dictionary<string, ItemWorldVisualSpec>(StringComparer.Ordinal),
@@ -124,15 +128,47 @@ public sealed class ItemWorldRenderRegistry
 		{
 			"tile" => ItemWorldRenderKind.Tile,
 			"texture" => ItemWorldRenderKind.Texture,
+			"catalog_texture" => ItemWorldRenderKind.CatalogTexture,
 			_ => (ItemWorldRenderKind?)null,
 		};
 		if (kind == null)
 			return null;
 
+		var value = kind.Value switch
+		{
+			ItemWorldRenderKind.CatalogTexture => ResolveCatalogTexturePath(entry.Value),
+			_ => entry.Value,
+		};
+		if (string.IsNullOrWhiteSpace(value))
+			return null;
+
 		return new ItemWorldVisualSpec(
 			kind.Value,
-			entry.Value,
+			value,
 			ParseScale(entry.Scale));
+	}
+
+	private static string ResolveCatalogTexturePath(string catalogId)
+	{
+		if (string.IsNullOrWhiteSpace(catalogId))
+			return string.Empty;
+
+		return CatalogTexturePaths.Value.TryGetValue(catalogId.Trim(), out var path)
+			? path
+			: string.Empty;
+	}
+
+	private static Dictionary<string, string> BuildCatalogTexturePaths()
+	{
+		var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		var catalog = PzTileCatalogStore.Load();
+		foreach (var entry in catalog.Entries)
+		{
+			if (!string.IsNullOrWhiteSpace(entry.Id))
+				result[entry.Id] = PzTilePathUtility.NormalizeAssetPath(entry.Path);
+		}
+
+		return result;
 	}
 
 	private static Vector2 ParseScale(float[]? scale)

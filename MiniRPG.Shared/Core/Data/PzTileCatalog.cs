@@ -37,6 +37,18 @@ public sealed class PzTileCatalogEntry
 	[JsonPropertyName("tags")]
 	public List<string> Tags { get; set; } = [];
 
+	[JsonPropertyName("usageDomains")]
+	public List<string> UsageDomains { get; set; } = [];
+
+	[JsonPropertyName("usageRoles")]
+	public List<string> UsageRoles { get; set; } = [];
+
+	[JsonPropertyName("placement")]
+	public string Placement { get; set; } = "";
+
+	[JsonPropertyName("variantGroup")]
+	public string VariantGroup { get; set; } = "";
+
 	[JsonPropertyName("kind")]
 	public string Kind { get; set; } = "sprite";
 
@@ -93,6 +105,8 @@ public static class PzTileCatalogStore
 			entry.OriginalFileName = entry.OriginalFileName.Trim();
 			entry.DisplayNameZh = entry.DisplayNameZh.Trim();
 			entry.DisplayNameEn = entry.DisplayNameEn.Trim();
+			entry.Placement = string.IsNullOrWhiteSpace(entry.Placement) ? string.Empty : entry.Placement.Trim();
+			entry.VariantGroup = string.IsNullOrWhiteSpace(entry.VariantGroup) ? string.Empty : entry.VariantGroup.Trim();
 			entry.Kind = string.IsNullOrWhiteSpace(entry.Kind) ? "sprite" : entry.Kind.Trim();
 			entry.Confidence = string.IsNullOrWhiteSpace(entry.Confidence) ? "medium" : entry.Confidence.Trim();
 			entry.Tags = entry.Tags
@@ -100,6 +114,18 @@ public static class PzTileCatalogStore
 				.Select(static tag => tag.Trim())
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.OrderBy(static tag => tag, StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			entry.UsageDomains = entry.UsageDomains
+				.Where(static value => !string.IsNullOrWhiteSpace(value))
+				.Select(static value => value.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			entry.UsageRoles = entry.UsageRoles
+				.Where(static value => !string.IsNullOrWhiteSpace(value))
+				.Select(static value => value.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
 				.ToList();
 		}
 
