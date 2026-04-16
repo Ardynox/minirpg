@@ -505,6 +505,79 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_PresentActorMotion_InterpolatesActorVisualWorldPosition()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.PlayerSlow,
+			Blocking: true));
+		renderer.AdvanceAnimations(ActorMotionTiming.PlayerSlowSeconds * 0.5d);
+
+		var visual = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.InRange(visual.X, 1.49f, 1.51f);
+		Assert.Equal(1f, visual.Y);
+		Assert.Equal(0f, visual.Z);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_RuntimeCameraFollowsActiveActorVisualPosition()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+		renderer.SetRuntimeView(
+			active: true,
+			RuntimeCameraSnapshot.Create(RuntimeCameraMode.FollowActor, centerX: player.X, centerY: player.Y, centerZ: player.Z));
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.PlayerSlow,
+			Blocking: true));
+		renderer.AdvanceAnimations(ActorMotionTiming.PlayerSlowSeconds * 0.5d);
+
+		var target = renderer.ResolveRuntimeCameraScreenTarget();
+
+		AssertVector2Approx(IsoCoordUtil.WorldToScreen(1.5f, 1f, 0f), target);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_BlockingActorMotion_ClearsWhenDurationCompletes()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.PlayerSlow,
+			Blocking: true));
+
+		Assert.True(renderer.HasBlockingActorMotion);
+
+		renderer.AdvanceAnimations(ActorMotionTiming.PlayerSlowSeconds + 0.01d);
+
+		Assert.False(renderer.HasBlockingActorMotion);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_TryPickIsometricCell_RuntimeViewUsesCurrentLayerCell()
 	{
 		var world = CreateAirOnlyWorld();
@@ -977,6 +1050,33 @@ public sealed class IsometricRenderTests
 
 	private static WorldMap CreateAirOnlyWorld() =>
 		new(17, new AirOnlyGenerator());
+
+	private static (GameState State, Actor Player) CreateRendererMotionState()
+	{
+		var world = CreateAirOnlyWorld();
+		world.SetTerrain(1, 1, 0, Terrains.Floor);
+		world.SetTerrain(2, 1, 0, Terrains.Floor);
+		var state = new GameState
+		{
+			PlayerId = "player",
+			PlayerX = 2,
+			PlayerY = 1,
+			PlayerZ = 0,
+			World = world,
+		};
+		var player = new Actor
+		{
+			Id = "player",
+			DisplayName = "player",
+			Faction = Factions.Player,
+			X = 2,
+			Y = 1,
+			Z = 0,
+		};
+		ActorModule.Add(state, player);
+		PartyModule.Initialize(state);
+		return (state, player);
+	}
 
 	private static void SetFogStateForTest(FogOfWarTracker fog)
 	{

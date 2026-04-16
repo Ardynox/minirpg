@@ -473,7 +473,7 @@ public partial class IsometricVoxelRenderer
 	internal void SetWeatherScreenFxTuning(WeatherScreenFxTuningSet? tuning)
 		=> _weatherFxController?.SetTuning(tuning, _editorViewActive);
 
-	public void PresentActorMotion(ActorMotionPresentationRequest request)
+	internal void PresentActorMotion(ActorMotionPresentationRequest request)
 	{
 		if (string.IsNullOrWhiteSpace(request.ActorId))
 			return;
@@ -497,7 +497,7 @@ public partial class IsometricVoxelRenderer
 		UpdateActorMotionFlags();
 	}
 
-	public void ClearActorMotion(string actorId)
+	internal void ClearActorMotion(string actorId)
 	{
 		if (string.IsNullOrWhiteSpace(actorId))
 			return;
@@ -506,7 +506,7 @@ public partial class IsometricVoxelRenderer
 		UpdateActorMotionFlags();
 	}
 
-	public void ResetActorMotionState()
+	internal void ResetActorMotionState()
 	{
 		_actorMotions.Clear();
 		_hasBlockingActorMotion = false;
