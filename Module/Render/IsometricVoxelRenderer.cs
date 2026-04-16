@@ -70,8 +70,7 @@ public partial class IsometricVoxelRenderer
 	private readonly List<FaceSpriteCommand> _faceCommands = [];
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
 	private readonly List<EntityDrawCommand> _entityCommands = [];
-	private readonly Dictionary<ChunkCoord, ChunkTerrainSurfaceCache> _terrainSurfaceCache = new();
-	private readonly List<ChunkCoord> _terrainSurfaceCachePruneBuffer = [];
+	private readonly ChunkTerrainSurfaceCacheStore _terrainSurfaceCacheStore = new();
 	private int _lastDrawCommandCount;
 
 	private IsometricLightingSettings _lighting = DefaultLighting;
@@ -1012,7 +1011,7 @@ public partial class IsometricVoxelRenderer
 			for (var chunkX = minChunk.Cx; chunkX <= maxChunk.Cx; chunkX++)
 			{
 				var chunk = world.Chunks.GetOrLoad(new ChunkCoord(chunkX, chunkY, wz));
-				var cache = GetOrBuildChunkTerrainSurfaceCache(world, chunk, out var rebuiltThisFrame);
+				var cache = _terrainSurfaceCacheStore.GetOrBuild(world, chunk, out var rebuiltThisFrame);
 				if (rebuiltThisFrame)
 				{
 					emptyTerrainCells += cache.EmptyCellCount;
@@ -1057,143 +1056,8 @@ public partial class IsometricVoxelRenderer
 			}
 		}
 
-		PruneTerrainSurfaceCache(world.Chunks.LoadedChunks);
+		_terrainSurfaceCacheStore.Prune(world.Chunks.LoadedChunks);
 	}
-
-	private ChunkTerrainSurfaceCache GetOrBuildChunkTerrainSurfaceCache(WorldMap world, ChunkData chunk, out bool rebuiltThisFrame)
-	{
-		if (_terrainSurfaceCache.TryGetValue(chunk.Coord, out var cache)
-			&& cache.TerrainGeometryRevision == chunk.TerrainGeometryRevision)
-		{
-			rebuiltThisFrame = false;
-			return cache;
-		}
-
-		var rebuilt = BuildChunkTerrainSurfaceCache(world, chunk);
-		_terrainSurfaceCache[chunk.Coord] = rebuilt;
-		rebuiltThisFrame = true;
-		return rebuilt;
-	}
-
-	private void PruneTerrainSurfaceCache(IReadOnlyDictionary<ChunkCoord, ChunkData> loadedChunks)
-	{
-		_terrainSurfaceCachePruneBuffer.Clear();
-		foreach (var coord in _terrainSurfaceCache.Keys)
-		{
-			if (!loadedChunks.ContainsKey(coord))
-				_terrainSurfaceCachePruneBuffer.Add(coord);
-		}
-
-		for (var i = 0; i < _terrainSurfaceCachePruneBuffer.Count; i++)
-			_terrainSurfaceCache.Remove(_terrainSurfaceCachePruneBuffer[i]);
-	}
-
-	private static ChunkTerrainSurfaceCache BuildChunkTerrainSurfaceCache(WorldMap world, ChunkData chunk)
-	{
-		var entries = BuildChunkTerrainSurfaceEntries(
-			world,
-			chunk,
-			out var emptyCellCount,
-			out var occludedCellCount,
-			out var hiddenFaceCellCount);
-		return new ChunkTerrainSurfaceCache(
-			chunk.TerrainGeometryRevision,
-			entries,
-			emptyCellCount,
-			occludedCellCount,
-			hiddenFaceCellCount);
-	}
-
-	internal static TerrainSurfaceEntry[] BuildChunkTerrainSurfaceEntries(
-		WorldMap world,
-		ChunkData chunk,
-		out int emptyCellCount,
-		out int occludedCellCount,
-		out int hiddenFaceCellCount)
-	{
-		var airId = TerrainRegistry.GetId(Terrains.Air);
-		var voidId = TerrainRegistry.GetId(Terrains.Void);
-		var baseX = chunk.Coord.Cx * ChunkData.Size;
-		var baseY = chunk.Coord.Cy * ChunkData.Size;
-		var entries = new List<TerrainSurfaceEntry>(ChunkData.Area);
-		ChunkData? aboveChunk = null;
-		ChunkData? eastChunk = null;
-		ChunkData? southChunk = null;
-		var neighborsResolved = false;
-
-		emptyCellCount = 0;
-		occludedCellCount = 0;
-		hiddenFaceCellCount = 0;
-
-		for (var ly = 0; ly < ChunkData.Size; ly++)
-		for (var lx = 0; lx < ChunkData.Size; lx++)
-		{
-			var index = CoordUtil.LocalIndex(lx, ly);
-			var terrainId = chunk.TerrainIds[index];
-			if (terrainId == airId || terrainId == voidId)
-			{
-				emptyCellCount++;
-				continue;
-			}
-
-			if (!neighborsResolved)
-			{
-				aboveChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx, chunk.Coord.Cy, chunk.Coord.Cz - 1));
-				eastChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx + 1, chunk.Coord.Cy, chunk.Coord.Cz));
-				southChunk = world.Chunks.GetOrLoad(new ChunkCoord(chunk.Coord.Cx, chunk.Coord.Cy + 1, chunk.Coord.Cz));
-				neighborsResolved = true;
-			}
-
-			var topOpaque = IsChunkTerrainOpaque(aboveChunk!, lx, ly);
-			var southOpaque = ly + 1 < ChunkData.Size
-				? TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx, ly + 1)]).IsOpaque
-				: IsChunkTerrainOpaque(southChunk!, lx, 0);
-			var eastOpaque = lx + 1 < ChunkData.Size
-				? TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx + 1, ly)]).IsOpaque
-				: IsChunkTerrainOpaque(eastChunk!, 0, ly);
-			if (topOpaque && southOpaque && eastOpaque)
-			{
-				occludedCellCount++;
-				continue;
-			}
-
-			var drawTop = !topOpaque;
-			var drawLeft = !southOpaque;
-			var drawRight = !eastOpaque;
-			var shadowTop = false;
-			if (topOpaque && (drawLeft || drawRight))
-			{
-				drawTop = true;
-				shadowTop = true;
-			}
-
-			if (!drawTop && !drawLeft && !drawRight)
-			{
-				hiddenFaceCellCount++;
-				continue;
-			}
-
-			var worldX = baseX + lx;
-			var worldY = baseY + ly;
-			var worldZ = chunk.Coord.Cz;
-			entries.Add(new TerrainSurfaceEntry(
-				worldX,
-				worldY,
-				worldZ,
-				IsoCoordUtil.WorldToScreen(worldX, worldY, worldZ),
-				IsoCoordUtil.SortKey(worldX, worldY, worldZ),
-				TerrainRegistry.Get(terrainId),
-				drawTop,
-				drawLeft,
-				drawRight,
-				shadowTop));
-		}
-
-		return [.. entries];
-	}
-
-	private static bool IsChunkTerrainOpaque(ChunkData chunk, int lx, int ly) =>
-		TerrainRegistry.Get(chunk.TerrainIds[CoordUtil.LocalIndex(lx, ly)]).IsOpaque;
 
 	private bool IsFullyOccluded(int wx, int wy, int wz)
 	{
@@ -2128,25 +1992,6 @@ public partial class IsometricVoxelRenderer
 		public bool DrawTop, DrawLeftSide, DrawRightSide;
 		public bool ShadowTop;
 	}
-
-	internal readonly record struct TerrainSurfaceEntry(
-		int WorldX,
-		int WorldY,
-		int WorldZ,
-		Vector2 ScreenPos,
-		long SortKey,
-		TerrainDef Terrain,
-		bool DrawTop,
-		bool DrawLeftSide,
-		bool DrawRightSide,
-		bool ShadowTop);
-
-	private readonly record struct ChunkTerrainSurfaceCache(
-		int TerrainGeometryRevision,
-		TerrainSurfaceEntry[] Entries,
-		int EmptyCellCount,
-		int OccludedCellCount,
-		int HiddenFaceCellCount);
 
 	private readonly record struct EntityDrawCommand(
 		long SortKey,
