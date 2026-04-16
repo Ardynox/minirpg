@@ -16,6 +16,7 @@ public partial class Main
 		SyncSettingsUiState();
 		SyncTimelineAutoAdvanceState();
 		OnSessionStartedAudio();
+		_incidentStatistics?.Reset();
 		_mapRender?.ResetActorMotionState();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)

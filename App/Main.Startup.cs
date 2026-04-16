@@ -236,7 +236,13 @@ public partial class Main
 	private void InitializeCoreServices()
 	{
 		_session = new GameSessionModule(_state, _fogTracker);
-		_sessionBackend = new LocalSessionBackend(_session, _state, Dispatch);
+		_incidentStatistics = new MiniRPG.Core.Events.IncidentStatistics();
+		_consequenceRouter = new MiniRPG.Core.Events.GameEventConsequenceRouter(
+			errorSink: message => _log?.Add($"[Consequence] {message}"));
+		_consequenceRouter.Register(_incidentStatistics);
+		var localBackend = new LocalSessionBackend(_session, _state, Dispatch);
+		localBackend.AttachConsequenceRouter(_consequenceRouter);
+		_sessionBackend = localBackend;
 		_localServerLauncher = new LocalProcessServerLauncher(ProjectSettings.GlobalizePath("res://"));
 		_menu = new MenuModule(this);
 	}
@@ -266,6 +272,11 @@ public partial class Main
 		_combatFxTextRoot = CreateMapOverlayRoot(_mapPanelNode);
 
 		_uiTheme = GetNode<Control>(HudRootPath).Theme;
+		UIScaleService.Apply(_uiTheme, AppSettingsStore.LoadUiFontScale());
+		UIAccessibilityService.Apply(
+			_uiTheme,
+			ParseContrastMode(AppSettingsStore.LoadUiContrastMode()),
+			ParseColorBlindMode(AppSettingsStore.LoadUiColorBlindMode()));
 		_floatingRoot = new Control { Name = "FloatingPanels", MouseFilter = Control.MouseFilterEnum.Ignore };
 		_floatingRoot.Theme = _uiTheme;
 		_overlayLayer = GetNode<CanvasLayer>(OverlayRootPath);
