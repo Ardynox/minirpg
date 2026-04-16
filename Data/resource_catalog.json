@@ -1716,7 +1716,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_bear.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_bear.png"
     },
     {
       "id": "monster_goblin",
@@ -1729,7 +1729,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_goblin.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_goblin.png"
     },
     {
       "id": "monster_orc_warrior",
@@ -1743,7 +1743,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_orc_warrior.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_orc_warrior.png"
     },
     {
       "id": "monster_rat",
@@ -1756,7 +1756,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_rat.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_rat.png"
     },
     {
       "id": "monster_scorpion",
@@ -1769,7 +1769,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_scorpion.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_scorpion.png"
     },
     {
       "id": "monster_skeleton",
@@ -1782,7 +1782,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_skeleton.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_skeleton.png"
     },
     {
       "id": "monster_slime",
@@ -1795,7 +1795,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_slime.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_slime.png"
     },
     {
       "id": "monster_spider",
@@ -1808,7 +1808,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_spider.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_spider.png"
     },
     {
       "id": "monster_treant",
@@ -1821,7 +1821,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_treant.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_treant.png"
     },
     {
       "id": "monster_wolf",
@@ -1834,7 +1834,7 @@
       "category": "monster_map",
       "kind": "tile",
       "sourceMode": "single",
-      "sourceImagePath": "res://Assets/Art/Placeholders/monster_map/monster_wolf.png"
+      "sourceImagePath": "res://Assets/Art/Generated/monster_map/monster_wolf.png"
     },
     {
       "id": "npc_blacksmith_npc",
