@@ -6,6 +6,7 @@
 ## 从哪开始读
 
 - 先看 `IsometricVoxelRenderer.cs`：当前地图渲染组合入口，也是多数渲染改动的第一落点
+- 如果任务只改 hover / 高亮 / 路径预览 / 放置 ghost，再看 `IsometricVoxelRenderer.HoverHighlight.cs`
 - 光照与面着色：`VoxelLightingCalculator.cs`
 - 天气覆盖层、屏幕特效、天气 sprite 池：`WeatherFxController.cs`
 - 渲染性能快照：`RenderPerfTracer.cs`
@@ -14,7 +15,8 @@
 
 ## 常见改动去哪里
 
-- 改地图绘制、hover、高亮、路径预览、编辑器视图切换：`IsometricVoxelRenderer.cs`
+- 改地图绘制、编辑器视图切换、主渲染阶段：`IsometricVoxelRenderer.cs`
+- 改 hover、高亮、路径预览、放置 ghost：`IsometricVoxelRenderer.HoverHighlight.cs`
 - 改昼夜、环境光、面阴影、点光混合：`VoxelLightingCalculator.cs`
 - 改天气屏幕效果、天气贴图、天气对象池：`WeatherFxController.cs`
 - 改渲染统计或性能观察口径：`RenderPerfTracer.cs`
@@ -28,7 +30,7 @@
 
 ## 修改提醒
 
-- `IsometricVoxelRenderer.cs` 仍然是渲染热点，大改前先确认是否可以继续外提到专门类
+- `IsometricVoxelRenderer.cs` 仍然是渲染热点；hover pass 已拆到 `IsometricVoxelRenderer.HoverHighlight.cs`
 - 优先补局部职责，不要把更多流程判断重新塞回总渲染入口
 
 ## 什么时候更新这份 README
