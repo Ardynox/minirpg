@@ -6,8 +6,19 @@
     "warningThreshold": 35,
     "stages": [
       { "id": "peckish", "maxValue": 75 },
-      { "id": "hungry", "maxValue": 35 },
-      { "id": "starving", "maxValue": 15 }
+      { "id": "hungry", "maxValue": 35, "capacityMultipliers": { "moving": 0.9, "manipulation": 0.9 } },
+      { "id": "starving", "maxValue": 15, "capacityMultipliers": { "moving": 0.75, "manipulation": 0.75 } }
+    ]
+  },
+  {
+    "id": "thirst",
+    "labelKey": "ui.needs.thirst",
+    "displayName": "Thirst",
+    "warningThreshold": 35,
+    "stages": [
+      { "id": "parched", "maxValue": 75 },
+      { "id": "thirsty", "maxValue": 35, "capacityMultipliers": { "moving": 0.9, "manipulation": 0.9 } },
+      { "id": "dehydrated", "maxValue": 15, "capacityMultipliers": { "moving": 0.7, "manipulation": 0.7, "consciousness": 0.7 } }
     ]
   },
   {
@@ -16,8 +27,8 @@
     "displayName": "Rest",
     "warningThreshold": 30,
     "stages": [
-      { "id": "tired", "maxValue": 40 },
-      { "id": "exhausted", "maxValue": 20 }
+      { "id": "tired", "maxValue": 40, "capacityMultipliers": { "moving": 0.9, "consciousness": 0.9 } },
+      { "id": "exhausted", "maxValue": 20, "capacityMultipliers": { "moving": 0.75, "consciousness": 0.75 } }
     ]
   },
   {

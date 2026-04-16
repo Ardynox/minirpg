@@ -17,6 +17,10 @@ public partial class Main
 		_settingsFlow.MapZoomMinIncreaseRequested += IncreaseMapZoomMin;
 		_settingsFlow.MapZoomMaxDecreaseRequested += DecreaseMapZoomMax;
 		_settingsFlow.MapZoomMaxIncreaseRequested += IncreaseMapZoomMax;
+		_settingsFlow.UiFontScaleDecreaseRequested += DecreaseUiFontScale;
+		_settingsFlow.UiFontScaleIncreaseRequested += IncreaseUiFontScale;
+		_settingsFlow.HighContrastToggleRequested += ToggleHighContrast;
+		_settingsFlow.ColorBlindModeChangeRequested += HandleColorBlindModeChange;
 		_settingsFlow.MapEditorToggleRequested += () =>
 		{
 			if (GuardMultiplayer("ui.multiplayer.disabled.map_editor", "Map editor is disabled in multiplayer sessions."))

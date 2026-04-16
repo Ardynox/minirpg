@@ -403,6 +403,7 @@ public static class SurgeryModule
 		{
 			CorpseProfileId = profile.Id,
 			SourceActorTemplateId = actor.TemplateId,
+			SourceActorId = actor.Id,
 			SourceRaceId = actor.Race?.Id ?? string.Empty,
 			SourceActorName = actor.DisplayName,
 			RemainingLimbIds = actor.Limbs

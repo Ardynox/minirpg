@@ -26,16 +26,11 @@ public partial class Main
 	private const float StartupSyncFallbackProgress = 0.90f;
 	private static readonly string[] DeferredUiScenePaths =
 		[ChestPanelScenePath, DialogPanelScenePath, TradePanelScenePath, QuestPanelScenePath, DebugPanelScenePath, StatusPanelScenePath];
-	private static readonly StartupHeavyLoadStep[] StartupHeavyLoadSteps =
-	[
-		new(HeavyTileSetPath, 0.00f, 0.80f, "ui.startup.status.tileset"),
-	];
+	private static readonly StartupHeavyLoadStep[] StartupHeavyLoadSteps = [];
 
 	private Control _startupOverlay = null!;
 	private Label _startupStatusLabel = null!;
 	private ProgressBar _startupProgressBar = null!;
-	private TileSet? _loadedTileSetForFinalization;
-
 	private bool _busyOperationActive;
 	private float _busyOperationProgress;
 	private string _busyOperationStatusKey = "ui.loading.new_game.prepare";
@@ -89,32 +84,14 @@ public partial class Main
 
 	private bool StoreLoadedHeavyResource(string path)
 	{
-		var resource = ResourceLoader.LoadThreadedGet(path);
-		switch (path)
-		{
-			case HeavyTileSetPath:
-				if (resource is TileSet tileSet)
-				{
-					_loadedTileSetForFinalization = tileSet;
-					return true;
-				}
-				break;
-		}
-
-		_startupCoordinator.FailHeavyStartupLoad(path, "unexpected resource type");
-		return false;
+		_ = path;
+		return true;
 	}
 
 	private void FinalizeHeavyStartupLoad()
 	{
 		if (_startupCoordinator == null || _startupCoordinator.State != StartupState.Finalizing)
 			return;
-
-		if (_loadedTileSetForFinalization == null)
-		{
-			_startupCoordinator.FailHeavyStartupLoad("startup", "missing heavy resources during finalization");
-			return;
-		}
 
 		try
 		{
@@ -129,7 +106,7 @@ public partial class Main
 			mapRoot.AddChild(playerCharacter);
 
 			_mapRender = new IsometricVoxelRenderer(_state, _fogTracker, ViewW, ViewH);
-			_mapRender.Init(mapRoot, _loadedTileSetForFinalization!, viewportContainer, subViewport, playerCharacter, camera);
+			_mapRender.Init(mapRoot, tileSet: null, viewportContainer, subViewport, playerCharacter, camera);
 			_mapRender.SetZoomRange(_mapZoomMin, _mapZoomMax);
 			_mapRender.SetWeatherScreenFxTuning(new WeatherScreenFxTuningSet());
 			_combatFxPlayer = new CombatFxPlayer(_mapRender, _mapRender.CombatFxWorldRoot, _combatFxTextRoot);
@@ -305,6 +282,12 @@ public partial class Main
 		var incidentAlertNode = IncidentAlertModule.CreateControl(_uiTheme);
 		_overlayLayer.AddChild(incidentAlertNode);
 		_incidentAlerts = new IncidentAlertModule(incidentAlertNode);
+
+		_toastOverlay = new ToastOverlay();
+		_overlayLayer.AddChild(_toastOverlay);
+
+		_richTooltips = new RichTooltipLayer();
+		_overlayLayer.AddChild(_richTooltips);
 	}
 
 	private void InitializePanelsAndChrome()

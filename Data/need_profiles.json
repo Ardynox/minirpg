@@ -1,11 +1,12 @@
 [
   {
     "id": "humanoid_standard",
-    "enabledNeeds": ["hunger", "rest"],
+    "enabledNeeds": ["hunger", "thirst", "rest"],
     "allowMood": true,
     "allowThoughts": true,
     "decayPerTurn": {
       "hunger": 0.12,
+      "thirst": 0.16,
       "rest": 0.1
     },
     "restGainPerTurn": 18,
@@ -15,11 +16,12 @@
   },
   {
     "id": "beast_standard",
-    "enabledNeeds": ["hunger", "rest"],
+    "enabledNeeds": ["hunger", "thirst", "rest"],
     "allowMood": true,
     "allowThoughts": true,
     "decayPerTurn": {
       "hunger": 0.14,
+      "thirst": 0.18,
       "rest": 0.11
     },
     "restGainPerTurn": 16,

@@ -2416,5 +2416,37 @@
     "sharpDamage": 0,
     "bluntDamage": 0,
     "grantedSkills": []
+  },
+  {
+    "id": "water_flask",
+    "name": "水壶",
+    "price": 3,
+    "tags": { "解渴": 3 },
+    "category": "misc",
+    "weight": 0.5,
+    "bodyPart": "",
+    "layer": "Skin",
+    "coveredParts": [],
+    "sharpArmor": 0,
+    "bluntArmor": 0,
+    "sharpDamage": 0,
+    "bluntDamage": 0,
+    "grantedSkills": []
+  },
+  {
+    "id": "water_bottle_clean",
+    "name": "净水瓶",
+    "price": 5,
+    "tags": { "解渴": 5 },
+    "category": "misc",
+    "weight": 0.6,
+    "bodyPart": "",
+    "layer": "Skin",
+    "coveredParts": [],
+    "sharpArmor": 0,
+    "bluntArmor": 0,
+    "sharpDamage": 0,
+    "bluntDamage": 0,
+    "grantedSkills": []
   }
 ]

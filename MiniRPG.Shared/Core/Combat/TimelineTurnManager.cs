@@ -758,7 +758,12 @@ public static class TimelineTurnManager
 	{
 		var result = NeedActionModule.TryConsumeFood(state, player, action.InventoryIndex);
 		events.AddRange(result.Events);
-		return result.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
+		if (result.Consumed)
+			return PlayerActionOutcome.ConsumedTurn;
+
+		var drinkResult = NeedActionModule.TryConsumeDrink(state, player, action.InventoryIndex);
+		events.AddRange(drinkResult.Events);
+		return drinkResult.Consumed ? PlayerActionOutcome.ConsumedTurn : PlayerActionOutcome.Failed;
 	}
 
 	private static PlayerActionOutcome TryExecuteRest(

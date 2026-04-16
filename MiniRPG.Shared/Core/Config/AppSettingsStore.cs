@@ -109,6 +109,39 @@ public static class AppSettingsStore
 		}, "map zoom max setting");
 	}
 
+	public static float LoadUiFontScale()
+	{
+		var settings = LoadSettings();
+		return ClampUiFontScale(settings.UiFontScale);
+	}
+
+	public static void SaveUiFontScale(float value)
+	{
+		SaveSettings(settings => settings.UiFontScale = ClampUiFontScale(value), "ui font scale setting");
+	}
+
+	public static string LoadUiContrastMode()
+	{
+		var settings = LoadSettings();
+		return string.IsNullOrWhiteSpace(settings.UiContrastMode) ? "normal" : settings.UiContrastMode.Trim();
+	}
+
+	public static void SaveUiContrastMode(string mode)
+	{
+		SaveSettings(settings => settings.UiContrastMode = string.IsNullOrWhiteSpace(mode) ? "normal" : mode.Trim(), "ui contrast mode setting");
+	}
+
+	public static string LoadUiColorBlindMode()
+	{
+		var settings = LoadSettings();
+		return string.IsNullOrWhiteSpace(settings.UiColorBlindMode) ? "none" : settings.UiColorBlindMode.Trim();
+	}
+
+	public static void SaveUiColorBlindMode(string mode)
+	{
+		SaveSettings(settings => settings.UiColorBlindMode = string.IsNullOrWhiteSpace(mode) ? "none" : mode.Trim(), "ui color blind mode setting");
+	}
+
 	public static float LoadMasterVolume()
 	{
 		var settings = LoadSettings();
@@ -271,6 +304,14 @@ public static class AppSettingsStore
 
 	private static float ClampZoomValue(float value) => Math.Clamp(value, 0.2f, 4.0f);
 
+	private static float ClampUiFontScale(float? value)
+	{
+		if (!value.HasValue || float.IsNaN(value.Value) || float.IsInfinity(value.Value))
+			return 1f;
+
+		return Math.Clamp(value.Value, 0.75f, 1.5f);
+	}
+
 	private static float ClampNormalizedVolume(float? value)
 	{
 		if (!value.HasValue || float.IsNaN(value.Value) || float.IsInfinity(value.Value))
@@ -321,6 +362,15 @@ public static class AppSettingsStore
 
 		[JsonPropertyName("masterVolume")]
 		public float? MasterVolume { get; set; }
+
+		[JsonPropertyName("uiFontScale")]
+		public float? UiFontScale { get; set; }
+
+		[JsonPropertyName("uiContrastMode")]
+		public string? UiContrastMode { get; set; }
+
+		[JsonPropertyName("uiColorBlindMode")]
+		public string? UiColorBlindMode { get; set; }
 
 		[JsonPropertyName("musicVolume")]
 		public float? MusicVolume { get; set; }
@@ -411,6 +461,9 @@ public static class AppSettingsStore
 		MasterVolume = 1f,
 		MusicVolume = 1f,
 		SfxVolume = 1f,
+		UiFontScale = 1f,
+		UiContrastMode = "normal",
+		UiColorBlindMode = "none",
 		LastContinueKind = null,
 		LastWorldId = null,
 		LastCharacterId = null,

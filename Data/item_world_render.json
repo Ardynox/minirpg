@@ -82,49 +82,17 @@
     }
   },
   "items": {
-    "alcohol": {
+    "potion_hp": {
       "kind": "catalog_texture",
-      "value": "food_02__food_02_102",
+      "value": "food_02__food_02_101",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "ammo_revolver": {
+    "sniper_rifle": {
       "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "ammo_rifle": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "ammo_shell": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "antidote": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_103",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "apple": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_10",
+      "value": "weapons_01__weapons_01_1",
       "scale": [
         0.55,
         0.55
@@ -138,49 +106,17 @@
         0.55
       ]
     },
-    "backpack": {
+    "machete": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "value": "weapons_01__weapons_01_1",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "bandage": {
+    "crowbar": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bear_trap": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bedroll": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "berries": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bionic_arm": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "value": "weapons_01__weapons_01_1",
       "scale": [
         0.55,
         0.55
@@ -202,79 +138,7 @@
         0.55
       ]
     },
-    "bolt_rifle": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "boots_biker": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bow_great": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bow_short": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bread": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "bullet_vest_camo": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "candle": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "chainmail": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "cheese": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_17",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "chest_wooden": {
+    "bionic_arm": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_17",
       "scale": [
@@ -282,49 +146,65 @@
         0.55
       ]
     },
-    "chocolate": {
+    "prosthetic_eye": {
       "kind": "catalog_texture",
-      "value": "food_02__food_02_11",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "cigarette": {
+    "prosthetic_leg": {
       "kind": "catalog_texture",
-      "value": "food_02__food_02_100",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "cloth_pants": {
+    "prosthetic_arm": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "cloth_shirt": {
+    "limb_leg": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "club_wood": {
+    "limb_arm": {
       "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "compass": {
+    "organ_eye": {
       "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
+      "value": "stashes_01__stashes_01_17",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "organ_lung": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_17",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "organ_heart": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
@@ -354,7 +234,31 @@
         0.55
       ]
     },
-    "crowbar": {
+    "ammo_shell": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "ammo_rifle": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "ammo_revolver": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "pump_shotgun": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -362,7 +266,7 @@
         0.55
       ]
     },
-    "dagger": {
+    "bolt_rifle": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -370,97 +274,17 @@
         0.55
       ]
     },
-    "devilstrand_duster": {
+    "sidearm_revolver": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
+      "value": "weapons_01__weapons_01_1",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "duster": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "flak_vest": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "flashlight": {
+    "surgery_kit": {
       "kind": "catalog_texture",
       "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "gas_mask": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "gauntlets_iron": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "generator": {
-      "kind": "catalog_texture",
-      "value": "appliances_misc_01__appliances_misc_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "gloves_black": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "go_juice": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_100",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "hammer_smith": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "handsaw": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "herbal_medicine": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_101",
       "scale": [
         0.55,
         0.55
@@ -474,17 +298,9 @@
         0.55
       ]
     },
-    "iron_helmet": {
+    "rope": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "knife_butcher": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55
@@ -498,23 +314,7 @@
         0.55
       ]
     },
-    "leather_boots": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "leather_vest": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "limb_arm": {
+    "bedroll": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_17",
       "scale": [
@@ -522,7 +322,15 @@
         0.55
       ]
     },
-    "limb_leg": {
+    "smg": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "backpack": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_17",
       "scale": [
@@ -530,7 +338,7 @@
         0.55
       ]
     },
-    "mace_iron": {
+    "molotov": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -538,9 +346,9 @@
         0.55
       ]
     },
-    "machete": {
+    "bear_trap": {
       "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
+      "value": "constructedobjects_01__constructedobjects_01_0",
       "scale": [
         0.55,
         0.55
@@ -554,151 +362,47 @@
         0.55
       ]
     },
-    "mat_chitin": {
+    "walkie_talkie": {
       "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "value": "security_01__security_01_0",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "mat_cloth": {
+    "propane_tank": {
       "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "value": "constructedobjects_01__constructedobjects_01_14",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "mat_coal": {
+    "petrol": {
       "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "value": "food_02__food_02_103",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "mat_copper": {
+    "generator": {
       "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "value": "appliances_misc_01__appliances_misc_01_0",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "mat_crystal": {
+    "candle": {
       "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "value": "constructedobjects_01__constructedobjects_01_1",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "mat_devilstrand": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_duct_tape": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_gold": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_herb": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_iron": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_jade": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_leather": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_nails": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_plasteel": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_silk": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_silver": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_steel": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_stone": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "mat_uranium": {
+    "mat_yarn": {
       "kind": "catalog_texture",
       "value": "carpentry_01__carpentry_01_10",
       "scale": [
@@ -714,7 +418,7 @@
         0.55
       ]
     },
-    "mat_wood": {
+    "mat_duct_tape": {
       "kind": "catalog_texture",
       "value": "carpentry_01__carpentry_01_10",
       "scale": [
@@ -722,7 +426,7 @@
         0.55
       ]
     },
-    "mat_yarn": {
+    "mat_nails": {
       "kind": "catalog_texture",
       "value": "carpentry_01__carpentry_01_10",
       "scale": [
@@ -730,127 +434,15 @@
         0.55
       ]
     },
-    "meal_fine": {
+    "cigarette": {
       "kind": "catalog_texture",
-      "value": "food_01__food_01_1",
+      "value": "food_02__food_02_100",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "meal_lavish": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "meal_simple": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "molotov": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "organ_eye": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "organ_heart": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "organ_lung": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "parka": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "pemmican": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "petrol": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_103",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "pickaxe": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "pickaxe_steel": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "pipe_bomb": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "plate_armor": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "potion_hp": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_101",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "potion_str": {
+    "alcohol": {
       "kind": "catalog_texture",
       "value": "food_02__food_02_102",
       "scale": [
@@ -858,49 +450,121 @@
         0.55
       ]
     },
-    "propane_tank": {
+    "chocolate": {
       "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_14",
+      "value": "food_02__food_02_11",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "prosthetic_arm": {
+    "cheese": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "value": "food_01__food_01_17",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "prosthetic_eye": {
+    "bread": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "value": "food_01__food_01_16",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "prosthetic_leg": {
+    "apple": {
       "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "value": "food_01__food_01_10",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "pump_shotgun": {
+    "water_bottle": {
       "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
+      "value": "food_02__food_02_103",
       "scale": [
         0.55,
         0.55
       ]
     },
-    "raw_meat": {
+    "stethoscope": {
       "kind": "catalog_texture",
-      "value": "food_01__food_01_103",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "syringe": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "compass": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "handsaw": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "shovel": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "flashlight": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "welding_mask": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "gloves_black": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "boots_biker": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "bullet_vest_camo": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
       "scale": [
         0.55,
         0.55
@@ -914,7 +578,23 @@
         0.55
       ]
     },
-    "rope": {
+    "gas_mask": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "pipe_bomb": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "chest_wooden": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_17",
       "scale": [
@@ -922,7 +602,47 @@
         0.55
       ]
     },
-    "shield_iron": {
+    "mat_chitin": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_herb": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "tuque": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "cloth_pants": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "cloth_shirt": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "shield_wood": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_16",
       "scale": [
@@ -938,7 +658,7 @@
         0.55
       ]
     },
-    "shield_wood": {
+    "shield_iron": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_16",
       "scale": [
@@ -946,15 +666,7 @@
         0.55
       ]
     },
-    "shovel": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "sidearm_revolver": {
+    "bow_great": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -962,15 +674,7 @@
         0.55
       ]
     },
-    "smg": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "sniper_rifle": {
+    "bow_short": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -994,95 +698,7 @@
         0.55
       ]
     },
-    "steel_greaves": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "steel_helmet": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "stethoscope": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "surgery_kit": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "sword_iron": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "sword_plasteel": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "sword_steel": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "syringe": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "torch": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "tuque": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "walkie_talkie": {
-      "kind": "catalog_texture",
-      "value": "security_01__security_01_0",
-      "scale": [
-        0.55,
-        0.55
-      ]
-    },
-    "war_hammer": {
+    "dagger": {
       "kind": "catalog_texture",
       "value": "weapons_01__weapons_01_1",
       "scale": [
@@ -1098,7 +714,119 @@
         0.55
       ]
     },
-    "water_bottle": {
+    "war_hammer": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mace_iron": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "club_wood": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "sword_plasteel": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "sword_iron": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "sword_steel": {
+      "kind": "catalog_texture",
+      "value": "weapons_01__weapons_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "berries": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "raw_meat": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_103",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "pemmican": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "meal_lavish": {
+      "kind": "catalog_texture",
+      "value": "food_02__food_02_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "meal_fine": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "meal_simple": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "go_juice": {
+      "kind": "catalog_texture",
+      "value": "food_02__food_02_100",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "bandage": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "antidote": {
       "kind": "catalog_texture",
       "value": "food_02__food_02_103",
       "scale": [
@@ -1106,9 +834,193 @@
         0.55
       ]
     },
-    "welding_mask": {
+    "herbal_medicine": {
+      "kind": "catalog_texture",
+      "value": "food_01__food_01_101",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "potion_str": {
+      "kind": "catalog_texture",
+      "value": "food_02__food_02_102",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "duster": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "parka": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "devilstrand_duster": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_1",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "leather_vest": {
       "kind": "catalog_texture",
       "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_devilstrand": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_silk": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_cloth": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_leather": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_jade": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_uranium": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_plasteel": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_silver": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_crystal": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_copper": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_coal": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_gold": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_steel": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_iron": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "water_flask": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_17",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_stone": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "knife_butcher": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "hammer_smith": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
       "scale": [
         0.55,
         0.55
@@ -1117,6 +1029,110 @@
     "wood_axe": {
       "kind": "catalog_texture",
       "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "pickaxe_steel": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "pickaxe": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "torch": {
+      "kind": "catalog_texture",
+      "value": "constructedobjects_01__constructedobjects_01_0",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "gauntlets_iron": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "steel_greaves": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "leather_boots": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "steel_helmet": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "iron_helmet": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "flak_vest": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "plate_armor": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "chainmail": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "mat_wood": {
+      "kind": "catalog_texture",
+      "value": "carpentry_01__carpentry_01_10",
+      "scale": [
+        0.55,
+        0.55
+      ]
+    },
+    "water_bottle_clean": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_17",
       "scale": [
         0.55,
         0.55

@@ -286,6 +286,8 @@ public class PanelManager
 		_focused = panel;
 		prev?.OnBlur();
 		_focused?.OnFocus();
+		if (_focused != null)
+			PanelFocusCapture.GrabFirstInteractive(_focused.PanelNode);
 		_switching = false;
 
 		if (clearStack)
@@ -361,21 +363,37 @@ public class PanelManager
 
 	private string? MapKeyToCommand(InputEventKey key)
 	{
-		if (_bindings != null && _bindings.Resolve(InputBindingContext.Action, key, out var actionId, out _))
+		if (_bindings != null)
 		{
-			var cmd = actionId switch
+			if (_bindings.Resolve(InputBindingContext.Panel, key, out _, out var panelCmd) && panelCmd != null)
+				return panelCmd;
+
+			if (_bindings.Resolve(InputBindingContext.Action, key, out var actionId, out _))
 			{
-				"move_north" => "up",
-				"move_south" => "down",
-				"move_west" => "left",
-				"move_east" => "right",
-				"open_settings" => "close",
-				"interact" => "confirm",
-				_ => null,
-			};
-			if (cmd != null) return cmd;
+				var cmd = actionId switch
+				{
+					"move_north" => "up",
+					"move_south" => "down",
+					"move_west" => "left",
+					"move_east" => "right",
+					"open_settings" => "close",
+					"interact" => "confirm",
+					_ => null,
+				};
+				if (cmd != null) return cmd;
+			}
 		}
 
+		return FallbackKeyMap(key);
+	}
+
+	/// <summary>
+	/// 当没有注入 <see cref="InputBindingService"/> 时的兜底映射（测试场景或极简环境）。
+	/// 与 <see cref="InputBindingContext.Panel"/> 的默认 binding 保持一致，两者任一路径都能把
+	/// 常用键映射到 panel 命令。
+	/// </summary>
+	private static string? FallbackKeyMap(InputEventKey key)
+	{
 		return key.Keycode switch
 		{
 			Key.Enter => "confirm",
@@ -386,6 +404,10 @@ public class PanelManager
 			Key.P => "action4",
 			Key.U => "action5",
 			Key.Tab => key.ShiftPressed ? "tab_prev" : "tab_next",
+			Key.Pageup => "page_up",
+			Key.Pagedown => "page_down",
+			Key.Home => "home",
+			Key.End => "end",
 			Key.Key1 => "1",
 			Key.Key2 => "2",
 			Key.Key3 => "3",

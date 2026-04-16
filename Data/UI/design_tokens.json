@@ -1,0 +1,85 @@
+{
+	"_comment": "UI 设计 token 单一真相。当前作为 reference + 人类/AI 设计参考使用；尚未代码接入。未来可写 codegen 脚本把这里的值生成到 UIColors.cs 与 UITheme.tres，消除双口径维护。对齐守护见 Tests/MiniRPG.Tests/UIThemeColorConsistencyTests.cs。",
+
+	"colors": {
+		"focus_border": { "hex": "#D9B34D", "rgb": [0.85, 0.70, 0.30, 1.0], "used_by": ["FocusedPanel.border", "LineEdit.focus.border", "OptionButton.focus.border", "ProgressBar.fill", "slider_grabber_area_hl", "ActionButton.pressed.border"] },
+		"idle_border":  { "hex": "#453828", "rgb": [0.27, 0.22, 0.16, 1.0], "used_by": ["panel_idle.border", "lineedit_normal.border", "optionbtn_normal.border", "skillbar_panel.border", "progress_bg.border"] },
+		"panel_bg":     { "hex": "#161826", "rgb": [0.085, 0.092, 0.148, 1.0], "used_by": ["panel_idle.bg", "panel_focused.bg", "floating_panel.bg", "floating_focused_panel.bg"] },
+		"row_bg":       { "hex": "#19192A", "rgb": [0.10, 0.10, 0.16, 1.0], "used_by": ["opaque_row_normal.bg", "skill_slot_normal.bg", "optionbtn_normal.bg"] },
+		"hover_bg":     { "hex": "#24243A", "rgb": [0.14, 0.14, 0.22, 1.0], "used_by": ["row_hover.bg", "opaque_row_hover.bg"] },
+		"selected_bg":  { "hex": "#2E2614", "rgb": [0.18, 0.15, 0.08, 1.0], "used_by": ["row_selected_hover.bg", "row_selected_normal.bg", "action_btn_pressed.bg"] },
+
+		"text_normal":   { "hex": "#D1CCC0", "rgb": [0.82, 0.80, 0.75, 1.0] },
+		"text_selected": { "hex": "#FFE073", "rgb": [1.00, 0.88, 0.45, 1.0] },
+		"text_dim":      { "hex": "#6B665C", "rgb": [0.42, 0.40, 0.36, 1.0] },
+		"text_container":{ "hex": "#8CD9FF", "rgb": [0.55, 0.85, 1.00, 1.0] },
+		"text_equipped": { "hex": "#FFD133", "rgb": [1.00, 0.82, 0.20, 1.0] },
+		"text_header":   { "hex": "#EBD9B3", "rgb": [0.92, 0.85, 0.70, 1.0] },
+
+		"text_combat":   { "hex": "#FF7366", "rgb": [1.00, 0.45, 0.40, 1.0] },
+		"text_social":   { "hex": "#73E699", "rgb": [0.45, 0.90, 0.60, 1.0] },
+		"text_utility":  { "hex": "#73BFFF", "rgb": [0.45, 0.75, 1.00, 1.0] },
+		"text_warning":  { "hex": "#F5804D", "rgb": [0.96, 0.50, 0.38, 1.0] },
+		"text_success":  { "hex": "#80EB8C", "rgb": [0.50, 0.92, 0.55, 1.0] }
+	},
+
+	"spacing": {
+		"panel_margin":       12,
+		"panel_content_gap":  8,
+		"row_margin_h":       12,
+		"row_margin_v":       10,
+		"row_content_gap":    12,
+		"row_text_gap":       3,
+		"tab_margin_h":       12,
+		"tab_margin_v":        4,
+		"button_margin_h":    12,
+		"button_margin_v":     6,
+		"tooltip_margin_h":   14,
+		"tooltip_margin_v":   10
+	},
+
+	"radii": {
+		"panel":       6,
+		"button":      4,
+		"row":         3,
+		"skill_slot":  3,
+		"progress":    3
+	},
+
+	"font_sizes": {
+		"body":         15,
+		"header":       20,
+		"hint":         13,
+		"tooltip":      14
+	},
+
+	"shadows": {
+		"panel_idle":       { "color": [0.04, 0.03, 0.01, 0.45], "size": 10, "offset": [0, 3] },
+		"panel_focused":    { "color": [0.40, 0.30, 0.10, 0.25], "size": 10, "offset": [0, 2] },
+		"floating":         { "color": [0.00, 0.00, 0.00, 0.55], "size": 16, "offset": [0, 4] },
+		"floating_focused": { "color": [0.40, 0.30, 0.10, 0.30], "size": 16, "offset": [0, 4] },
+		"tooltip":          { "color": [0.00, 0.00, 0.00, 0.55], "size": 12, "offset": [0, 3] },
+		"popup":            { "color": [0.00, 0.00, 0.00, 0.50], "size":  8, "offset": [0, 3] },
+		"focus_pulse":      { "color": [0.95, 0.82, 0.35, 0.55], "size_extra": 12, "duration_sec": 0.32 }
+	},
+
+	"motion": {
+		"panel_fade_in_sec":       0.22,
+		"panel_fade_out_sec":      0.22,
+		"button_hover_sec":        0.12,
+		"button_hover_scale":      1.03,
+		"button_flash_attack_sec": 0.035,
+		"button_flash_decay_sec":  0.18,
+		"main_menu_stagger_sec":   0.06,
+		"logo_float_amplitude_px": 4,
+		"logo_float_period_sec":   2.5
+	},
+
+	"ui_scale": {
+		"min":     0.75,
+		"default": 1.0,
+		"max":     1.5,
+		"step":    0.05,
+		"baseline_font_size": 15
+	}
+}

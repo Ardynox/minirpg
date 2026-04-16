@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
 
@@ -75,7 +76,56 @@ public static class MapGenModule
 		player.Y = state.PlayerY;
 		player.Z = state.PlayerZ;
 		ActorModule.Add(state, player);
+		PlaceStarterFacilities(state);
 	}
+
+	/// <summary>
+	/// 新开局在玩家附近摆一个已建成的灶台（Active stove）+ 一张默认的 cook_simple_meal bill。
+	/// 目的是让生存闭环"raw_meat + berries → meal_simple"立刻可用；
+	/// 找不到合适位置就静默跳过——这时玩家只能靠 starter kit 里的 meal_simple 先撑过最初几天。
+	/// </summary>
+	private static void PlaceStarterFacilities(GameState state)
+	{
+		if (state.World == null)
+			return;
+
+		foreach (var (dx, dy) in StarterFacilityPlacementOffsets)
+		{
+			var result = FacilityConstructionModule.TryPlaceCompleted(
+				state,
+				facilityDefId: "stove",
+				anchorX: state.PlayerX + dx,
+				anchorY: state.PlayerY + dy,
+				z: state.PlayerZ,
+				rotation: FacilityRotation.North,
+				ownerDomainId: DomainIds.Player);
+
+			if (!result.Success || result.Facility == null)
+				continue;
+
+			result.Facility.Bills.Add(new BillDef
+			{
+				Id = $"{result.FacilityId}_default_bill",
+				RecipeId = "cook_simple_meal",
+				Enabled = true,
+				AllowPersonalUse = true,
+				AllowDomainUse = true,
+				TargetCount = 5,
+				OwnerDomainId = DomainIds.Player,
+			});
+			return;
+		}
+	}
+
+	private static readonly (int Dx, int Dy)[] StarterFacilityPlacementOffsets =
+	[
+		(2, 0),
+		(-2, 0),
+		(0, 2),
+		(0, -2),
+		(2, 2),
+		(-2, -2),
+	];
 
 	/// <summary>寻找玩家附近的第一个可行走格子作为出生点。</summary>
 	public static void FindSpawnPoint(GameState state)
@@ -178,8 +228,19 @@ public static class MapGenModule
 
 	private static void GiveStarterKit(Actor player)
 	{
+		// Starter kit 的目标是让玩家开局就能走完"吃一口 / 喝一口 / 睡一觉 / 做一次饭"的完整生存循环：
+		// meal_simple × 2：前期温饱兜底；water_flask × 2：对称 Thirst 需求；bedroll：Rest 需求；
+		// raw_meat + berries × 2：一份 cook_simple_meal 所需原料（见 Data/recipes.json）。
+		// B9 完整落地（默认摆灶台 + 默认 bill）等下一批 Sprint 做。
 		player.Inventory.Clear();
 		player.Inventory.Add(PresetDB.CloneItem("meal_simple"));
+		player.Inventory.Add(PresetDB.CloneItem("meal_simple"));
+		player.Inventory.Add(PresetDB.CloneItem("water_flask"));
+		player.Inventory.Add(PresetDB.CloneItem("water_flask"));
 		player.Inventory.Add(PresetDB.CloneItem("bedroll"));
+		player.Inventory.Add(PresetDB.CloneItem("raw_meat"));
+		player.Inventory.Add(PresetDB.CloneItem("raw_meat"));
+		player.Inventory.Add(PresetDB.CloneItem("berries"));
+		player.Inventory.Add(PresetDB.CloneItem("berries"));
 	}
 }

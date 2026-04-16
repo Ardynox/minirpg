@@ -46,6 +46,11 @@ public static class NeedSystem
 			{
 				current = ClampNeed((1f - foodGap) * NeedMax);
 			}
+			else if (string.Equals(needId, NeedIds.Thirst, StringComparison.Ordinal)
+				&& actor.DialogNeeds.TryGetValue("water", out var waterGap))
+			{
+				current = ClampNeed((1f - waterGap) * NeedMax);
+			}
 			else if (string.Equals(needId, NeedIds.Rest, StringComparison.Ordinal)
 				&& actor.DialogNeeds.TryGetValue("rest", out var restGap))
 			{
@@ -107,6 +112,7 @@ public static class NeedSystem
 
 		RemoveExpiredThoughts(actor, currentTurn);
 		RefreshStageThought(actor, NeedIds.Hunger, NeedThoughtSources.HungerStage, currentTurn, events, state);
+		RefreshStageThought(actor, NeedIds.Thirst, NeedThoughtSources.ThirstStage, currentTurn, events, state);
 		RefreshStageThought(actor, NeedIds.Rest, NeedThoughtSources.RestStage, currentTurn, events, state);
 		RecomputeMood(actor, profile);
 		ProjectDialogState(actor, profile);
@@ -142,28 +148,19 @@ public static class NeedSystem
 		EnsureInitialized(actor, actor.NeedsLastUpdatedTurn);
 		var multiplier = 1f;
 
-		var hungerStage = NeedCatalog.ResolveStageId(NeedIds.Hunger, GetNeedValue(actor, NeedIds.Hunger));
-		if (string.Equals(hungerStage, "hungry", StringComparison.Ordinal)
-			&& (capacityId == Caps.Moving || capacityId == Caps.Manipulation))
+		foreach (var need in actor.Needs.Values)
 		{
-			multiplier *= 0.9f;
-		}
-		else if (string.Equals(hungerStage, "starving", StringComparison.Ordinal)
-			&& (capacityId == Caps.Moving || capacityId == Caps.Manipulation))
-		{
-			multiplier *= 0.75f;
-		}
+			var stageId = NeedCatalog.ResolveStageId(need.Id, need.Current);
+			if (string.IsNullOrEmpty(stageId))
+				continue;
 
-		var restStage = NeedCatalog.ResolveStageId(NeedIds.Rest, GetNeedValue(actor, NeedIds.Rest));
-		if (string.Equals(restStage, "tired", StringComparison.Ordinal)
-			&& (capacityId == Caps.Moving || capacityId == Caps.Consciousness))
-		{
-			multiplier *= 0.9f;
-		}
-		else if (string.Equals(restStage, "exhausted", StringComparison.Ordinal)
-			&& (capacityId == Caps.Moving || capacityId == Caps.Consciousness))
-		{
-			multiplier *= 0.75f;
+			var stageDef = NeedCatalog.GetNeed(need.Id)?.Stages
+				.FirstOrDefault(stage => string.Equals(stage.Id, stageId, StringComparison.Ordinal));
+			if (stageDef == null || stageDef.CapacityMultipliers.Count == 0)
+				continue;
+
+			if (stageDef.CapacityMultipliers.TryGetValue(capacityId, out var stageMultiplier))
+				multiplier *= stageMultiplier;
 		}
 
 		return multiplier;
@@ -299,6 +296,9 @@ public static class NeedSystem
 			: 0f;
 		actor.DialogNeeds["food"] = actor.Needs.TryGetValue(NeedIds.Hunger, out var hunger)
 			? Math.Clamp((NeedMax - hunger.Current) / NeedMax, 0f, 1f)
+			: 0f;
+		actor.DialogNeeds["water"] = actor.Needs.TryGetValue(NeedIds.Thirst, out var thirst)
+			? Math.Clamp((NeedMax - thirst.Current) / NeedMax, 0f, 1f)
 			: 0f;
 		actor.DialogNeeds["rest"] = actor.Needs.TryGetValue(NeedIds.Rest, out var rest)
 			? Math.Clamp((NeedMax - rest.Current) / NeedMax, 0f, 1f)

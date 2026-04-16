@@ -989,6 +989,10 @@ public class GameSessionModule : IDebugSessionActions
 		Storyteller.RegisterWorker("raid", new RaidIncidentWorker());
 		Storyteller.RegisterWorker("wanderer_join", new WandererJoinIncidentWorker());
 		Storyteller.RegisterWorker("trader_visit", new TraderVisitIncidentWorker());
+		Storyteller.RegisterWorker("cold_snap", new ColdSnapIncidentWorker());
+		Storyteller.RegisterWorker("heat_wave", new HeatWaveIncidentWorker());
+		Storyteller.RegisterWorker("traveler_passing", new TravelerPassingIncidentWorker());
+		Storyteller.RegisterWorker("resource_drop", new ResourceDropIncidentWorker());
 	}
 }
 

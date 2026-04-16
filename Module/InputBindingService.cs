@@ -13,6 +13,7 @@ public enum InputBindingContext
 	Typing,
 	Selection,
 	Direction,
+	Panel,
 }
 
 public enum InputGestureKind
@@ -461,6 +462,33 @@ public sealed class InputBindingService
 			new("direction_s", "input.direction.south", InputBindingContext.Direction, null, InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
 			new("direction_w", "input.direction.west", InputBindingContext.Direction, null, InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
 			new("direction_e", "input.direction.east", InputBindingContext.Direction, null, InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
+
+			new("panel_confirm", "input.panel.confirm", InputBindingContext.Panel, "confirm", InputGesture.FromKey(Key.Enter), default),
+			new("panel_close", "input.panel.close", InputBindingContext.Panel, "close", InputGesture.FromKey(Key.Escape), default),
+			new("panel_up", "input.panel.up", InputBindingContext.Panel, "up", InputGesture.FromKey(Key.W), InputGesture.FromKey(Key.Up)),
+			new("panel_down", "input.panel.down", InputBindingContext.Panel, "down", InputGesture.FromKey(Key.S), InputGesture.FromKey(Key.Down)),
+			new("panel_left", "input.panel.left", InputBindingContext.Panel, "left", InputGesture.FromKey(Key.A), InputGesture.FromKey(Key.Left)),
+			new("panel_right", "input.panel.right", InputBindingContext.Panel, "right", InputGesture.FromKey(Key.D), InputGesture.FromKey(Key.Right)),
+			new("panel_tab_next", "input.panel.tab_next", InputBindingContext.Panel, "tab_next", InputGesture.FromKey(Key.Tab), default),
+			new("panel_tab_prev", "input.panel.tab_prev", InputBindingContext.Panel, "tab_prev", InputGesture.FromKey(Key.Tab, shift: true), default),
+			new("panel_page_up", "input.panel.page_up", InputBindingContext.Panel, "page_up", InputGesture.FromKey(Key.Pageup), default),
+			new("panel_page_down", "input.panel.page_down", InputBindingContext.Panel, "page_down", InputGesture.FromKey(Key.Pagedown), default),
+			new("panel_home", "input.panel.home", InputBindingContext.Panel, "home", InputGesture.FromKey(Key.Home), default),
+			new("panel_end", "input.panel.end", InputBindingContext.Panel, "end", InputGesture.FromKey(Key.End), default),
+			new("panel_action1", "input.panel.action1", InputBindingContext.Panel, "action1", InputGesture.FromKey(Key.E), default),
+			new("panel_action2", "input.panel.action2", InputBindingContext.Panel, "action2", InputGesture.FromKey(Key.Q), default),
+			new("panel_action3", "input.panel.action3", InputBindingContext.Panel, "action3", InputGesture.FromKey(Key.R), default),
+			new("panel_action4", "input.panel.action4", InputBindingContext.Panel, "action4", InputGesture.FromKey(Key.P), default),
+			new("panel_action5", "input.panel.action5", InputBindingContext.Panel, "action5", InputGesture.FromKey(Key.U), default),
+			new("panel_slot_1", "input.panel.slot_1", InputBindingContext.Panel, "1", InputGesture.FromKey(Key.Key1), default),
+			new("panel_slot_2", "input.panel.slot_2", InputBindingContext.Panel, "2", InputGesture.FromKey(Key.Key2), default),
+			new("panel_slot_3", "input.panel.slot_3", InputBindingContext.Panel, "3", InputGesture.FromKey(Key.Key3), default),
+			new("panel_slot_4", "input.panel.slot_4", InputBindingContext.Panel, "4", InputGesture.FromKey(Key.Key4), default),
+			new("panel_slot_5", "input.panel.slot_5", InputBindingContext.Panel, "5", InputGesture.FromKey(Key.Key5), default),
+			new("panel_slot_6", "input.panel.slot_6", InputBindingContext.Panel, "6", InputGesture.FromKey(Key.Key6), default),
+			new("panel_slot_7", "input.panel.slot_7", InputBindingContext.Panel, "7", InputGesture.FromKey(Key.Key7), default),
+			new("panel_slot_8", "input.panel.slot_8", InputBindingContext.Panel, "8", InputGesture.FromKey(Key.Key8), default),
+			new("panel_slot_9", "input.panel.slot_9", InputBindingContext.Panel, "9", InputGesture.FromKey(Key.Key9), default),
 		};
 
 		return defs;

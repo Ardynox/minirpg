@@ -17,6 +17,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private const string RenderRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/RenderRow";
 	private const string MapZoomMinRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMinRow";
 	private const string MapZoomMaxRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/MapZoomMaxRow";
+	private const string UiFontScaleRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/UiFontScaleRow";
+	private const string HighContrastRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/HighContrastRow";
+	private const string ColorBlindRowPath = GeneralPagePath + "/DisplaySection/Margin/VBox/ColorBlindRow";
 	private const string WatchModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/WatchModeRow";
 	private const string FastTurnModeRowPath = GeneralPagePath + "/GameplaySection/Margin/VBox/FastTurnModeRow";
 	private const string KeyboardTargetingRowPath = ControlsPagePath + "/ControlOptionsSection/Margin/VBox/KeyboardTargetingRow";
@@ -55,6 +58,12 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Label _mapZoomMinStatusLabel;
 	private readonly Label _mapZoomMaxTitleLabel;
 	private readonly Label _mapZoomMaxStatusLabel;
+	private readonly Label _uiFontScaleTitleLabel;
+	private readonly Label _uiFontScaleStatusLabel;
+	private readonly Label _highContrastTitleLabel;
+	private readonly Label _highContrastStatusLabel;
+	private readonly Label _colorBlindTitleLabel;
+	private readonly Label _colorBlindStatusLabel;
 	private readonly Label _watchModeTitleLabel;
 	private readonly Label _watchModeStatusLabel;
 	private readonly Label _fastTurnModeTitleLabel;
@@ -81,6 +90,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private readonly Button _mapZoomMinIncreaseButton;
 	private readonly Button _mapZoomMaxDecreaseButton;
 	private readonly Button _mapZoomMaxIncreaseButton;
+	private readonly Button _uiFontScaleDecreaseButton;
+	private readonly Button _uiFontScaleIncreaseButton;
+	private readonly CheckButton _highContrastToggleButton;
+	private readonly OptionButton _colorBlindOptionButton;
 	private readonly CheckButton _watchModeButton;
 	private readonly CheckButton _fastTurnModeButton;
 	private readonly CheckButton _keyboardTargetingButton;
@@ -129,81 +142,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	public event Action? MapEditorToggleRequested;
 	public event Action? LayoutEditRequested;
 	public event Action<string>? LanguageChangedRequested;
-
-	internal static bool ShouldShowWatchMode(SettingsUiState state) =>
-		state.Context == SettingsEntryContext.InGamePause;
-
-	internal static string GetSubtitleKey(SettingsUiState state) =>
-		state.Context == SettingsEntryContext.InGamePause
-			? "ui.settings.subtitle.in_game"
-			: "ui.settings.subtitle.main_menu";
-
-	internal static string GetFooterHintKey(bool keyBindingsMode) =>
-		keyBindingsMode
-			? "ui.settings.hint.bindings"
-			: "ui.settings.hint.default";
-
-	internal static string GetRenderStatusKey(SettingsUiState state) =>
-		state.RenderReady
-			? "ui.settings.render.status.ready"
-			: "ui.settings.render.status.unavailable";
-
-	internal static string GetWatchModeStatusKey(SettingsUiState state) =>
-		state.WatchModeEnabled
-			? "ui.settings.watch_mode.status.on"
-			: "ui.settings.watch_mode.status.off";
-
-	internal static string GetFastTurnModeStatusKey(SettingsUiState state) =>
-		state.FastTurnModeEnabled
-			? "ui.settings.fast_turn_mode.status.on"
-			: "ui.settings.fast_turn_mode.status.off";
-
-	internal static string GetKeyboardTargetingStatusKey(SettingsUiState state) =>
-		state.EnableKeyboardTargeting
-			? "ui.settings.keyboard_targeting.status.on"
-			: "ui.settings.keyboard_targeting.status.off";
-
-	internal static string GetAutoNavigationInterruptPolicyStatusKey(SettingsUiState state) =>
-		state.AutoNavigationInterruptPolicy switch
-		{
-			AutoNavigationInterruptPolicy.ManualOnly => "ui.settings.auto_navigation_interrupt_policy.status.manual_only",
-			AutoNavigationInterruptPolicy.HostileProximityStop => "ui.settings.auto_navigation_interrupt_policy.status.hostile_proximity_stop",
-			_ => "ui.settings.auto_navigation_interrupt_policy.status.conservative_stop",
-		};
-
-	internal static string GetDebugPanelStatusKey(SettingsUiState state) =>
-		state.EnableDebugPanel
-			? "ui.settings.debug_panel.status.on"
-			: "ui.settings.debug_panel.status.off";
-
-	internal static string GetBindingsStatusKey(bool keyBindingsMode, bool isCapturing) =>
-		isCapturing
-			? "ui.settings.key_bindings.status.capturing"
-			: keyBindingsMode
-				? "ui.settings.key_bindings.status.active"
-				: "ui.settings.key_bindings.status.idle";
-
-	internal static string GetBindingsButtonKey(bool keyBindingsMode) =>
-		keyBindingsMode
-			? "ui.settings.key_bindings.return"
-			: "ui.settings.key_bindings.open";
-
-	internal static string GetMapEditorStatusKey(SettingsUiState state) =>
-		state.MapEditorActive
-			? "ui.settings.map_editor.status.active"
-			: "ui.settings.map_editor.status.inactive";
-
-	internal static bool CanActivateRow(SettingsPanelRowId rowId, SettingsUiState state) =>
-		rowId switch
-		{
-			SettingsPanelRowId.Render or SettingsPanelRowId.MapZoomMin or SettingsPanelRowId.MapZoomMax => state.RenderReady,
-			_ => true,
-		};
-
-	private static string GetToggleStateKey(bool enabled) =>
-		enabled
-			? "ui.settings.state.on"
-			: "ui.settings.state.off";
+	public event Action? UiFontScaleDecreaseRequested;
+	public event Action? UiFontScaleIncreaseRequested;
+	public event Action? HighContrastToggleRequested;
+	public event Action<string>? ColorBlindModeChangeRequested;
 
 	public SettingsPanelModule(PanelContainer panel, InputBindingService bindings)
 	{
@@ -237,6 +179,12 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMinStatusLabel = panel.GetNode<Label>(MapZoomMinRowPath + "/Margin/HBox/Content/Status");
 		_mapZoomMaxTitleLabel = panel.GetNode<Label>(MapZoomMaxRowPath + "/Margin/HBox/Content/Title");
 		_mapZoomMaxStatusLabel = panel.GetNode<Label>(MapZoomMaxRowPath + "/Margin/HBox/Content/Status");
+		_uiFontScaleTitleLabel = panel.GetNode<Label>(UiFontScaleRowPath + "/Margin/HBox/Content/Title");
+		_uiFontScaleStatusLabel = panel.GetNode<Label>(UiFontScaleRowPath + "/Margin/HBox/Content/Status");
+		_highContrastTitleLabel = panel.GetNode<Label>(HighContrastRowPath + "/Margin/HBox/Content/Title");
+		_highContrastStatusLabel = panel.GetNode<Label>(HighContrastRowPath + "/Margin/HBox/Content/Status");
+		_colorBlindTitleLabel = panel.GetNode<Label>(ColorBlindRowPath + "/Margin/HBox/Content/Title");
+		_colorBlindStatusLabel = panel.GetNode<Label>(ColorBlindRowPath + "/Margin/HBox/Content/Status");
 		_watchModeTitleLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Title");
 		_watchModeStatusLabel = panel.GetNode<Label>(WatchModeRowPath + "/Margin/HBox/Content/Status");
 		_fastTurnModeTitleLabel = panel.GetNode<Label>(FastTurnModeRowPath + "/Margin/HBox/Content/Title");
@@ -264,6 +212,10 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMinIncreaseButton = panel.GetNode<Button>(MapZoomMinRowPath + "/Margin/HBox/ZoomMinIncreaseBtn");
 		_mapZoomMaxDecreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxDecreaseBtn");
 		_mapZoomMaxIncreaseButton = panel.GetNode<Button>(MapZoomMaxRowPath + "/Margin/HBox/ZoomMaxIncreaseBtn");
+		_uiFontScaleDecreaseButton = panel.GetNode<Button>(UiFontScaleRowPath + "/Margin/HBox/UiFontScaleDecreaseBtn");
+		_uiFontScaleIncreaseButton = panel.GetNode<Button>(UiFontScaleRowPath + "/Margin/HBox/UiFontScaleIncreaseBtn");
+		_highContrastToggleButton = panel.GetNode<CheckButton>(HighContrastRowPath + "/Margin/HBox/HighContrastToggle");
+		_colorBlindOptionButton = panel.GetNode<OptionButton>(ColorBlindRowPath + "/Margin/HBox/ColorBlindOption");
 		_watchModeButton = panel.GetNode<CheckButton>(WatchModeRowPath + "/Margin/HBox/WatchModeToggle");
 		_fastTurnModeButton = panel.GetNode<CheckButton>(FastTurnModeRowPath + "/Margin/HBox/FastTurnModeToggle");
 		_keyboardTargetingButton = panel.GetNode<CheckButton>(KeyboardTargetingRowPath + "/Margin/HBox/KeyboardTargetingToggle");
@@ -284,6 +236,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			[SettingsPanelRowId.Render] = panel.GetNode<PanelContainer>(RenderRowPath),
 			[SettingsPanelRowId.MapZoomMin] = panel.GetNode<PanelContainer>(MapZoomMinRowPath),
 			[SettingsPanelRowId.MapZoomMax] = panel.GetNode<PanelContainer>(MapZoomMaxRowPath),
+			[SettingsPanelRowId.UiFontScale] = panel.GetNode<PanelContainer>(UiFontScaleRowPath),
+			[SettingsPanelRowId.HighContrast] = panel.GetNode<PanelContainer>(HighContrastRowPath),
+			[SettingsPanelRowId.ColorBlind] = panel.GetNode<PanelContainer>(ColorBlindRowPath),
 			[SettingsPanelRowId.WatchMode] = panel.GetNode<PanelContainer>(WatchModeRowPath),
 			[SettingsPanelRowId.FastTurnMode] = panel.GetNode<PanelContainer>(FastTurnModeRowPath),
 			[SettingsPanelRowId.KeyboardTargeting] = panel.GetNode<PanelContainer>(KeyboardTargetingRowPath),
@@ -318,7 +273,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_renderToggleButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.Render);
-			if (!CanActivateRow(SettingsPanelRowId.Render, _state))
+			if (!SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.Render, _state))
 				return;
 
 			RenderToggleRequested?.Invoke();
@@ -326,7 +281,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMinDecreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMin);
-			if (!CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
+			if (!SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
 				return;
 
 			MapZoomMinDecreaseRequested?.Invoke();
@@ -334,7 +289,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMinIncreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMin);
-			if (!CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
+			if (!SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, _state))
 				return;
 
 			MapZoomMinIncreaseRequested?.Invoke();
@@ -342,7 +297,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMaxDecreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMax);
-			if (!CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
+			if (!SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
 				return;
 
 			MapZoomMaxDecreaseRequested?.Invoke();
@@ -350,10 +305,46 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_mapZoomMaxIncreaseButton.Pressed += () =>
 		{
 			SelectRow(SettingsPanelRowId.MapZoomMax);
-			if (!CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
+			if (!SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, _state))
 				return;
 
 			MapZoomMaxIncreaseRequested?.Invoke();
+		};
+		_uiFontScaleDecreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.UiFontScale);
+			UiFontScaleDecreaseRequested?.Invoke();
+		};
+		_uiFontScaleIncreaseButton.Pressed += () =>
+		{
+			SelectRow(SettingsPanelRowId.UiFontScale);
+			UiFontScaleIncreaseRequested?.Invoke();
+		};
+		_highContrastToggleButton.Pressed += () => SelectRow(SettingsPanelRowId.HighContrast);
+		_highContrastToggleButton.Toggled += _ =>
+		{
+			if (_suppressToggleSignals)
+				return;
+
+			SelectRow(SettingsPanelRowId.HighContrast);
+			HighContrastToggleRequested?.Invoke();
+		};
+		_colorBlindOptionButton.Clear();
+		_colorBlindOptionButton.AddItem(LocalizationService.T("ui.settings.color_blind.option.none"), 0);
+		_colorBlindOptionButton.SetItemMetadata(0, "none");
+		_colorBlindOptionButton.AddItem(LocalizationService.T("ui.settings.color_blind.option.protanopia"), 1);
+		_colorBlindOptionButton.SetItemMetadata(1, "protanopia");
+		_colorBlindOptionButton.AddItem(LocalizationService.T("ui.settings.color_blind.option.deuteranopia"), 2);
+		_colorBlindOptionButton.SetItemMetadata(2, "deuteranopia");
+		_colorBlindOptionButton.AddItem(LocalizationService.T("ui.settings.color_blind.option.tritanopia"), 3);
+		_colorBlindOptionButton.SetItemMetadata(3, "tritanopia");
+		_colorBlindOptionButton.Pressed += () => SelectRow(SettingsPanelRowId.ColorBlind);
+		_colorBlindOptionButton.ItemSelected += idx =>
+		{
+			SelectRow(SettingsPanelRowId.ColorBlind);
+			var mode = _colorBlindOptionButton.GetItemMetadata((int)idx).AsString();
+			if (!string.IsNullOrEmpty(mode))
+				ColorBlindModeChangeRequested?.Invoke(mode);
 		};
 		_watchModeButton.Pressed += () => SelectRow(SettingsPanelRowId.WatchMode);
 		_watchModeButton.Toggled += _ =>
@@ -425,6 +416,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		WireRowSelection(SettingsPanelRowId.Render);
 		WireRowSelection(SettingsPanelRowId.MapZoomMin);
 		WireRowSelection(SettingsPanelRowId.MapZoomMax);
+		WireRowSelection(SettingsPanelRowId.UiFontScale);
+		WireRowSelection(SettingsPanelRowId.HighContrast);
+		WireRowSelection(SettingsPanelRowId.ColorBlind);
 		WireRowSelection(SettingsPanelRowId.WatchMode);
 		WireRowSelection(SettingsPanelRowId.FastTurnMode);
 		WireRowSelection(SettingsPanelRowId.KeyboardTargeting);
@@ -449,6 +443,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
+			UiFontScale: 1.0f,
+			HighContrastEnabled: false,
+			ColorBlindMode: "none",
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 		_selectionModel.ApplyState(_state);
@@ -473,7 +470,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_selectionModel.ApplyState(state);
 
 		_sessionTabButton.Visible = CanShowSessionTab();
-		_rowPanels[SettingsPanelRowId.WatchMode].Visible = ShouldShowWatchMode(state);
+		_rowPanels[SettingsPanelRowId.WatchMode].Visible = SettingsPanelTextResolver.ShouldShowWatchMode(state);
 
 		SetCurrentLocale(state.CurrentLocale);
 		UpdateDynamicStateTexts();
@@ -498,6 +495,9 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_renderTitleLabel.Text = LocalizationService.T("ui.settings.render.title");
 		_mapZoomMinTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_min.title");
 		_mapZoomMaxTitleLabel.Text = LocalizationService.T("ui.settings.map_zoom_max.title");
+		_uiFontScaleTitleLabel.Text = LocalizationService.T("ui.settings.ui_font_scale.title");
+		_highContrastTitleLabel.Text = LocalizationService.T("ui.settings.high_contrast.title");
+		_colorBlindTitleLabel.Text = LocalizationService.T("ui.settings.color_blind.title");
 		_watchModeTitleLabel.Text = LocalizationService.T("ui.settings.watch_mode.title");
 		_fastTurnModeTitleLabel.Text = LocalizationService.T("ui.settings.fast_turn_mode.title");
 		_keyboardTargetingTitleLabel.Text = LocalizationService.T("ui.settings.keyboard_targeting.title");
@@ -510,7 +510,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 		_layoutEditTitleLabel.Text = LocalizationService.T("ui.settings.layout_edit.title");
 		_renderToggleButton.Text = LocalizationService.T("ui.settings.render.action");
 		_autoNavigationInterruptPolicyButton.Text = LocalizationService.T("ui.settings.auto_navigation_interrupt_policy.action");
-		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
+		_bindingsButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
 		_saveButton.Text = LocalizationService.T("ui.settings.save");
 		_loadButton.Text = LocalizationService.T("ui.settings.load");
 		_layoutEditButton.Text = LocalizationService.T("ui.settings.layout_edit");
@@ -661,12 +661,12 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 
 	private void UpdateDynamicStateTexts()
 	{
-		_subtitleLabel.Text = LocalizationService.T(GetSubtitleKey(_state));
-		_footerHintLabel.Text = LocalizationService.T(GetFooterHintKey(_selectionModel.KeyBindingsMode));
+		_subtitleLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetSubtitleKey(_state));
+		_footerHintLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetFooterHintKey(_selectionModel.KeyBindingsMode));
 		_languageStatusLabel.Text = LocalizationService.T(
 			"ui.settings.language.status",
 			("locale", LocalizationService.GetLocaleLabel(_state.CurrentLocale)));
-		_renderStatusLabel.Text = LocalizationService.T(GetRenderStatusKey(_state));
+		_renderStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetRenderStatusKey(_state));
 		_mapZoomMinStatusLabel.Text = LocalizationService.T(
 			"ui.settings.map_zoom_min.status",
 			("value", _state.MapZoomMin.ToString("0.0")),
@@ -675,44 +675,70 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 			"ui.settings.map_zoom_max.status",
 			("value", _state.MapZoomMax.ToString("0.0")),
 			("current", _state.MapZoomCurrent.ToString("0.0")));
-		_watchModeStatusLabel.Text = LocalizationService.T(GetWatchModeStatusKey(_state));
-		_fastTurnModeStatusLabel.Text = LocalizationService.T(GetFastTurnModeStatusKey(_state));
-		_keyboardTargetingStatusLabel.Text = LocalizationService.T(GetKeyboardTargetingStatusKey(_state));
-		_autoNavigationInterruptPolicyStatusLabel.Text = LocalizationService.T(GetAutoNavigationInterruptPolicyStatusKey(_state));
-		_debugPanelStatusLabel.Text = LocalizationService.T(GetDebugPanelStatusKey(_state));
-		_bindingsStatusLabel.Text = LocalizationService.T(GetBindingsStatusKey(_selectionModel.KeyBindingsMode, _keyBindingsView.IsCapturing));
+		_uiFontScaleStatusLabel.Text = LocalizationService.T(
+			"ui.settings.ui_font_scale.status",
+			("value", _state.UiFontScale.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)));
+		_highContrastStatusLabel.Text = LocalizationService.T(
+			_state.HighContrastEnabled
+				? "ui.settings.high_contrast.status.on"
+				: "ui.settings.high_contrast.status.off");
+		_colorBlindStatusLabel.Text = LocalizationService.T(
+			$"ui.settings.color_blind.status.{(string.IsNullOrWhiteSpace(_state.ColorBlindMode) ? "none" : _state.ColorBlindMode)}");
+		_watchModeStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetWatchModeStatusKey(_state));
+		_fastTurnModeStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetFastTurnModeStatusKey(_state));
+		_keyboardTargetingStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetKeyboardTargetingStatusKey(_state));
+		_autoNavigationInterruptPolicyStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetAutoNavigationInterruptPolicyStatusKey(_state));
+		_debugPanelStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetDebugPanelStatusKey(_state));
+		_bindingsStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetBindingsStatusKey(_selectionModel.KeyBindingsMode, _keyBindingsView.IsCapturing));
 		_saveStatusLabel.Text = LocalizationService.T("ui.settings.save.status");
 		_loadStatusLabel.Text = LocalizationService.T("ui.settings.load.status");
-		_mapEditorStatusLabel.Text = LocalizationService.T(GetMapEditorStatusKey(_state));
+		_mapEditorStatusLabel.Text = LocalizationService.T(SettingsPanelTextResolver.GetMapEditorStatusKey(_state));
 		_layoutEditStatusLabel.Text = LocalizationService.T("ui.settings.layout_edit.status");
 
-		_renderToggleButton.Disabled = !CanActivateRow(SettingsPanelRowId.Render, _state);
-		_mapZoomMinDecreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
-		_mapZoomMinIncreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
-		_mapZoomMaxDecreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
-		_mapZoomMaxIncreaseButton.Disabled = !CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
+		_renderToggleButton.Disabled = !SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.Render, _state);
+		_mapZoomMinDecreaseButton.Disabled = !SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
+		_mapZoomMinIncreaseButton.Disabled = !SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, _state);
+		_mapZoomMaxDecreaseButton.Disabled = !SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
+		_mapZoomMaxIncreaseButton.Disabled = !SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, _state);
 		_mapZoomMinDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
 		_mapZoomMinIncreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.increase");
 		_mapZoomMaxDecreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.decrease");
 		_mapZoomMaxIncreaseButton.Text = LocalizationService.T("ui.settings.map_zoom.increase");
+		_uiFontScaleDecreaseButton.Text = LocalizationService.T("ui.settings.ui_font_scale.decrease");
+		_uiFontScaleIncreaseButton.Text = LocalizationService.T("ui.settings.ui_font_scale.increase");
+		_uiFontScaleDecreaseButton.Disabled = _state.UiFontScale <= UIScaleService.MinScale + 0.001f;
+		_uiFontScaleIncreaseButton.Disabled = _state.UiFontScale >= UIScaleService.MaxScale - 0.001f;
 		_mapEditorButton.Text = LocalizationService.T(
 			_state.MapEditorActive
 				? "ui.settings.map_editor.exit"
 				: "ui.settings.map_editor.enter");
-		_bindingsButton.Text = LocalizationService.T(GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
+		_bindingsButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetBindingsButtonKey(_selectionModel.KeyBindingsMode));
 		_keyBindingsRoot.Visible = _selectionModel.KeyBindingsMode;
 
 		_suppressToggleSignals = true;
 		_watchModeButton.ButtonPressed = _state.WatchModeEnabled;
-		_watchModeButton.Text = LocalizationService.T(GetToggleStateKey(_state.WatchModeEnabled));
+		_watchModeButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetToggleStateKey(_state.WatchModeEnabled));
 		_fastTurnModeButton.ButtonPressed = _state.FastTurnModeEnabled;
-		_fastTurnModeButton.Text = LocalizationService.T(GetToggleStateKey(_state.FastTurnModeEnabled));
+		_fastTurnModeButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetToggleStateKey(_state.FastTurnModeEnabled));
 		_keyboardTargetingButton.ButtonPressed = _state.EnableKeyboardTargeting;
-		_keyboardTargetingButton.Text = LocalizationService.T(GetToggleStateKey(_state.EnableKeyboardTargeting));
+		_keyboardTargetingButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetToggleStateKey(_state.EnableKeyboardTargeting));
 		_debugPanelToggleButton.ButtonPressed = _state.EnableDebugPanel;
-		_debugPanelToggleButton.Text = LocalizationService.T(GetToggleStateKey(_state.EnableDebugPanel));
+		_debugPanelToggleButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetToggleStateKey(_state.EnableDebugPanel));
+		_highContrastToggleButton.ButtonPressed = _state.HighContrastEnabled;
+		_highContrastToggleButton.Text = LocalizationService.T(SettingsPanelTextResolver.GetToggleStateKey(_state.HighContrastEnabled));
+		var colorBlindIndex = ResolveColorBlindIndex(_state.ColorBlindMode);
+		if (_colorBlindOptionButton.Selected != colorBlindIndex)
+			_colorBlindOptionButton.Selected = colorBlindIndex;
 		_suppressToggleSignals = false;
 	}
+
+	private static int ResolveColorBlindIndex(string? mode) => (mode ?? "none").Trim().ToLowerInvariant() switch
+	{
+		"protanopia" => 1,
+		"deuteranopia" => 2,
+		"tritanopia" => 3,
+		_ => 0,
+	};
 
 	private void RefreshSelectionUi()
 	{
@@ -748,7 +774,7 @@ public sealed class SettingsPanelModule : ISettingsOverlay, IPanel
 	private void ActivateSelectedRow()
 	{
 		var selectedRow = _selectionModel.SelectedRow;
-		if (!CanActivateRow(selectedRow, _state))
+		if (!SettingsPanelTextResolver.CanActivateRow(selectedRow, _state))
 			return;
 
 		switch (selectedRow)

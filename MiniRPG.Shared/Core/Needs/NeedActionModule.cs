@@ -165,4 +165,68 @@ public static class NeedActionModule
 	private static bool IsFood(Item item) =>
 		string.Equals(item.Category, ItemCategories.Food, StringComparison.Ordinal)
 		|| item.Tags.ContainsKey(ItemTags.Nutrition);
+
+	public static NeedActionResult TryConsumeDrink(GameState state, Actor actor, int inventoryIndex)
+	{
+		var result = new NeedActionResult();
+		NeedSystem.Sync(actor, state.Turn, result.Events, state);
+
+		if (inventoryIndex < 0 || inventoryIndex >= actor.Inventory.Count)
+			return result;
+
+		var item = actor.Inventory[inventoryIndex];
+		if (!IsDrink(item))
+			return result;
+
+		ConsumeDrink(state, actor, item, state.Turn, result.Events);
+		actor.Inventory.RemoveAt(inventoryIndex);
+		var drinkEvent = new GameEvent("drink_consumed")
+		{
+			ActionName = item.Id,
+		};
+		IdentificationModule.PopulateInitiatorIdentity(drinkEvent, state, actor);
+		IdentificationModule.PopulateTargetIdentity(drinkEvent, state, actor);
+		IdentificationModule.PopulateItemIdentity(drinkEvent, state, item);
+		result.Events.Add(drinkEvent);
+		result.Consumed = true;
+		return result;
+	}
+
+	public static NeedActionResult TryConsumeDrink(GameState state, Actor actor, string worldDrinkEntityId)
+	{
+		var result = new NeedActionResult();
+		NeedSystem.Sync(actor, state.Turn, result.Events, state);
+
+		if (string.IsNullOrWhiteSpace(worldDrinkEntityId))
+			return result;
+
+		var item = state.World!.PickupItem(actor.X, actor.Y, state.PlayerZ, worldDrinkEntityId);
+		if (item == null || !IsDrink(item))
+			return result;
+
+		ConsumeDrink(state, actor, item, state.Turn, result.Events);
+		var drinkEvent = new GameEvent("drink_consumed")
+		{
+			ActionName = item.Id,
+		};
+		IdentificationModule.PopulateInitiatorIdentity(drinkEvent, state, actor);
+		IdentificationModule.PopulateTargetIdentity(drinkEvent, state, actor);
+		IdentificationModule.PopulateItemIdentity(drinkEvent, state, item);
+		result.Events.Add(drinkEvent);
+		result.Consumed = true;
+		return result;
+	}
+
+	private static void ConsumeDrink(GameState state, Actor actor, Item item, int currentTurn, System.Collections.Generic.List<GameEvent> events)
+	{
+		var hydration = Math.Min(NeedSystem.NeedMax, item.Tags.GetValueOrDefault(ItemTags.Hydration, 0) * 20f);
+		var current = NeedSystem.GetNeedValue(actor, NeedIds.Thirst);
+		NeedSystem.SetNeedValue(actor, NeedIds.Thirst, current + hydration);
+		NeedSystem.Sync(actor, currentTurn, events, state);
+
+		NeedSystem.ApplyThought(actor, "drank_water", currentTurn, NeedThoughtSources.Drink, events, state);
+	}
+
+	private static bool IsDrink(Item item) =>
+		item.Tags.ContainsKey(ItemTags.Hydration);
 }

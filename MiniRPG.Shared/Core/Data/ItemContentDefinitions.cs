@@ -194,6 +194,7 @@ public sealed class ItemCorpseMetadata
 {
 	public string CorpseProfileId { get; set; } = "";
 	public string SourceActorTemplateId { get; set; } = "";
+	public string SourceActorId { get; set; } = "";
 	public string SourceRaceId { get; set; } = "";
 	public string SourceActorName { get; set; } = "";
 	public bool Stripped { get; set; }
@@ -204,6 +205,7 @@ public sealed class ItemCorpseMetadata
 	{
 		CorpseProfileId = CorpseProfileId,
 		SourceActorTemplateId = SourceActorTemplateId,
+		SourceActorId = SourceActorId,
 		SourceRaceId = SourceRaceId,
 		SourceActorName = SourceActorName,
 		Stripped = Stripped,

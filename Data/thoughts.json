@@ -2,6 +2,10 @@
   { "id": "peckish", "labelKey": "ui.thought.peckish", "displayName": "Peckish", "moodOffset": -3, "durationTurns": -1 },
   { "id": "hungry", "labelKey": "ui.thought.hungry", "displayName": "Hungry", "moodOffset": -10, "durationTurns": -1 },
   { "id": "starving", "labelKey": "ui.thought.starving", "displayName": "Starving", "moodOffset": -20, "durationTurns": -1 },
+  { "id": "parched", "labelKey": "ui.thought.parched", "displayName": "Parched", "moodOffset": -2, "durationTurns": -1 },
+  { "id": "thirsty", "labelKey": "ui.thought.thirsty", "displayName": "Thirsty", "moodOffset": -8, "durationTurns": -1 },
+  { "id": "dehydrated", "labelKey": "ui.thought.dehydrated", "displayName": "Dehydrated", "moodOffset": -18, "durationTurns": -1 },
+  { "id": "drank_water", "labelKey": "ui.thought.drank_water", "displayName": "Drank water", "moodOffset": 1, "durationTurns": 140 },
   { "id": "tired", "labelKey": "ui.thought.tired", "displayName": "Tired", "moodOffset": -6, "durationTurns": -1 },
   { "id": "exhausted", "labelKey": "ui.thought.exhausted", "displayName": "Exhausted", "moodOffset": -14, "durationTurns": -1 },
   { "id": "ate_simple", "labelKey": "ui.thought.ate_simple", "displayName": "Ate simple food", "moodOffset": 0, "durationTurns": 180 },
@@ -12,5 +16,9 @@
   { "id": "slept_home_floor", "labelKey": "ui.thought.slept_home_floor", "displayName": "Slept on home floor", "moodOffset": 1, "durationTurns": 180 },
   { "id": "sleep_interrupted", "labelKey": "ui.thought.sleep_interrupted", "displayName": "Sleep interrupted", "moodOffset": -8, "durationTurns": 180 },
   { "id": "hurt_recently", "labelKey": "ui.thought.hurt_recently", "displayName": "Hurt recently", "moodOffset": -5, "durationTurns": 140 },
-  { "id": "limb_destroyed", "labelKey": "ui.thought.limb_destroyed", "displayName": "Lost a limb", "moodOffset": -14, "durationTurns": 420 }
+  { "id": "limb_destroyed", "labelKey": "ui.thought.limb_destroyed", "displayName": "Lost a limb", "moodOffset": -14, "durationTurns": 420 },
+  { "id": "cold_snap_chill", "labelKey": "ui.thought.cold_snap_chill", "displayName": "Chilled by the cold snap", "moodOffset": -4, "durationTurns": 240 },
+  { "id": "heat_wave_fatigue", "labelKey": "ui.thought.heat_wave_fatigue", "displayName": "Drained by the heat wave", "moodOffset": -4, "durationTurns": 240 },
+  { "id": "rescued_traveler", "labelKey": "ui.thought.rescued_traveler", "displayName": "Helped a lost traveler", "moodOffset": 3, "durationTurns": 240 },
+  { "id": "supplies_arrived", "labelKey": "ui.thought.supplies_arrived", "displayName": "Supplies arrived", "moodOffset": 2, "durationTurns": 180 }
 ]

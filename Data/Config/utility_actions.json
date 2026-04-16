@@ -181,6 +181,20 @@
       "cooldownTurns": 0
     },
     {
+      "id": "drink_water",
+      "executor": "drink_water",
+      "bonusScore": 0.65,
+      "considerations": [
+        { "input": "thirst_urgency", "curve": { "type": "exponential", "exponent": 2.0 } },
+        { "input": "drink_available", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.2 } }
+      ],
+      "tags": ["needs"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
       "id": "rest_sleep",
       "executor": "rest_sleep",
       "bonusScore": 0.55,

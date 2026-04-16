@@ -8,13 +8,16 @@ public sealed class NeedsHudModule
 {
 	private readonly PanelContainer _root;
 	private readonly Label _hungerLabel;
+	private readonly Label _thirstLabel;
 	private readonly Label _restLabel;
 	private readonly Label _moodLabel;
 	private readonly ProgressBar _hungerBar;
+	private readonly ProgressBar _thirstBar;
 	private readonly ProgressBar _restBar;
 	private readonly ProgressBar _moodBar;
 
 	private float _prevHunger = -1f;
+	private float _prevThirst = -1f;
 	private float _prevRest = -1f;
 	private float _prevMood = -1f;
 
@@ -23,9 +26,11 @@ public sealed class NeedsHudModule
 		_root = root;
 		var vbox = _root.GetNode<VBoxContainer>("Margin/VBox");
 		_hungerLabel = vbox.GetNode<Label>("HungerRow/Hunger");
+		_thirstLabel = vbox.GetNode<Label>("ThirstRow/Thirst");
 		_restLabel = vbox.GetNode<Label>("RestRow/Rest");
 		_moodLabel = vbox.GetNode<Label>("MoodRow/Mood");
 		_hungerBar = vbox.GetNode<ProgressBar>("HungerRow/HungerBar");
+		_thirstBar = vbox.GetNode<ProgressBar>("ThirstRow/ThirstBar");
 		_restBar = vbox.GetNode<ProgressBar>("RestRow/RestBar");
 		_moodBar = vbox.GetNode<ProgressBar>("MoodRow/MoodBar");
 	}
@@ -46,7 +51,7 @@ public sealed class NeedsHudModule
 			OffsetLeft = -230f,
 			OffsetTop = 14f,
 			OffsetRight = -14f,
-			OffsetBottom = 130f,
+			OffsetBottom = 156f,
 			ZIndex = 58,
 		};
 
@@ -80,6 +85,7 @@ public sealed class NeedsHudModule
 		margin.AddChild(vbox);
 
 		vbox.AddChild(BuildNeedRow("Hunger"));
+		vbox.AddChild(BuildNeedRow("Thirst"));
 		vbox.AddChild(BuildNeedRow("Rest"));
 		vbox.AddChild(BuildNeedRow("Mood"));
 		return root;
@@ -127,26 +133,32 @@ public sealed class NeedsHudModule
 
 		_root.Visible = true;
 		var hunger = NeedSystem.GetNeedValueSnapshot(player, NeedIds.Hunger);
+		var thirst = NeedSystem.GetNeedValueSnapshot(player, NeedIds.Thirst);
 		var rest = NeedSystem.GetNeedValueSnapshot(player, NeedIds.Rest);
 		var mood = player.MoodValue;
 
 		ApplyNeedLabel(_hungerLabel, NeedIds.Hunger, hunger);
+		ApplyNeedLabel(_thirstLabel, NeedIds.Thirst, thirst);
 		ApplyNeedLabel(_restLabel, NeedIds.Rest, rest);
 		ApplyMoodLabel(_moodLabel, mood, NeedCatalog.GetProfileForActor(player).AllowMood);
 
 		AnimateBar(_hungerBar, hunger, _prevHunger, ResolveNeedColor(NeedIds.Hunger, hunger));
+		AnimateBar(_thirstBar, thirst, _prevThirst, ResolveNeedColor(NeedIds.Thirst, thirst));
 		AnimateBar(_restBar, rest, _prevRest, ResolveNeedColor(NeedIds.Rest, rest));
 		var moodAllowed = NeedCatalog.GetProfileForActor(player).AllowMood;
 		AnimateBar(_moodBar, moodAllowed ? mood : 0, _prevMood, moodAllowed ? ResolveMoodColor(mood) : UIColors.TextDim);
 
 		if (_prevHunger >= 0 && Mathf.Abs(hunger - _prevHunger) > 5f)
 			PulseLabel(_hungerLabel);
+		if (_prevThirst >= 0 && Mathf.Abs(thirst - _prevThirst) > 5f)
+			PulseLabel(_thirstLabel);
 		if (_prevRest >= 0 && Mathf.Abs(rest - _prevRest) > 5f)
 			PulseLabel(_restLabel);
 		if (_prevMood >= 0 && Mathf.Abs(mood - _prevMood) > 5f)
 			PulseLabel(_moodLabel);
 
 		_prevHunger = hunger;
+		_prevThirst = thirst;
 		_prevRest = rest;
 		_prevMood = mood;
 	}
@@ -159,7 +171,11 @@ public sealed class NeedsHudModule
 	private static void ApplyNeedLabel(Label label, string needId, float value)
 	{
 		var name = NeedCatalog.GetNeedDisplayName(needId);
-		label.Text = $"{name}: {value:0}";
+		var stageId = NeedCatalog.ResolveStageId(needId, value);
+		var stageSuffix = string.IsNullOrEmpty(stageId)
+			? string.Empty
+			: $" ({NeedCatalog.GetThoughtDisplayName(stageId)})";
+		label.Text = $"{name}: {value:0}{stageSuffix}";
 		label.AddThemeColorOverride("font_color", ResolveNeedColor(needId, value));
 	}
 

@@ -288,6 +288,9 @@ public sealed class SkillBarModule : IPanel
 		UpdateCellVisuals();
 		RenderDetail();
 		EnsureSelectedVisible();
+
+		if (index < _skillButtons.Count)
+			ButtonPressFlash.Flash(_skillButtons[index]);
 	}
 
 	private void OnCellHover(int index)

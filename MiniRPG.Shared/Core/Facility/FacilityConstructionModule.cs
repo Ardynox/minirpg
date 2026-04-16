@@ -25,6 +25,59 @@ public sealed class FacilityWorkResult
 
 public static class FacilityConstructionModule
 {
+	/// <summary>
+	/// 直接放一个已建成的 facility（<see cref="FacilityStage.Active"/>），跳过蓝图→送料→施工的全流程。
+	/// 供地图初始化 / debug / 特殊 incident 使用；正常玩家交互应走 <see cref="TryPlaceBlueprint"/>。
+	/// </summary>
+	public static FacilityPlacementResult TryPlaceCompleted(
+		GameState state,
+		string facilityDefId,
+		int anchorX,
+		int anchorY,
+		int z,
+		FacilityRotation rotation,
+		string? ownerDomainId = null)
+	{
+		if (state.World == null)
+			return new FacilityPlacementResult { FailureReason = "missing_world" };
+
+		var def = FacilityRegistry.Get(facilityDefId);
+		if (def == null)
+			return new FacilityPlacementResult { FailureReason = "unknown_facility" };
+
+		var effectiveRotation = def.CanRotate ? rotation : FacilityRotation.North;
+		var blockers = state.World.GetFacilityBlockers(def, anchorX, anchorY, z, effectiveRotation);
+		if (blockers.Count > 0)
+			return new FacilityPlacementResult { FailureReason = "blocked", Blockers = blockers };
+
+		state.EnsureDefaultEconomicDomains();
+		var facility = new FacilityInstance
+		{
+			Id = AllocateFacilityId(state, def.Id),
+			FacilityDefId = def.Id,
+			AnchorX = anchorX,
+			AnchorY = anchorY,
+			Z = z,
+			Rotation = effectiveRotation,
+			Stage = FacilityStage.Active,
+			OwnerDomainId = string.IsNullOrWhiteSpace(ownerDomainId) ? DomainIds.Player : ownerDomainId,
+			AllowPersonalUse = SupportsInteraction(def, FacilityInteractionModes.PersonalUse),
+			AllowDomainOrders = SupportsInteraction(def, FacilityInteractionModes.DomainOrder),
+			MaxHitPoints = Math.Max(1, def.MaxHitPoints),
+			HitPoints = Math.Max(1, def.MaxHitPoints),
+		};
+
+		state.Facilities[facility.Id] = facility;
+		SyncConstructionRuntime(state);
+
+		return new FacilityPlacementResult
+		{
+			Success = true,
+			FacilityId = facility.Id,
+			Facility = facility,
+		};
+	}
+
 	public static FacilityPlacementResult TryPlaceBlueprint(
 		GameState state,
 		string facilityDefId,

@@ -33,6 +33,7 @@ public static class ExecutorRegistry
 		Register("search_area", new SearchAreaExecutor());
 
 		Register("eat_food", new EatFoodExecutor());
+		Register("drink_water", new DrinkWaterExecutor());
 		Register("rest_sleep", new RestSleepExecutor());
 		Register("tend_self", new TendSelfExecutor());
 		Register("tend_other", new TendOtherExecutor());

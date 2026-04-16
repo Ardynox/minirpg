@@ -39,6 +39,9 @@ public readonly record struct SettingsUiState(
 	float MapZoomMin,
 	float MapZoomMax,
 	float MapZoomCurrent,
+	float UiFontScale,
+	bool HighContrastEnabled,
+	string ColorBlindMode,
 	AutoNavigationInterruptPolicy AutoNavigationInterruptPolicy);
 
 public interface ISettingsFlowPanel
@@ -101,6 +104,10 @@ public interface ISettingsOverlay : ISettingsFlowPanel
 	event Action? MapZoomMinIncreaseRequested;
 	event Action? MapZoomMaxDecreaseRequested;
 	event Action? MapZoomMaxIncreaseRequested;
+	event Action? UiFontScaleDecreaseRequested;
+	event Action? UiFontScaleIncreaseRequested;
+	event Action? HighContrastToggleRequested;
+	event Action<string>? ColorBlindModeChangeRequested;
 	event Action? SaveRequested;
 	event Action? LoadRequested;
 	event Action? MapEditorToggleRequested;
@@ -135,6 +142,10 @@ public sealed class SettingsFlowCoordinator
 	public event Action? MapZoomMinIncreaseRequested;
 	public event Action? MapZoomMaxDecreaseRequested;
 	public event Action? MapZoomMaxIncreaseRequested;
+	public event Action? UiFontScaleDecreaseRequested;
+	public event Action? UiFontScaleIncreaseRequested;
+	public event Action? HighContrastToggleRequested;
+	public event Action<string>? ColorBlindModeChangeRequested;
 	public event Action? SaveRequested;
 	public event Action? LoadRequested;
 	public event Action? MapEditorToggleRequested;
@@ -162,6 +173,9 @@ public sealed class SettingsFlowCoordinator
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
+			UiFontScale: 1.0f,
+			HighContrastEnabled: false,
+			ColorBlindMode: "none",
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 		_pauseMenu.ActionRequested += HandlePauseAction;
@@ -176,6 +190,10 @@ public sealed class SettingsFlowCoordinator
 		_settings.MapZoomMinIncreaseRequested += () => MapZoomMinIncreaseRequested?.Invoke();
 		_settings.MapZoomMaxDecreaseRequested += () => MapZoomMaxDecreaseRequested?.Invoke();
 		_settings.MapZoomMaxIncreaseRequested += () => MapZoomMaxIncreaseRequested?.Invoke();
+		_settings.UiFontScaleDecreaseRequested += () => UiFontScaleDecreaseRequested?.Invoke();
+		_settings.UiFontScaleIncreaseRequested += () => UiFontScaleIncreaseRequested?.Invoke();
+		_settings.HighContrastToggleRequested += () => HighContrastToggleRequested?.Invoke();
+		_settings.ColorBlindModeChangeRequested += mode => ColorBlindModeChangeRequested?.Invoke(mode);
 		_settings.SaveRequested += () => SaveRequested?.Invoke();
 		_settings.LoadRequested += () => LoadRequested?.Invoke();
 		_settings.MapEditorToggleRequested += () => MapEditorToggleRequested?.Invoke();

@@ -6,6 +6,7 @@ namespace MiniRPG.Core.Needs;
 public static class NeedIds
 {
 	public const string Hunger = "hunger";
+	public const string Thirst = "thirst";
 	public const string Rest = "rest";
 	public const string Mood = "mood";
 }
@@ -13,8 +14,10 @@ public static class NeedIds
 public static class NeedThoughtSources
 {
 	public const string HungerStage = "need_stage:hunger";
+	public const string ThirstStage = "need_stage:thirst";
 	public const string RestStage = "need_stage:rest";
 	public const string Meal = "meal";
+	public const string Drink = "drink";
 	public const string Sleep = "sleep";
 	public const string Social = "social";
 	public const string Combat = "combat";
@@ -78,6 +81,13 @@ public sealed class NeedStageDef
 
 	[JsonPropertyName("maxValue")]
 	public float MaxValue { get; set; } = 100f;
+
+	/// <summary>
+	/// 可选：该 stage 激活时对 actor capacity 的乘数（如 { "moving": 0.9, "consciousness": 0.85 }）。
+	/// 留空视为无乘数。让 <see cref="NeedSystem.GetCapacityMultiplier"/> 可以纯数据驱动，避免硬编码分支。
+	/// </summary>
+	[JsonPropertyName("capacityMultipliers")]
+	public Dictionary<string, float> CapacityMultipliers { get; set; } = new(System.StringComparer.Ordinal);
 }
 
 public sealed class NeedProfileDef

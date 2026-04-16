@@ -198,6 +198,54 @@ public static class PartyModule
 		state.Party.ActiveId = actorId;
 		return true;
 	}
+
+	/// <summary>
+	/// 返回队伍中是否还有至少一个活着的成员。
+	/// "活着"的定义：actor 存在于 <see cref="GameState.Actors"/> 且 <see cref="Combat.CombatModule.IsDead"/> 返回 false。
+	/// </summary>
+	public static bool AnyMemberAlive(GameState state)
+	{
+		foreach (var id in state.Party.MemberIds)
+		{
+			var actor = ActorModule.GetById(state, id);
+			if (actor != null && !Combat.CombatModule.IsDead(actor))
+				return true;
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// 当前激活角色死亡后，把激活角色切换到队伍里下一个还活着的成员。
+	/// 返回 true 表示成功切换（仍有活人），false 表示全队已死。
+	/// </summary>
+	/// <remarks>
+	/// 设计意图（见 <c>Docs/产品愿景.md</c> 死亡与复活）：
+	/// 玩家控制多个角色但同时只操作一个；某个成员死亡时视角自动切到下一个活着的队员，
+	/// 只有全队死亡才进入"回主菜单/永久死"流程。
+	/// </remarks>
+	public static bool TryPromoteNextLivingMember(GameState state)
+	{
+		EnsureValid(state);
+		if (state.Party.MemberIds.Count == 0)
+			return false;
+
+		var startIndex = Math.Max(0, state.Party.MemberIds.IndexOf(state.Party.ActiveId));
+		var count = state.Party.MemberIds.Count;
+		for (var step = 1; step <= count; step++)
+		{
+			var idx = (startIndex + step) % count;
+			var id = state.Party.MemberIds[idx];
+			var actor = ActorModule.GetById(state, id);
+			if (actor != null && !Combat.CombatModule.IsDead(actor))
+			{
+				state.Party.ActiveId = id;
+				return true;
+			}
+		}
+
+		state.Party.ActiveId = string.Empty;
+		return false;
+	}
 }
 
 public sealed class PartyActionResult

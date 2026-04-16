@@ -131,6 +131,7 @@ public static class ItemTags
 {
 	public const string Healing = "\u6cbb\u7597";
 	public const string Nutrition = "\u9971\u8179";
+	public const string Hydration = "\u89e3\u6e34";
 	public const string Mood = "\u5fc3\u60c5";
 	public const string RestQuality = "\u4f11\u606f\u8d28\u91cf";
 	public const string Warmth = "\u4fdd\u6696";

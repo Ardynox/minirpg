@@ -30,6 +30,7 @@ public sealed class SettingsFlowCoordinatorTests
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
+			UiFontScale: 1.0f,
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenSettings(SettingsEntryContext.MainMenu, SettingsTab.Controls);
@@ -68,6 +69,7 @@ public sealed class SettingsFlowCoordinatorTests
 			MapZoomMin: 0.6f,
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
+			UiFontScale: 1.0f,
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenPauseMenu();
@@ -162,6 +164,8 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? MapZoomMinIncreaseRequested { add { } remove { } }
 		public event Action? MapZoomMaxDecreaseRequested { add { } remove { } }
 		public event Action? MapZoomMaxIncreaseRequested { add { } remove { } }
+		public event Action? UiFontScaleDecreaseRequested { add { } remove { } }
+		public event Action? UiFontScaleIncreaseRequested { add { } remove { } }
 		public event Action? SaveRequested { add { } remove { } }
 		public event Action? LoadRequested { add { } remove { } }
 		public event Action? MapEditorToggleRequested { add { } remove { } }

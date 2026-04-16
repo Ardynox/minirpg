@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Social;
 
 namespace MiniRPG.Core.AI;
 
@@ -44,6 +45,15 @@ public sealed class AIBehaviorContext
 	{
 		_state = state;
 	}
+
+	/// <summary>Optional social graph used by relationship-based input resolvers.</summary>
+	public RelationshipModule? Relationships { get; init; }
+
+	/// <summary>Optional per-actor memory store used by memory-based input resolvers.</summary>
+	public ActorMemoryModule? ActorMemories { get; init; }
+
+	/// <summary>Optional rumor bus used by rumor-based input resolvers.</summary>
+	public RumorBus? Rumors { get; init; }
 
 	public bool HasNearbyThreat(Actor actor, int radius)
 	{

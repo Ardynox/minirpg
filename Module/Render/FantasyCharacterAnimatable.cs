@@ -8,8 +8,11 @@ public partial class FantasyCharacterAnimatable : Node2D, IAnimatable
 {
 	private const int FrameWidth = 128;
 	private const int FrameHeight = 128;
+	private const int DirectionRowCount = 8;
 	private const float DefaultFramesPerSecond = 12f;
+	private const string MissingSheetFallbackPath = "res://Assets/Art/Placeholders/fallbacks/missing_character_sheet_8dir.png";
 	private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
+	private static readonly HashSet<string> MissingSheetWarnings = new(StringComparer.OrdinalIgnoreCase);
 	private static readonly Dictionary<string, string> AnimationSheetMap = new(KeyComparer)
 	{
 		["Idle"] = "Idle",
@@ -23,6 +26,9 @@ public partial class FantasyCharacterAnimatable : Node2D, IAnimatable
 		["Special_1"] = "Special1",
 		["Special1"] = "Special1",
 	};
+	private static Texture2D? _missingSheetFallbackTexture;
+	private static string _missingSheetFallbackLabel = MissingSheetFallbackPath;
+	private static bool _missingSheetFallbackInitialized;
 
 	private readonly Sprite2D _sprite;
 	private readonly Dictionary<string, Texture2D> _sheets = new(KeyComparer);
@@ -221,11 +227,12 @@ public partial class FantasyCharacterAnimatable : Node2D, IAnimatable
 		if (_sheets.TryGetValue(sheetKey, out var cached))
 			return cached;
 
-		var texture = LoadTexture($"{_sheetDirectory}/{sheetKey}.png");
+		var requestedPath = $"{_sheetDirectory}/{sheetKey}.png";
+		var texture = LoadTexture(requestedPath);
 		if (texture == null && !KeyComparer.Equals(sheetKey, "Idle"))
 			texture = EnsureSheetLoaded("Idle");
 		if (texture == null)
-			throw new InvalidOperationException($"Failed to load character sheet: {_sheetDirectory}/{sheetKey}.png");
+			texture = EnsureMissingSheetFallback(requestedPath);
 
 		_sheets[sheetKey] = texture;
 		return texture;
@@ -234,6 +241,119 @@ public partial class FantasyCharacterAnimatable : Node2D, IAnimatable
 	private static Texture2D? LoadTexture(string path)
 	{
 		return GD.Load<Texture2D>(path);
+	}
+
+	internal static Texture2D GetMissingSheetFallbackTexture(string missingPath)
+	{
+		return EnsureMissingSheetFallback(missingPath);
+	}
+
+	private static Texture2D EnsureMissingSheetFallback(string missingPath)
+	{
+		if (!_missingSheetFallbackInitialized)
+			InitializeMissingSheetFallback();
+
+		if (MissingSheetWarnings.Add(missingPath))
+		{
+			GD.PushWarning(
+				$"[FantasyCharacterAnimatable] Missing character sheet '{missingPath}', using fallback '{_missingSheetFallbackLabel}'.");
+		}
+
+		return _missingSheetFallbackTexture!;
+	}
+
+	private static void InitializeMissingSheetFallback()
+	{
+		if (_missingSheetFallbackInitialized)
+			return;
+
+		_missingSheetFallbackTexture = LoadTexture(MissingSheetFallbackPath);
+		_missingSheetFallbackLabel = MissingSheetFallbackPath;
+		if (_missingSheetFallbackTexture == null)
+		{
+			_missingSheetFallbackTexture = CreateGeneratedMissingSheetFallbackTexture();
+			_missingSheetFallbackLabel = "<generated red-x sheet>";
+			GD.PushWarning(
+				$"[FantasyCharacterAnimatable] Missing fallback texture asset '{MissingSheetFallbackPath}', generated an in-memory red-x sheet instead.");
+		}
+
+		_missingSheetFallbackInitialized = true;
+	}
+
+	private static Texture2D CreateGeneratedMissingSheetFallbackTexture()
+	{
+		var image = Image.CreateEmpty(FrameWidth, FrameHeight * DirectionRowCount, false, Image.Format.Rgba8);
+		image.Fill(Colors.Transparent);
+
+		for (var row = 0; row < DirectionRowCount; row++)
+			DrawGeneratedFallbackRow(image, row * FrameHeight);
+
+		return ImageTexture.CreateFromImage(image);
+	}
+
+	private static void DrawGeneratedFallbackRow(Image image, int rowOffset)
+	{
+		var centerX = FrameWidth * 0.5f;
+		var centerY = rowOffset + FrameHeight * 0.5f;
+		DrawFilledCircle(image, centerX, centerY, 50f, new Color(0.06f, 0.06f, 0.06f, 0.68f));
+		DrawFilledCircle(image, centerX, centerY, 42f, new Color(0.12f, 0.12f, 0.12f, 0.22f));
+		DrawThickLine(image, 32f, rowOffset + 32f, 96f, rowOffset + 96f, 18f, new Color(0.25f, 0.02f, 0.02f, 0.60f));
+		DrawThickLine(image, 96f, rowOffset + 32f, 32f, rowOffset + 96f, 18f, new Color(0.25f, 0.02f, 0.02f, 0.60f));
+		DrawThickLine(image, 30f, rowOffset + 30f, 98f, rowOffset + 98f, 12f, new Color(0.86f, 0.16f, 0.16f, 1f));
+		DrawThickLine(image, 98f, rowOffset + 30f, 30f, rowOffset + 98f, 12f, new Color(0.86f, 0.16f, 0.16f, 1f));
+		DrawThickLine(image, 38f, rowOffset + 38f, 90f, rowOffset + 90f, 4f, new Color(1f, 0.62f, 0.62f, 0.92f));
+		DrawThickLine(image, 90f, rowOffset + 38f, 38f, rowOffset + 90f, 4f, new Color(1f, 0.62f, 0.62f, 0.92f));
+	}
+
+	private static void DrawFilledCircle(Image image, float centerX, float centerY, float radius, Color color)
+	{
+		var radiusSquared = radius * radius;
+		var minX = Math.Max(0, (int)Math.Floor(centerX - radius));
+		var maxX = Math.Min(image.GetWidth() - 1, (int)Math.Ceiling(centerX + radius));
+		var minY = Math.Max(0, (int)Math.Floor(centerY - radius));
+		var maxY = Math.Min(image.GetHeight() - 1, (int)Math.Ceiling(centerY + radius));
+
+		for (var py = minY; py <= maxY; py++)
+		for (var px = minX; px <= maxX; px++)
+		{
+			var dx = (px + 0.5f) - centerX;
+			var dy = (py + 0.5f) - centerY;
+			if (dx * dx + dy * dy <= radiusSquared)
+				image.SetPixel(px, py, color);
+		}
+	}
+
+	private static void DrawThickLine(Image image, float x0, float y0, float x1, float y1, float thickness, Color color)
+	{
+		var halfThickness = thickness * 0.5f;
+		var minX = Math.Max(0, (int)Math.Floor(Math.Min(x0, x1) - halfThickness - 1f));
+		var maxX = Math.Min(image.GetWidth() - 1, (int)Math.Ceiling(Math.Max(x0, x1) + halfThickness + 1f));
+		var minY = Math.Max(0, (int)Math.Floor(Math.Min(y0, y1) - halfThickness - 1f));
+		var maxY = Math.Min(image.GetHeight() - 1, (int)Math.Ceiling(Math.Max(y0, y1) + halfThickness + 1f));
+		var dx = x1 - x0;
+		var dy = y1 - y0;
+		var lengthSquared = dx * dx + dy * dy;
+		if (lengthSquared <= float.Epsilon)
+		{
+			DrawFilledCircle(image, x0, y0, halfThickness, color);
+			return;
+		}
+
+		var thresholdSquared = halfThickness * halfThickness;
+		for (var py = minY; py <= maxY; py++)
+		for (var px = minX; px <= maxX; px++)
+		{
+			var pointX = px + 0.5f;
+			var pointY = py + 0.5f;
+			var projection = ((pointX - x0) * dx + (pointY - y0) * dy) / lengthSquared;
+			projection = Math.Clamp(projection, 0f, 1f);
+			var closestX = x0 + dx * projection;
+			var closestY = y0 + dy * projection;
+			var distanceX = pointX - closestX;
+			var distanceY = pointY - closestY;
+			if (distanceX * distanceX + distanceY * distanceY <= thresholdSquared)
+				image.SetPixel(px, py, color);
+		}
 	}
 
 	private static string ResolveAnimation(string animName)

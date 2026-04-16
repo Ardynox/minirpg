@@ -22,7 +22,6 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private const int ViewH = 15;
 	private const string HudRootPath = "HudLayer/UI";
 	private const string OverlayRootPath = "OverlayLayer";
-	private const string HeavyTileSetPath = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres";
 	private const string ChestPanelScenePath = "res://Scene/ChestPanel.tscn";
 	private const string DialogPanelScenePath = "res://Scene/DialogPanel.tscn";
 	private const string TradePanelScenePath = "res://Scene/TradePanel.tscn";
@@ -122,6 +121,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private HealthAlertsModule _healthAlerts = null!;
 	private PartyHudModule _partyHud = null!;
 	private IncidentAlertModule _incidentAlerts = null!;
+	private ToastOverlay _toastOverlay = null!;
+	private RichTooltipLayer _richTooltips = null!;
 	private bool _timelineStatusLogPrimed;
 	private TimelineInputLockReason _lastTimelineLockReason;
 

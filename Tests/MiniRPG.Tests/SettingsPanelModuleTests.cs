@@ -42,7 +42,7 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Equal([SettingsTab.General, SettingsTab.Controls], model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale],
 			model.GetVisibleRows(SettingsTab.General));
 		Assert.Empty(model.GetVisibleRows(SettingsTab.Session));
 	}
@@ -60,7 +60,7 @@ public sealed class SettingsPanelModuleTests
 			[SettingsTab.General, SettingsTab.Controls, SettingsTab.Session],
 			model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
 			model.GetVisibleRows(SettingsTab.General));
 		Assert.Equal(
 			[SettingsPanelRowId.KeyboardTargeting, SettingsPanelRowId.AutoNavigationInterruptPolicy, SettingsPanelRowId.DebugPanel, SettingsPanelRowId.KeyBindings],
@@ -109,19 +109,19 @@ public sealed class SettingsPanelModuleTests
 			enableDebugPanel: false,
 			canOpenSessionTab: true);
 
-		Assert.True(SettingsPanelModule.ShouldShowWatchMode(readyState));
-		Assert.Equal("ui.settings.subtitle.in_game", SettingsPanelModule.GetSubtitleKey(readyState));
-		Assert.Equal("ui.settings.render.status.ready", SettingsPanelModule.GetRenderStatusKey(readyState));
-		Assert.Equal("ui.settings.watch_mode.status.on", SettingsPanelModule.GetWatchModeStatusKey(readyState));
-		Assert.Equal("ui.settings.keyboard_targeting.status.on", SettingsPanelModule.GetKeyboardTargetingStatusKey(readyState));
-		Assert.Equal("ui.settings.auto_navigation_interrupt_policy.status.hostile_proximity_stop", SettingsPanelModule.GetAutoNavigationInterruptPolicyStatusKey(readyState));
-		Assert.Equal("ui.settings.debug_panel.status.off", SettingsPanelModule.GetDebugPanelStatusKey(readyState));
-		Assert.Equal("ui.settings.map_editor.status.active", SettingsPanelModule.GetMapEditorStatusKey(readyState));
-		Assert.Equal("ui.settings.key_bindings.status.idle", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: false, isCapturing: false));
-		Assert.Equal("ui.settings.key_bindings.status.active", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: false));
-		Assert.Equal("ui.settings.key_bindings.status.capturing", SettingsPanelModule.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: true));
-		Assert.Equal("ui.settings.key_bindings.return", SettingsPanelModule.GetBindingsButtonKey(keyBindingsMode: true));
-		Assert.Equal("ui.settings.hint.bindings", SettingsPanelModule.GetFooterHintKey(keyBindingsMode: true));
+		Assert.True(SettingsPanelTextResolver.ShouldShowWatchMode(readyState));
+		Assert.Equal("ui.settings.subtitle.in_game", SettingsPanelTextResolver.GetSubtitleKey(readyState));
+		Assert.Equal("ui.settings.render.status.ready", SettingsPanelTextResolver.GetRenderStatusKey(readyState));
+		Assert.Equal("ui.settings.watch_mode.status.on", SettingsPanelTextResolver.GetWatchModeStatusKey(readyState));
+		Assert.Equal("ui.settings.keyboard_targeting.status.on", SettingsPanelTextResolver.GetKeyboardTargetingStatusKey(readyState));
+		Assert.Equal("ui.settings.auto_navigation_interrupt_policy.status.hostile_proximity_stop", SettingsPanelTextResolver.GetAutoNavigationInterruptPolicyStatusKey(readyState));
+		Assert.Equal("ui.settings.debug_panel.status.off", SettingsPanelTextResolver.GetDebugPanelStatusKey(readyState));
+		Assert.Equal("ui.settings.map_editor.status.active", SettingsPanelTextResolver.GetMapEditorStatusKey(readyState));
+		Assert.Equal("ui.settings.key_bindings.status.idle", SettingsPanelTextResolver.GetBindingsStatusKey(keyBindingsMode: false, isCapturing: false));
+		Assert.Equal("ui.settings.key_bindings.status.active", SettingsPanelTextResolver.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: false));
+		Assert.Equal("ui.settings.key_bindings.status.capturing", SettingsPanelTextResolver.GetBindingsStatusKey(keyBindingsMode: true, isCapturing: true));
+		Assert.Equal("ui.settings.key_bindings.return", SettingsPanelTextResolver.GetBindingsButtonKey(keyBindingsMode: true));
+		Assert.Equal("ui.settings.hint.bindings", SettingsPanelTextResolver.GetFooterHintKey(keyBindingsMode: true));
 	}
 
 	[Fact]
@@ -132,9 +132,9 @@ public sealed class SettingsPanelModuleTests
 			renderReady: false,
 			canOpenSessionTab: true);
 
-		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.Render, state));
-		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
-		Assert.False(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
+		Assert.False(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.Render, state));
+		Assert.False(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
+		Assert.False(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
 	}
 
 	[Fact]
@@ -145,9 +145,9 @@ public sealed class SettingsPanelModuleTests
 			renderReady: true,
 			canOpenSessionTab: true);
 
-		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.Render, state));
-		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
-		Assert.True(SettingsPanelModule.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
+		Assert.True(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.Render, state));
+		Assert.True(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMin, state));
+		Assert.True(SettingsPanelTextResolver.CanActivateRow(SettingsPanelRowId.MapZoomMax, state));
 	}
 
 	private static SettingsUiState CreateState(
@@ -171,6 +171,7 @@ public sealed class SettingsPanelModuleTests
 			enableDebugPanel,
 			0.6f,
 			2.4f,
+			1.0f,
 			1.0f,
 			autoNavigationInterruptPolicy);
 

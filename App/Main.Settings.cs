@@ -61,8 +61,19 @@ public partial class Main
 			_mapZoomMin,
 			_mapZoomMax,
 			_mapRender?.Zoom ?? 1.0f,
+			UIScaleService.CurrentScale,
+			UIAccessibilityService.CurrentContrastMode == Module.Panel.UIContrastMode.High,
+			ColorBlindModeToString(UIAccessibilityService.CurrentColorBlindMode),
 			_autoNav.InterruptPolicy);
 	}
+
+	private static string ColorBlindModeToString(Module.Panel.UIColorBlindMode mode) => mode switch
+	{
+		Module.Panel.UIColorBlindMode.Protanopia => "protanopia",
+		Module.Panel.UIColorBlindMode.Deuteranopia => "deuteranopia",
+		Module.Panel.UIColorBlindMode.Tritanopia => "tritanopia",
+		_ => "none",
+	};
 
 	private void SyncSettingsUiState(SettingsEntryContext? context = null)
 	{
@@ -131,6 +142,54 @@ public partial class Main
 	private void DecreaseMapZoomMax() => AdjustMapZoomMax(-0.1f);
 
 	private void IncreaseMapZoomMax() => AdjustMapZoomMax(0.1f);
+
+	private void DecreaseUiFontScale() => AdjustUiFontScale(-0.05f);
+
+	private void IncreaseUiFontScale() => AdjustUiFontScale(0.05f);
+
+	private static Module.Panel.UIContrastMode ParseContrastMode(string? raw) => raw?.Trim().ToLowerInvariant() switch
+	{
+		"high" => Module.Panel.UIContrastMode.High,
+		_ => Module.Panel.UIContrastMode.Normal,
+	};
+
+	private static Module.Panel.UIColorBlindMode ParseColorBlindMode(string? raw) => raw?.Trim().ToLowerInvariant() switch
+	{
+		"protanopia" => Module.Panel.UIColorBlindMode.Protanopia,
+		"deuteranopia" => Module.Panel.UIColorBlindMode.Deuteranopia,
+		"tritanopia" => Module.Panel.UIColorBlindMode.Tritanopia,
+		_ => Module.Panel.UIColorBlindMode.None,
+	};
+
+	private void AdjustUiFontScale(float delta)
+	{
+		var current = UIScaleService.CurrentScale;
+		var next = UIScaleService.Clamp(current + delta);
+		if (Mathf.IsEqualApprox(next, current))
+			return;
+
+		UIScaleService.Apply(_uiTheme, next);
+		AppSettingsStore.SaveUiFontScale(next);
+		SyncSettingsUiState();
+	}
+
+	private void ToggleHighContrast()
+	{
+		var next = UIAccessibilityService.CurrentContrastMode == Module.Panel.UIContrastMode.High
+			? Module.Panel.UIContrastMode.Normal
+			: Module.Panel.UIContrastMode.High;
+		UIAccessibilityService.Apply(_uiTheme, next, UIAccessibilityService.CurrentColorBlindMode);
+		AppSettingsStore.SaveUiContrastMode(next == Module.Panel.UIContrastMode.High ? "high" : "normal");
+		SyncSettingsUiState();
+	}
+
+	private void HandleColorBlindModeChange(string mode)
+	{
+		var parsed = ParseColorBlindMode(mode);
+		UIAccessibilityService.Apply(_uiTheme, UIAccessibilityService.CurrentContrastMode, parsed);
+		AppSettingsStore.SaveUiColorBlindMode(mode);
+		SyncSettingsUiState();
+	}
 
 	private void AdjustMapZoomMin(float delta)
 	{

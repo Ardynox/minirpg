@@ -68,7 +68,7 @@
     "cooldownTurns": 100,
     "minPartySize": 0,
     "threatPoints": 0,
-    "workerId": "",
+    "workerId": "resource_drop",
     "params": {}
   },
   {
@@ -80,7 +80,7 @@
     "cooldownTurns": 200,
     "minPartySize": 0,
     "threatPoints": 0,
-    "workerId": "",
+    "workerId": "cold_snap",
     "params": {}
   },
   {
@@ -92,7 +92,7 @@
     "cooldownTurns": 200,
     "minPartySize": 0,
     "threatPoints": 0,
-    "workerId": "",
+    "workerId": "heat_wave",
     "params": {}
   },
   {
@@ -104,7 +104,7 @@
     "cooldownTurns": 40,
     "minPartySize": 0,
     "threatPoints": 0,
-    "workerId": "",
+    "workerId": "traveler_passing",
     "params": {}
   },
   {

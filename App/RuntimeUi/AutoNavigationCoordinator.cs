@@ -313,9 +313,8 @@ internal sealed class AutoNavigationCoordinator
 			_previewPath.Add(new Vector3I(node.X, node.Y, node.Z));
 		}
 
-		_log.Add(LocalizationService.TOrFallback(
+		_log.Add(LocalizationService.T(
 			"log.auto_navigation.preview",
-			"Path preview: {steps} steps to ({x}, {y}, {z}). Click again to move.",
 			("steps", fullPath.Path.Count),
 			("x", targetCell.X),
 			("y", targetCell.Y),

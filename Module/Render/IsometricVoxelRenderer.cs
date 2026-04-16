@@ -200,12 +200,13 @@ public partial class IsometricVoxelRenderer
 
 	public void Init(
 		Node2D mapRoot,
-		TileSet tileSet,
+		TileSet? tileSet,
 		SubViewportContainer? viewportContainer,
 		SubViewport? subViewport,
 		Node2D? playerVisual,
 		Camera2D? camera)
 	{
+		_ = tileSet;
 		_viewportContainer = viewportContainer;
 		_subViewport = subViewport;
 		_camera = camera;
@@ -1377,9 +1378,8 @@ public partial class IsometricVoxelRenderer
 			var sheetPath = ResolveCharacterSheetPath(entry);
 			if (sheetPath.Length > 0)
 			{
-				texture = ResAccess.Get<Texture2D>(sheetPath);
-				if (texture != null)
-					region = ResolveCharacterSheetRegion(entry, actor, texture);
+				texture = ResolveCharacterSheetTexture(sheetPath);
+				region = ResolveCharacterSheetRegion(entry, actor, texture);
 			}
 		}
 
@@ -1749,6 +1749,15 @@ public partial class IsometricVoxelRenderer
 		var animationKey = string.IsNullOrWhiteSpace(entry.DefaultAnim) ? "Idle" : entry.DefaultAnim!;
 		var sheetKey = CharacterSheetMap.TryGetValue(animationKey, out var resolved) ? resolved : "Idle";
 		return $"{entry.SheetDir!.TrimEnd('/')}/{sheetKey}.png";
+	}
+
+	private static Texture2D ResolveCharacterSheetTexture(string sheetPath)
+	{
+		if (!ResourceLoader.Exists(sheetPath))
+			return FantasyCharacterAnimatable.GetMissingSheetFallbackTexture(sheetPath);
+
+		return ResAccess.Get<Texture2D>(sheetPath)
+			?? FantasyCharacterAnimatable.GetMissingSheetFallbackTexture(sheetPath);
 	}
 
 	private static Rect2? ResolveCharacterSheetRegion(ResAccess.RenderEntry entry, Actor actor, Texture2D texture)

@@ -10,6 +10,9 @@ internal enum SettingsPanelRowId
 	Render,
 	MapZoomMin,
 	MapZoomMax,
+	UiFontScale,
+	HighContrast,
+	ColorBlind,
 	WatchMode,
 	FastTurnMode,
 	KeyboardTargeting,
@@ -51,6 +54,9 @@ internal sealed class SettingsPanelSelectionModel
 		MapZoomMin: 0.6f,
 		MapZoomMax: 2.4f,
 		MapZoomCurrent: 1.0f,
+		UiFontScale: 1.0f,
+		HighContrastEnabled: false,
+		ColorBlindMode: "none",
 		AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop);
 
 	public SettingsTab CurrentTab { get; private set; } = SettingsTab.General;
@@ -200,9 +206,12 @@ internal sealed class SettingsPanelSelectionModel
 			SettingsPanelRowId.Render,
 			SettingsPanelRowId.MapZoomMin,
 			SettingsPanelRowId.MapZoomMax,
+			SettingsPanelRowId.UiFontScale,
+			SettingsPanelRowId.HighContrast,
+			SettingsPanelRowId.ColorBlind,
 		};
 
-		if (SettingsPanelModule.ShouldShowWatchMode(_state))
+		if (SettingsPanelTextResolver.ShouldShowWatchMode(_state))
 		{
 			rows.Add(SettingsPanelRowId.WatchMode);
 			rows.Add(SettingsPanelRowId.FastTurnMode);

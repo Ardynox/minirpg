@@ -23,7 +23,6 @@ public class AutoTestModule
 {
 	internal readonly record struct AutoTestViewportAssertionResult(bool Passed, bool SkippedAsHeadless, string Message);
 
-	private const string HeavyTileSetPath = "res://Assets/Art/Tilesets/FantasyKingdom/FantasyKingdomTileSet.tres";
 	private static readonly string[] ResourceScenePaths =
 	[
 		"res://App/Main.tscn",
@@ -365,7 +364,6 @@ public class AutoTestModule
 		foreach (var path in ResourceScenePaths)
 			ProbeResourceLoad(context, $"resource_smoke.load.{SanitizeId(Path.GetFileName(path))}", path);
 
-		ProbeResourceLoad(context, "resource_smoke.load.heavy_tileset", HeavyTileSetPath);
 		foreach (var path in IsometricVoxelRenderer.EnumerateWeatherAssetPaths())
 			ProbeResourceLoad(context, $"resource_smoke.load.{SanitizeId(Path.GetFileNameWithoutExtension(path))}", path);
 

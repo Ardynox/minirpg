@@ -5,6 +5,7 @@ using MiniRPG.Core.AI.Utility;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Needs;
+using MiniRPG.Core.Social;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI;
@@ -13,6 +14,30 @@ public static class AIDispatcher
 {
 	private static readonly UtilityBrain _utilityBrain = new();
 	private static readonly Dictionary<string, UtilityDecisionCache> _decisionCaches = new(StringComparer.Ordinal);
+
+	/// <summary>
+	/// Ambient relationship graph exposed to input resolvers through
+	/// <see cref="AIBehaviorContext"/>. Set once at startup; null when
+	/// the host has not wired the module (e.g. tests).
+	/// </summary>
+	public static RelationshipModule? Relationships { get; set; }
+
+	/// <summary>Ambient per-actor memory store mirror of <see cref="Relationships"/>.</summary>
+	public static ActorMemoryModule? ActorMemories { get; set; }
+
+	/// <summary>Ambient rumor bus mirror of <see cref="Relationships"/>.</summary>
+	public static RumorBus? Rumors { get; set; }
+
+	// Centralized factory so the single-actor decision paths and the
+	// batch TickAll path produce behaviour contexts with the same set of
+	// ambient simulation references injected.
+	private static AIBehaviorContext CreateAmbientBehaviorContext(GameState state) =>
+		new(state)
+		{
+			Relationships = Relationships,
+			ActorMemories = ActorMemories,
+			Rumors = Rumors,
+		};
 
 	public static List<GameEvent> TickAll(GameState state, int viewCenterX, int viewCenterY, int viewRange) =>
 		TickAll(state, [new WorldCoord(viewCenterX, viewCenterY, state.PlayerZ)], viewRange);
@@ -50,7 +75,7 @@ public static class AIDispatcher
 				&& !string.Equals(actor.Id, activePartyId, StringComparison.Ordinal))
 			.ToList();
 		var awarenessContext = AwarenessModule.CreateTurnContext(state);
-		var behaviorContext = new AIBehaviorContext(state);
+		var behaviorContext = CreateAmbientBehaviorContext(state);
 
 		foreach (var actor in actors)
 		{
@@ -219,7 +244,7 @@ public static class AIDispatcher
 		var perception = ResolvePerception(state, actor);
 		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
-		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
+		var behaviorContext = state.BehaviorContextCache ?? CreateAmbientBehaviorContext(state);
 
 		var exposure = behaviorContext.GetCurrentExposure(actor);
 		HealthSystem.Sync(actor, state.Turn, exposure, new List<GameEvent>(), state);
@@ -260,7 +285,7 @@ public static class AIDispatcher
 		var perception = ResolvePerception(state, actor);
 		var awarenessContext = state.AwarenessContextCache ?? AwarenessModule.CreateTurnContext(state);
 		var awarenessEvents = AwarenessModule.UpdateForTurn(state, actor, perception, awarenessContext);
-		var behaviorContext = state.BehaviorContextCache ?? new AIBehaviorContext(state);
+		var behaviorContext = state.BehaviorContextCache ?? CreateAmbientBehaviorContext(state);
 
 		var exposure = behaviorContext.GetCurrentExposure(actor);
 		HealthSystem.Sync(actor, state.Turn, exposure, new List<GameEvent>(), state);

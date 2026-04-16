@@ -315,6 +315,12 @@ public static class InputResolver
 			return 1f - need.Current / need.Max;
 		};
 
+		_resolvers["thirst_urgency"] = static ctx =>
+		{
+			if (!ctx.Self.Needs.TryGetValue(NeedIds.Thirst, out var need)) return 0f;
+			return 1f - need.Current / need.Max;
+		};
+
 		_resolvers["rest_urgency"] = static ctx =>
 		{
 			if (!ctx.Self.Needs.TryGetValue(NeedIds.Rest, out var need)) return 0f;
@@ -348,6 +354,35 @@ public static class InputResolver
 						if (!PresetDB.Items.TryGetValue(templateId, out var preset)) continue;
 						if (string.Equals(preset.Category, ItemCategories.Food, StringComparison.Ordinal)
 							|| preset.Tags.ContainsKey("饱腹"))
+							return 1f;
+					}
+				}
+			}
+			return 0f;
+		};
+
+		_resolvers["drink_available"] = static ctx =>
+		{
+			foreach (var item in ctx.Self.Inventory)
+			{
+				if (item.Tags.ContainsKey(ItemTags.Hydration))
+					return 1f;
+			}
+			if (ctx.State?.World == null) return 0f;
+			var radius = 6;
+			for (var dy = -radius; dy <= radius; dy++)
+			{
+				for (var dx = -radius; dx <= radius; dx++)
+				{
+					if (Math.Abs(dx) + Math.Abs(dy) > radius) continue;
+					var x = ctx.Self.X + dx;
+					var y = ctx.Self.Y + dy;
+					if (FireSystem.IsDangerousCell(ctx.State, x, y, ctx.Self.Z)) continue;
+					foreach (var entity in ctx.State.World.GetEntitiesByType(x, y, ctx.Self.Z, CellEntityType.Item))
+					{
+						var templateId = WorldMap.ResolveGroundItemTemplateId(entity);
+						if (!PresetDB.Items.TryGetValue(templateId, out var preset)) continue;
+						if (preset.Tags.ContainsKey(ItemTags.Hydration))
 							return 1f;
 					}
 				}

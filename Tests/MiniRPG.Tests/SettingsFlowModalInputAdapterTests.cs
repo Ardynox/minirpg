@@ -151,6 +151,7 @@ public sealed class SettingsFlowModalInputAdapterTests
 				MapZoomMin: 0.6f,
 				MapZoomMax: 2.4f,
 				MapZoomCurrent: 1.0f,
+				UiFontScale: 1.0f,
 				AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, new PanelManager(), () => FlushMapCalls++);
@@ -260,6 +261,16 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? MapZoomMaxIncreaseRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? UiFontScaleDecreaseRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? UiFontScaleIncreaseRequested
 		{
 			add { }
 			remove { }
