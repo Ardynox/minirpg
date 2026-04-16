@@ -74,8 +74,6 @@ public partial class IsometricVoxelRenderer
 	private readonly List<ChunkCoord> _terrainSurfaceCachePruneBuffer = [];
 	private int _lastDrawCommandCount;
 
-	private readonly Dictionary<string, CachedBlockTextures> _textureCache = new();
-	private readonly Dictionary<string, Texture2D?> _voxelFaceTextureCache = new(StringComparer.OrdinalIgnoreCase);
 	private IsometricLightingSettings _lighting = DefaultLighting;
 
 	private readonly LightMap _lightMap = new();
@@ -110,27 +108,6 @@ public partial class IsometricVoxelRenderer
 		("render.lighting.profile.cinematic", new IsometricLightingSettings(0.72f, 1.24f, 0.62f, 0.95f, 0.09f, 1.18f, 0.76f, 0.11f)),
 		("render.lighting.profile.soft", new IsometricLightingSettings(0.94f, 1.04f, 0.86f, 0.92f, 0.03f, 0.92f, 0.42f, 0.06f)),
 	];
-
-	private static readonly Dictionary<string, Color> TerrainColors = new()
-	{
-		[Terrains.GrassBlock] = new Color(0.3f, 0.7f, 0.2f),
-		[Terrains.Grass] = new Color(0.3f, 0.7f, 0.2f),
-		[Terrains.Dirt] = new Color(0.55f, 0.35f, 0.15f),
-		[Terrains.Stone] = new Color(0.5f, 0.5f, 0.5f),
-		[Terrains.Sand] = new Color(0.9f, 0.85f, 0.6f),
-		[Terrains.Water] = new Color(0.2f, 0.4f, 0.8f, 0.7f),
-		[Terrains.Mountain] = new Color(0.4f, 0.4f, 0.45f),
-		[Terrains.WallStone] = new Color(0.45f, 0.45f, 0.45f),
-		[Terrains.WallSoil] = new Color(0.5f, 0.3f, 0.15f),
-		[Terrains.WallGranite] = new Color(0.6f, 0.55f, 0.5f),
-		[Terrains.WallObsidian] = new Color(0.15f, 0.1f, 0.2f),
-		[Terrains.Tree] = new Color(0.15f, 0.5f, 0.1f),
-		[Terrains.Snow] = new Color(0.95f, 0.95f, 1.0f),
-		[Terrains.Ice] = new Color(0.7f, 0.85f, 1.0f, 0.8f),
-		[Terrains.Lava] = new Color(1.0f, 0.3f, 0.0f),
-		[Terrains.Floor] = new Color(0.6f, 0.55f, 0.45f),
-		[Terrains.Rubble] = new Color(0.5f, 0.45f, 0.35f),
-	};
 
 	private static readonly Dictionary<string, string> CharacterSheetMap = new(StringComparer.OrdinalIgnoreCase)
 	{
@@ -250,8 +227,6 @@ public partial class IsometricVoxelRenderer
 		_combatFxWorldRoot = new Node2D { Name = "CombatFxWorldRoot", ZIndex = 6 };
 		mapRoot.AddChild(_combatFxWorldRoot);
 
-		_textureCache.Clear();
-		_voxelFaceTextureCache.Clear();
 		_terrainAtlas.Build();
 
 		_faceBatchCanvas?.QueueFree();
@@ -290,7 +265,6 @@ public partial class IsometricVoxelRenderer
 			return;
 
 		_lighting = resolved.Clamp(MinLight, MaxLight);
-		_textureCache.Clear();
 	}
 
 	// ── Orchestration (Flush / Advance / Coordinate Picking / Zoom) ──
@@ -1325,88 +1299,6 @@ public partial class IsometricVoxelRenderer
 
 	// ── Texture Generation ──
 
-	private CachedBlockTextures GetOrCreateTextures(TerrainDef terrain)
-	{
-		if (_textureCache.TryGetValue(terrain.StringId, out var cached))
-			return cached;
-
-		if (TryCreateVoxelFaceTextures(terrain, out var voxelTextures))
-		{
-			_textureCache[terrain.StringId] = voxelTextures;
-			return voxelTextures;
-		}
-
-		// Fallback: procedural color-based diamond
-		var color = TerrainColors.GetValueOrDefault(terrain.StringId, new Color(0.5f, 0.5f, 0.5f));
-		var topImage = CreateDiamondImage(128, 64, color);
-		var topTexture = ImageTexture.CreateFromImage(topImage);
-
-		var leftImage = GenerateLeftSideImage(topImage);
-		var rightImage = GenerateRightSideImage(topImage);
-
-		var result = new CachedBlockTextures(
-			topTexture,
-			ImageTexture.CreateFromImage(leftImage),
-			ImageTexture.CreateFromImage(rightImage));
-
-		_textureCache[terrain.StringId] = result;
-		return result;
-	}
-
-	private bool TryCreateVoxelFaceTextures(TerrainDef terrain, out CachedBlockTextures textures)
-	{
-		textures = default;
-		var topPath = VoxelTilePathResolver.ResolveTopPath(terrain);
-		if (string.IsNullOrWhiteSpace(topPath))
-			return false;
-
-		var topSourceTexture = GetOrLoadVoxelFaceTexture(topPath);
-		if (topSourceTexture == null)
-			return false;
-
-		var topSourceImage = ExtractImage(topSourceTexture);
-		if (topSourceImage == null)
-			return false;
-
-		var topDiamondImage = VoxelFaceImageUtil.BuildTopDiamond(topSourceImage);
-		topDiamondImage = VoxelFaceImageUtil.EnhanceTopFaceEdges(topDiamondImage, VoxelTerrainShading.TopEdgeStrength(terrain));
-		var topTexture = ImageTexture.CreateFromImage(topDiamondImage);
-
-		Image sideSourceImage;
-		var sidePath = VoxelTilePathResolver.ResolveSidePath(terrain);
-		var sideTexture = string.IsNullOrWhiteSpace(sidePath) ? null : GetOrLoadVoxelFaceTexture(sidePath);
-		if (sideTexture != null)
-			sideSourceImage = ExtractImage(sideTexture) ?? topSourceImage;
-		else
-			sideSourceImage = topSourceImage;
-
-		var wallLike = VoxelTerrainShading.IsWall(terrain);
-		var leftDarken = VoxelTerrainShading.LeftDarken(terrain);
-		var rightDarken = VoxelTerrainShading.RightDarken(terrain);
-		var faceHeight = wallLike ? WallSideFaceHeight : SideFaceHeight;
-		var leftImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: false, leftDarken, faceHeight);
-		var rightImage = VoxelFaceImageUtil.GenerateSideFace(sideSourceImage, isRight: true, rightDarken, faceHeight);
-		var sideEdge = VoxelTerrainShading.SideEdgeStrength(terrain);
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(leftImage, isRight: false, edgeStrength: sideEdge);
-		VoxelFaceImageUtil.EnhanceSideFaceEdge(rightImage, isRight: true, edgeStrength: sideEdge);
-
-		textures = new CachedBlockTextures(
-			topTexture,
-			ImageTexture.CreateFromImage(leftImage),
-			ImageTexture.CreateFromImage(rightImage));
-		return true;
-	}
-
-	private Texture2D? GetOrLoadVoxelFaceTexture(string path)
-	{
-		if (_voxelFaceTextureCache.TryGetValue(path, out var cached))
-			return cached;
-
-		var loaded = GD.Load<Texture2D>(path);
-		_voxelFaceTextureCache[path] = loaded;
-		return loaded;
-	}
-
 	/// <summary>
 	/// Extract the top tile as an Image from an AtlasTexture or regular Texture2D.
 	/// </summary>
@@ -1422,102 +1314,6 @@ public partial class IsometricVoxelRenderer
 				(int)region.Size.X, (int)region.Size.Y));
 		}
 		return texture.GetImage();
-	}
-
-	/// <summary>
-	/// Generate left side face as a 64x64 parallelogram image.
-	/// The parallelogram covers the area below the diamond's bottom-left edge:
-	///   TL=(0,0) TR=(63,31) BR=(63,63) BL=(0,32)  (in image coords)
-	/// Colors are sampled from the left-bottom edge of the top diamond, darkened by LeftDarken.
-	/// </summary>
-	private static Image GenerateLeftSideImage(Image topImage)
-	{
-		const int iw = SideTextureWidth;
-		const int ih = SideTextureHeight;
-		const int faceH = SideFaceHeight;
-		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
-		var tw = topImage.GetWidth();
-		var th = topImage.GetHeight();
-		var halfW = tw / 2;
-		var halfH = th / 2;
-
-		for (var px = 0; px < iw; px++)
-		{
-			var t = px / (float)(iw - 1);
-			var sampleX = (int)(t * halfW);
-			var sampleY = halfH + (int)(t * (halfH - 1));
-			sampleX = Math.Clamp(sampleX, 0, tw - 1);
-			sampleY = Math.Clamp(sampleY, 0, th - 1);
-			var color = VoxelFaceImageUtil.SampleArea(topImage, sampleX, sampleY, tw, th);
-
-			var pyStart = (int)Math.Round(px * IsoCoordUtil.TileHalfH / (double)(iw - 1));
-			for (var dy = 0; dy < faceH; dy++)
-			{
-				var py = pyStart + dy;
-				if (py >= ih) break;
-				var gradientFactor = 1.0f - (dy / (float)faceH) * 0.2f;
-				var c = color * new Color(LeftDarken * gradientFactor, LeftDarken * gradientFactor, LeftDarken * gradientFactor, 1f);
-				c.A = color.A;
-				img.SetPixel(px, py, c);
-			}
-		}
-		return img;
-	}
-
-	/// <summary>
-	/// Generate right side face as a 64x64 parallelogram image.
-	/// The parallelogram covers the area below the diamond's bottom-right edge:
-	///   TL=(0,32) TR=(63,0) BR=(63,32) BL=(0,64)  (in image coords)
-	/// Colors are sampled from the right-bottom edge of the top diamond, darkened by RightDarken.
-	/// </summary>
-	private static Image GenerateRightSideImage(Image topImage)
-	{
-		const int iw = SideTextureWidth;
-		const int ih = SideTextureHeight;
-		const int faceH = SideFaceHeight;
-		var img = Image.CreateEmpty(iw, ih, false, Image.Format.Rgba8);
-		var tw = topImage.GetWidth();
-		var th = topImage.GetHeight();
-		var halfW = tw / 2;
-		var halfH = th / 2;
-
-		for (var px = 0; px < iw; px++)
-		{
-			var t = px / (float)(iw - 1);
-			var sampleX = halfW + (int)(t * (halfW - 1));
-			var sampleY = (th - 1) - (int)(t * (halfH - 1));
-			sampleX = Math.Clamp(sampleX, 0, tw - 1);
-			sampleY = Math.Clamp(sampleY, 0, th - 1);
-			var color = VoxelFaceImageUtil.SampleArea(topImage, sampleX, sampleY, tw, th);
-
-			var pyStart = (int)Math.Round((iw - 1 - px) * IsoCoordUtil.TileHalfH / (double)(iw - 1));
-			for (var dy = 0; dy < faceH; dy++)
-			{
-				var py = pyStart + dy;
-				if (py >= ih) break;
-				var gradientFactor = 1.0f - (dy / (float)faceH) * 0.2f;
-				var c = color * new Color(RightDarken * gradientFactor, RightDarken * gradientFactor, RightDarken * gradientFactor, 1f);
-				c.A = color.A;
-				img.SetPixel(px, py, c);
-			}
-		}
-		return img;
-	}
-
-	/// <summary>Create a solid-color diamond image (fallback when no atlas tile available).</summary>
-	private static Image CreateDiamondImage(int w, int h, Color color)
-	{
-		var image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
-		var halfW = w / 2;
-		var halfH = h / 2;
-		for (var py = 0; py < h; py++)
-		for (var px = 0; px < w; px++)
-		{
-			var dx = Math.Abs(px - halfW) / (float)halfW;
-			var dy = Math.Abs(py - halfH) / (float)halfH;
-			image.SetPixel(px, py, dx + dy <= 1.0f ? color : Colors.Transparent);
-		}
-		return image;
 	}
 
 	// ── Entity Rendering ──
@@ -2390,5 +2186,4 @@ public partial class IsometricVoxelRenderer
 		Vector2 Scale,
 		Vector2 Offset);
 
-	private record struct CachedBlockTextures(Texture2D? Top, Texture2D? Left, Texture2D? Right);
 }
