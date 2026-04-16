@@ -142,8 +142,6 @@ public static class PzTilePathUtility
 {
 	public const string Root = "res://Assets/Art/PZ_Tiles";
 
-	private const string LegacyCopyRoot = "res://Assets/Art/PZ_Tiles_Copy";
-
 	public static string NormalizeAssetPath(string? path)
 	{
 		if (string.IsNullOrWhiteSpace(path))
@@ -152,15 +150,8 @@ public static class PzTilePathUtility
 		var normalized = path.Trim().Replace('\\', '/');
 		if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
 			normalized = "res://" + normalized;
-		else if (normalized.StartsWith("PZ_Tiles_Copy/", StringComparison.OrdinalIgnoreCase))
-			normalized = $"{Root}/{normalized["PZ_Tiles_Copy/".Length..]}";
 		else if (normalized.StartsWith("PZ_Tiles/", StringComparison.OrdinalIgnoreCase))
 			normalized = $"{Root}/{normalized["PZ_Tiles/".Length..]}";
-
-		if (normalized.Equals(LegacyCopyRoot, StringComparison.OrdinalIgnoreCase))
-			return Root;
-		if (normalized.StartsWith(LegacyCopyRoot + "/", StringComparison.OrdinalIgnoreCase))
-			return $"{Root}{normalized[LegacyCopyRoot.Length..]}";
 
 		return normalized;
 	}

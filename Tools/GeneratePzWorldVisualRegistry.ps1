@@ -25,10 +25,6 @@ function Normalize-ResPath {
 		$normalized = "res://$normalized"
 	}
 
-	if ($normalized.StartsWith('res://Assets/Art/PZ_Tiles_Copy/', [System.StringComparison]::OrdinalIgnoreCase)) {
-		return 'res://Assets/Art/PZ_Tiles' + $normalized.Substring('res://Assets/Art/PZ_Tiles_Copy'.Length)
-	}
-
 	return $normalized
 }
 

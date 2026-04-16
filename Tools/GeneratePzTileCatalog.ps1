@@ -226,7 +226,7 @@ function Get-ExistingCatalogMap {
 			continue
 		}
 
-		$relativePath = $path.Replace('res://Assets/Art/PZ_Tiles/', '').Replace('res://Assets/Art/PZ_Tiles_Copy/', '')
+		$relativePath = $path.Replace('res://Assets/Art/PZ_Tiles/', '')
 		$relativePath = Get-NormalizedRelativePath $relativePath
 		$map[$relativePath] = $entry
 	}

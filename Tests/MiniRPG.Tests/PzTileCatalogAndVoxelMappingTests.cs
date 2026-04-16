@@ -94,11 +94,12 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 	}
 
 	[Fact]
-	public void PzTilePathUtility_IsPzTilesAssetPath_CoversRoot_LegacyCopyRoot_AndNonPzPaths()
+	public void PzTilePathUtility_IsPzTilesAssetPath_OnlyAcceptsRoot()
 	{
 		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png"));
-		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
 		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("Assets/Art/PZ_Tiles/overlays/trash_01_0.png"));
+		Assert.True(PzTilePathUtility.IsPzTilesAssetPath("PZ_Tiles/overlays/trash_01_0.png"));
+		Assert.False(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_0.png"));
 		Assert.False(PzTilePathUtility.IsPzTilesAssetPath("res://Assets/Art/Generated/voxel_tiles/grass_top.png"));
 		Assert.False(PzTilePathUtility.IsPzTilesAssetPath(null));
 	}
@@ -216,7 +217,7 @@ public sealed class PzTileCatalogAndVoxelMappingTests
 					TopTilePath = "res://Assets/Art/PZ_Tiles/overlays/trash_01_0.png",
 					TopIsIso = true,
 					LeftSideMode = "texture",
-					LeftSideTilePath = "res://Assets/Art/PZ_Tiles_Copy/overlays/trash_01_1.png",
+					LeftSideTilePath = "res://Assets/Art/PZ_Tiles/overlays/trash_01_1.png",
 					LeftIsIso = true,
 					RightSideMode = "color",
 					RightSideColor = "#abcdef",
