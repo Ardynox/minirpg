@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using MiniRPG.Core.Events;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module;
 
@@ -13,11 +14,25 @@ public sealed class LocalSessionBackend : IGameSessionBackend
 	private readonly GameState _state;
 	private readonly Action<List<GameEvent>> _dispatch;
 
+	private GameEventConsequenceRouter? _consequenceRouter;
+
 	public LocalSessionBackend(GameSessionModule session, GameState state, Action<List<GameEvent>> dispatch)
 	{
 		_session = session;
 		_state = state;
 		_dispatch = dispatch;
+	}
+
+	/// <summary>
+	/// Attach an authoritative-side consequence router. When present, every
+	/// batch of events produced by <see cref="ServerActionGateway"/> runs
+	/// through the router before <see cref="_dispatch"/> reaches the client
+	/// presentation layer, so simulation systems can update their state
+	/// (relationships, memory, security tension) on the same tick.
+	/// </summary>
+	public void AttachConsequenceRouter(GameEventConsequenceRouter router)
+	{
+		_consequenceRouter = router;
 	}
 
 	public event Action<GameSessionSnapshotEnvelope>? SnapshotReceived;
@@ -57,6 +72,7 @@ public sealed class LocalSessionBackend : IGameSessionBackend
 		var result = ServerActionGateway.Execute(_state, command);
 		if (result.Events.Count > 0)
 		{
+			_consequenceRouter?.DispatchConsequences(_state, result.Events);
 			_dispatch(result.Events);
 			DeltaReceived?.Invoke(new GameSessionDeltaEnvelope
 			{
