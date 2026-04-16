@@ -275,6 +275,8 @@ public sealed class TerrainAtlas
 		if (File.Exists(projectPath))
 		{
 			loaded = Image.LoadFromFile(projectPath);
+			if (loaded != null && loaded.GetFormat() != Image.Format.Rgba8)
+				loaded.Convert(Image.Format.Rgba8);
 		}
 
 		_imageLoadCache[normalizedPath] = loaded;
