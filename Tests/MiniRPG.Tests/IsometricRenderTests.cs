@@ -578,6 +578,27 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_NonBlockingActorMotion_DoesNotLockTimeline()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.NpcFast,
+			Blocking: false,
+			DurationSecondsOverride: ActorMotionTiming.NpcRushSeconds));
+
+		Assert.True(renderer.HasAnyActorMotion);
+		Assert.False(renderer.HasBlockingActorMotion);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_PresentActorMotion_UsesDurationOverrideWhenProvided()
 	{
 		var (state, player) = CreateRendererMotionState();

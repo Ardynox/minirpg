@@ -36,8 +36,8 @@ public partial class Main
 		if (watchModeEnabled || !fastTurnModeEnabled)
 			return true;
 
-		// Fast-turn still skips NPC step-by-step presentation, but any blocking
-		// motion that survives into render should remain visible long enough to read.
+		// Render-side blocking is already filtered down to player / nearby / threat
+		// motions, so fast-turn only waits for those key actions to stay readable.
 		return true;
 	}
 
