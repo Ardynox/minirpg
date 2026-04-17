@@ -64,7 +64,8 @@ public partial class IsometricVoxelRenderer
 	private Vector2? _runtimeCameraTarget;
 	private MapEditorHoverState? _editorHoverState;
 	private const float EditorCameraLerpSpeed = 14f;
-	private const float RuntimeCameraLerpSpeed = 10f;
+	private const float RuntimeCameraLerpSpeed = 4f;
+	private const float RuntimeCameraSnapDistanceSquared = 0.01f;
 
 	private readonly VoxelSpritePool _spritePool = new();
 	private int _spriteCount;
@@ -491,7 +492,7 @@ public partial class IsometricVoxelRenderer
 			target,
 			delta,
 			RuntimeCameraLerpSpeed,
-			snapDistanceSquared: 0.25f);
+			snapDistanceSquared: RuntimeCameraSnapDistanceSquared);
 	}
 
 	internal static Vector2 ResolveSmoothedCameraPosition(
@@ -1949,8 +1950,6 @@ public partial class IsometricVoxelRenderer
 
 		if (Mathf.IsZeroApprox(_camera.Position.DistanceSquaredTo(target)))
 			_camera.Position = target;
-		else
-			AdvanceRuntimeCameraSmoothing(1f / 60f);
 	}
 
 	public void SetEditorCameraScreenTarget(Vector2 target)

@@ -645,8 +645,8 @@ public sealed class IsometricRenderTests
 			current,
 			target,
 			delta: 1f / 60f,
-			lerpSpeed: 10f,
-			snapDistanceSquared: 0.25f);
+			lerpSpeed: 4f,
+			snapDistanceSquared: 0.01f);
 
 		Assert.True(next.DistanceTo(current) > 0.01f);
 		Assert.True(next.DistanceTo(target) > 0.01f);
