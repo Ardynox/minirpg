@@ -61,8 +61,10 @@ public partial class IsometricVoxelRenderer
 	private Node2D? _combatFxWorldRoot;
 	private IAnimatable? _playerAnim;
 	private Vector2? _editorCameraTarget;
+	private Vector2? _runtimeCameraTarget;
 	private MapEditorHoverState? _editorHoverState;
 	private const float EditorCameraLerpSpeed = 14f;
+	private const float RuntimeCameraLerpSpeed = 10f;
 
 	private readonly VoxelSpritePool _spritePool = new();
 	private int _spriteCount;
@@ -86,6 +88,7 @@ public partial class IsometricVoxelRenderer
 	private const float CameraZoomStep = 0.1f;
 	private bool _editorViewActive;
 	private bool _runtimeViewActive;
+	private bool _runtimeCameraPrimed;
 	private RuntimeCameraSnapshot _runtimeCameraView = RuntimeCameraSnapshot.Create(RuntimeCameraMode.FollowActor, 0, 0, 0);
 	private int _viewCenterX;
 	private int _viewCenterY;
@@ -428,6 +431,7 @@ public partial class IsometricVoxelRenderer
 		AdvancePlayerCorrectionSmoothing((float)delta);
 		_motionTracker.UpdateBlockingFlag(_tileAnimationClockSeconds);
 		AdvanceEditorCameraSmoothing((float)delta);
+		AdvanceRuntimeCameraSmoothing((float)delta);
 	}
 
 	private bool ShouldAnimateActorMotion(ActorMotionPresentationRequest request)
@@ -475,6 +479,32 @@ public partial class IsometricVoxelRenderer
 		}
 
 		_camera.Position = current.Lerp(target, Mathf.Clamp(EditorCameraLerpSpeed * delta, 0f, 1f));
+	}
+
+	private void AdvanceRuntimeCameraSmoothing(float delta)
+	{
+		if (_camera == null || _editorViewActive || _runtimeCameraTarget is not { } target)
+			return;
+
+		_camera.Position = ResolveSmoothedCameraPosition(
+			_camera.Position,
+			target,
+			delta,
+			RuntimeCameraLerpSpeed,
+			snapDistanceSquared: 0.25f);
+	}
+
+	internal static Vector2 ResolveSmoothedCameraPosition(
+		Vector2 current,
+		Vector2 target,
+		float delta,
+		float lerpSpeed,
+		float snapDistanceSquared)
+	{
+		if (current.DistanceSquaredTo(target) < snapDistanceSquared)
+			return target;
+
+		return current.Lerp(target, Mathf.Clamp(lerpSpeed * delta, 0f, 1f));
 	}
 
 	public bool IsWorldCellVisible(int wx, int wy, int wz)
@@ -554,7 +584,7 @@ public partial class IsometricVoxelRenderer
 		if (_editorViewActive && _camera != null)
 			return _camera.Position;
 		if (_runtimeViewActive)
-			return ResolveRuntimeCameraScreenTarget();
+			return _camera?.Position ?? ResolveRuntimeCameraScreenTarget();
 		return _camera?.Position ?? Vector2.Zero;
 	}
 
@@ -1895,9 +1925,32 @@ public partial class IsometricVoxelRenderer
 		if (_camera == null) return;
 		var target = ResolveRuntimeCameraTarget(cx, cy, cz);
 		if (_editorViewActive)
+		{
 			_editorCameraTarget = target;
-		else
+			_runtimeCameraTarget = null;
+			_runtimeCameraPrimed = false;
+			return;
+		}
+
+		_runtimeCameraTarget = target;
+		if (!_runtimeViewActive)
+		{
+			_runtimeCameraPrimed = false;
 			_camera.Position = target;
+			return;
+		}
+
+		if (!_runtimeCameraPrimed)
+		{
+			_runtimeCameraPrimed = true;
+			_camera.Position = target;
+			return;
+		}
+
+		if (Mathf.IsZeroApprox(_camera.Position.DistanceSquaredTo(target)))
+			_camera.Position = target;
+		else
+			AdvanceRuntimeCameraSmoothing(1f / 60f);
 	}
 
 	public void SetEditorCameraScreenTarget(Vector2 target)

@@ -636,6 +636,24 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_ResolveSmoothedCameraPosition_MovesTowardTargetWithoutJumping()
+	{
+		var current = new Vector2(-64f, 32f);
+		var target = new Vector2(0f, 64f);
+
+		var next = IsometricVoxelRenderer.ResolveSmoothedCameraPosition(
+			current,
+			target,
+			delta: 1f / 60f,
+			lerpSpeed: 10f,
+			snapDistanceSquared: 0.25f);
+
+		Assert.True(next.DistanceTo(current) > 0.01f);
+		Assert.True(next.DistanceTo(target) > 0.01f);
+		Assert.True(next.DistanceTo(target) < current.DistanceTo(target));
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_TryPickIsometricCell_RuntimeViewUsesCurrentLayerCell()
 	{
 		var world = CreateAirOnlyWorld();
