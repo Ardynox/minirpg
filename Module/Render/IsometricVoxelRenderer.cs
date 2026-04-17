@@ -346,16 +346,11 @@ public partial class IsometricVoxelRenderer
 		}
 
 		_motionTracker.Record(
-			request.ActorId,
-			request.SourceX,
-			request.SourceY,
-			request.SourceZ,
-			request.TargetX,
-			request.TargetY,
-			request.TargetZ,
+			request,
 			_tileAnimationClockSeconds,
-			request.DurationSecondsOverride ?? ActorMotionTiming.ResolveDurationSeconds(request.TimingTier),
-			request.Blocking);
+			request.DurationSecondsOverride ?? ActorMotionTiming.ResolveDurationSeconds(
+				request.TimingTier,
+				request.UsesAsyncPresentation));
 	}
 
 	internal void ClearActorMotion(string actorId)

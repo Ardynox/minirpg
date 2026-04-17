@@ -33,6 +33,26 @@ public sealed class MainTimelineMotionTests
 	}
 
 	[Fact]
+	public void ShouldBatchAmbientNpcAutoAdvance_SinglePlayerNormalWithoutBlocking_Batches()
+	{
+		Assert.True(Main.ShouldBatchAmbientNpcAutoAdvance(
+			isMultiplayerSession: false,
+			watchModeEnabled: false,
+			fastTurnModeEnabled: false,
+			hasBlockingActorMotion: false));
+	}
+
+	[Fact]
+	public void ShouldBatchAmbientNpcAutoAdvance_WhenReadableMotionPresent_DoesNotBatch()
+	{
+		Assert.False(Main.ShouldBatchAmbientNpcAutoAdvance(
+			isMultiplayerSession: false,
+			watchModeEnabled: false,
+			fastTurnModeEnabled: false,
+			hasBlockingActorMotion: true));
+	}
+
+	[Fact]
 	public void ShouldBlockNpcMotion_SinglePlayerFarFriendly_DoesNotBlock()
 	{
 		var state = new GameState();
@@ -42,6 +62,22 @@ public sealed class MainTimelineMotionTests
 		var gameEvent = CreateActorMotionEvent(friendlyActor);
 
 		Assert.False(Main.ShouldBlockNpcMotion(
+			state,
+			gameEvent,
+			activeActor,
+			isMultiplayerSession: false));
+	}
+
+	[Fact]
+	public void ShouldUseAsyncNpcMotionPresentation_SinglePlayerFarFriendly_UsesAsyncPresentation()
+	{
+		var state = new GameState();
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
+		var friendlyActor = new Actor { Id = "ally", Faction = Factions.Friendly, X = 7, Y = 0, Z = 0 };
+		ActorModule.Add(state, friendlyActor);
+		var gameEvent = CreateActorMotionEvent(friendlyActor);
+
+		Assert.True(Main.ShouldUseAsyncNpcMotionPresentation(
 			state,
 			gameEvent,
 			activeActor,
@@ -74,6 +110,22 @@ public sealed class MainTimelineMotionTests
 		var gameEvent = CreateActorMotionEvent(hostileActor, sourceX: 7, targetX: 6);
 
 		Assert.True(Main.ShouldBlockNpcMotion(
+			state,
+			gameEvent,
+			activeActor,
+			isMultiplayerSession: false));
+	}
+
+	[Fact]
+	public void ShouldUseAsyncNpcMotionPresentation_SinglePlayerNearbyThreat_DoesNotUseAsyncPresentation()
+	{
+		var state = new GameState();
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player, X = 0, Y = 0, Z = 0 };
+		var hostileActor = new Actor { Id = "enemy", Faction = Factions.Hostile, X = 6, Y = 0, Z = 0 };
+		ActorModule.Add(state, hostileActor);
+		var gameEvent = CreateActorMotionEvent(hostileActor, sourceX: 7, targetX: 6);
+
+		Assert.False(Main.ShouldUseAsyncNpcMotionPresentation(
 			state,
 			gameEvent,
 			activeActor,

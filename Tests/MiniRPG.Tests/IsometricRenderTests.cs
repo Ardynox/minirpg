@@ -594,10 +594,88 @@ public sealed class IsometricRenderTests
 			TargetZ: 0,
 			ActorMotionTimingTier.NpcFast,
 			Blocking: false,
-			DurationSecondsOverride: ActorMotionTiming.NpcRushSeconds));
+			DurationSecondsOverride: ActorMotionTiming.NpcRushSeconds,
+			AsyncPresentation: true));
 
 		Assert.True(renderer.HasAnyActorMotion);
 		Assert.False(renderer.HasBlockingActorMotion);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_AsyncActorMotion_UsesLinearProgressForCrowdGlide()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.NpcFast,
+			Blocking: false,
+			DurationSecondsOverride: ActorMotionTiming.NpcFastSeconds,
+			AsyncPresentation: true));
+		renderer.AdvanceAnimations(ActorMotionTiming.NpcFastSeconds * 0.5d);
+
+		var visual = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.InRange(visual.X, 1.49f, 1.51f);
+		Assert.Equal(1f, visual.Y);
+		Assert.Equal(0f, visual.Z);
+	}
+
+	[Fact]
+	public void IsometricVoxelRenderer_AsyncActorMotion_RetargetsFromCurrentVisualPosition()
+	{
+		var (state, player) = CreateRendererMotionState();
+		var renderer = new IsometricVoxelRenderer(state, new FogOfWarTracker { RevealAll = true }, viewW: 20, viewH: 20);
+		const float baseDurationSeconds = ActorMotionTiming.NpcFastSeconds;
+
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 1,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 2,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.NpcFast,
+			Blocking: false,
+			DurationSecondsOverride: baseDurationSeconds,
+			AsyncPresentation: true));
+		renderer.AdvanceAnimations(baseDurationSeconds * 0.5d);
+		var beforeRetarget = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		renderer.PresentActorMotion(new ActorMotionPresentationRequest(
+			player.Id,
+			SourceX: 2,
+			SourceY: 1,
+			SourceZ: 0,
+			TargetX: 3,
+			TargetY: 1,
+			TargetZ: 0,
+			ActorMotionTimingTier.NpcFast,
+			Blocking: false,
+			DurationSecondsOverride: baseDurationSeconds,
+			AsyncPresentation: true));
+		var afterRetarget = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.InRange(afterRetarget.X, beforeRetarget.X - 0.01f, beforeRetarget.X + 0.01f);
+
+		renderer.AdvanceAnimations(baseDurationSeconds * 0.5d);
+		var continued = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.True(continued.X > afterRetarget.X);
+		Assert.True(continued.X < 3f);
+
+		renderer.AdvanceAnimations(baseDurationSeconds + 0.05d);
+		var finished = renderer.ResolveActorVisualWorldPosition(player.Id);
+
+		Assert.InRange(finished.X, 2.99f, 3.01f);
 	}
 
 	[Fact]

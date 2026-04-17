@@ -35,6 +35,8 @@ public partial class Main
 
 		var activeActor = PartyModule.GetActiveActor(_state);
 		var blocking = ResolveActorMotionBlocking(gameEvent, timingTier, activeActor);
+		var asyncPresentation = timingTier == ActorMotionTimingTier.NpcFast
+			&& ShouldUseAsyncNpcMotionPresentation(_state, gameEvent, activeActor, IsMultiplayerSession);
 		request = new ActorMotionPresentationRequest(
 			gameEvent.InitiatorId,
 			gameEvent.SourceX,
@@ -49,7 +51,9 @@ public partial class Main
 				gameEvent.InitiatorId,
 				timingTier,
 				activeActor,
-				blocking));
+				blocking,
+				asyncPresentation),
+			AsyncPresentation: asyncPresentation);
 		return true;
 	}
 
@@ -84,16 +88,17 @@ public partial class Main
 		if (timingTier != ActorMotionTimingTier.NpcFast)
 			return true;
 
-		return ShouldBlockNpcMotion(_state, gameEvent, activeActor, IsMultiplayerSession);
+		return !ShouldUseAsyncNpcMotionPresentation(_state, gameEvent, activeActor, IsMultiplayerSession);
 	}
 
 	private float? ResolveActorMotionDurationOverrideSeconds(
 		string actorId,
 		ActorMotionTimingTier timingTier,
 		Actor? activeActor,
-		bool blockingMotion)
+		bool blockingMotion,
+		bool asyncPresentation)
 	{
-		if (timingTier != ActorMotionTimingTier.NpcFast)
+		if (timingTier != ActorMotionTimingTier.NpcFast || !asyncPresentation)
 			return null;
 
 		var snapshot = TimelineTurnManager.CreateDebugSnapshot(
@@ -113,6 +118,13 @@ public partial class Main
 			? ActorMotionTiming.NpcRushSeconds
 			: null;
 	}
+
+	internal static bool ShouldUseAsyncNpcMotionPresentation(
+		GameState state,
+		GameEvent gameEvent,
+		Actor? activeActor,
+		bool isMultiplayerSession) =>
+		!ShouldBlockNpcMotion(state, gameEvent, activeActor, isMultiplayerSession);
 
 	internal static bool ShouldBlockNpcMotion(
 		GameState state,

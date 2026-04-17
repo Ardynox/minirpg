@@ -23,27 +23,22 @@ internal sealed class ActorMotionTracker
 	public bool HasBlocking => _hasBlocking;
 
 	public void Record(
-		string actorId,
-		int sourceX,
-		int sourceY,
-		int sourceZ,
-		int targetX,
-		int targetY,
-		int targetZ,
+		ActorMotionPresentationRequest request,
 		double startTimeSeconds,
-		float durationSeconds,
-		bool blocking)
+		float durationSeconds)
 	{
-		_motions[actorId] = new ActorMotionState(
-			sourceX,
-			sourceY,
-			sourceZ,
-			targetX,
-			targetY,
-			targetZ,
+		var source = ResolveSourcePosition(request, startTimeSeconds);
+		_motions[request.ActorId] = new ActorMotionState(
+			source.X,
+			source.Y,
+			source.Z,
+			request.TargetX,
+			request.TargetY,
+			request.TargetZ,
 			startTimeSeconds,
-			durationSeconds,
-			blocking);
+			ResolveDurationSeconds(durationSeconds, source, request),
+			request.Blocking,
+			request.UsesAsyncPresentation);
 		UpdateBlockingFlag(startTimeSeconds);
 	}
 
@@ -125,7 +120,7 @@ internal sealed class ActorMotionTracker
 			return false;
 		}
 
-		var progress = ApplyDampedProgress(GetProgress(motion, clockSeconds));
+		var progress = ResolvePresentationProgress(motion, clockSeconds);
 		position = new Vector3(
 			Mathf.Lerp(motion.SourceX, motion.TargetX, progress),
 			Mathf.Lerp(motion.SourceY, motion.TargetY, progress),
@@ -154,6 +149,40 @@ internal sealed class ActorMotionTracker
 		return Mathf.Clamp(elapsed / motion.DurationSeconds, 0f, 1f);
 	}
 
+	private Vector3 ResolveSourcePosition(ActorMotionPresentationRequest request, double clockSeconds)
+	{
+		if (request.UsesAsyncPresentation
+			&& TryGetInterpolatedPosition(request.ActorId, clockSeconds, out var currentPosition))
+		{
+			return currentPosition;
+		}
+
+		return new Vector3(request.SourceX, request.SourceY, request.SourceZ);
+	}
+
+	private static float ResolveDurationSeconds(
+		float baseDurationSeconds,
+		Vector3 source,
+		ActorMotionPresentationRequest request)
+	{
+		if (!request.UsesAsyncPresentation || baseDurationSeconds <= 0f)
+			return baseDurationSeconds;
+
+		var distance = MathF.Abs(request.TargetX - source.X)
+			+ MathF.Abs(request.TargetY - source.Y)
+			+ MathF.Abs(request.TargetZ - source.Z);
+		if (distance <= 0.001f)
+			return 0f;
+
+		return baseDurationSeconds * MathF.Max(distance, 1f);
+	}
+
+	private static float ResolvePresentationProgress(ActorMotionState motion, double clockSeconds)
+	{
+		var progress = GetProgress(motion, clockSeconds);
+		return motion.AsyncPresentation ? progress : ApplyDampedProgress(progress);
+	}
+
 	internal static float ApplyDampedProgress(float progress)
 	{
 		progress = Mathf.Clamp(progress, 0f, 1f);
@@ -178,5 +207,6 @@ internal sealed class ActorMotionTracker
 		float TargetZ,
 		double StartTimeSeconds,
 		float DurationSeconds,
-		bool Blocking);
+		bool Blocking,
+		bool AsyncPresentation);
 }

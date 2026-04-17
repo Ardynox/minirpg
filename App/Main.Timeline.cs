@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Module.Render;
 
 namespace MiniRPG;
 
 public partial class Main
 {
+	private const int AmbientNpcAutoAdvanceBatchLimit = 64;
+
 	private void ProcessTimelineAutoAdvance(double delta)
 	{
 		if (PlayerDead || ActorModule.GetPlayer(_state) == null || (!_watchModeEnabled && !_timelineAutoAdvancePending))
@@ -180,8 +183,76 @@ public partial class Main
 
 	private void AdvanceTimelineAutoStep()
 	{
-		var result = TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled, _fastTurnModeEnabled);
+		var result = BuildTimelineAutoAdvanceResult();
 		ApplyTimelineStep(result);
+	}
+
+	private TimelineStepResult BuildTimelineAutoAdvanceResult()
+	{
+		if (!ShouldBatchAmbientNpcAutoAdvance())
+			return TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled, _fastTurnModeEnabled);
+
+		var aggregate = new TimelineStepResult();
+		for (var stepIndex = 0; stepIndex < AmbientNpcAutoAdvanceBatchLimit; stepIndex++)
+		{
+			var step = TimelineTurnGateway.AdvanceAuto(
+				_state,
+				watchModeEnabled: false,
+				fastTurnModeEnabled: false);
+			MergeTimelineStepResult(aggregate, step);
+
+			if (step.PlayerTurnReady
+				|| !step.HasPendingAutoStep
+				|| ShouldPauseAmbientNpcAutoAdvanceBatch(step.Events))
+			{
+				break;
+			}
+		}
+
+		return aggregate;
+	}
+
+	private bool ShouldBatchAmbientNpcAutoAdvance() =>
+		ShouldBatchAmbientNpcAutoAdvance(
+			IsMultiplayerSession,
+			_watchModeEnabled,
+			_fastTurnModeEnabled,
+			_mapRender?.HasBlockingActorMotion == true);
+
+	internal static bool ShouldBatchAmbientNpcAutoAdvance(
+		bool isMultiplayerSession,
+		bool watchModeEnabled,
+		bool fastTurnModeEnabled,
+		bool hasBlockingActorMotion) =>
+		!isMultiplayerSession
+		&& !watchModeEnabled
+		&& !fastTurnModeEnabled
+		&& !hasBlockingActorMotion;
+
+	private bool ShouldPauseAmbientNpcAutoAdvanceBatch(IReadOnlyList<GameEvent> events)
+	{
+		for (var index = 0; index < events.Count; index++)
+		{
+			if (!TryBuildActorMotionPresentationRequest(events[index], out var request))
+				continue;
+			if (!ActorMotionTracker.IsStandardStep(request))
+				continue;
+			if (request.Blocking)
+				return true;
+		}
+
+		return false;
+	}
+
+	private static void MergeTimelineStepResult(TimelineStepResult aggregate, TimelineStepResult step)
+	{
+		if (step.Events.Count > 0)
+			aggregate.Events.AddRange(step.Events);
+
+		aggregate.ActingActorId = step.ActingActorId;
+		aggregate.ActionConsumed |= step.ActionConsumed;
+		aggregate.PlayerTurnReady = step.PlayerTurnReady;
+		aggregate.HasPendingAutoStep = step.HasPendingAutoStep;
 	}
 
 	private void ApplyTimelineStep(TimelineStepResult result)
