@@ -14,7 +14,11 @@ public partial class Main
 		if (PlayerDead || ActorModule.GetPlayer(_state) == null || (!_watchModeEnabled && !_timelineAutoAdvancePending))
 			return;
 
-		var autoAdvanceIntervalSeconds = (!_watchModeEnabled && _fastTurnModeEnabled) ? 0.0 : 0.2;
+		var autoAdvanceIntervalSeconds = ResolveTimelineAutoAdvanceIntervalSeconds(
+			_watchModeEnabled,
+			_fastTurnModeEnabled,
+			_autoNav.IsExecutingStep,
+			ResolveCurrentPlayerMotionTimingTier());
 		_watchTimer += delta;
 		if (_watchTimer < autoAdvanceIntervalSeconds)
 			return;
@@ -42,6 +46,21 @@ public partial class Main
 		// Render-side blocking is already filtered down to player / nearby / threat
 		// motions, so fast-turn only waits for those key actions to stay readable.
 		return true;
+	}
+
+	internal static double ResolveTimelineAutoAdvanceIntervalSeconds(
+		bool watchModeEnabled,
+		bool fastTurnModeEnabled,
+		bool autoNavigationExecutingStep,
+		ActorMotionTimingTier autoNavigationTimingTier)
+	{
+		if (!watchModeEnabled && fastTurnModeEnabled)
+			return 0.0;
+		if (watchModeEnabled || !autoNavigationExecutingStep)
+			return 0.2;
+
+		var motionDuration = ActorMotionTiming.ResolveDurationSeconds(autoNavigationTimingTier);
+		return Math.Max(0.04, motionDuration * 0.75f);
 	}
 
 	private void ProcessPlayerRestMode()
@@ -190,9 +209,26 @@ public partial class Main
 	private TimelineStepResult BuildTimelineAutoAdvanceResult()
 	{
 		if (!ShouldBatchAmbientNpcAutoAdvance())
-			return TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled, _fastTurnModeEnabled);
+		{
+			var singleStep = TimelineTurnGateway.AdvanceAuto(_state, _watchModeEnabled, _fastTurnModeEnabled);
+			LogTimelineAutoAdvanceResult(
+				ResolveTimelineAutoAdvanceMode(batchAmbientNpcAutoAdvance: false),
+				CountMeaningfulAutoAdvanceSteps(singleStep),
+				CollectActingActorLabels(singleStep),
+				ResolveTimelineAutoAdvanceStopReason(
+					playerTurnReady: singleStep.PlayerTurnReady,
+					hasPendingAutoStep: singleStep.HasPendingAutoStep,
+					blockingMotionSummary: TryResolveBlockingMotionSummary(singleStep.Events, out var blockingMotionSummary)
+						? blockingMotionSummary
+						: null,
+					reachedBatchLimit: false),
+				singleStep.Events.Count);
+			return singleStep;
+		}
 
 		var aggregate = new TimelineStepResult();
+		var actorLabels = new List<string>();
+		string stopReason = "batch-limit";
 		for (var stepIndex = 0; stepIndex < AmbientNpcAutoAdvanceBatchLimit; stepIndex++)
 		{
 			var step = TimelineTurnGateway.AdvanceAuto(
@@ -200,15 +236,30 @@ public partial class Main
 				watchModeEnabled: false,
 				fastTurnModeEnabled: false);
 			MergeTimelineStepResult(aggregate, step);
+			if (!string.IsNullOrWhiteSpace(step.ActingActorId))
+				actorLabels.Add(ResolveTimelineAutoAdvanceActorLabel(step.ActingActorId));
 
 			if (step.PlayerTurnReady
 				|| !step.HasPendingAutoStep
 				|| ShouldPauseAmbientNpcAutoAdvanceBatch(step.Events))
 			{
+				stopReason = ResolveTimelineAutoAdvanceStopReason(
+					playerTurnReady: step.PlayerTurnReady,
+					hasPendingAutoStep: step.HasPendingAutoStep,
+					blockingMotionSummary: TryResolveBlockingMotionSummary(step.Events, out var blockingMotionSummary)
+						? blockingMotionSummary
+						: null,
+					reachedBatchLimit: false);
 				break;
 			}
 		}
 
+		LogTimelineAutoAdvanceResult(
+			ResolveTimelineAutoAdvanceMode(batchAmbientNpcAutoAdvance: true),
+			actorLabels.Count,
+			actorLabels,
+			stopReason,
+			aggregate.Events.Count);
 		return aggregate;
 	}
 
@@ -253,6 +304,90 @@ public partial class Main
 		aggregate.ActionConsumed |= step.ActionConsumed;
 		aggregate.PlayerTurnReady = step.PlayerTurnReady;
 		aggregate.HasPendingAutoStep = step.HasPendingAutoStep;
+	}
+
+	internal static string ResolveTimelineAutoAdvanceStopReason(
+		bool playerTurnReady,
+		bool hasPendingAutoStep,
+		string? blockingMotionSummary,
+		bool reachedBatchLimit)
+	{
+		if (!string.IsNullOrWhiteSpace(blockingMotionSummary))
+			return $"blocking-motion:{blockingMotionSummary}";
+		if (playerTurnReady)
+			return "player-turn";
+		if (!hasPendingAutoStep)
+			return "no-pending-auto";
+		if (reachedBatchLimit)
+			return "batch-limit";
+		return "step-complete";
+	}
+
+	private string ResolveTimelineAutoAdvanceMode(bool batchAmbientNpcAutoAdvance)
+	{
+		if (_watchModeEnabled)
+			return "watch";
+		if (_fastTurnModeEnabled)
+			return "fast-turn";
+		return batchAmbientNpcAutoAdvance ? "ambient-batch" : "single-step";
+	}
+
+	private static int CountMeaningfulAutoAdvanceSteps(TimelineStepResult result) =>
+		string.IsNullOrWhiteSpace(result.ActingActorId) ? 0 : 1;
+
+	private List<string> CollectActingActorLabels(TimelineStepResult result)
+	{
+		var labels = new List<string>();
+		if (!string.IsNullOrWhiteSpace(result.ActingActorId))
+			labels.Add(ResolveTimelineAutoAdvanceActorLabel(result.ActingActorId));
+		return labels;
+	}
+
+	private bool TryResolveBlockingMotionSummary(
+		IReadOnlyList<GameEvent> events,
+		out string summary)
+	{
+		var activeActor = PartyModule.GetActiveActor(_state);
+		for (var index = 0; index < events.Count; index++)
+		{
+			var gameEvent = events[index];
+			if (!TryBuildActorMotionPresentationRequest(gameEvent, out var request))
+				continue;
+			if (!ActorMotionTracker.IsStandardStep(request) || !request.Blocking)
+				continue;
+
+			var actorLabel = ResolveTimelineAutoAdvanceActorLabel(gameEvent.InitiatorId);
+			var reason = ResolveActorMotionPresentationReason(_state, gameEvent, activeActor, IsMultiplayerSession);
+			summary = $"{actorLabel}:{reason}";
+			return true;
+		}
+
+		summary = string.Empty;
+		return false;
+	}
+
+	private void LogTimelineAutoAdvanceResult(
+		string mode,
+		int stepCount,
+		IReadOnlyList<string> actorLabels,
+		string stopReason,
+		int eventCount)
+	{
+		var actors = actorLabels.Count == 0 ? "-" : string.Join(">", actorLabels);
+		AddTimelineMotionDiagnosticLog(
+			$"[timeline] turn={_state.Turn} mode={mode} steps={stepCount} actors={actors} " +
+			$"stop={stopReason} events={eventCount}");
+	}
+
+	private string ResolveTimelineAutoAdvanceActorLabel(string? actorId)
+	{
+		if (string.IsNullOrWhiteSpace(actorId))
+			return "?";
+
+		var actor = ActorModule.GetById(_state, actorId);
+		return !string.IsNullOrWhiteSpace(actor?.DisplayName)
+			? actor.DisplayName
+			: actorId;
 	}
 
 	private void ApplyTimelineStep(TimelineStepResult result)

@@ -31,6 +31,8 @@ public sealed class SettingsFlowCoordinatorTests
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
 			UiFontScale: 1.0f,
+			HighContrastEnabled: false,
+			ColorBlindMode: "none",
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenSettings(SettingsEntryContext.MainMenu, SettingsTab.Controls);
@@ -70,6 +72,8 @@ public sealed class SettingsFlowCoordinatorTests
 			MapZoomMax: 2.4f,
 			MapZoomCurrent: 1.0f,
 			UiFontScale: 1.0f,
+			HighContrastEnabled: false,
+			ColorBlindMode: "none",
 			AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 		coordinator.OpenPauseMenu();
@@ -170,6 +174,8 @@ public sealed class SettingsFlowCoordinatorTests
 		public event Action? LoadRequested { add { } remove { } }
 		public event Action? MapEditorToggleRequested { add { } remove { } }
 		public event Action? LayoutEditRequested { add { } remove { } }
+		public event Action? HighContrastToggleRequested { add { } remove { } }
+		public event Action<string>? ColorBlindModeChangeRequested { add { } remove { } }
 		public event Action<string>? LanguageChangedRequested { add { } remove { } }
 
 		public void Open(SettingsEntryContext context, SettingsTab initialTab)

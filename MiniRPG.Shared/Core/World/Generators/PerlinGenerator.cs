@@ -46,6 +46,9 @@ public class PerlinGenerator : IMapGenerator
 		var seed = worldSeed ^ unchecked((int)0xDEAD0001) ^ chunk.Coord.Cz * 31337;
 		var rng = new Random(seed ^ chunk.Coord.Cx * 7919 ^ chunk.Coord.Cy * 6563);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, config.NestChancePercent);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, config.NestSpawnInterval);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, config.NestMaxSpawned);
 		GeneratorPopulateHelper.PlaceDungeonFixtures(
 			chunk,
 			rng,
@@ -53,9 +56,9 @@ public class PerlinGenerator : IMapGenerator
 			config.StairDownChancePercent,
 			config.StairUpChancePercent,
 			allowStairUp: true,
-			config.NestChancePercent,
-			config.NestSpawnInterval,
-			config.NestMaxSpawned);
+			nestChancePercent,
+			nestSpawnInterval,
+			nestMaxSpawned);
 	}
 
 	private void GenerateUnderground(ChunkData chunk, int worldSeed)

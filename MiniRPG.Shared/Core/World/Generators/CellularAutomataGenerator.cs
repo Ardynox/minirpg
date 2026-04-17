@@ -106,12 +106,15 @@ public class CellularAutomataGenerator : IMapGenerator
 		return TerrainRegistry.GetId(Terrains.WallObsidian);
 	}
 
-	private static void PlaceFixtures(ChunkData chunk, int worldSeed)
+	private void PlaceFixtures(ChunkData chunk, int worldSeed)
 	{
 		var config = GameConfig.Generation.Cellular;
 		var seed = worldSeed ^ 0xCA1234 ^ chunk.Coord.Cx * 7193 ^ chunk.Coord.Cy * 5437 ^ chunk.Coord.Cz * 3119;
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, config.NestChancePercent);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, config.NestSpawnInterval);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, config.NestMaxSpawned);
 		GeneratorPopulateHelper.PlaceDungeonFixtures(
 			chunk,
 			rng,
@@ -119,8 +122,8 @@ public class CellularAutomataGenerator : IMapGenerator
 			config.StairDownChancePercent,
 			config.StairUpChancePercent,
 			allowStairUp: true,
-			config.NestChancePercent,
-			config.NestSpawnInterval,
-			config.NestMaxSpawned);
+			nestChancePercent,
+			nestSpawnInterval,
+			nestMaxSpawned);
 	}
 }

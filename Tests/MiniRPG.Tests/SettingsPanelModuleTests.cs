@@ -42,7 +42,7 @@ public sealed class SettingsPanelModuleTests
 
 		Assert.Equal([SettingsTab.General, SettingsTab.Controls], model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale, SettingsPanelRowId.HighContrast, SettingsPanelRowId.ColorBlind],
 			model.GetVisibleRows(SettingsTab.General));
 		Assert.Empty(model.GetVisibleRows(SettingsTab.Session));
 	}
@@ -60,7 +60,7 @@ public sealed class SettingsPanelModuleTests
 			[SettingsTab.General, SettingsTab.Controls, SettingsTab.Session],
 			model.GetVisibleTabs());
 		Assert.Equal(
-			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
+			[SettingsPanelRowId.Language, SettingsPanelRowId.Render, SettingsPanelRowId.MapZoomMin, SettingsPanelRowId.MapZoomMax, SettingsPanelRowId.UiFontScale, SettingsPanelRowId.HighContrast, SettingsPanelRowId.ColorBlind, SettingsPanelRowId.WatchMode, SettingsPanelRowId.FastTurnMode],
 			model.GetVisibleRows(SettingsTab.General));
 		Assert.Equal(
 			[SettingsPanelRowId.KeyboardTargeting, SettingsPanelRowId.AutoNavigationInterruptPolicy, SettingsPanelRowId.DebugPanel, SettingsPanelRowId.KeyBindings],
@@ -173,6 +173,8 @@ public sealed class SettingsPanelModuleTests
 			2.4f,
 			1.0f,
 			1.0f,
+			false,
+			"none",
 			autoNavigationInterruptPolicy);
 
 	private static string ResolveRepoRoot()

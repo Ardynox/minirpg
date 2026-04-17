@@ -83,6 +83,9 @@ public class BSPGenerator : IMapGenerator
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xB5B5B5B5);
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, config.NestChancePercent);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, config.NestSpawnInterval);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, config.NestMaxSpawned);
 		GeneratorPopulateHelper.PlaceDungeonFixtures(
 			chunk,
 			rng,
@@ -90,9 +93,9 @@ public class BSPGenerator : IMapGenerator
 			config.StairDownChancePercent,
 			config.StairUpChancePercent,
 			allowStairUp: true,
-			config.NestChancePercent,
-			config.NestSpawnInterval,
-			config.NestMaxSpawned);
+			nestChancePercent,
+			nestSpawnInterval,
+			nestMaxSpawned);
 	}
 
 	private static void Split(BSPNode node, Random rng, int depth, BspGenerationConfig config)

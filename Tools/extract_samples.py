@@ -12,6 +12,7 @@ Usage:
     python extract_samples.py <soundfont.sf2> [output_dir]
 
 Default output: Assets/Audio/Samples/
+Suggested SoundFont source folder: Assets/Audio/ProceduralSources/SoundFonts/
 
 Instruments extracted (General MIDI program numbers):
     lute      -> GM #25 (Acoustic Guitar Nylon)
@@ -26,6 +27,12 @@ import sys
 import struct
 import wave
 import math
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_OUTPUT_DIR = os.path.join(REPO_ROOT, "Assets", "Audio", "Samples")
+SUGGESTED_SF2_DIR = os.path.join(
+    REPO_ROOT, "Assets", "Audio", "ProceduralSources", "SoundFonts"
+)
 
 SAMPLE_RATE = 44100
 DURATION_SEC = 2.0
@@ -214,12 +221,7 @@ def main():
     output_dir = (
         sys.argv[2]
         if len(sys.argv) > 2
-        else os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "Assets",
-            "Audio",
-            "Samples",
-        )
+        else DEFAULT_OUTPUT_DIR
     )
 
     print(f"Output directory: {output_dir}")
@@ -239,6 +241,7 @@ def main():
     print(f"\nTo use real instrument samples, install sf2_loader and run:")
     print(f"  pip install sf2_loader")
     print(f"  python {sys.argv[0]} <path_to_soundfont.sf2>")
+    print(f"Suggested place to store source SoundFonts: {SUGGESTED_SF2_DIR}")
 
 
 if __name__ == "__main__":

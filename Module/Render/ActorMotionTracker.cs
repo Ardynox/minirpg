@@ -15,8 +15,10 @@ namespace MiniRPG.Module.Render;
 internal sealed class ActorMotionTracker
 {
 	private const float MotionDampingStrength = 1.5f;
+	private const int MaxContinuousSegmentsPerActor = 3;
 	private readonly Dictionary<string, ActorMotionState> _motions = new(StringComparer.Ordinal);
 	private bool _hasBlocking;
+	private double _lastKnownClockSeconds;
 
 	public bool HasAny => _motions.Count > 0;
 
@@ -27,18 +29,22 @@ internal sealed class ActorMotionTracker
 		double startTimeSeconds,
 		float durationSeconds)
 	{
+		_lastKnownClockSeconds = startTimeSeconds;
+
+		var blockingGateSeconds = ResolveBlockingGateSeconds(request, durationSeconds);
+		if (TryAppendContinuousSegment(request, startTimeSeconds, durationSeconds, blockingGateSeconds))
+		{
+			UpdateBlockingFlag(startTimeSeconds);
+			return;
+		}
+
 		var source = ResolveSourcePosition(request, startTimeSeconds);
-		_motions[request.ActorId] = new ActorMotionState(
-			source.X,
-			source.Y,
-			source.Z,
-			request.TargetX,
-			request.TargetY,
-			request.TargetZ,
-			startTimeSeconds,
-			ResolveDurationSeconds(durationSeconds, source, request),
-			request.Blocking,
-			request.UsesAsyncPresentation);
+		var state = new ActorMotionState(request.UsesContinuousPresentation);
+		state.Segments.Add(CreateSegment(source, request, startTimeSeconds, durationSeconds));
+		state.BlockingGateEndTimeSeconds = request.Blocking
+			? startTimeSeconds + blockingGateSeconds
+			: double.NegativeInfinity;
+		_motions[request.ActorId] = state;
 		UpdateBlockingFlag(startTimeSeconds);
 	}
 
@@ -59,13 +65,15 @@ internal sealed class ActorMotionTracker
 	/// <summary>Drop finished tweens and refresh the blocking flag.</summary>
 	public void Prune(double clockSeconds)
 	{
+		_lastKnownClockSeconds = clockSeconds;
 		if (_motions.Count == 0)
 			return;
 
 		List<string>? completed = null;
 		foreach (var (actorId, motion) in _motions)
 		{
-			if (GetProgress(motion, clockSeconds) >= 1f)
+			PruneState(motion, clockSeconds);
+			if (motion.Segments.Count == 0)
 				(completed ??= new List<string>()).Add(actorId);
 		}
 
@@ -81,6 +89,7 @@ internal sealed class ActorMotionTracker
 	/// <summary>Re-evaluate whether any blocking tween is still in flight.</summary>
 	public void UpdateBlockingFlag(double? lastClockSeconds)
 	{
+		var referenceClock = lastClockSeconds ?? _lastKnownClockSeconds;
 		if (_motions.Count == 0)
 		{
 			_hasBlocking = false;
@@ -90,12 +99,9 @@ internal sealed class ActorMotionTracker
 		_hasBlocking = false;
 		foreach (var motion in _motions.Values)
 		{
-			if (!motion.Blocking)
+			if (motion.Segments.Count == 0)
 				continue;
-			var progress = lastClockSeconds is { } clock
-				? GetProgress(motion, clock)
-				: GetProgress(motion, motion.StartTimeSeconds);
-			if (progress < 1f)
+			if (motion.BlockingGateEndTimeSeconds > referenceClock)
 			{
 				_hasBlocking = true;
 				break;
@@ -114,17 +120,28 @@ internal sealed class ActorMotionTracker
 		double clockSeconds,
 		out Vector3 position)
 	{
+		_lastKnownClockSeconds = clockSeconds;
 		if (!_motions.TryGetValue(actorId, out var motion))
 		{
 			position = default;
 			return false;
 		}
 
-		var progress = ResolvePresentationProgress(motion, clockSeconds);
+		PruneState(motion, clockSeconds);
+		if (motion.Segments.Count == 0)
+		{
+			_motions.Remove(actorId);
+			position = default;
+			UpdateBlockingFlag(clockSeconds);
+			return false;
+		}
+
+		var segment = motion.Segments[0];
+		var progress = ResolvePresentationProgress(segment, clockSeconds);
 		position = new Vector3(
-			Mathf.Lerp(motion.SourceX, motion.TargetX, progress),
-			Mathf.Lerp(motion.SourceY, motion.TargetY, progress),
-			Mathf.Lerp(motion.SourceZ, motion.TargetZ, progress));
+			Mathf.Lerp(segment.SourceX, segment.TargetX, progress),
+			Mathf.Lerp(segment.SourceY, segment.TargetY, progress),
+			Mathf.Lerp(segment.SourceZ, segment.TargetZ, progress));
 		return true;
 	}
 
@@ -140,18 +157,18 @@ internal sealed class ActorMotionTracker
 		return (dz == 0 && dx + dy == 1) || (dx == 0 && dy == 0 && dz == 1);
 	}
 
-	private static float GetProgress(ActorMotionState motion, double clockSeconds)
+	private static float GetProgress(ActorMotionSegment segment, double clockSeconds)
 	{
-		if (motion.DurationSeconds <= 0f)
+		if (segment.DurationSeconds <= 0f)
 			return 1f;
 
-		var elapsed = (float)(clockSeconds - motion.StartTimeSeconds);
-		return Mathf.Clamp(elapsed / motion.DurationSeconds, 0f, 1f);
+		var elapsed = (float)(clockSeconds - segment.StartTimeSeconds);
+		return Mathf.Clamp(elapsed / segment.DurationSeconds, 0f, 1f);
 	}
 
 	private Vector3 ResolveSourcePosition(ActorMotionPresentationRequest request, double clockSeconds)
 	{
-		if (request.UsesAsyncPresentation
+		if (request.UsesContinuousPresentation
 			&& TryGetInterpolatedPosition(request.ActorId, clockSeconds, out var currentPosition))
 		{
 			return currentPosition;
@@ -160,12 +177,88 @@ internal sealed class ActorMotionTracker
 		return new Vector3(request.SourceX, request.SourceY, request.SourceZ);
 	}
 
+	private bool TryAppendContinuousSegment(
+		ActorMotionPresentationRequest request,
+		double clockSeconds,
+		float baseDurationSeconds,
+		float blockingGateSeconds)
+	{
+		if (!request.UsesContinuousPresentation
+			|| !_motions.TryGetValue(request.ActorId, out var motion)
+			|| !motion.ContinuousPresentation)
+		{
+			return false;
+		}
+
+		PruneState(motion, clockSeconds);
+		if (motion.Segments.Count == 0 || motion.Segments.Count >= MaxContinuousSegmentsPerActor)
+			return false;
+
+		var tail = motion.Segments[^1];
+		if (!MatchesSegmentTarget(request, tail))
+			return false;
+
+		var source = new Vector3(tail.TargetX, tail.TargetY, tail.TargetZ);
+		var segmentStartTimeSeconds = tail.StartTimeSeconds + tail.DurationSeconds;
+		motion.Segments.Add(CreateSegment(source, request, segmentStartTimeSeconds, baseDurationSeconds));
+		if (request.Blocking)
+		{
+			motion.BlockingGateEndTimeSeconds = Math.Max(
+				motion.BlockingGateEndTimeSeconds,
+				clockSeconds + blockingGateSeconds);
+		}
+
+		return true;
+	}
+
+	private static bool MatchesSegmentTarget(
+		ActorMotionPresentationRequest request,
+		ActorMotionSegment tail)
+	{
+		return Math.Abs(tail.TargetX - request.SourceX) <= 0.001f
+			&& Math.Abs(tail.TargetY - request.SourceY) <= 0.001f
+			&& Math.Abs(tail.TargetZ - request.SourceZ) <= 0.001f;
+	}
+
+	private static float ResolveBlockingGateSeconds(
+		ActorMotionPresentationRequest request,
+		float baseDurationSeconds)
+	{
+		if (!request.Blocking)
+			return 0f;
+
+		var fallback = MathF.Max(baseDurationSeconds, 0f);
+		var requested = request.BlockingGateSecondsOverride ?? fallback;
+		if (fallback <= 0f)
+			return MathF.Max(requested, 0f);
+
+		return Math.Clamp(requested, 0f, fallback);
+	}
+
+	private static ActorMotionSegment CreateSegment(
+		Vector3 source,
+		ActorMotionPresentationRequest request,
+		double startTimeSeconds,
+		float baseDurationSeconds)
+	{
+		return new ActorMotionSegment(
+			source.X,
+			source.Y,
+			source.Z,
+			request.TargetX,
+			request.TargetY,
+			request.TargetZ,
+			startTimeSeconds,
+			ResolveDurationSeconds(baseDurationSeconds, source, request),
+			request.UsesContinuousPresentation);
+	}
+
 	private static float ResolveDurationSeconds(
 		float baseDurationSeconds,
 		Vector3 source,
 		ActorMotionPresentationRequest request)
 	{
-		if (!request.UsesAsyncPresentation || baseDurationSeconds <= 0f)
+		if (!request.UsesContinuousPresentation || baseDurationSeconds <= 0f)
 			return baseDurationSeconds;
 
 		var distance = MathF.Abs(request.TargetX - source.X)
@@ -177,10 +270,22 @@ internal sealed class ActorMotionTracker
 		return baseDurationSeconds * MathF.Max(distance, 1f);
 	}
 
-	private static float ResolvePresentationProgress(ActorMotionState motion, double clockSeconds)
+	private static void PruneState(ActorMotionState motion, double clockSeconds)
 	{
-		var progress = GetProgress(motion, clockSeconds);
-		return motion.AsyncPresentation ? progress : ApplyDampedProgress(progress);
+		while (motion.Segments.Count > 0)
+		{
+			var segment = motion.Segments[0];
+			if (GetProgress(segment, clockSeconds) < 1f)
+				break;
+
+			motion.Segments.RemoveAt(0);
+		}
+	}
+
+	private static float ResolvePresentationProgress(ActorMotionSegment segment, double clockSeconds)
+	{
+		var progress = GetProgress(segment, clockSeconds);
+		return segment.ContinuousPresentation ? progress : ApplyDampedProgress(progress);
 	}
 
 	internal static float ApplyDampedProgress(float progress)
@@ -198,7 +303,21 @@ internal sealed class ActorMotionTracker
 		return (1f - Mathf.Exp(-MotionDampingStrength * progress)) / normalization;
 	}
 
-	internal readonly record struct ActorMotionState(
+	internal sealed class ActorMotionState
+	{
+		public ActorMotionState(bool continuousPresentation)
+		{
+			ContinuousPresentation = continuousPresentation;
+		}
+
+		public List<ActorMotionSegment> Segments { get; } = new();
+
+		public bool ContinuousPresentation { get; }
+
+		public double BlockingGateEndTimeSeconds { get; set; } = double.NegativeInfinity;
+	}
+
+	internal readonly record struct ActorMotionSegment(
 		float SourceX,
 		float SourceY,
 		float SourceZ,
@@ -207,6 +326,5 @@ internal sealed class ActorMotionTracker
 		float TargetZ,
 		double StartTimeSeconds,
 		float DurationSeconds,
-		bool Blocking,
-		bool AsyncPresentation);
+		bool ContinuousPresentation);
 }

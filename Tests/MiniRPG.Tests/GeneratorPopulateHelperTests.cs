@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Map;
 using MiniRPG.Core.World;
 using MiniRPG.Core.World.Generators;
 using Xunit;
@@ -111,6 +112,54 @@ public sealed class GeneratorPopulateHelperTests
 
 		Assert.Equal(1, CountFixtures(chunk, Entities.StairDown));
 		Assert.Equal(0, CountFixtures(chunk, Entities.StairUp));
+	}
+
+	[Fact]
+	public void WorldGenerationSettingsRegistry_ScalesNestParametersFromWorldSettings()
+	{
+		const int worldSeed = 24680;
+		const string generatorId = "generator_scaling_probe";
+		WorldGenerationSettingsRegistry.Register(worldSeed, generatorId, new WorldSettings
+		{
+			MonsterDensityPercent = 250,
+			NestIntensityPercent = 50,
+		});
+
+		Assert.Equal(5, WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, generatorId, 10));
+		Assert.Equal(8, WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, generatorId, 20));
+		Assert.Equal(10, WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, generatorId, 4));
+	}
+
+	[Fact]
+	public void WorldGenerationSettingsRegistry_DisablesNestSpawns_WhenMonsterDensityIsZero()
+	{
+		const int worldSeed = 86420;
+		const string generatorId = "generator_scaling_zero";
+		WorldGenerationSettingsRegistry.Register(worldSeed, generatorId, new WorldSettings
+		{
+			MonsterDensityPercent = 0,
+			NestIntensityPercent = 300,
+		});
+
+		Assert.Equal(0, WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, generatorId, 10));
+		Assert.Equal(int.MaxValue, WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, generatorId, 20));
+		Assert.Equal(0, WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, generatorId, 4));
+	}
+
+	[Fact]
+	public void WorldGenerationSettingsRegistry_NestIntensityAbove100_AlsoBoostsSpawnCadence()
+	{
+		const int worldSeed = 97531;
+		const string generatorId = "generator_scaling_over_100";
+		WorldGenerationSettingsRegistry.Register(worldSeed, generatorId, new WorldSettings
+		{
+			MonsterDensityPercent = 100,
+			NestIntensityPercent = 250,
+		});
+
+		Assert.Equal(25, WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, generatorId, 10));
+		Assert.Equal(8, WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, generatorId, 20));
+		Assert.Equal(10, WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, generatorId, 4));
 	}
 
 	private static ChunkData CreateChunk(ChunkCoord coord, string terrainId)

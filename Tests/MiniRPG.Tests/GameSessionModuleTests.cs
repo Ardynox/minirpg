@@ -6,6 +6,7 @@ using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
+using MiniRPG.Core.World.Generators;
 using MiniRPG.Module;
 using MiniRPG.Module.Render;
 using Xunit;
@@ -30,13 +31,18 @@ public sealed class GameSessionModuleTests
 			{
 				Seed = 424242,
 				GeneratorId = generatorId,
+				MonsterDensityPercent = 180,
+				NestIntensityPercent = 75,
 			});
 
 			var entry = session.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
+			var generationSettings = WorldGenerationSettingsRegistry.Resolve(state.WorldSeed, state.GeneratorId);
 
 			Assert.True(session.GameStarted);
 			Assert.Equal(424242, state.WorldSeed);
 			Assert.Equal(generatorId, state.GeneratorId);
+			Assert.Equal(180, generationSettings.MonsterDensityPercent);
+			Assert.Equal(75, generationSettings.NestIntensityPercent);
 			Assert.Equal(manifest.WorldId, session.CurrentWorldId);
 			Assert.Equal(entry.CharacterId, session.CurrentCharacterId);
 			Assert.True(File.Exists(entry.SavePath));
@@ -62,12 +68,18 @@ public sealed class GameSessionModuleTests
 		try
 		{
 			var sourceSession = new GameSessionModule(new GameState(), new FogOfWarTracker(), root);
-			var manifest = sourceSession.CreateWorld("Alpha");
+			var manifest = sourceSession.CreateWorld("Alpha", new WorldSettings
+			{
+				Seed = 112233,
+				MonsterDensityPercent = 220,
+				NestIntensityPercent = 40,
+			});
 			var entry = sourceSession.StartWorldCharacter(manifest.WorldId, CreateOptions("Rook"));
 
 			var restoredState = new GameState();
 			var restoredSession = new GameSessionModule(restoredState, new FogOfWarTracker(), root);
 			var status = restoredSession.LoadWorldCharacter(manifest.WorldId, entry.CharacterId);
+			var generationSettings = WorldGenerationSettingsRegistry.Resolve(restoredState.WorldSeed, restoredState.GeneratorId);
 
 			Assert.Equal(SaveLoadStatus.Success, status);
 			Assert.True(restoredSession.GameStarted);
@@ -79,6 +91,8 @@ public sealed class GameSessionModuleTests
 			Assert.Equal(entry.SavePath, restoredSession.GetPreferredSavePath());
 			Assert.Equal(entry.SavePath, restoredSession.GetQuickSavePath());
 			Assert.Equal(restoredState.PlayerId, restoredState.Actors[restoredState.PlayerId].Id);
+			Assert.Equal(220, generationSettings.MonsterDensityPercent);
+			Assert.Equal(40, generationSettings.NestIntensityPercent);
 		}
 		finally
 		{

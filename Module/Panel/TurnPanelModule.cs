@@ -25,7 +25,9 @@ public sealed class TurnPanelModule
 	private static readonly Color HiddenBarTint = new(1f, 1f, 1f, 0f);
 
 	/// <summary>队列中最多显示的角色数（避免溢出）。</summary>
-	private const int MaxQueueSlots = 8;
+	private const int MaxQueueSlots = 4;
+	private const float QueueChipMinWidth = 96f;
+	private const float QueueChipMinHeight = 26f;
 
 	public TurnPanelModule(PanelContainer panel)
 	{
@@ -36,6 +38,10 @@ public sealed class TurnPanelModule
 		_turnLabel = hbox.GetNode<RichTextLabel>("TurnLabel");
 		_renderModeLabel = hbox.GetNode<RichTextLabel>("RenderModeLabel");
 		_queueFlow = hbox.GetNode<HBoxContainer>("QueueFlow");
+		ConfigureStaticLabel(_phaseLabel);
+		ConfigureStaticLabel(_actorLabel);
+		ConfigureStaticLabel(_turnLabel);
+		ConfigureStaticLabel(_renderModeLabel);
 	}
 
 	public PanelContainer PanelNode => _panel;
@@ -103,6 +109,14 @@ public sealed class TurnPanelModule
 
 	// ── 队列预览（横向角色名片）─────────────────────────────
 
+	private static void ConfigureStaticLabel(RichTextLabel label)
+	{
+		// TurnPanel 需要稳定成单行，避免自动推进时因为重新换行而改高度。
+		label.FitContent = false;
+		label.ScrollActive = false;
+		label.AutowrapMode = TextServer.AutowrapMode.Off;
+	}
+
 	private void RenderQueue(TimelineDebugSnapshot snapshot)
 	{
 		var visibleCount = 0;
@@ -141,17 +155,6 @@ public sealed class TurnPanelModule
 				visibleCount++;
 			}
 
-			if (snapshot.Entries.Count > MaxQueueSlots)
-			{
-				ConfigureChip(
-					EnsureQueueChip(visibleCount),
-					$"+{snapshot.Entries.Count - MaxQueueSlots}",
-					UIColors.HexDim,
-					isCurrent: false,
-					chargePct: 0f,
-					showBar: false);
-				visibleCount++;
-			}
 		}
 
 		HideUnusedQueueChips(visibleCount);
@@ -230,21 +233,26 @@ public sealed class TurnPanelModule
 	{
 		var chip = new PanelContainer
 		{
-			CustomMinimumSize = new Vector2(0, 26),
+			CustomMinimumSize = new Vector2(QueueChipMinWidth, QueueChipMinHeight),
 			Visible = false,
 		};
 		ApplyChipStyle(chip, isCurrent: false);
 
-		var vbox = new VBoxContainer();
+		var vbox = new VBoxContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.Fill,
+		};
 		vbox.AddThemeConstantOverride("separation", 0);
 		chip.AddChild(vbox);
 
 		var label = new RichTextLabel
 		{
 			BbcodeEnabled = true,
-			FitContent = true,
+			CustomMinimumSize = new Vector2(0, 16),
+			FitContent = false,
 			ScrollActive = false,
-			SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+			AutowrapMode = TextServer.AutowrapMode.Off,
+			SizeFlagsHorizontal = Control.SizeFlags.Fill,
 		};
 		vbox.AddChild(label);
 

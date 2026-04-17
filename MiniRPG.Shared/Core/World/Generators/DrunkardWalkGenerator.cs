@@ -84,6 +84,9 @@ public class DrunkardWalkGenerator : IMapGenerator
 		var seed = HashSeed(worldSeed, chunk.Coord) ^ unchecked((int)0xD1D2D3D4);
 		var rng = new Random(seed);
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, config.NestChancePercent);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, config.NestSpawnInterval);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, config.NestMaxSpawned);
 		GeneratorPopulateHelper.PlaceDungeonFixtures(
 			chunk,
 			rng,
@@ -91,9 +94,9 @@ public class DrunkardWalkGenerator : IMapGenerator
 			config.StairDownChancePercent,
 			config.StairUpChancePercent,
 			allowStairUp: true,
-			config.NestChancePercent,
-			config.NestSpawnInterval,
-			config.NestMaxSpawned);
+			nestChancePercent,
+			nestSpawnInterval,
+			nestMaxSpawned);
 	}
 
 	/// <summary>确保 chunk 四条边各有至少一个开口，方便跨 chunk 通行。</summary>

@@ -152,6 +152,8 @@ public sealed class SettingsFlowModalInputAdapterTests
 				MapZoomMax: 2.4f,
 				MapZoomCurrent: 1.0f,
 				UiFontScale: 1.0f,
+				HighContrastEnabled: false,
+				ColorBlindMode: "none",
 				AutoNavigationInterruptPolicy: AutoNavigationInterruptPolicy.ConservativeStop));
 
 			Adapter = new SettingsFlowModalInputAdapter(SettingsFlow, new PanelManager(), () => FlushMapCalls++);
@@ -291,6 +293,16 @@ public sealed class SettingsFlowModalInputAdapterTests
 			remove { }
 		}
 		public event Action? LayoutEditRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action? HighContrastToggleRequested
+		{
+			add { }
+			remove { }
+		}
+		public event Action<string>? ColorBlindModeChangeRequested
 		{
 			add { }
 			remove { }

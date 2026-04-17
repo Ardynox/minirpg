@@ -13,6 +13,7 @@ using MiniRPG.Core.Event.Workers;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.World;
+using MiniRPG.Core.World.Generators;
 using MiniRPG.Module.Session;
 
 namespace MiniRPG.Module;
@@ -93,6 +94,7 @@ public class GameSessionModule : IDebugSessionActions
 		_state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
+		RegisterWorldGenerationSettings(WorldSettings.CreateDefault());
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
 		PartyModule.Initialize(_state);
@@ -209,13 +211,15 @@ public class GameSessionModule : IDebugSessionActions
 		var characterName = resolvedOptions.ResolveDisplayName(PlayerCreationOptions.CreateDefault().DisplayName);
 		var characterId = _worldStore.CreateCharacterId(characterName);
 		var canonicalPath = _worldStore.GetCharacterSavePath(worldId, characterId);
+		var resolvedWorldSettings = WorldSessionParameters.Normalize(manifest.Settings);
 
 		_state.Reset();
-		_state.WorldSeed = WorldSessionParameters.Normalize(manifest.Settings).Seed;
-		_state.GeneratorId = WorldSessionParameters.NormalizeGeneratorId(manifest.Settings.GeneratorId);
+		_state.WorldSeed = resolvedWorldSettings.Seed;
+		_state.GeneratorId = resolvedWorldSettings.GeneratorId;
 		_state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
+		RegisterWorldGenerationSettings(resolvedWorldSettings);
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
 		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
@@ -248,6 +252,7 @@ public class GameSessionModule : IDebugSessionActions
 		_state.GeneratorId = "blank_floor";
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
+		RegisterWorldGenerationSettings(WorldSettings.CreateDefault());
 		InitializeWorld();
 		TimelineTurnManager.Reset(_state);
 		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
@@ -796,6 +801,9 @@ public class GameSessionModule : IDebugSessionActions
 		bool suppressLocalPersistence = false)
 	{
 		_state.Weather ??= WeatherState.CreateDefault(_state.WorldSeed);
+		if (!string.IsNullOrWhiteSpace(header?.WorldId) && knownWorld == null)
+			_worldStore.TryLoadWorld(header.WorldId!, out knownWorld);
+		RegisterWorldGenerationSettings(knownWorld?.Settings?.Clone() ?? WorldSettings.CreateDefault());
 		MapGenModule.InitializeWorld(_state);
 		var playerStatus = ValidateLoadedPlayerActor();
 		if (playerStatus != SaveLoadStatus.Success)
@@ -977,6 +985,11 @@ public class GameSessionModule : IDebugSessionActions
 	{
 		Debug.WriteLine(message);
 		Console.Error.WriteLine(message);
+	}
+
+	private void RegisterWorldGenerationSettings(WorldSettings settings)
+	{
+		WorldGenerationSettingsRegistry.Register(_state.WorldSeed, _state.GeneratorId, settings);
 	}
 
 	private bool _storytellerWorkersRegistered;

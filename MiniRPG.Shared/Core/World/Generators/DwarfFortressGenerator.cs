@@ -106,6 +106,9 @@ public class DwarfFortressGenerator : IMapGenerator
 
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 		var rubbleId = TerrainRegistry.GetId(Terrains.Rubble);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, 3);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, 60);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, 6);
 
 		// 地下层放置楼梯和怪物巢穴
 		if (cz > 0)
@@ -115,9 +118,9 @@ public class DwarfFortressGenerator : IMapGenerator
 				stairDownChancePercent: 12,
 				stairUpChancePercent: 8,
 				allowStairUp: true,
-				nestChancePercent: 3,
-				nestSpawnInterval: 60,
-				nestMaxSpawned: 6);
+				nestChancePercent: nestChancePercent,
+				nestSpawnInterval: nestSpawnInterval,
+				nestMaxSpawned: nestMaxSpawned);
 
 			// 废墟碎石中也可能有楼梯
 			GeneratorPopulateHelper.PlaceStairs(

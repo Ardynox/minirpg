@@ -1,4 +1,5 @@
 using MiniRPG.Core.Data;
+using MiniRPG.Module.Render;
 using Xunit;
 
 namespace MiniRPG.Tests;
@@ -53,6 +54,54 @@ public sealed class MainTimelineMotionTests
 	}
 
 	[Fact]
+	public void ResolveTimelineAutoAdvanceStopReason_BlockingMotion_TakesPriority()
+	{
+		Assert.Equal(
+			"blocking-motion:enemy:nearby-threat",
+			Main.ResolveTimelineAutoAdvanceStopReason(
+				playerTurnReady: true,
+				hasPendingAutoStep: true,
+				blockingMotionSummary: "enemy:nearby-threat",
+				reachedBatchLimit: false));
+	}
+
+	[Fact]
+	public void ResolveTimelineAutoAdvanceStopReason_PlayerTurn_StopsBatch()
+	{
+		Assert.Equal(
+			"player-turn",
+			Main.ResolveTimelineAutoAdvanceStopReason(
+				playerTurnReady: true,
+				hasPendingAutoStep: true,
+				blockingMotionSummary: null,
+				reachedBatchLimit: false));
+	}
+
+	[Fact]
+	public void ResolveTimelineAutoAdvanceIntervalSeconds_AutoNavigation_UsesPlayerMotionCadence()
+	{
+		var interval = Main.ResolveTimelineAutoAdvanceIntervalSeconds(
+			watchModeEnabled: false,
+			fastTurnModeEnabled: false,
+			autoNavigationExecutingStep: true,
+			autoNavigationTimingTier: ActorMotionTimingTier.PlayerFast);
+
+		Assert.InRange(interval, 0.08d, 0.09d);
+	}
+
+	[Fact]
+	public void ResolveTimelineAutoAdvanceIntervalSeconds_NonAutoNavigation_UsesDefaultInterval()
+	{
+		Assert.Equal(
+			0.2d,
+			Main.ResolveTimelineAutoAdvanceIntervalSeconds(
+				watchModeEnabled: false,
+				fastTurnModeEnabled: false,
+				autoNavigationExecutingStep: false,
+				autoNavigationTimingTier: ActorMotionTimingTier.PlayerFast));
+	}
+
+	[Fact]
 	public void ShouldBlockNpcMotion_SinglePlayerFarFriendly_DoesNotBlock()
 	{
 		var state = new GameState();
@@ -69,6 +118,24 @@ public sealed class MainTimelineMotionTests
 	}
 
 	[Fact]
+	public void ResolveActorMotionPresentationReason_SinglePlayerFarFriendly_ReturnsAmbientBackground()
+	{
+		var state = new GameState();
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player, X = 0, Y = 0, Z = 0 };
+		var friendlyActor = new Actor { Id = "ally", Faction = Factions.Friendly, X = 7, Y = 0, Z = 0 };
+		ActorModule.Add(state, friendlyActor);
+		var gameEvent = CreateActorMotionEvent(friendlyActor);
+
+		Assert.Equal(
+			"ambient-background",
+			Main.ResolveActorMotionPresentationReason(
+				state,
+				gameEvent,
+				activeActor,
+				isMultiplayerSession: false));
+	}
+
+	[Fact]
 	public void ShouldUseAsyncNpcMotionPresentation_SinglePlayerFarFriendly_UsesAsyncPresentation()
 	{
 		var state = new GameState();
@@ -82,6 +149,66 @@ public sealed class MainTimelineMotionTests
 			gameEvent,
 			activeActor,
 			isMultiplayerSession: false));
+	}
+
+	[Fact]
+	public void ShouldUseContinuousPlayerMotionPresentation_SinglePlayerActivePlayer_UsesContinuousPresentation()
+	{
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
+
+		Assert.True(Main.ShouldUseContinuousPlayerMotionPresentation(
+			actorId: activeActor.Id,
+			activeActor,
+			isMultiplayerSession: false));
+	}
+
+	[Fact]
+	public void ShouldUseContinuousPlayerMotionPresentation_Multiplayer_DoesNotChangePresentation()
+	{
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player };
+
+		Assert.False(Main.ShouldUseContinuousPlayerMotionPresentation(
+			actorId: activeActor.Id,
+			activeActor,
+			isMultiplayerSession: true));
+	}
+
+	[Fact]
+	public void ResolveSinglePlayerBlockingGateSeconds_PlayerFast_UsesShortGate()
+	{
+		Assert.Equal(
+			0.04f,
+			Main.ResolveSinglePlayerBlockingGateSeconds(
+				"active-player",
+				ActorMotionTimingTier.PlayerFast));
+	}
+
+	[Fact]
+	public void ResolveSinglePlayerBlockingGateSeconds_NearbyThreat_PrefersThreatReadableWindow()
+	{
+		Assert.Equal(
+			0.06f,
+			Main.ResolveSinglePlayerBlockingGateSeconds(
+				"nearby-threat",
+				ActorMotionTimingTier.NpcFast));
+	}
+
+	[Fact]
+	public void ResolveActorMotionPresentationReason_SinglePlayerNearbyThreat_ReturnsNearbyThreat()
+	{
+		var state = new GameState();
+		var activeActor = new Actor { Id = "player", Faction = Factions.Player, X = 0, Y = 0, Z = 0 };
+		var hostileActor = new Actor { Id = "enemy", Faction = Factions.Hostile, X = 6, Y = 0, Z = 0 };
+		ActorModule.Add(state, hostileActor);
+		var gameEvent = CreateActorMotionEvent(hostileActor, sourceX: 7, targetX: 6);
+
+		Assert.Equal(
+			"nearby-threat",
+			Main.ResolveActorMotionPresentationReason(
+				state,
+				gameEvent,
+				activeActor,
+				isMultiplayerSession: false));
 	}
 
 	[Fact]

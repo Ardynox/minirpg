@@ -44,7 +44,10 @@ internal readonly record struct ActorMotionPresentationRequest(
 	ActorMotionTimingTier TimingTier,
 	bool Blocking,
 	float? DurationSecondsOverride = null,
-	bool AsyncPresentation = false)
+	float? BlockingGateSecondsOverride = null,
+	bool AsyncPresentation = false,
+	bool ContinuousPresentation = false)
 {
 	public bool UsesAsyncPresentation => AsyncPresentation && !Blocking;
+	public bool UsesContinuousPresentation => ContinuousPresentation || UsesAsyncPresentation;
 }

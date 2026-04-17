@@ -20,33 +20,33 @@ theme_override_constants/separation = 12
 [node name="PhaseLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
 size_flags_horizontal = 0
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(100, 20)
 bbcode_enabled = true
-fit_content = true
+fit_content = false
 scroll_active = false
 
 [node name="ActorLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
 size_flags_horizontal = 0
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(120, 20)
 bbcode_enabled = true
-fit_content = true
+fit_content = false
 scroll_active = false
 
 [node name="TurnLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
 size_flags_horizontal = 0
-custom_minimum_size = Vector2(60, 0)
+custom_minimum_size = Vector2(60, 20)
 bbcode_enabled = true
-fit_content = true
+fit_content = false
 scroll_active = false
 
 [node name="RenderModeLabel" type="RichTextLabel" parent="Margin/HBox"]
 layout_mode = 2
 size_flags_horizontal = 0
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(120, 20)
 bbcode_enabled = true
-fit_content = true
+fit_content = false
 scroll_active = false
 
 [node name="Sep" type="VSeparator" parent="Margin/HBox"]
@@ -54,5 +54,6 @@ layout_mode = 2
 
 [node name="QueueFlow" type="HBoxContainer" parent="Margin/HBox"]
 layout_mode = 2
+custom_minimum_size = Vector2(408, 0)
 size_flags_horizontal = 3
 theme_override_constants/separation = 8

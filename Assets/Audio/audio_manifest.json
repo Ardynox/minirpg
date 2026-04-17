@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "updatedOn": "2026-04-17",
+  "roots": {
+    "externalLibrary": "Assets/Audio/Library",
+    "runtimeSamples": "Assets/Audio/Samples",
+    "proceduralSources": "Assets/Audio/ProceduralSources",
+    "newExternalDropPattern": "Assets/Audio/Library/<Category>/<SourcePack>/...",
+    "newProceduralDropPattern": "Assets/Audio/ProceduralSources/<InputType>/..."
+  },
+  "rules": [
+    "Every third-party sampled asset needs a manifest entry before gameplay hookup.",
+    "Keep original license or readme files beside third-party packs under Assets/Audio/Library.",
+    "Only runtime-ready note banks belong in Assets/Audio/Samples; SoundFonts, MIDI, and recipe notes belong in Assets/Audio/ProceduralSources.",
+    "Existing Library/Kenney and Library/OpenGameArt folders are legacy vendor-first layout; new imports should use category-first folders under Assets/Audio/Library/UI|Ambience|Foley|Combat|Music."
+  ],
+  "entries": [
+    {
+      "id": "kenney_music_jingles",
+      "pathType": "directory",
+      "path": "Assets/Audio/Library/Kenney/MusicJingles",
+      "assetType": "external_pack",
+      "category": "ui",
+      "usage": "Short confirm, fail, reward, and transition stingers for UI and scene flow.",
+      "fileCount": 85,
+      "format": [
+        "ogg"
+      ],
+      "durationSec": null,
+      "durationNote": "Per file about 0-1 sec; short jingle pack.",
+      "source": {
+        "kind": "external",
+        "name": "Music Jingles",
+        "author": "Kenney Vleugels",
+        "reference": "https://kenney.nl/assets/music-jingles"
+      },
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Legacy vendor-first location; keep until touched. New UI packs should land under Assets/Audio/Library/UI/<SourcePack>/."
+    },
+    {
+      "id": "forest_ambience",
+      "pathType": "file",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/forest_ambience.mp3",
+      "assetType": "external_track",
+      "category": "ambience",
+      "usage": "Calm outdoor loop for forest edge, travel, and daytime ambience.",
+      "format": [
+        "mp3"
+      ],
+      "durationSec": 44,
+      "durationNote": null,
+      "source": {
+        "kind": "external",
+        "name": "Forest Ambience",
+        "author": "TinyWorlds",
+        "reference": "https://opengameart.org/content/forest-ambience"
+      },
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Legacy vendor-first location; new ambience packs should land under Assets/Audio/Library/Ambience/<SourcePack>/."
+    },
+    {
+      "id": "loopable_dungeon_ambience",
+      "pathType": "file",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/dungeon_ambient_1.ogg",
+      "assetType": "external_track",
+      "category": "ambience",
+      "usage": "Low-key dungeon bed for caves, ruins, and underground exploration.",
+      "format": [
+        "ogg"
+      ],
+      "durationSec": 94,
+      "durationNote": null,
+      "source": {
+        "kind": "external",
+        "name": "Loopable Dungeon Ambience",
+        "author": "JaggedStone",
+        "reference": "https://opengameart.org/content/loopable-dungeon-ambience"
+      },
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Legacy vendor-first location; new ambience packs should land under Assets/Audio/Library/Ambience/<SourcePack>/."
+    },
+    {
+      "id": "dark_rainy_night_ambience",
+      "pathType": "file",
+      "path": "Assets/Audio/Library/OpenGameArt/Ambience/dark_rainy_night_ambience.ogg",
+      "assetType": "external_track",
+      "category": "ambience",
+      "usage": "Storm loop for bad weather, camp-at-night, and danger buildup.",
+      "format": [
+        "ogg"
+      ],
+      "durationSec": 278,
+      "durationNote": null,
+      "source": {
+        "kind": "external",
+        "name": "rain and thunders",
+        "author": "kindland",
+        "reference": "https://opengameart.org/content/rain-and-thunders"
+      },
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Legacy vendor-first location; new ambience packs should land under Assets/Audio/Library/Ambience/<SourcePack>/."
+    },
+    {
+      "id": "prepare_your_swords",
+      "pathType": "file",
+      "path": "Assets/Audio/Library/OpenGameArt/Music/prepare_your_swords.ogg",
+      "assetType": "external_track",
+      "category": "combat",
+      "usage": "Short combat-ready cue for encounter start and threat spikes.",
+      "format": [
+        "ogg"
+      ],
+      "durationSec": 88,
+      "durationNote": null,
+      "source": {
+        "kind": "external",
+        "name": "Prepare your swords",
+        "author": "bojidar-bg",
+        "reference": "https://opengameart.org/content/prepare-your-swords"
+      },
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Legacy vendor-first location; future combat tracks should land under Assets/Audio/Library/Combat/<SourcePack>/."
+    },
+    {
+      "id": "underwater_theme_ii",
+      "pathType": "file",
+      "path": "Assets/Audio/Library/OpenGameArt/Music/underwater_theme_ii.ogg",
+      "assetType": "external_track",
+      "category": "music",
+      "usage": "Longer reflective music bed for shoreline, flooded ruins, and calmer exploration beats.",
+      "format": [
+        "ogg"
+      ],
+      "durationSec": 104,
+      "durationNote": null,
+      "source": {
+        "kind": "external",
+        "name": "Underwater Theme II",
+        "author": "CleytonKauffman",
+        "reference": "https://opengameart.org/content/underwater-theme-ii"
+      },
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "status": "approved",
+      "notes": "Local readme at Assets/Audio/Library/OpenGameArt/Music/underwater_theme_ii_readme.txt confirms CC0."
+    },
+    {
+      "id": "sampler_harp_placeholders",
+      "pathType": "directory",
+      "path": "Assets/Audio/Samples/harp",
+      "assetType": "generated_sample_set",
+      "category": "procedural_source",
+      "usage": "Runtime SamplerEngine harp note bank for procedural music playback.",
+      "fileCount": 7,
+      "format": [
+        "wav"
+      ],
+      "durationSec": 2.0,
+      "durationNote": "Each checked-in file is a 2.0s mono note sample.",
+      "source": {
+        "kind": "repo_generated",
+        "name": "extract_samples.py placeholder output",
+        "author": "MiniRPG repo tool",
+        "reference": "Tools/extract_samples.py"
+      },
+      "license": "Internal generated placeholder",
+      "licenseUrl": null,
+      "attributionRequired": false,
+      "status": "generated",
+      "notes": "Current file count and durations match the tool's default synthetic output shape; if regenerated from an external SoundFont, record that SoundFont under Assets/Audio/ProceduralSources first."
+    },
+    {
+      "id": "sampler_lute_placeholders",
+      "pathType": "directory",
+      "path": "Assets/Audio/Samples/lute",
+      "assetType": "generated_sample_set",
+      "category": "procedural_source",
+      "usage": "Runtime SamplerEngine lute note bank for procedural music playback.",
+      "fileCount": 6,
+      "format": [
+        "wav"
+      ],
+      "durationSec": 2.0,
+      "durationNote": "Each checked-in file is a 2.0s mono note sample.",
+      "source": {
+        "kind": "repo_generated",
+        "name": "extract_samples.py placeholder output",
+        "author": "MiniRPG repo tool",
+        "reference": "Tools/extract_samples.py"
+      },
+      "license": "Internal generated placeholder",
+      "licenseUrl": null,
+      "attributionRequired": false,
+      "status": "generated",
+      "notes": "If regenerated from an external SoundFont, record that SoundFont under Assets/Audio/ProceduralSources first."
+    },
+    {
+      "id": "sampler_recorder_placeholders",
+      "pathType": "directory",
+      "path": "Assets/Audio/Samples/recorder",
+      "assetType": "generated_sample_set",
+      "category": "procedural_source",
+      "usage": "Runtime SamplerEngine recorder note bank for procedural music playback.",
+      "fileCount": 5,
+      "format": [
+        "wav"
+      ],
+      "durationSec": 2.0,
+      "durationNote": "Each checked-in file is a 2.0s mono note sample.",
+      "source": {
+        "kind": "repo_generated",
+        "name": "extract_samples.py placeholder output",
+        "author": "MiniRPG repo tool",
+        "reference": "Tools/extract_samples.py"
+      },
+      "license": "Internal generated placeholder",
+      "licenseUrl": null,
+      "attributionRequired": false,
+      "status": "generated",
+      "notes": "If regenerated from an external SoundFont, record that SoundFont under Assets/Audio/ProceduralSources first."
+    },
+    {
+      "id": "sampler_viol_placeholders",
+      "pathType": "directory",
+      "path": "Assets/Audio/Samples/viol",
+      "assetType": "generated_sample_set",
+      "category": "procedural_source",
+      "usage": "Runtime SamplerEngine bass / string note bank for procedural music playback.",
+      "fileCount": 5,
+      "format": [
+        "wav"
+      ],
+      "durationSec": 2.0,
+      "durationNote": "Each checked-in file is a 2.0s mono note sample.",
+      "source": {
+        "kind": "repo_generated",
+        "name": "extract_samples.py placeholder output",
+        "author": "MiniRPG repo tool",
+        "reference": "Tools/extract_samples.py"
+      },
+      "license": "Internal generated placeholder",
+      "licenseUrl": null,
+      "attributionRequired": false,
+      "status": "generated",
+      "notes": "If regenerated from an external SoundFont, record that SoundFont under Assets/Audio/ProceduralSources first."
+    },
+    {
+      "id": "sampler_percussion_placeholders",
+      "pathType": "directory",
+      "path": "Assets/Audio/Samples/percussion",
+      "assetType": "generated_sample_set",
+      "category": "procedural_source",
+      "usage": "Runtime SamplerEngine percussion one-shots for procedural music playback.",
+      "fileCount": 5,
+      "format": [
+        "wav"
+      ],
+      "durationSec": null,
+      "durationNote": "Per file about 0.3-0.5 sec one-shot burst.",
+      "source": {
+        "kind": "repo_generated",
+        "name": "extract_samples.py placeholder output",
+        "author": "MiniRPG repo tool",
+        "reference": "Tools/extract_samples.py"
+      },
+      "license": "Internal generated placeholder",
+      "licenseUrl": null,
+      "attributionRequired": false,
+      "status": "generated",
+      "notes": "If regenerated from an external percussion source, record that source under Assets/Audio/ProceduralSources first."
+    }
+  ]
+}

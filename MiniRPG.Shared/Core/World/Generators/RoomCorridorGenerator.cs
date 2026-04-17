@@ -46,7 +46,7 @@ public class RoomCorridorGenerator : IMapGenerator
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
 
 		if (z > 0)
-			PopulateDungeon(chunk, rng);
+			PopulateDungeon(chunk, rng, worldSeed);
 		else if (z == 0)
 			PopulateSurface(chunk, rng);
 
@@ -170,15 +170,18 @@ public class RoomCorridorGenerator : IMapGenerator
 		}
 	}
 
-	private static void PopulateDungeon(ChunkData chunk, Random rng)
+	private void PopulateDungeon(ChunkData chunk, Random rng, int worldSeed)
 	{
 		var config = GameConfig.Generation.RoomCorridor;
 		var floorId = TerrainRegistry.GetId(Terrains.Floor);
+		var nestChancePercent = WorldGenerationSettingsRegistry.ScaleNestChancePercent(worldSeed, Id, config.DungeonNestChancePercent);
+		var nestSpawnInterval = WorldGenerationSettingsRegistry.ScaleNestSpawnInterval(worldSeed, Id, config.DungeonNestSpawnInterval);
+		var nestMaxSpawned = WorldGenerationSettingsRegistry.ScaleNestMaxSpawned(worldSeed, Id, config.DungeonNestMaxSpawned);
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
 		{
 			if (chunk.GetTerrainId(lx, ly) != floorId) continue;
-			if (rng.Next(100) < Math.Clamp(config.DungeonNestChancePercent, 0, 100))
+			if (rng.Next(100) < nestChancePercent)
 			{
 				chunk.PushEntity(lx, ly, new CellEntity
 					{ Type = CellEntityType.Fixture, Glyph = "N", EntityId = Entities.Nest });
@@ -186,8 +189,8 @@ public class RoomCorridorGenerator : IMapGenerator
 				{
 					X = chunk.Coord.Cx * ChunkData.Size + lx,
 					Y = chunk.Coord.Cy * ChunkData.Size + ly,
-					SpawnInterval = config.DungeonNestSpawnInterval,
-					MaxSpawned = config.DungeonNestMaxSpawned,
+					SpawnInterval = nestSpawnInterval,
+					MaxSpawned = nestMaxSpawned,
 				});
 			}
 		}
