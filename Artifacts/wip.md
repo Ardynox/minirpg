@@ -13,17 +13,11 @@
 
 <!-- 按开工时间倒序。完成后删除本条。 -->
 
-- codex-player-glide-logfile | Artifacts/wip.md, App/Main.ActorMotion.cs, App/Main.Timeline.cs, Module/Render/ActorMotionPresentation.cs, Module/Render/ActorMotionTracker.cs, Module/Render/IsometricVoxelRenderer.cs, Tests/MiniRPG.Tests/MainTimelineMotionTests.cs, Tests/MiniRPG.Tests/IsometricRenderTests.cs | 正在把玩家连续移动改成 glide，并把诊断日志落到 Artifacts/turn
-- codex-timeline-motion-log | Artifacts/wip.md, App/Main.ActorMotion.cs, App/Main.Timeline.cs, Tests/MiniRPG.Tests/MainTimelineMotionTests.cs | 正在补过回合/动作 lane 诊断日志，帮助观察“为什么不丝滑”
-- codex-wip-triage | Artifacts/wip.md, Artifacts/wip_plan.md | 正在整理未登记改动并补分流计划
-- needs-owner | Module/Panel/TurnPanelModule.cs, Scene/TurnPanel.tscn | TurnPanel 单行布局 / 队列名片压缩改动已存在；建议独立冒烟后单独提交
-- needs-owner | Assets/Audio/**, Tools/extract_samples.py, Tools/validate_audio_manifest.py | 音频资源管线重组已通过 python Tools/validate_audio_manifest.py；建议独立成一条 lane 收口
-- codex-baseline | Artifacts/wip.md, Tests/MiniRPG.Tests/SettingsFlowCoordinatorTests.cs, Tests/MiniRPG.Tests/SettingsFlowModalInputAdapterTests.cs, Tests/MiniRPG.Tests/SettingsPanelModuleTests.cs | Tests 基线已恢复（dotnet test 1030 通过）；这些测试文件在提交前暂勿并改
-- needs-owner | Artifacts/render_mapping_audit_report.md | git status 检出未登记改动；认领前勿覆盖
-- qtwx-mcp-1 | A 赛道（Shared/Core）| Sprint 1 本通道任务已完成：S1-3 / S1-4 落地；S1-2 降级为 starter kit 扩充。S1-1 阻塞等 Tests 编译恢复。
+<!-- 当前无登记。 -->
 
 ## 已完成（最近）
 
+- codex | WIP 收口：玩家 glide / timeline 诊断、世界生成设置下传、TurnPanel 稳定化、音频清单管线、Settings 测试补齐 | 完成 2026-04-17
 - qtwx-mcp-1 | Thirst MVP（Core + Data + HUD）| 完成 2026-04-17
 - qtwx-mcp-1 | 死亡-复活数据骨架（PartyModule + ItemCorpseMetadata.SourceActorId + ReviveService + RevivalCostModel）| 完成 2026-04-17
 - qtwx-mcp-1 | 需求能力乘数数据驱动化（NeedStageDef.CapacityMultipliers）| 完成 2026-04-17

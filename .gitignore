@@ -41,3 +41,4 @@ stderr_probe.log
 build-diag.txt
 MiniRPG.csproj.old
 Assets/Fonts/NotoSansSC.zip
+Artifacts/turn/log.txt
