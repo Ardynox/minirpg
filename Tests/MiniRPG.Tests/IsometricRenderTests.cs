@@ -654,6 +654,21 @@ public sealed class IsometricRenderTests
 	}
 
 	[Fact]
+	public void IsometricVoxelRenderer_CompareEntityDrawCommands_PrefersVisualScreenOrder()
+	{
+		var frontVisual = new Vector2(0f, 96f);
+		var backVisual = new Vector2(0f, 32f);
+		var staleFrontSortKey = IsoCoordUtil.SortKey(1, 1, 0);
+		var staleBackSortKey = IsoCoordUtil.SortKey(3, 3, 0);
+
+		Assert.True(IsometricVoxelRenderer.CompareEntityDrawCommands(
+			frontVisual,
+			staleFrontSortKey,
+			backVisual,
+			staleBackSortKey) > 0);
+	}
+
+	[Fact]
 	public void IsometricVoxelRenderer_TryPickIsometricCell_RuntimeViewUsesCurrentLayerCell()
 	{
 		var world = CreateAirOnlyWorld();

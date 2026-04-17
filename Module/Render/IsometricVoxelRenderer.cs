@@ -1301,7 +1301,28 @@ public partial class IsometricVoxelRenderer
 			}
 		}
 
-		_entityCommands.Sort(static (a, b) => a.SortKey.CompareTo(b.SortKey));
+		_entityCommands.Sort(static (a, b) => CompareEntityDrawCommands(
+			a.ScreenPos,
+			a.SortKey,
+			b.ScreenPos,
+			b.SortKey));
+	}
+
+	internal static int CompareEntityDrawCommands(
+		Vector2 aScreenPos,
+		long aSortKey,
+		Vector2 bScreenPos,
+		long bSortKey)
+	{
+		var screenYCompare = aScreenPos.Y.CompareTo(bScreenPos.Y);
+		if (screenYCompare != 0)
+			return screenYCompare;
+
+		var screenXCompare = aScreenPos.X.CompareTo(bScreenPos.X);
+		if (screenXCompare != 0)
+			return screenXCompare;
+
+		return aSortKey.CompareTo(bSortKey);
 	}
 
 	private void RenderScene()
