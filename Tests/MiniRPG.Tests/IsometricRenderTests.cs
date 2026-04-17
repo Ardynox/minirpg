@@ -523,8 +523,9 @@ public sealed class IsometricRenderTests
 		renderer.AdvanceAnimations(ActorMotionTiming.PlayerSlowSeconds * 0.5d);
 
 		var visual = renderer.ResolveActorVisualWorldPosition(player.Id);
+		var expectedX = 1f + ActorMotionTracker.ApplyDampedProgress(0.5f);
 
-		Assert.InRange(visual.X, 1.49f, 1.51f);
+		Assert.InRange(visual.X, expectedX - 0.01f, expectedX + 0.01f);
 		Assert.Equal(1f, visual.Y);
 		Assert.Equal(0f, visual.Z);
 	}
@@ -550,8 +551,9 @@ public sealed class IsometricRenderTests
 		renderer.AdvanceAnimations(ActorMotionTiming.PlayerSlowSeconds * 0.5d);
 
 		var target = renderer.ResolveRuntimeCameraScreenTarget();
+		var expectedX = 1f + ActorMotionTracker.ApplyDampedProgress(0.5f);
 
-		AssertVector2Approx(IsoCoordUtil.WorldToScreen(1.5f, 1f, 0f), target);
+		AssertVector2Approx(IsoCoordUtil.WorldToScreen(expectedX, 1f, 0f), target);
 	}
 
 	[Fact]
@@ -618,8 +620,19 @@ public sealed class IsometricRenderTests
 		renderer.AdvanceAnimations(ActorMotionTiming.NpcRushSeconds * 0.5d);
 
 		var visual = renderer.ResolveActorVisualWorldPosition(player.Id);
+		var expectedX = 1f + ActorMotionTracker.ApplyDampedProgress(0.5f);
 
-		Assert.InRange(visual.X, 1.49f, 1.51f);
+		Assert.InRange(visual.X, expectedX - 0.01f, expectedX + 0.01f);
+	}
+
+	[Fact]
+	public void ActorMotionTracker_ApplyDampedProgress_PreservesBoundsAndEasesOut()
+	{
+		Assert.Equal(0f, ActorMotionTracker.ApplyDampedProgress(0f));
+		Assert.Equal(1f, ActorMotionTracker.ApplyDampedProgress(1f));
+		Assert.Equal(0f, ActorMotionTracker.ApplyDampedProgress(-1f));
+		Assert.Equal(1f, ActorMotionTracker.ApplyDampedProgress(2f));
+		Assert.True(ActorMotionTracker.ApplyDampedProgress(0.5f) > 0.5f);
 	}
 
 	[Fact]

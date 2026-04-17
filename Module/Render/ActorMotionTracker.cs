@@ -14,6 +14,7 @@ namespace MiniRPG.Module.Render;
 /// </summary>
 internal sealed class ActorMotionTracker
 {
+	private const float MotionDampingStrength = 1.5f;
 	private readonly Dictionary<string, ActorMotionState> _motions = new(StringComparer.Ordinal);
 	private bool _hasBlocking;
 
@@ -124,7 +125,7 @@ internal sealed class ActorMotionTracker
 			return false;
 		}
 
-		var progress = GetProgress(motion, clockSeconds);
+		var progress = ApplyDampedProgress(GetProgress(motion, clockSeconds));
 		position = new Vector3(
 			Mathf.Lerp(motion.SourceX, motion.TargetX, progress),
 			Mathf.Lerp(motion.SourceY, motion.TargetY, progress),
@@ -151,6 +152,21 @@ internal sealed class ActorMotionTracker
 
 		var elapsed = (float)(clockSeconds - motion.StartTimeSeconds);
 		return Mathf.Clamp(elapsed / motion.DurationSeconds, 0f, 1f);
+	}
+
+	internal static float ApplyDampedProgress(float progress)
+	{
+		progress = Mathf.Clamp(progress, 0f, 1f);
+		if (progress <= 0f || progress >= 1f)
+			return progress;
+
+		// Exponential ease-out keeps the step readable at the start and lets it
+		// settle into the destination tile instead of sliding at constant speed.
+		var normalization = 1f - Mathf.Exp(-MotionDampingStrength);
+		if (normalization <= 0f)
+			return progress;
+
+		return (1f - Mathf.Exp(-MotionDampingStrength * progress)) / normalization;
 	}
 
 	internal readonly record struct ActorMotionState(
