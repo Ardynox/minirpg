@@ -85,6 +85,9 @@ public class GameState
 	[JsonIgnore]
 	public bool RuntimeFreeBuild { get; set; }
 
+	[JsonIgnore]
+	public bool RuntimeSurfaceFreeMove { get; set; }
+
 	// ── 玩家三维坐标 ──
 	public int PlayerX { get; set; }
 	public int PlayerY { get; set; }
@@ -163,6 +166,7 @@ public class GameState
 		Weather = WeatherState.CreateDefault(WorldSeed);
 		WatchMode = false;
 		RuntimeFreeBuild = false;
+		RuntimeSurfaceFreeMove = false;
 		IdentifiedActorTypes.Clear();
 		IdentifiedItemTypes.Clear();
 		GeneratorId = "dwarf_fortress";

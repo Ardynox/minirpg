@@ -124,6 +124,7 @@ internal sealed class DebugPanelController : DebugPanelModule.IHost
 	DebugModule.Result DebugPanelModule.IHost.ExecuteStepWeather(int turns) => ApplyResult(DebugModule.StepWeather(_state, turns));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteClearWeatherAccumulation() => ApplyResult(DebugModule.ClearWeatherAccumulation(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteToggleFreeBuild() => ApplyResult(ExecuteToggleFreeBuild());
+	DebugModule.Result DebugPanelModule.IHost.ExecuteToggleSurfaceMove() => ApplyResult(DebugModule.ToggleSurfaceFreeMove(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteQueryFacilityStatus() => ApplyResult(DebugModule.QueryFacilityStatus(_state));
 	DebugModule.Result DebugPanelModule.IHost.ExecutePlaceFacility(string facilityId, string? directionId) => ApplyResult(DebugModule.PlaceFacility(_state, facilityId, directionId));
 	DebugModule.Result DebugPanelModule.IHost.ExecuteFacilityDeliver() => ApplyResult(ExecuteFacilityDeliverDebugAction());

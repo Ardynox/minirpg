@@ -11,6 +11,9 @@ namespace MiniRPG.Core.Combat;
 /// </summary>
 public static class ActionModule
 {
+	private const int SurfaceFreeMoveSearchAbove = 32;
+	private const int SurfaceFreeMoveSearchBelow = 32;
+
 	public static List<GameEvent> TryMove(GameState state, Actor actor, int dx, int dy)
 	{
 		if (dx != 0 || dy != 0)
@@ -25,14 +28,15 @@ public static class ActionModule
 		var sourceZ = actor.Z;
 		var nx = actor.X + dx;
 		var ny = actor.Y + dy;
+		var targetZ = actor.Z;
 
-		if (!state.World!.IsWalkable(nx, ny, actor.Z))
+		if (!TryResolveMoveTargetZ(state, actor, nx, ny, out targetZ))
 		{
 			events.Add(new GameEvent("hit_wall") { InitiatorId = actor.Id });
 			return events;
 		}
 
-		var occupants = ActorModule.GetAllAt(state, nx, ny, actor.Z);
+		var occupants = ActorModule.GetAllAt(state, nx, ny, targetZ);
 		var enemy = occupants.FirstOrDefault(
 			other => other.Id != actor.Id && AI.FactionRelation.IsHostile(actor.Faction, other.Faction));
 
@@ -42,8 +46,12 @@ public static class ActionModule
 			return events;
 		}
 
-		ActorModule.MoveActor(state, actor.Id, nx, ny);
-		events.Add(MovementEventFactory.CreateActorMoved(actor, sourceX, sourceY, sourceZ, nx, ny));
+		if (targetZ == actor.Z)
+			ActorModule.MoveActor(state, actor.Id, nx, ny);
+		else
+			ActorModule.MoveActor(state, actor.Id, nx, ny, targetZ);
+
+		events.Add(MovementEventFactory.CreateActorMoved(actor, sourceX, sourceY, sourceZ, nx, ny, actor.Z));
 		return events;
 	}
 
@@ -677,6 +685,69 @@ public static class ActionModule
 	}
 
 	private static bool RequiresLineOfSight(InteractionDef skill) => skill.Range > 1;
+
+	private static bool TryResolveMoveTargetZ(GameState state, Actor actor, int targetX, int targetY, out int targetZ)
+	{
+		targetZ = actor.Z;
+		if (state.World == null)
+			return false;
+
+		if (!ShouldUseSurfaceFreeMove(state, actor))
+			return state.World.IsWalkable(targetX, targetY, actor.Z);
+
+		return TryFindSurfaceFreeMoveTargetZ(state.World, targetX, targetY, actor.Z, out targetZ);
+	}
+
+	private static bool ShouldUseSurfaceFreeMove(GameState state, Actor actor) =>
+		state.RuntimeSurfaceFreeMove
+		&& string.Equals(actor.Id, state.PlayerId, StringComparison.Ordinal);
+
+	private static bool TryFindSurfaceFreeMoveTargetZ(WorldMap world, int x, int y, int centerZ, out int z)
+	{
+		z = centerZ;
+		if (IsSurfaceFreeMoveCandidate(world, x, y, centerZ))
+		{
+			z = centerZ;
+			return true;
+		}
+
+		for (var step = 1; step <= Math.Max(SurfaceFreeMoveSearchAbove, SurfaceFreeMoveSearchBelow); step++)
+		{
+			if (step <= SurfaceFreeMoveSearchAbove)
+			{
+				var candidateAbove = centerZ - step;
+				if (IsSurfaceFreeMoveCandidate(world, x, y, candidateAbove))
+				{
+					z = candidateAbove;
+					return true;
+				}
+			}
+
+			if (step <= SurfaceFreeMoveSearchBelow)
+			{
+				var candidateBelow = centerZ + step;
+				if (IsSurfaceFreeMoveCandidate(world, x, y, candidateBelow))
+				{
+					z = candidateBelow;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	private static bool IsSurfaceFreeMoveCandidate(WorldMap world, int x, int y, int z)
+	{
+		if (!world.IsWalkable(x, y, z))
+			return false;
+
+		var terrain = world.GetTerrain(x, y, z);
+		if (!string.Equals(terrain.StringId, Terrains.Air, StringComparison.Ordinal))
+			return true;
+
+		return world.IsSolid(x, y, z + 1);
+	}
 
 	private static void UpdateFacingFromTarget(Actor actor, int targetX, int targetY)
 	{

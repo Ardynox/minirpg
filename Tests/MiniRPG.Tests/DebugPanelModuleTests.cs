@@ -13,6 +13,7 @@ public sealed class DebugPanelModuleTests
 		var sceneSource = File.ReadAllText(Path.Combine(ResolveRepoRoot(), "Scene", "DebugPanel.tscn"));
 
 		Assert.Contains("ContentScroll/Content/QuickSection/GoldRow/GoldAmountEdit", moduleSource);
+		Assert.Contains("ContentScroll/Content/QuickSection/QuickButtons/SurfaceMoveBtn", moduleSource);
 		Assert.Contains("ContentScroll/Content/SpawnSection/FilterRow/SpawnFilterOption", moduleSource);
 		Assert.Contains("ContentScroll/Content/TurnSection/TurnRow/TurnValueEdit", moduleSource);
 		Assert.Contains("ContentScroll/Content/TimeSection/TimeSlider", moduleSource);
@@ -21,6 +22,7 @@ public sealed class DebugPanelModuleTests
 		Assert.Contains("ContentScroll/Content/ResultsSection/ResultsText", moduleSource);
 
 		Assert.Contains("[node name=\"GoldAmountEdit\" type=\"LineEdit\" parent=\"MarginContainer/VBox/ContentScroll/Content/QuickSection/GoldRow\"]", sceneSource);
+		Assert.Contains("[node name=\"SurfaceMoveBtn\" type=\"Button\" parent=\"MarginContainer/VBox/ContentScroll/Content/QuickSection/QuickButtons\"]", sceneSource);
 		Assert.Contains("[node name=\"SpawnTemplateOption\" type=\"OptionButton\" parent=\"MarginContainer/VBox/ContentScroll/Content/SpawnSection/TemplateRow\"]", sceneSource);
 		Assert.Contains("[node name=\"TurnValueEdit\" type=\"LineEdit\" parent=\"MarginContainer/VBox/ContentScroll/Content/TurnSection/TurnRow\"]", sceneSource);
 		Assert.Contains("[node name=\"TimeSlider\" type=\"HSlider\" parent=\"MarginContainer/VBox/ContentScroll/Content/TimeSection\"]", sceneSource);
@@ -38,7 +40,9 @@ public sealed class DebugPanelModuleTests
 		Assert.Contains("DebugModule.Result ExecuteAddGold(int amount);", moduleSource);
 		Assert.Contains("DebugModule.Result ExecuteSetTurn(int turn);", moduleSource);
 		Assert.Contains("DebugModule.Result ExecuteSetTimeOfDay(int timeOfDay);", moduleSource);
+		Assert.Contains("DebugModule.Result ExecuteToggleSurfaceMove();", moduleSource);
 		Assert.Contains("ApplyHostResult(_host.ExecuteAddGold(amount));", moduleSource);
+		Assert.Contains("ApplyHostResult(_host.ExecuteToggleSurfaceMove());", moduleSource);
 		Assert.Contains("ApplyHostResult(_host.ExecuteSpawnActor(templateId));", moduleSource);
 		Assert.Contains("ApplyHostResult(_host.ExecutePlaceFacility(facilityId, directionId));", moduleSource);
 		Assert.Contains("if (cmd == \"close\")", moduleSource);

@@ -64,6 +64,30 @@ public sealed class DebugPanelControllerTests
 		Assert.Contains("turn set to 135", result.Logs[0], StringComparison.OrdinalIgnoreCase);
 	}
 
+	[Fact]
+	public void ExecuteToggleSurfaceMove_UpdatesState_AndRequestsFlushAndUiRefresh()
+	{
+		var controllerType = typeof(MiniRPG.DebugPanelController);
+		var controller = RuntimeHelpers.GetUninitializedObject(controllerType);
+		var state = new GameState();
+		var flushRequested = false;
+		var uiRefreshRequested = false;
+
+		SetField(controller, "_state", state);
+		SetField(controller, "_log", null);
+		SetField(controller, "_markUiDirty", (Action)(() => uiRefreshRequested = true));
+		SetField(controller, "_flushMap", (Action)(() => flushRequested = true));
+
+		var result = ((DebugPanelModule.IHost)controller).ExecuteToggleSurfaceMove();
+
+		Assert.True(state.RuntimeSurfaceFreeMove);
+		Assert.True(flushRequested);
+		Assert.True(uiRefreshRequested);
+		Assert.True(result.NeedsFlush);
+		Assert.True(result.NeedsUiRefresh);
+		Assert.Contains("enabled", result.Logs[0], StringComparison.OrdinalIgnoreCase);
+	}
+
 	private static void SetField(object target, string fieldName, object? value)
 	{
 		var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);

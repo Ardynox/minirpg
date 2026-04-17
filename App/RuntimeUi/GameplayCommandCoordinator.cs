@@ -46,7 +46,7 @@ internal sealed class GameplayCommandCoordinator
 
 	public void DoMove(int dx, int dy, Func<int, int, bool> trySubmitPredictedMove)
 	{
-		if (trySubmitPredictedMove(dx, dy))
+		if (!_state.RuntimeSurfaceFreeMove && trySubmitPredictedMove(dx, dy))
 			return;
 
 		_submitPlayerAction(TimelinePlayerAction.Move(dx, dy));

@@ -33,13 +33,14 @@ public static class DebugModule
 			"/heal" => HealPlayer(state),
 			"/spawn" => string.IsNullOrEmpty(arg) ? BuildSpawnTemplateHelp() : SpawnActorAtPlayerFacing(state, arg),
 			"/god" => ToggleGodMode(state),
+			"/surface_move" => ToggleSurfaceFreeMove(state),
 			"/down" => MoveDownFloor(state, session),
 			"/npcs" => SpawnDialogTestNpcsNearPlayer(state),
 			"/export_preset" => ExportPreset(session, arg),
 			"/weather" => HandleWeatherCommandText(arg, state),
 			"/facility" => HandleFacilityCommandText(arg, state),
 			_ => CreateResult(
-				"[debug] commands: /chest /gold /heal /spawn /god /down /npcs /export_preset /weather /facility"),
+				"[debug] commands: /chest /gold /heal /spawn /god /surface_move /down /npcs /export_preset /weather /facility"),
 		};
 	}
 
@@ -251,6 +252,17 @@ public static class DebugModule
 		var player = ActorModule.GetPlayer(state);
 		return player != null && player.Buffs.Exists(static buff => buff.Id == GodBuffId);
 	}
+
+	public static Result ToggleSurfaceFreeMove(GameState state)
+	{
+		state.RuntimeSurfaceFreeMove = !state.RuntimeSurfaceFreeMove;
+		return CreateResult(
+			LocalizeSurfaceFreeMoveLog(state.RuntimeSurfaceFreeMove),
+			needsFlush: true,
+			needsUiRefresh: true);
+	}
+
+	public static bool IsSurfaceFreeMoveEnabled(GameState state) => state.RuntimeSurfaceFreeMove;
 
 	public static Result MoveDownFloor(GameState state, IDebugSessionActions session)
 	{
@@ -726,6 +738,11 @@ public static class DebugModule
 		LocalizationService.TOrFallback(
 			"debug.weather.usage",
 			"[debug] usage: /weather status | /weather lock <type> [light|normal|heavy] | /weather unlock | /weather step <turns> | /weather clear_accum");
+
+	private static string LocalizeSurfaceFreeMoveLog(bool enabled) =>
+		LocalizationService.TOrFallback(
+			enabled ? "log.debug.surface_move.on" : "log.debug.surface_move.off",
+			enabled ? "Surface Move enabled." : "Surface Move disabled.");
 
 	private static Result CreateResult(string log, bool needsFlush = false, bool needsUiRefresh = false) =>
 		CreateResult([log], needsFlush, needsUiRefresh);

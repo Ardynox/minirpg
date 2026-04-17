@@ -72,6 +72,30 @@ public sealed class DebugModuleTests
 	}
 
 	[Fact]
+	public void ToggleSurfaceFreeMove_AndHandleCommand_RemainCompatible()
+	{
+		var (state, _) = CreateDebugState();
+		var root = TestSupport.CreateTempDirectory("debug-module-surface-move");
+		try
+		{
+			var session = new GameSessionModule(state, new FogOfWarTracker(), root);
+
+			var structured = DebugModule.ToggleSurfaceFreeMove(state);
+			var textCommand = DebugModule.HandleCommand("/surface_move", state, session);
+
+			Assert.True(structured.NeedsFlush);
+			Assert.True(structured.NeedsUiRefresh);
+			Assert.Contains("enabled", structured.Logs[0], StringComparison.OrdinalIgnoreCase);
+			Assert.Contains("disabled", textCommand.Logs[0], StringComparison.OrdinalIgnoreCase);
+			Assert.False(state.RuntimeSurfaceFreeMove);
+		}
+		finally
+		{
+			TestSupport.TryDeleteDirectory(root);
+		}
+	}
+
+	[Fact]
 	public void SetTimeOfDay_PreservesCurrentDayIndex()
 	{
 		var (state, _) = CreateDebugState();

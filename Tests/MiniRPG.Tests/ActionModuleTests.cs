@@ -66,6 +66,24 @@ public sealed class ActionModuleTests
 	}
 
 	[Fact]
+	public void TryMove_SurfaceFreeMove_AdjustsPlayerToNearestSurfaceHeight()
+	{
+		var (state, player, _) = SkillCastingTestHelper.CreateCombatState(enemyX: 10, enemyY: 10);
+		state.RuntimeSurfaceFreeMove = true;
+		state.World!.SetTerrain(player.X + 1, player.Y, 0, Terrains.WallStone);
+		state.World.SetTerrain(player.X + 1, player.Y, -1, Terrains.Air);
+
+		var moveEvent = Assert.Single(ActionModule.TryMove(state, player, 1, 0), evt => evt.Type == "actor_moved");
+
+		Assert.Equal(2, player.X);
+		Assert.Equal(1, player.Y);
+		Assert.Equal(-1, player.Z);
+		Assert.Equal(-1, state.PlayerZ);
+		Assert.Equal(0, moveEvent.SourceZ);
+		Assert.Equal(-1, moveEvent.TargetZ);
+	}
+
+	[Fact]
 	public void TryCastSkill_RangedAttackSucceeds_WhenTargetInRangeAndVisible()
 	{
 		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState(enemyX: 4, enemyY: 1);

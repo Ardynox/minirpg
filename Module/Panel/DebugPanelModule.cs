@@ -29,6 +29,7 @@ public sealed class DebugPanelModule : IPanel
 		DebugModule.Result ExecuteStepWeather(int turns);
 		DebugModule.Result ExecuteClearWeatherAccumulation();
 		DebugModule.Result ExecuteToggleFreeBuild();
+		DebugModule.Result ExecuteToggleSurfaceMove();
 		DebugModule.Result ExecuteQueryFacilityStatus();
 		DebugModule.Result ExecutePlaceFacility(string facilityId, string? directionId);
 		DebugModule.Result ExecuteFacilityDeliver();
@@ -61,6 +62,7 @@ public sealed class DebugPanelModule : IPanel
 	private readonly Button _spawnNpcButton;
 	private readonly Button _revealAllButton;
 	private readonly Button _freeBuildButton;
+	private readonly Button _surfaceMoveButton;
 	private readonly OptionButton _spawnFilterOption;
 	private readonly OptionButton _spawnTemplateOption;
 	private readonly Button _spawnButton;
@@ -113,6 +115,7 @@ public sealed class DebugPanelModule : IPanel
 		_spawnNpcButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/SpawnNpcBtn");
 		_revealAllButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/RevealAllBtn");
 		_freeBuildButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/FreeBuildBtn");
+		_surfaceMoveButton = vbox.GetNode<Button>("ContentScroll/Content/QuickSection/QuickButtons/SurfaceMoveBtn");
 		_spawnFilterOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/FilterRow/SpawnFilterOption");
 		_spawnTemplateOption = vbox.GetNode<OptionButton>("ContentScroll/Content/SpawnSection/TemplateRow/SpawnTemplateOption");
 		_spawnButton = vbox.GetNode<Button>("ContentScroll/Content/SpawnSection/ActionsRow/SpawnBtn");
@@ -160,6 +163,7 @@ public sealed class DebugPanelModule : IPanel
 		_spawnNpcButton.Pressed += () => ApplyHostResult(_host.ExecuteSpawnDialogTestNpcs());
 		_revealAllButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleRevealAll());
 		_freeBuildButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleFreeBuild());
+		_surfaceMoveButton.Pressed += () => ApplyHostResult(_host.ExecuteToggleSurfaceMove());
 		_spawnFilterOption.ItemSelected += _ => RefreshSpawnTemplateOptions();
 		_spawnButton.Pressed += OnSpawnPressed;
 		_turnApplyButton.Pressed += OnSetTurnPressed;
@@ -385,6 +389,9 @@ public sealed class DebugPanelModule : IPanel
 		_freeBuildButton.Text = _host.State.RuntimeFreeBuild
 			? LocalizationService.TOrFallback("ui.debug_panel.quick.free_build.disable", "Free Build: ON")
 			: LocalizationService.TOrFallback("ui.debug_panel.quick.free_build.enable", "Free Build: OFF");
+		_surfaceMoveButton.Text = DebugModule.IsSurfaceFreeMoveEnabled(_host.State)
+			? LocalizationService.TOrFallback("ui.debug_panel.quick.surface_move.disable", "Surface Move: ON")
+			: LocalizationService.TOrFallback("ui.debug_panel.quick.surface_move.enable", "Surface Move: OFF");
 	}
 
 	private void RefreshSpawnFilterOptions()
@@ -607,6 +614,7 @@ public sealed class DebugPanelModule : IPanel
 		yield return _spawnNpcButton;
 		yield return _revealAllButton;
 		yield return _freeBuildButton;
+		yield return _surfaceMoveButton;
 		yield return _spawnButton;
 		yield return _turnApplyButton;
 		yield return _weatherStatusButton;

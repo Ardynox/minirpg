@@ -10,7 +10,8 @@ internal static class MovementEventFactory
 		int sourceY,
 		int sourceZ,
 		int targetX,
-		int targetY) =>
+		int targetY,
+		int? targetZ = null) =>
 		new("actor_moved")
 		{
 			InitiatorId = actor.Id,
@@ -19,7 +20,7 @@ internal static class MovementEventFactory
 			SourceZ = sourceZ,
 			TargetX = targetX,
 			TargetY = targetY,
-			TargetZ = sourceZ,
+			TargetZ = targetZ ?? sourceZ,
 		};
 
 	public static GameEvent CreateActorClimbed(
