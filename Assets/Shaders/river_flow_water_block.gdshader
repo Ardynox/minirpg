@@ -32,6 +32,8 @@ uniform vec3 sun_direction = vec3(-0.92, 0.64, 0.19);
 uniform vec3 sun_color = vec3(1.45, 1.2615, 1.044);
 uniform vec3 sky_color = vec3(0.099, 0.242, 0.363);
 uniform vec3 env_floor_color = vec3(0.3, 0.2, 0.2);
+uniform vec3 fog_ext = vec3(0.03, 0.045, 0.045);
+uniform vec3 fog_in = vec3(0.015, 0.0135, 0.012);
 
 varying float v_height;
 varying float v_side_mask;
@@ -322,6 +324,31 @@ vec3 fresnel_color(vec3 view, vec3 normal, vec3 r0, float gloss) {
 	return r0 + (vec3(1.0) - r0) * pow(1.0 - ndotv, 5.0) * pow(gloss, 20.0);
 }
 
+vec3 riverbed_color(vec2 p, vec2 flow, float depth01) {
+	float sediment = fbm_simple(p * vec2(1.25, 2.4) + vec2(4.2, -7.1), 0.58);
+	float ridges = fbm_simple(p.yx * vec2(3.1, 0.85) + flow * TIME * 0.45 + vec2(11.0, 2.8), 0.46);
+	float pebbles = smooth_noise(p * 10.0 + flow * TIME * 0.08);
+
+	vec3 mud = vec3(0.16, 0.13, 0.10);
+	vec3 sand = vec3(0.30, 0.25, 0.18);
+	vec3 algae = vec3(0.08, 0.11, 0.08);
+	vec3 bed = mix(mud, sand, sediment);
+	bed = mix(bed, algae, smoothstep(0.1, 0.65, 1.0 - depth01) * 0.24);
+	bed *= 0.9 + ridges * 0.18;
+	bed += vec3(0.05, 0.045, 0.03) * smoothstep(0.72, 0.98, pebbles) * 0.5;
+
+	float caustic = fbm_simple(p * vec2(2.0, 3.7) + flow * TIME * 0.85 + vec2(6.0, 3.0), 0.54);
+	bed += vec3(0.18, 0.16, 0.10) * smoothstep(0.62, 0.96, caustic) * (1.0 - depth01) * 0.42;
+	return bed;
+}
+
+vec3 apply_fog(vec3 color, vec3 ray_dir, float dist) {
+	vec3 fog_color = sky_color_for_dir(ray_dir);
+	vec3 fog_ext_col = exp2(fog_ext * -dist);
+	vec3 fog_in_col = exp2(fog_in * -dist);
+	return color * fog_ext_col + fog_color * (1.0 - fog_in_col);
+}
+
 void vertex() {
 	float t = TIME;
 	v_side_mask = 0.0;
@@ -377,22 +404,28 @@ void fragment() {
 	float edge_alpha = clamp((1.0 + flowing.w * 0.25) - depth * 10.0, 0.0, 1.0);
 	foam_bias *= 1.0 - edge_alpha;
 	float foam_blend = 1.0 - pow(max(foam_tex, 0.0001), foam_bias * 5.0);
+	float spec_scale = clamp(1.0 - foam_blend * 4.0, 0.0, 1.0);
 
 	vec3 diffuse_light = sky_color * (0.7 + final_normal.y * 0.3) + sun_color * (0.08 + ndotl * 0.42);
-	vec3 transmit = mix(shallow_color.rgb, deep_color.rgb, depth01);
+	vec2 bed_offset = final_normal.xz * 0.08 + flow * 0.035;
+	vec3 bed = riverbed_color(sample_pos + bed_offset, flow, depth01);
+	vec3 water_tint = mix(shallow_color.rgb, deep_color.rgb, depth01);
+	float water_opacity = clamp(0.16 + depth01 * 0.92 + edge_alpha * 0.3, 0.0, 1.0);
+	vec3 transmit = mix(bed, water_tint, water_opacity);
 	vec3 extinction = water_extinction(depth + abs(v_world_pos.y) * 0.6);
 	vec3 inscatter = diffuse_light * (1.0 - exp(-depth * 0.1)) * (1.0 + sun_dot_v);
 	vec3 refracted = transmit * extinction + inscatter;
 
-	vec3 reflection = env_color(reflect_dir, gloss);
-	reflection = mix(env_color(reflect_dir, 0.0), reflection, pow(gloss, 40.0));
+	vec3 reflection = mix(env_color(reflect_dir, 0.0), env_color(reflect_dir, gloss), pow(gloss, 28.0));
+	reflection = mix(reflection, sky_color_for_dir(reflect_dir), 0.35 + gloss * 0.15);
 	vec3 fresnel = fresnel_color(view_dir, final_normal, vec3(0.01), gloss) * fresnel_gain;
 	vec3 specular_light = reflection + specular_tint.rgb * spec;
 
 	if (surface_mode == 0) {
-		vec3 color = mix(refracted, specular_light, fresnel);
+		vec3 color = mix(refracted, specular_light, fresnel * spec_scale);
 		vec3 foam_light = diffuse_light * 0.8;
 		color = mix(color, foam_light * foam_color.rgb, foam_blend);
+		color = apply_fog(color, -view_dir, length(CAMERA_POSITION_WORLD - v_world_pos));
 		ALBEDO = color;
 		ALPHA = 1.0;
 	} else {
@@ -401,6 +434,7 @@ void fragment() {
 		wall *= sky_color * 0.7 + sun_color * (0.15 + ndotl * 0.35);
 		wall += foam_color.rgb * foam_blend * v_side_mask * 0.25;
 		wall += specular_tint.rgb * max(fresnel.r, max(fresnel.g, fresnel.b)) * v_side_mask * 0.18;
+		wall = apply_fog(wall, -view_dir, length(CAMERA_POSITION_WORLD - v_world_pos));
 		ALBEDO = wall;
 		ALPHA = 1.0;
 	}
