@@ -2,9 +2,9 @@ using Godot;
 
 public partial class WaterRiverFlowPreview : Node3D
 {
-	private const float TileSize = 1.45f;
-	private const int TileCountX = 5;
-	private const int TileCountZ = 2;
+	private const float TileSize = 1.5f;
+	private const int TileCountX = 7;
+	private const int TileCountZ = 4;
 	private const float WaterDepth = 1.3f;
 	private const int TileSubdivisions = 52;
 	private const int WallSubdivisions = 96;
@@ -44,10 +44,10 @@ public partial class WaterRiverFlowPreview : Node3D
 		{
 			Name = "PreviewCamera",
 			Current = true,
-			Position = new Vector3(5.8f, 3.65f, 4.4f),
-			Fov = 36.0f
+			Position = new Vector3(8.2f, 4.25f, 7.1f),
+			Fov = 34.0f
 		};
-		camera.LookAtFromPosition(camera.Position, new Vector3(0.2f, -0.1f, 0.0f), Vector3.Up);
+		camera.LookAtFromPosition(camera.Position, new Vector3(0.4f, -0.12f, 0.0f), Vector3.Up);
 		return camera;
 	}
 
@@ -56,7 +56,7 @@ public partial class WaterRiverFlowPreview : Node3D
 		return new DirectionalLight3D
 		{
 			Name = "SunLight",
-			RotationDegrees = new Vector3(-41.0f, -38.0f, 0.0f),
+			RotationDegrees = new Vector3(-37.0f, -31.0f, 0.0f),
 			LightColor = new Color(1.0f, 0.91f, 0.79f),
 			LightEnergy = 1.55f,
 			ShadowEnabled = true
@@ -68,7 +68,7 @@ public partial class WaterRiverFlowPreview : Node3D
 		return new DirectionalLight3D
 		{
 			Name = "FillLight",
-			RotationDegrees = new Vector3(-18.0f, 128.0f, 0.0f),
+			RotationDegrees = new Vector3(-16.0f, 122.0f, 0.0f),
 			LightColor = new Color(0.62f, 0.76f, 0.78f),
 			LightEnergy = 0.42f,
 			ShadowEnabled = false
@@ -79,7 +79,7 @@ public partial class WaterRiverFlowPreview : Node3D
 	{
 		var mesh = new PlaneMesh
 		{
-			Size = new Vector2(28.0f, 18.0f),
+			Size = new Vector2(34.0f, 24.0f),
 			SubdivideWidth = 2,
 			SubdivideDepth = 2
 		};
@@ -186,6 +186,31 @@ public partial class WaterRiverFlowPreview : Node3D
 			Shader = shader
 		};
 		material.SetShaderParameter("surface_mode", surfaceMode);
+		material.SetShaderParameter("speed", 1.0f);
+		material.SetShaderParameter("steepness", 0.52f);
+		material.SetShaderParameter("wave_a", new Vector4(1.0f, 0.08f, 0.075f, 2.7f));
+		material.SetShaderParameter("wave_b", new Vector4(0.92f, 0.24f, 0.04f, 1.45f));
+		material.SetShaderParameter("wave_c", new Vector4(0.76f, -0.12f, 0.02f, 0.82f));
+		material.SetShaderParameter("pool_depth", 0.0f);
+		material.SetShaderParameter("river_half_width", 2.0f);
+		material.SetShaderParameter("river_depth", 0.6f);
+		material.SetShaderParameter("river_bank_softness", 0.6f);
+		material.SetShaderParameter("meander_amp", 1.5f);
+		material.SetShaderParameter("meander_freq", 0.3f);
+		material.SetShaderParameter("foam_gain", 1.0f);
+		material.SetShaderParameter("detail_strength", 0.24f);
+		material.SetShaderParameter("flow_gradient_gain", 40.0f);
+		material.SetShaderParameter("shallow_color", new Color(0.16f, 0.20f, 0.18f, 1.0f));
+		material.SetShaderParameter("deep_color", new Color(0.06f, 0.09f, 0.11f, 1.0f));
+		material.SetShaderParameter("foam_color", new Color(0.96f, 0.97f, 0.95f, 1.0f));
+		material.SetShaderParameter("wall_color", new Color(0.07f, 0.09f, 0.10f, 1.0f));
+		material.SetShaderParameter("specular_tint", new Color(1.0f, 0.98f, 0.94f, 1.0f));
+		material.SetShaderParameter("sun_direction", new Vector3(-1.0f, 0.7f, 0.25f));
+		material.SetShaderParameter("sun_color", new Vector3(5.0f, 4.25f, 2.5f));
+		material.SetShaderParameter("sky_color", new Vector3(0.1f, 0.5f, 1.0f));
+		material.SetShaderParameter("env_floor_color", new Vector3(0.3f, 0.2f, 0.2f));
+		material.SetShaderParameter("fog_ext", new Vector3(0.03f, 0.045f, 0.045f));
+		material.SetShaderParameter("fog_in", new Vector3(0.015f, 0.0135f, 0.012f));
 		return material;
 	}
 }
