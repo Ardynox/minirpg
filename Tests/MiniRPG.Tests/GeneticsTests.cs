@@ -320,4 +320,79 @@ public sealed class GeneticsTests
 		Assert.Equal("A", original.Loci["alpha"].A);
 		Assert.False(original.Loci.ContainsKey("beta"));
 	}
+
+	[Fact]
+	public void GeneModificationService_NullTarget_ReturnsNoTargetFailure()
+	{
+		GeneCatalog.OverrideForTesting([MakeDominantGene("alpha")], []);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+
+		var result = GeneModificationService.TryApplyGene(state, null, "alpha", false, new Random(0));
+
+		Assert.False(result.Success);
+		Assert.Equal(GeneModificationService.FailureNoTarget, result.FailureReasonKey);
+	}
+
+	[Fact]
+	public void GeneModificationService_UnknownGene_ReturnsUnknownFailure()
+	{
+		MiniRPG.Core.Data.PresetDB.Load();
+		GeneCatalog.OverrideForTesting([MakeDominantGene("alpha")], []);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		var actor = MiniRPG.Core.Data.PresetDB.SpawnActor("player", "tester");
+
+		var result = GeneModificationService.TryApplyGene(state, actor, "ghost_gene", false, new Random(0));
+
+		Assert.False(result.Success);
+		Assert.Equal(GeneModificationService.FailureUnknownGene, result.FailureReasonKey);
+	}
+
+	[Fact]
+	public void GeneModificationService_HeterozygousDefault_WritesAaPair()
+	{
+		MiniRPG.Core.Data.PresetDB.Load();
+		GeneCatalog.OverrideForTesting([MakeDominantGene("alpha")], [new XenotypeDef { Id = "x", RaceId = "human", FixedGenes = [], RandomGenes = [] }]);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		var actor = MiniRPG.Core.Data.PresetDB.SpawnActor("player", "tester");
+
+		var result = GeneModificationService.TryApplyGene(state, actor, "alpha", forceDominantAllele: false, new Random(0));
+
+		Assert.True(result.Success);
+		Assert.NotNull(actor.Genome);
+		var pair = actor.Genome!.Loci["alpha"];
+		Assert.Equal("A", pair.A);
+		Assert.Equal("a", pair.B);
+	}
+
+	[Fact]
+	public void GeneModificationService_ForceDominant_WritesAAPair()
+	{
+		MiniRPG.Core.Data.PresetDB.Load();
+		GeneCatalog.OverrideForTesting([MakeDominantGene("alpha")], [new XenotypeDef { Id = "x", RaceId = "human", FixedGenes = [], RandomGenes = [] }]);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		var actor = MiniRPG.Core.Data.PresetDB.SpawnActor("player", "tester");
+
+		var result = GeneModificationService.TryApplyGene(state, actor, "alpha", forceDominantAllele: true, new Random(0));
+
+		Assert.True(result.Success);
+		var pair = actor.Genome!.Loci["alpha"];
+		Assert.Equal("A", pair.A);
+		Assert.Equal("A", pair.B);
+	}
+
+	[Fact]
+	public void GeneModificationService_EmitsEventAndAppliesThought()
+	{
+		MiniRPG.Core.Data.PresetDB.Load();
+		GeneCatalog.OverrideForTesting([MakeDominantGene("alpha")], [new XenotypeDef { Id = "x", RaceId = "human", FixedGenes = [], RandomGenes = [] }]);
+		var state = new GameState { PlayerId = "p", Turn = 100 };
+		var actor = MiniRPG.Core.Data.PresetDB.SpawnActor("player", "tester");
+
+		var result = GeneModificationService.TryApplyGene(state, actor, "alpha", false, new Random(0));
+
+		Assert.True(result.Success);
+		// 至少 1 个 gene_modified 事件 + actor 挂上 gene_modified thought（若 thoughts.json 已有 def）。
+		Assert.Contains(result.Events, e => e.Type == GeneModificationService.EventGeneModified && e.TargetId == "tester");
+		Assert.Contains(actor.Thoughts, t => t.Id == GeneModificationService.EventGeneModified);
+	}
 }
