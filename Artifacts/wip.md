@@ -13,14 +13,12 @@
 
 <!-- 按开工时间倒序。完成后删除本条。 -->
 
-- qtwx-mcp-8 | Module/Render/IsometricVoxelRenderer*.cs + TerrainAtlas.cs + WeatherFxController.cs + ResAccess.cs + Module/Panel/RichTooltipLayer.cs + TurnPanelModule.cs + Module/WorldManagerModule.cs + MiniRPG.Shared/Module/Render/FogOfWarTracker.cs + Assets/Shaders/water/* + Scene/WaterPainterly*.bak | 渲染/UI 资源泄漏修复（P0-12/P1-18/P1-19/P1-20/P2-13/P2-14） 2026-04-19
 - claude-mp-fix | MiniRPG.Shared/Core/Multiplayer/{ProtocolSerializer,HostedLobbyService,DedicatedGameServerHost}.cs + 新建 ServerSideConsequenceDispatcher.cs + MiniRPG.Shared/Module/Network/ENetGameServer.cs + 4 个新测试 | 多人四桩 P0-5/6/7/8（Climb 反序列化/脏包防崩/房间二人加入/服务端社交模拟）进行中 2026-04-19
 - cursor-opus-focus | App/Main.cs(313-314) + App/Main.Timeline.cs(HandlePlayerDeath/ApplyTimelineStep) + App/RuntimeUi/{GameplayCommandCoordinator,GameEventPresentationRouter,MultiplayerRuntimeCoordinator}.cs + Module/LogModule.cs + 新增 MiniRPG.Shared/Core/Data/ActiveActorAccess.cs + PartyModule.TryGetActiveActor + Data/I18n/{zh_CN,en}.json + Tests/ActiveActorDeathHandlerIntegrationTests.cs + Docs/多人联机契约.md | 死亡-焦点链路打通（P0-9/P0-10/P1-5）进行中 2026-04-19
-- cursor-opus | MiniRPG.Shared/Core/Map/SaveModule.cs + SaveSnapshot.cs + Core/Data/GameState.cs + NestModule.cs + MapGenModule.cs + 新建 5 个 Snapshot 类型 + Tests/SaveModuleTests.cs + Tests/SavePayloadCoverageTests.cs | 存档完整性（P0-1 5 子系统）+ 静态污染清理（P1-13/14/15）
-- cursor-opus | Module/Panel/RichTooltipLayer.cs：line 167 一行 cast 修编译阻塞（Math.Ceiling 二义性）+ Tests/MiniRPG.Tests/MultiplayerProtocolHardeningTests.cs：Random 命名参数 `seed` → `Seed` + Tests/MiniRPG.Tests/GameEventPresentationRouterTests.cs：补 InfoToasts/WarningToasts/FlushMapCalls 字段定义 | 紧急 build fix（不动语义，不主动认领 P1-18 / 多人 fuzz / P1-5 任务）
-
 ## 已完成（最近）
 
+- cursor-opus | P0-1 SaveModule 漏存 5 子系统 + P1-13/14/15 静态污染：新增 Party/Social/Storyteller/Zones/Crops 5 个 Snapshot 类型并对称写读；MapGenModule.InitializeWorld 入口清 DirtyChunkCache + NestSpawnCounter；GameState.Actors 改 StringComparer.Ordinal + Reset 同步重建；SaveModule.CopyDictionary 透传 source comparer；新增 SavePayloadCoverageTests 反射守护 GameState→SavePayload 字段映射。dotnet test 1193/1193 通过 | 完成 2026-04-19
+- cursor-opus | 紧急 build fix：Module/Panel/RichTooltipLayer.cs Math.Ceiling 二义性（一行 cast）+ Tests/MultiplayerProtocolHardeningTests.cs Random 命名参数 `seed`→`Seed` + Tests/GameEventPresentationRouterTests.cs Harness 缺 InfoToasts/WarningToasts/FlushMapCalls 字段定义 | 完成 2026-04-19
 - qtwx-mcp-6 | 涌现社交管线接通：①P0-2 已被 cursor-opus-focus@8d7a34eb 提前修；②InitializeCoreServices 注入 AIDispatcher.Relationships/ActorMemories/Rumors（P0-3）；③InputResolver +7 社交 resolver + ActorMemoryModule.SumStrength 查询（P0-4）；④flee_combat 加 RelationshipFear<target> consideration；⑤RumorBus + ActorMemoryModule 响应 actor_killed → CasualtyReported rumor + 旁观者 CasualtyWitnessed memory（gift_given/theft 事件不存在跳过）；⑥InputResolverSocialTests 22 用例。dotnet test 1190/1190 通过。涌现世界路线图.md 第 1-4 步接线度 0%→约 35% | 完成 2026-04-19
 - qtwx-mcp-5 | 草地 Wave 1 路 D：新文件 `Module/Render/Surface/GrassOverlayPass.cs`（接口 3 草稿：FNV-1a 衍生 hash 选 6 变体、cover==0 零分配 return、`object ctx` 占位 + Wave 2.2 接入清单写在 helper 注释里），主项目编译 0 警告 0 错误，分布手测 100 格 → `[17,13,18,18,15,19]`（均匀） | 完成 2026-04-19
 - cursor-opus | AutoNav 多人 in-flight kind 准确化：DoMove 返回 bool 反映"实际走预测还是 TimelineAction"，AutoNavigationCoordinator 据此设 `_inFlightKind`（修掉 SFM+多人时 PredictedMove 错位的语义瑕疵）+ 6 个新单测，1092/1092 通过 | 完成 2026-04-19
