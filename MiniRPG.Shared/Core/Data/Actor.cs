@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
-using MiniRPG.Core.Genetics;
 
 namespace MiniRPG.Core.Data;
 
@@ -27,23 +26,6 @@ public class Actor
 	public string Glyph { get; set; } = "?";
 	public string DisplayName { get; set; } = "";
 	public string TemplateId { get; set; } = "";
-
-	public Sex Sex { get; set; } = Sex.Female;
-
-	public int BirthTurn { get; set; } = -1;
-
-	public string? FatherId { get; set; }
-	public string? MotherId { get; set; }
-	public string? SpouseId { get; set; }
-	public List<string> ChildrenIds { get; set; } = [];
-
-	public string? CarriedInfantId { get; set; }
-	public int DueBirthTurn { get; set; }
-	public string? ConceptionFatherId { get; set; }
-
-	public GenePool? Genome { get; set; }
-
-	public LifeStage LastResolvedLifeStage { get; set; } = LifeStage.Adult;
 
 	/// <summary>朝向 (dx, dy)：最近一次移动的方向。默认朝南。</summary>
 	public int FacingX { get; set; }
@@ -143,8 +125,6 @@ public class Actor
 		foreach (var buff in Buffs) Merge(buff);
 		foreach (var exp in Experiences) Merge(exp);
 		foreach (var item in Inventory) if (item.Equipped) Merge(item);
-		if (Genome != null)
-			Merge(Genome);
 
 		return tags;
 	}
