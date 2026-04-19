@@ -1,0 +1,9 @@
+HARD NEGATIVES (do not include any of these):
+no anime, no manga, no cartoon, no chibi proportions,
+no bright saturated colors, no neon,
+no glossy plastic, no cinematic lighting, no bloom, no lens flare, no depth of field,
+no concept art layout, no splash art, no character sheet header, no portfolio framing,
+no watercolor wash, no heavy black outlines, no inked line art,
+no text, no captions, no labels, no watermark, no signature,
+no environment background, no ground plane, no shadow disk under the object,
+no extra props, no decorative borders, no UI elements.

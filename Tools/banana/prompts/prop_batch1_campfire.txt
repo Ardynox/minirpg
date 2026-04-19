@@ -1,0 +1,13 @@
+A single small campfire prop for a 2.5D top-down RPG game asset:
+ring of weathered grey river stones surrounding a small pile of charred wooden logs,
+warm orange-yellow flame with a few drifting embers and a thin wisp of smoke rising.
+Isometric 2.5D 3/4 top-down orthographic view, NO perspective distortion.
+Grounded semi-realistic style, muted earthy palette, low saturation,
+hand-painted shading with visible soft brush strokes, worn weathered survival feel.
+Soft overcast daylight from above, very subtle ambient shadow at the base only.
+Centered composition, base of the prop at approximately 85% of image height.
+Isolated on fully transparent background, no ground plane, no shadow disk under the object.
+HARD NEGATIVES: no anime, no cartoon, no chibi, no bright saturated colors,
+no glossy plastic, no cinematic lighting, no bloom, no concept art, no splash art,
+no watercolor, no heavy black outlines, no text, no watermark,
+no environment background, no extra objects.

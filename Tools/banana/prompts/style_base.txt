@@ -1,0 +1,11 @@
+All images must lock the following visual style:
+
+- Perspective: isometric 2.5D game asset, 3/4 top-down orthographic view, NO perspective distortion.
+- Style: grounded semi-realistic, muted color palette, low saturation, worn / weathered survival feel.
+- Shading: hand-painted with visible soft brush strokes, shape-driven shading (not line art), no inked outlines.
+- Lighting: soft overcast daylight from above, no harsh sun, no cast shadows on ground beyond a very subtle ambient base shadow.
+- Background: isolated on fully transparent background (alpha=0). If transparency fails, fall back to solid neutral mid-gray for easy keying.
+- Composition: single subject, centered, base of the subject at approximately 85% of image height.
+- Finish: clean readable game texture, orthographic game asset feel.
+
+When I send a subject, output a single PNG at the requested aspect ratio and resolution.

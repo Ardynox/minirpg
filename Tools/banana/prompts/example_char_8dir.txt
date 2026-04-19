@@ -1,0 +1,17 @@
+A single human character base body for a 2.5D top-down RPG, designed as a paper-doll base for later equipment overlays.
+
+Sheet layout: a SINGLE vertical sprite sheet, 1 column × 8 rows, total aspect ratio 1:8.
+The same character is shown in all 8 rows facing the following directions from top to bottom:
+1) S (toward camera), 2) SE, 3) E, 4) NE, 5) N (away from camera), 6) NW, 7) W, 8) SW.
+Identical body, identical clothing, identical lighting, identical pose (relaxed idle, arms slightly away from body), identical anchor point (feet at ~85% of each cell).
+
+Subject: a young adult human, neutral build, short brown hair, wearing a plain undyed linen tunic and simple brown trousers, no shoes visible, no weapons, no accessories. Anatomically grounded, semi-realistic.
+
+Style anchors:
+- isometric 2.5D, 3/4 top-down orthographic view, NO perspective distortion
+- muted earthy palette, low saturation, hand-painted shading with visible soft brush strokes
+- soft overcast daylight from above, very subtle ambient shadow under each pose
+- skin base #E8C4A2, hair base #604026, tunic base #765838, trousers base #523A26
+- isolated on fully transparent background between cells
+
+HARD NEGATIVES: no anime face, no chibi, no oversized weapons, no rim light, no dramatic pose, no ground texture, no environment, no labels, no headings, no row dividers, no text.

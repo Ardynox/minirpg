@@ -1,0 +1,8 @@
+# Banana CLI 依赖
+# 安装：pip install -r Tools/banana/requirements.txt
+# Python：>=3.10（项目实测 3.13.1）
+
+google-genai>=1.0.0
+
+# rembg 抠图（rembg_cutout.py）；首次运行会下载 ONNX 权重到用户缓存目录
+rembg>=2.0.50

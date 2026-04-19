@@ -1,0 +1,14 @@
+A single small closed wooden treasure chest prop for a 2.5D top-down RPG game asset:
+weathered oak planks held together with dark hand-forged iron banding,
+small iron hasp lock at the front, slightly worn corners,
+practical medieval mercenary survival aesthetic.
+Isometric 2.5D 3/4 top-down orthographic view, NO perspective distortion.
+Grounded semi-realistic style, muted earthy palette, low saturation,
+hand-painted shading with visible soft brush strokes, worn weathered feel.
+Soft overcast daylight from above, very subtle ambient shadow at the base only.
+Centered composition, base of the prop at approximately 85% of image height.
+Isolated on fully transparent background, no ground plane, no shadow disk under the object.
+HARD NEGATIVES: no anime, no cartoon, no chibi, no bright saturated colors,
+no glossy plastic, no cinematic lighting, no bloom, no concept art, no splash art,
+no watercolor, no heavy black outlines, no text, no watermark,
+no environment background, no extra objects.
