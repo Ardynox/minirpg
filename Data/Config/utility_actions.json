@@ -131,7 +131,8 @@
         { "input": "has_enemy_in_vision", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } },
         { "input": "hp_ratio", "curve": { "type": "inverse" } },
         { "input": "personality_caution", "curve": { "type": "linear", "slope": 0.6, "offset": 0.3 } },
-        { "input": "personality_bravery", "curve": { "type": "inverse" } }
+        { "input": "personality_bravery", "curve": { "type": "inverse" } },
+        { "input": "RelationshipFear<target>", "curve": { "type": "linear", "slope": 1.0, "offset": 0.0 } }
       ],
       "tags": ["combat"],
       "requiresTarget": true,
