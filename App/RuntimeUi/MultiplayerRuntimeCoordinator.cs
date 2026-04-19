@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
+using Godot;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Module.Render;
@@ -339,12 +340,19 @@ internal sealed class MultiplayerRuntimeCoordinator
 
 	private async void HandleMultiplayerDisconnected(string reason)
 	{
-		if (_suppressDisconnectHandling)
-			return;
+		try
+		{
+			if (_suppressDisconnectHandling)
+				return;
 
-		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
-		_closeRoomPanel();
-		_flow.MarkDisconnectedRecoverable(reason);
-		_openHubWithStatus(reason, true);
+			await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+			_closeRoomPanel();
+			_flow.MarkDisconnectedRecoverable(reason);
+			_openHubWithStatus(reason, true);
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerDisconnected failed: {ex}");
+		}
 	}
 }
