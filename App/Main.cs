@@ -281,16 +281,18 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		{
 			CloseMultiplayerBackendAsync(suppressDisconnectHandling: true).GetAwaiter().GetResult();
 		}
-		catch (Exception)
+		catch (Exception ex)
 		{
+			GD.PushWarning(ex.ToString());
 		}
 
 		try
 		{
 			_localServerLauncher?.DisposeAsync().AsTask().GetAwaiter().GetResult();
 		}
-		catch (Exception)
+		catch (Exception ex)
 		{
+			GD.PushWarning(ex.ToString());
 		}
 	}
 
