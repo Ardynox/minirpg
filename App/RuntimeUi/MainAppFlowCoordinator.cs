@@ -278,7 +278,7 @@ internal sealed class MainAppFlowCoordinator
 				clearLogs: true,
 				onSuccess: recoveredCandidate =>
 				{
-					_refreshPlayerCharacterVisual();
+					_finalizeSessionPanels(true);
 					_clearLog();
 					LogRecoverySuccess(recoveredCandidate);
 					_log.Add(LocalizationService.T(
@@ -534,13 +534,10 @@ internal sealed class MainAppFlowCoordinator
 				clearLogs: false,
 				onSuccess: recoveredCandidate =>
 				{
-					_refreshPlayerCharacterVisual();
-					_syncSettingsUiState(null);
+					_finalizeSessionPanels(false);
 					_refreshLocalizedUi(false);
 					LogRecoverySuccess(recoveredCandidate);
 					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-
-					_syncTimelineAutoAdvanceState();
 					_flushMap();
 				},
 				onFailure: status => LogLoadFailure(status, label)),
@@ -773,11 +770,11 @@ internal sealed class MainAppFlowCoordinator
 				onSuccess: recoveredCandidate =>
 				{
 					_statusBanner.Clear();
-					_refreshPlayerCharacterVisual();
-					_syncSettingsUiState(null);
+					var fromMainMenu = _worldManagerContext == WorldManagerContext.MainMenu;
+					_finalizeSessionPanels(fromMainMenu);
 					_refreshLocalizedUi(false);
 
-					if (_worldManagerContext == WorldManagerContext.MainMenu)
+					if (fromMainMenu)
 					{
 						_clearLog();
 						LogRecoverySuccess(recoveredCandidate);
@@ -789,8 +786,6 @@ internal sealed class MainAppFlowCoordinator
 
 					LogRecoverySuccess(recoveredCandidate);
 					_log.Add(LocalizationService.T("log.save.loaded", ("label", label), ("floor", _state.PlayerZ)));
-
-					_syncTimelineAutoAdvanceState();
 					_flushMap();
 				},
 				onFailure: status =>
