@@ -75,6 +75,35 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 	}
 
 	/// <summary>
+	/// Sum the <see cref="ActorMemory.Strength"/> of every entry held by
+	/// <paramref name="observerId"/> about <paramref name="subjectId"/>
+	/// whose <see cref="ActorMemory.Kind"/> matches <paramref name="kind"/>.
+	/// Returns 0 when either id is blank or no matching entry exists; the
+	/// returned magnitude is unbounded (callers clamp / soft-cap as needed).
+	/// </summary>
+	/// <remarks>
+	/// Read-only query intended for AI <c>InputResolver</c>s. Does not
+	/// touch the underlying list; safe to call repeatedly per turn.
+	/// </remarks>
+	public float SumStrength(string observerId, string subjectId, ActorMemoryKind kind)
+	{
+		if (string.IsNullOrWhiteSpace(observerId) || string.IsNullOrWhiteSpace(subjectId))
+			return 0f;
+		if (!_byActor.TryGetValue(observerId, out var list) || list.Count == 0)
+			return 0f;
+
+		var total = 0f;
+		for (var i = 0; i < list.Count; i++)
+		{
+			var entry = list[i];
+			if (entry.Kind != kind) continue;
+			if (!string.Equals(entry.SubjectId, subjectId, StringComparison.Ordinal)) continue;
+			total += entry.Strength;
+		}
+		return total;
+	}
+
+	/// <summary>
 	/// Append <paramref name="memory"/> to <paramref name="actorId"/>'s
 	/// list; oldest entries are evicted once the list exceeds
 	/// <see cref="MaxMemoriesPerActor"/>. No-op for blank ids or self

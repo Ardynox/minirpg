@@ -519,6 +519,88 @@ public static class InputResolver
 
 		_resolvers["target_wounded"] = static ctx =>
 			ctx.TargetActor != null && HealthSystem.HasTreatableCondition(ctx.TargetActor, ctx.State?.Turn ?? 0) ? 1f : 0f;
+
+		// ── Second-layer emergent-world inputs (路线图第 2-4 步) ─────
+		// All seven resolvers below tolerate a null BehaviorContext or null
+		// social module instance and degrade to 0; this keeps tests and
+		// any future "AI without social wiring" host trivially safe.
+
+		_resolvers["RelationshipTrust<target>"] = static ctx =>
+		{
+			if (ctx.TargetActor == null) return 0f;
+			var module = ctx.BehaviorContext?.Relationships;
+			if (module == null) return 0f;
+			return Clamp01(module.Get(ctx.Self.Id, ctx.TargetActor.Id).Trust);
+		};
+
+		_resolvers["RelationshipFear<target>"] = static ctx =>
+		{
+			if (ctx.TargetActor == null) return 0f;
+			var module = ctx.BehaviorContext?.Relationships;
+			if (module == null) return 0f;
+			return Clamp01(module.Get(ctx.Self.Id, ctx.TargetActor.Id).Fear);
+		};
+
+		_resolvers["MemoryFearTowards<target>"] = static ctx =>
+		{
+			if (ctx.TargetActor == null) return 0f;
+			var module = ctx.BehaviorContext?.ActorMemories;
+			if (module == null) return 0f;
+			return Clamp01(module.SumStrength(ctx.Self.Id, ctx.TargetActor.Id, ActorMemoryKind.HostileAttackBy));
+		};
+
+		_resolvers["MemoryDebtOwedTo<target>"] = static ctx =>
+		{
+			if (ctx.TargetActor == null) return 0f;
+			var module = ctx.BehaviorContext?.ActorMemories;
+			if (module == null) return 0f;
+			return Clamp01(module.SumStrength(ctx.Self.Id, ctx.TargetActor.Id, ActorMemoryKind.DebtOwedTo));
+		};
+
+		_resolvers["MemoryBetrayalBy<target>"] = static ctx =>
+		{
+			if (ctx.TargetActor == null) return 0f;
+			var module = ctx.BehaviorContext?.ActorMemories;
+			if (module == null) return 0f;
+			return Clamp01(module.SumStrength(ctx.Self.Id, ctx.TargetActor.Id, ActorMemoryKind.BetrayalBy));
+		};
+
+		_resolvers["NearbyRumorSeverity"] = static ctx =>
+		{
+			var bus = ctx.BehaviorContext?.Rumors;
+			if (bus == null) return 0f;
+
+			// Aggregate audible rumors as a credibility-weighted severity.
+			// Each rumor kind contributes its own severity weight; we sum
+			// (weight * credibility) and clamp to [0,1] so a single hot
+			// rumor can saturate but a noisy district stays bounded.
+			var total = 0f;
+			foreach (var rumor in bus.QueryAudibleAt(ctx.Self.X, ctx.Self.Y, ctx.Self.Z))
+			{
+				var severity = rumor.Kind switch
+				{
+					RumorKind.AttackWitnessed => 0.6f,
+					RumorKind.CasualtyReported => 1.0f,
+					RumorKind.TheftWitnessed => 0.4f,
+					_ => 0.3f,
+				};
+				total += severity * rumor.Credibility;
+			}
+			return Clamp01(total);
+		};
+
+		_resolvers["HasRecentTheftRumor"] = static ctx =>
+		{
+			var bus = ctx.BehaviorContext?.Rumors;
+			if (bus == null) return 0f;
+
+			foreach (var rumor in bus.QueryAudibleAt(ctx.Self.X, ctx.Self.Y, ctx.Self.Z))
+			{
+				if (rumor.Kind == RumorKind.TheftWitnessed)
+					return 1f;
+			}
+			return 0f;
+		};
 	}
 
 	private static void RegisterPersonalityInputs()
