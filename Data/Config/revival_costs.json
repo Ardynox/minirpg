@@ -1,0 +1,65 @@
+{
+  "$schema_note": "复活代价数据驱动配置。被 MiniRPG.Core.Revival.RevivalCostModel.LoadFromJson 反序列化。三种 methodId 必须配齐；新增 method 在 Data/Config/revival_costs.json 加新 key 即可，无需改代码。",
+
+  "methods": {
+    "magic": {
+      "displayNameKey": "ui.revival.method.magic",
+      "channelTurns": 8,
+      "baseMaterials": {
+        "herb_root": 5,
+        "water": 3,
+        "soul_shard": 1
+      },
+      "perAttemptMultiplier": 1.5,
+      "baseFailureChance": 0.10,
+      "failureChancePerPriorRevival": 0.08,
+      "maxFailureChance": 0.65,
+      "casterSkillId": "magic_revival",
+      "casterSkillThreshold": 4
+    },
+    "tech": {
+      "displayNameKey": "ui.revival.method.tech",
+      "channelTurns": 12,
+      "baseMaterials": {
+        "nano_paste": 4,
+        "energy_cell": 2,
+        "biomass": 6
+      },
+      "perAttemptMultiplier": 1.4,
+      "baseFailureChance": 0.05,
+      "failureChancePerPriorRevival": 0.05,
+      "maxFailureChance": 0.55,
+      "casterSkillId": "tech_revival",
+      "casterSkillThreshold": 3
+    },
+    "divine": {
+      "displayNameKey": "ui.revival.method.divine",
+      "channelTurns": 6,
+      "baseMaterials": {
+        "blessed_water": 1
+      },
+      "perAttemptMultiplier": 2.0,
+      "baseFailureChance": 0.45,
+      "failureChancePerPriorRevival": 0.10,
+      "maxFailureChance": 0.85,
+      "casterSkillId": "faith",
+      "casterSkillThreshold": 6
+    }
+  },
+
+  "moodScar": {
+    "baseOffset": -4.0,
+    "perAttemptOffset": -4.0,
+    "maxOffset": -20.0,
+    "baseDurationTurns": 360,
+    "perAttemptDurationTurns": 360,
+    "maxDurationTurns": 1800
+  },
+
+  "capacityPenalty": {
+    "perAttempt": 0.05,
+    "maxFraction": 0.40
+  },
+
+  "permanentLossThreshold": 6
+}
