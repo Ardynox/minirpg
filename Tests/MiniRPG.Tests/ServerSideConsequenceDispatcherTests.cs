@@ -17,15 +17,16 @@ namespace MiniRPG.Tests;
 public sealed class ServerSideConsequenceDispatcherTests
 {
 	[Fact]
-	public void Dispatcher_RegistersAllFourBundledHandlers()
+	public void Dispatcher_RegistersAllBundledHandlers()
 	{
 		var dispatcher = new ServerSideConsequenceDispatcher();
 
-		Assert.Equal(4, dispatcher.HandlerCount);
+		Assert.Equal(5, dispatcher.HandlerCount);
 		Assert.NotNull(dispatcher.Statistics);
 		Assert.NotNull(dispatcher.Relationships);
 		Assert.NotNull(dispatcher.Memories);
 		Assert.NotNull(dispatcher.Rumors);
+		Assert.NotNull(dispatcher.KinshipLoss);
 	}
 
 	[Fact]
@@ -93,7 +94,7 @@ public sealed class RoomRuntimeHostConsequencePipelineTests
 		var roomHost = host.RegisterRoom(new GameState(), lobby.GetRoomState(owner.RoomId));
 
 		Assert.NotNull(roomHost.Consequences);
-		Assert.Equal(4, roomHost.Consequences.HandlerCount);
+		Assert.Equal(5, roomHost.Consequences.HandlerCount);
 	}
 
 	[Fact]

@@ -482,6 +482,7 @@ public static class SurgeryModule
 			IdentificationModule.PopulateTargetIdentity(killedEvent, state, target);
 			if (attacker != null && !string.Equals(attacker.Id, target.Id, StringComparison.Ordinal))
 				IdentificationModule.PopulateInitiatorIdentity(killedEvent, state, attacker);
+			MiniRPG.Core.Demographics.KinGriefHelper.AppendToDeathEvent(state, target, killedEvent);
 			events?.Add(killedEvent);
 			TrySpawnCorpseOnDeath(state, target, events ?? [], "actor_killed");
 			ActorModule.Remove(state, target.Id);

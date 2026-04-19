@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Demographics;
 using MiniRPG.Core.Events;
 using MiniRPG.Core.Social;
 
@@ -29,18 +30,21 @@ public sealed class ServerSideConsequenceDispatcher
 		Relationships = new RelationshipModule();
 		Memories = new ActorMemoryModule();
 		Rumors = new RumorBus();
+		KinshipLoss = new KinshipLossCapturer();
 
 		_router = new GameEventConsequenceRouter(errorSink);
 		_router.Register(Statistics);
 		_router.Register(Relationships);
 		_router.Register(Memories);
 		_router.Register(Rumors);
+		_router.Register(KinshipLoss);
 	}
 
 	public IncidentStatistics Statistics { get; }
 	public RelationshipModule Relationships { get; }
 	public ActorMemoryModule Memories { get; }
 	public RumorBus Rumors { get; }
+	public KinshipLossCapturer KinshipLoss { get; }
 
 	/// <summary>
 	/// Number of registered handlers; useful for tests / debug to confirm the

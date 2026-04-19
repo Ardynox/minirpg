@@ -223,6 +223,7 @@ public partial class Main
 		_consequenceRouter.Register(_relationships);
 		_consequenceRouter.Register(_actorMemories);
 		_consequenceRouter.Register(_rumorBus);
+		_consequenceRouter.Register(new MiniRPG.Core.Demographics.KinshipLossCapturer());
 		// Inject the same simulation-side modules into the AIDispatcher
 		// ambient context so social InputResolvers can read live state;
 		// without these the AIBehaviorContext.Relationships/ActorMemories/Rumors

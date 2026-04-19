@@ -311,6 +311,7 @@ public static class CombatModule
 			IdentificationModule.PopulateTargetIdentity(killedEvent, state, target);
 			if (attacker != null && !string.Equals(attacker.Id, target.Id, StringComparison.Ordinal))
 				IdentificationModule.PopulateInitiatorIdentity(killedEvent, state, attacker);
+			MiniRPG.Core.Demographics.KinGriefHelper.AppendToDeathEvent(state, target, killedEvent);
 			SurgeryModule.TrySpawnCorpseOnDeath(state, target, events, killedEvent.Type);
 			ActorModule.Remove(state, target.Id);
 			events.Add(killedEvent);
