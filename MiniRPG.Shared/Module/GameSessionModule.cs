@@ -222,6 +222,8 @@ public class GameSessionModule : IDebugSessionActions
 		RegisterWorldGenerationSettings(resolvedWorldSettings);
 		InitializeWorld(resolvedOptions);
 		TimelineTurnManager.Reset(_state);
+		PartyModule.Initialize(_state);
+		EnsureStorytellerWorkers();
 		ActorDerivedStateUpdater.SyncAllActorsForSession(_state);
 		SetWorldCharacterContext(manifest.WorldId, manifest.DisplayName, characterId, characterName, canonicalPath);
 		_activeSessionKind = ActiveSessionKind.WorldCharacter;
