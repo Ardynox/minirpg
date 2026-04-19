@@ -76,6 +76,7 @@ public static class ProtocolSerializer
 				ClientCommandKind.UseSkill => JsonSerializer.Deserialize<UseSkillClientCommand>(raw, Options),
 				ClientCommandKind.EndCombat => JsonSerializer.Deserialize<EndCombatClientCommand>(raw, Options),
 				ClientCommandKind.Climb => JsonSerializer.Deserialize<ClimbClientCommand>(raw, Options),
+				ClientCommandKind.GiveItem => JsonSerializer.Deserialize<GiveItemClientCommand>(raw, Options),
 				_ => null,
 			};
 		}

@@ -45,6 +45,14 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 	/// </summary>
 	public const float HostileAttackFearGain = 0.10f;
 
+	/// <summary>
+	/// How much trust the recipient of a gift gains toward the giver per
+	/// gift_given event. Symmetric to <see cref="HostileAttackFearGain"/>:
+	/// the friendly counterpart that lets a player feel "I gave them a
+	/// thing, they remember me".
+	/// </summary>
+	public const float GiftReceivedTrustGain = 0.10f;
+
 	private readonly Dictionary<(string Observer, string Subject), RelationshipState> _graph
 		= new();
 
@@ -146,8 +154,15 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 	{
 		if (ev == null) return;
 
-		if (string.Equals(ev.Type, "combat_attack", StringComparison.Ordinal))
-			HandleCombatAttack(ev);
+		switch (ev.Type)
+		{
+			case "combat_attack":
+				HandleCombatAttack(ev);
+				break;
+			case "gift_given":
+				HandleGiftGiven(ev);
+				break;
+		}
 	}
 
 	private void HandleCombatAttack(GameEvent ev)
@@ -163,5 +178,19 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 		// adjust trust or debt; those come from more specific events
 		// (gift given, debt repaid, betrayal) that will be added later.
 		Adjust(ev.TargetId!, ev.InitiatorId!, fearDelta: HostileAttackFearGain);
+	}
+
+	// gift_given is the friendly mirror of combat_attack: SocialModule.TryGiveItem
+	// emits it after a successful inventory transfer between two actors.
+	// Recipient (TargetId) gains trust toward the giver (InitiatorId). We do
+	// not require a faction relation here on purpose - hostile NPCs can also
+	// be bribed (a future quest mechanic) and the consumer side decides
+	// whether trust outweighs fear when reading both axes.
+	private void HandleGiftGiven(GameEvent ev)
+	{
+		if (string.IsNullOrWhiteSpace(ev.InitiatorId) || string.IsNullOrWhiteSpace(ev.TargetId))
+			return;
+
+		Adjust(ev.TargetId!, ev.InitiatorId!, trustDelta: GiftReceivedTrustGain);
 	}
 }

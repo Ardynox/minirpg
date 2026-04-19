@@ -159,4 +159,154 @@ public class SocialModuleTests
 		Assert.Equal(50, original.Relations["a:b"].Opinion);
 		Assert.Equal(10, original.SocialCooldowns["a"]);
 	}
+
+	// ── TryGiveItem ────────────────────────────────────────────────
+	//
+	// Covers the new gift_given pipeline: TryGiveItem actually moves the
+	// item between the two actors' inventories AND emits a single
+	// gift_given GameEvent that downstream RelationshipModule /
+	// ActorMemoryModule can consume. Failure modes return an empty list
+	// so ServerActionGateway can map them to a localized rejection.
+
+	private static GameState CreateGiftState(out Actor giver, out Actor recipient, out Item gift)
+	{
+		var state = new GameState { PlayerId = "player" };
+		giver = new Actor { Id = "giver", DisplayName = "Giver", Faction = Factions.Player };
+		recipient = new Actor { Id = "recipient", DisplayName = "Recipient", Faction = Factions.Friendly };
+		state.Actors["giver"] = giver;
+		state.Actors["recipient"] = recipient;
+		gift = new Item { Id = "berry", InstanceId = "berry-1", Name = "Berry" };
+		// Mark the item type identified so PopulateItemIdentity surfaces
+		// the real Name in the emitted event (mirrors the realistic
+		// scenario where the giver knows what they are handing over).
+		state.IdentifiedItemTypes.Add(gift.Id);
+		giver.Inventory.Add(gift);
+		return state;
+	}
+
+	[Fact]
+	public void TryGiveItem_HappyPath_TransfersItemAndEmitsEvent()
+	{
+		var state = CreateGiftState(out var giver, out var recipient, out var gift);
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, recipient.Id, gift.InstanceId);
+
+		Assert.Empty(giver.Inventory);
+		Assert.Single(recipient.Inventory);
+		Assert.Equal(gift.InstanceId, recipient.Inventory[0].InstanceId);
+
+		Assert.Single(events);
+		var ev = events[0];
+		Assert.Equal("gift_given", ev.Type);
+		Assert.Equal(giver.Id, ev.InitiatorId);
+		Assert.Equal(recipient.Id, ev.TargetId);
+		Assert.Equal(Factions.Player, ev.InitiatorFaction);
+		Assert.Equal(Factions.Friendly, ev.TargetFaction);
+		Assert.Equal(gift.Id, ev.ItemTypeId);
+		Assert.Equal(gift.Name, ev.ItemName);
+	}
+
+	[Theory]
+	[InlineData("", "recipient", "berry-1")]
+	[InlineData("giver", "", "berry-1")]
+	[InlineData("giver", "recipient", "")]
+	[InlineData(null, "recipient", "berry-1")]
+	[InlineData("giver", null, "berry-1")]
+	[InlineData("giver", "recipient", null)]
+	public void TryGiveItem_BlankIds_ReturnsEmpty(string? from, string? to, string? itemId)
+	{
+		var state = CreateGiftState(out var giver, out _, out _);
+
+		var events = SocialModule.TryGiveItem(state, from!, to!, itemId!);
+
+		Assert.Empty(events);
+		Assert.Single(giver.Inventory);
+	}
+
+	[Fact]
+	public void TryGiveItem_SelfGive_ReturnsEmpty()
+	{
+		var state = CreateGiftState(out var giver, out _, out var gift);
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, giver.Id, gift.InstanceId);
+
+		Assert.Empty(events);
+		Assert.Single(giver.Inventory);
+	}
+
+	[Fact]
+	public void TryGiveItem_MissingActor_ReturnsEmpty()
+	{
+		var state = CreateGiftState(out var giver, out _, out var gift);
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, "ghost", gift.InstanceId);
+
+		Assert.Empty(events);
+		Assert.Single(giver.Inventory);
+	}
+
+	[Fact]
+	public void TryGiveItem_ItemNotInInventory_ReturnsEmpty()
+	{
+		var state = CreateGiftState(out var giver, out var recipient, out _);
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, recipient.Id, "no-such-instance");
+
+		Assert.Empty(events);
+		Assert.Single(giver.Inventory);
+		Assert.Empty(recipient.Inventory);
+	}
+
+	[Fact]
+	public void TryGiveItem_EquippedItem_ReturnsEmpty()
+	{
+		// Mirror ChestPut policy: equipped items must be unequipped first.
+		// Doing it implicitly here would silently free body slots.
+		var state = CreateGiftState(out var giver, out var recipient, out var gift);
+		gift.Equipped = true;
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, recipient.Id, gift.InstanceId);
+
+		Assert.Empty(events);
+		Assert.Single(giver.Inventory);
+		Assert.Empty(recipient.Inventory);
+		Assert.True(giver.Inventory[0].Equipped);
+	}
+
+	[Fact]
+	public void TryGiveItem_RoutesThroughInventoryModule_StacksOnRecipient()
+	{
+		// Sanity check that the transfer goes through InventoryModule.Add
+		// (not a hand-rolled list mutation): when a stackable instance of
+		// the same item already lives on the recipient and there is room,
+		// the giver-side stack collapses into the recipient's stack. The
+		// exact merge accounting is owned by InventoryModule; we only
+		// assert that the recipient's existing stack absorbed the gift.
+		var state = CreateGiftState(out var giver, out var recipient, out var gift);
+		gift.MaxStack = 10;
+		gift.StackCount = 3;
+		gift.EnsureRuntimeState();
+		var existing = new Item
+		{
+			Id = "berry",
+			InstanceId = "berry-existing",
+			Name = "Berry",
+			MaxStack = 10,
+			StackCount = 5,
+		};
+		// Match the runtime-normalised durability so CanStackWith succeeds
+		// in InventoryModule.TryMergeIntoExisting; without this the existing
+		// stack and the incoming gift differ on MaxDurability after the
+		// recipient call to EnsureRuntimeState and the merge silently fails.
+		existing.EnsureRuntimeState();
+		recipient.Inventory.Add(existing);
+
+		var events = SocialModule.TryGiveItem(state, giver.Id, recipient.Id, gift.InstanceId);
+
+		Assert.Single(events);
+		Assert.Empty(giver.Inventory);
+		var stack = recipient.Inventory.Find(i => i.InstanceId == "berry-existing");
+		Assert.NotNull(stack);
+		Assert.Equal(8, stack!.StackCount);
+	}
 }

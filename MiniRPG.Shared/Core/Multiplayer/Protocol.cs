@@ -39,6 +39,7 @@ public enum ClientCommandKind
 	UseSkill,
 	EndCombat,
 	Climb,
+	GiveItem,
 }
 
 public enum ServerMessageKind
@@ -108,6 +109,7 @@ public enum ErrorCode
 	UseSkillRejected,
 	PvpDisabled,
 	FriendlyFireDisabled,
+	GiftRejected,
 }
 
 public static class ProtocolDefaults
@@ -344,6 +346,12 @@ public sealed record UseSkillClientCommand() : ClientCommand(ClientCommandKind.U
 
 public sealed record EndCombatClientCommand() : ClientCommand(ClientCommandKind.EndCombat)
 {
+}
+
+public sealed record GiveItemClientCommand() : ClientCommand(ClientCommandKind.GiveItem)
+{
+	public string TargetActorId { get; init; } = string.Empty;
+	public string ItemInstanceId { get; init; } = string.Empty;
 }
 
 public abstract record ServerMessage(ServerMessageKind Kind)

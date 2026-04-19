@@ -151,6 +151,77 @@ public static class SocialModule
 		return state.Turn - lastTurn >= SocialCooldownTurns;
 	}
 
+	// ── 礼物 / 物品转移 ─────────────────────────────────────────────
+	//
+	// `gift_given` is the friendly mirror of `combat_attack` in the
+	// emergent-world roadmap: the recipient ends up trusting the giver
+	// (RelationshipModule.HandleGiftGiven) and remembers them as someone
+	// who helped (ActorMemoryModule.HandleGiftGiven). The interaction
+	// itself is intentionally cheap - inventory transfer + a single
+	// GameEvent - so authoritative-side callers (player-driven
+	// ServerActionGateway dispatch, AI executors, future quest scripts)
+	// all funnel through one place that knows how to populate the event
+	// identity.
+
+	/// <summary>
+	/// Move <paramref name="itemInstanceId"/> from <paramref name="fromActorId"/>'s
+	/// inventory into <paramref name="toActorId"/>'s inventory and emit a
+	/// <c>gift_given</c> <see cref="GameEvent"/> so the social subsystems
+	/// (RelationshipModule / ActorMemoryModule) can react.
+	///
+	/// Returns an empty list when any precondition fails - blank ids,
+	/// self-give, missing actor, item not in giver's inventory, or the
+	/// item is currently equipped. Callers (ServerActionGateway, tests)
+	/// treat an empty list as "rejected" and surface their own localized
+	/// error.
+	/// </summary>
+	public static List<GameEvent> TryGiveItem(
+		GameState state,
+		string fromActorId,
+		string toActorId,
+		string itemInstanceId)
+	{
+		ArgumentNullException.ThrowIfNull(state);
+
+		var events = new List<GameEvent>();
+		if (string.IsNullOrWhiteSpace(fromActorId)
+			|| string.IsNullOrWhiteSpace(toActorId)
+			|| string.IsNullOrWhiteSpace(itemInstanceId))
+			return events;
+		if (string.Equals(fromActorId, toActorId, StringComparison.Ordinal))
+			return events;
+
+		var giver = ActorModule.GetById(state, fromActorId);
+		var recipient = ActorModule.GetById(state, toActorId);
+		if (giver == null || recipient == null)
+			return events;
+
+		var index = giver.Inventory.FindIndex(item =>
+			string.Equals(item.InstanceId, itemInstanceId, StringComparison.Ordinal));
+		if (index < 0)
+			return events;
+
+		var candidate = giver.Inventory[index];
+		// Equipped items must be unequipped client-side first; doing it
+		// implicitly here would silently free body slots and surprise the
+		// player. Mirror the existing ChestPut policy.
+		if (candidate.Equipped)
+			return events;
+
+		var transferred = InventoryModule.RemoveAt(giver, index);
+		if (transferred == null)
+			return events;
+
+		InventoryModule.Add(recipient, transferred);
+
+		var ev = new GameEvent("gift_given");
+		IdentificationModule.PopulateInitiatorIdentity(ev, state, giver);
+		IdentificationModule.PopulateTargetIdentity(ev, state, recipient);
+		IdentificationModule.PopulateItemIdentity(ev, state, transferred);
+		events.Add(ev);
+		return events;
+	}
+
 	// ── 关系判定辅助 ──
 
 	/// <summary>是否是朋友（好感度 >= 50）。</summary>

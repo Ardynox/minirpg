@@ -136,6 +136,86 @@ public sealed class RelationshipModuleTests
 	}
 
 	[Fact]
+	public void OnEvent_GiftGiven_IncreasesRecipientTrustTowardGiver()
+	{
+		var module = new RelationshipModule();
+		var ev = new GameEvent("gift_given")
+		{
+			InitiatorId = "giver",
+			InitiatorFaction = Factions.Player,
+			TargetId = "recipient",
+			TargetFaction = Factions.Friendly,
+			ItemTypeId = "berry",
+		};
+
+		module.OnEvent(new GameState(), ev);
+
+		Assert.Equal(RelationshipModule.GiftReceivedTrustGain, module.Get("recipient", "giver").Trust, 3);
+		// Asymmetric on purpose: the giver does not automatically trust
+		// themselves more for having given a gift.
+		Assert.Equal(0f, module.Get("giver", "recipient").Trust, 3);
+	}
+
+	[Fact]
+	public void OnEvent_GiftGiven_StacksAcrossMultipleGifts()
+	{
+		// Trust from successive gifts accumulates additively, mirroring
+		// how multiple HostileAttack hits stack fear. This lets the AI
+		// consumer side scale by raw strength without per-event clamps.
+		var module = new RelationshipModule();
+		var ev = new GameEvent("gift_given")
+		{
+			InitiatorId = "giver",
+			TargetId = "recipient",
+		};
+
+		module.OnEvent(new GameState(), ev);
+		module.OnEvent(new GameState(), ev);
+
+		Assert.Equal(RelationshipModule.GiftReceivedTrustGain * 2f, module.Get("recipient", "giver").Trust, 3);
+	}
+
+	[Fact]
+	public void OnEvent_GiftGiven_AcrossHostileFactions_StillBuildsTrust()
+	{
+		// Bribery / appeasement use case: a player can give a hostile
+		// guard a gift and the relationship module credits trust even
+		// when factions are hostile. Consumers (e.g. flee_combat) read
+		// both Trust and Fear independently and decide who wins.
+		var module = new RelationshipModule();
+		var ev = new GameEvent("gift_given")
+		{
+			InitiatorId = "player",
+			InitiatorFaction = Factions.Player,
+			TargetId = "raider",
+			TargetFaction = Factions.Hostile,
+		};
+
+		module.OnEvent(new GameState(), ev);
+
+		Assert.Equal(RelationshipModule.GiftReceivedTrustGain, module.Get("raider", "player").Trust, 3);
+	}
+
+	[Theory]
+	[InlineData(null, "recipient")]
+	[InlineData("giver", null)]
+	[InlineData("", "recipient")]
+	[InlineData("giver", "")]
+	public void OnEvent_GiftGiven_BlankIds_IsIgnored(string? initiatorId, string? targetId)
+	{
+		var module = new RelationshipModule();
+		var ev = new GameEvent("gift_given")
+		{
+			InitiatorId = initiatorId,
+			TargetId = targetId,
+		};
+
+		module.OnEvent(new GameState(), ev);
+
+		Assert.Equal(0, module.EdgeCount);
+	}
+
+	[Fact]
 	public void Tick_DecaysEveryEdgeTowardZero()
 	{
 		var module = new RelationshipModule();
