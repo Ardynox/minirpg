@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Godot;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Map;
@@ -334,6 +335,10 @@ internal sealed class MainAppFlowCoordinator
 			_showGameHints();
 			_doEnterGame();
 		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleCharacterCreationConfirmed failed: {ex}");
+		}
 		finally
 		{
 			_pendingCharacterCreationWorldId = null;
@@ -368,6 +373,10 @@ internal sealed class MainAppFlowCoordinator
 			FinalizeBlankEditorStart();
 			_doEnterGame();
 		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMenuMapEditor failed: {ex}");
+		}
 		finally
 		{
 			_endBusyOperation();
@@ -376,33 +385,47 @@ internal sealed class MainAppFlowCoordinator
 
 	public async void DoStartNewGame(PlayerCreationOptions? options = null)
 	{
-		PrepareSessionTransition(clearLogs: true);
-		var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+		try
 		{
-			Kind = GameSessionStartKind.NewGame,
-			PlayerCreationOptions = options ?? PlayerCreationOptions.CreateDefault(),
-		});
-		if (!startResult.Success)
-		{
-			_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
-			return;
+			PrepareSessionTransition(clearLogs: true);
+			var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+			{
+				Kind = GameSessionStartKind.NewGame,
+				PlayerCreationOptions = options ?? PlayerCreationOptions.CreateDefault(),
+			});
+			if (!startResult.Success)
+			{
+				_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+				return;
+			}
+			FinalizeNewGameStart();
 		}
-		FinalizeNewGameStart();
+		catch (Exception ex)
+		{
+			GD.PushError($"DoStartNewGame failed: {ex}");
+		}
 	}
 
 	public async void DoStartBlankEditor()
 	{
-		PrepareSessionTransition(clearLogs: true);
-		var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+		try
 		{
-			Kind = GameSessionStartKind.BlankEditor,
-		});
-		if (!startResult.Success)
-		{
-			_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
-			return;
+			PrepareSessionTransition(clearLogs: true);
+			var startResult = await _sessionBackend.StartAsync(new GameSessionStartRequest
+			{
+				Kind = GameSessionStartKind.BlankEditor,
+			});
+			if (!startResult.Success)
+			{
+				_log.Add(startResult.FailureReason ?? LocalizationService.T("ui.command.unknown"));
+				return;
+			}
+			FinalizeBlankEditorStart();
 		}
-		FinalizeBlankEditorStart();
+		catch (Exception ex)
+		{
+			GD.PushError($"DoStartBlankEditor failed: {ex}");
+		}
 	}
 
 	public void OpenCharacterCreationDialog(string worldId, string worldName)
@@ -817,15 +840,22 @@ internal sealed class MainAppFlowCoordinator
 
 	public async void HandleLoadRecoveryConfirmed(string actorId)
 	{
-		if (_busyOperationActive())
-			return;
+		try
+		{
+			if (_busyOperationActive())
+				return;
 
-		var pending = _pendingPreparedLoad;
-		if (pending == null)
-			return;
+			var pending = _pendingPreparedLoad;
+			if (pending == null)
+				return;
 
-		CloseLoadRecoveryDialog();
-		await pending.CommitAsync(actorId);
+			CloseLoadRecoveryDialog();
+			await pending.CommitAsync(actorId);
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleLoadRecoveryConfirmed failed: {ex}");
+		}
 	}
 
 	public void CloseLoadRecoveryDialog()
