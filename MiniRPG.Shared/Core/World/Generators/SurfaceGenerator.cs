@@ -1,5 +1,6 @@
 using System;
 using MiniRPG.Core.World.Noise;
+using MiniRPG.Core.World.Surface;
 
 namespace MiniRPG.Core.World.Generators;
 
@@ -31,6 +32,7 @@ public static class SurfaceGenerator
 		var heightNoise = new PerlinNoise(worldSeed);
 		var moistureNoise = new PerlinNoise(worldSeed ^ 0x12345678);
 		var cz = chunk.Coord.Cz;
+		var waterId = TerrainRegistry.GetId(Terrains.Water);
 
 		for (var ly = 0; ly < ChunkData.Size; ly++)
 		for (var lx = 0; lx < ChunkData.Size; lx++)
@@ -46,7 +48,22 @@ public static class SurfaceGenerator
 			// 正 heightVal = 高地 → 负 Z（更高），负 heightVal = 低地 → 正 Z（更低）。
 			var surfaceZ = -(int)Math.Round(heightVal * MaxElevation);
 
-			chunk.SetTerrain(lx, ly, ClassifyVoxel(cz, surfaceZ, moisture));
+			var baseTerrainId = ClassifyVoxel(cz, surfaceZ, moisture);
+			chunk.SetTerrain(lx, ly, baseTerrainId);
+
+			// 仅 surface 层（cz == surfaceZ）那一格采样草地密度并写入；
+			// 地下 (cz > surfaceZ) / 空气 (cz < surfaceZ) 保持默认 0。
+			// 是否真出草由 GrassCoverSampler 内部按 baseTerrainId 兜底。
+			if (cz == surfaceZ)
+			{
+				chunk.GrassCover[ly * ChunkData.Size + lx] = GrassCoverSampler.Sample(
+					worldSeed,
+					wx,
+					wy,
+					baseTerrainId,
+					exposedToSky: true,
+					underwater: baseTerrainId == waterId);
+			}
 		}
 	}
 
