@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.AI;
+using MiniRPG.Core.Demographics;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
 using MiniRPG.Core.Health;
@@ -36,6 +37,7 @@ public static class TurnModule
 		events.AddRange(FireSystem.Advance(state));
 		events.AddRange(Storyteller.Tick(state));
 		events.AddRange(FarmModule.TickGrowth(state));
+		events.AddRange(WorldDemographicsTick.Tick(state));
 		return events;
 	}
 

@@ -45,6 +45,13 @@ public static class GameConfig
 		IsLoaded = true;
 	}
 
+	/// <summary>
+	/// 触发 demographics 相关 catalog 加载。当前是 <see cref="MiniRPG.Core.Demographics.LifeStageCatalog"/>
+	/// 的薄壳；将来如果引入更多 demographics 配置文件，统一在这里聚合，避免散在各 tick 入口。
+	/// </summary>
+	public static void EnsureDemographicsLoaded() =>
+		MiniRPG.Core.Demographics.LifeStageCatalog.EnsureLoaded();
+
 	private static T LoadRequired<T>(string relativeDataPath) where T : class
 	{
 		var json = GameDataLocator.ReadTextOrThrow(relativeDataPath);

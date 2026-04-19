@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.AI;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Conversation;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
 using MiniRPG.Core.Multiplayer;
@@ -121,6 +122,19 @@ public class GameState
 	// ── 任务 ──
 	public List<Quest> Quests { get; set; } = [];
 
+	// ── 对话（节点图，BG3 风格） ──
+	/// <summary>当前活跃对话：键 = NPC actorId。权威状态，由 <see cref="ConversationModule"/> 维护。</summary>
+	public Dictionary<string, ConversationState> ActiveConversations { get; set; }
+		= new(StringComparer.Ordinal);
+
+	// ── 人口学（demographics 跨 turn 状态）──
+	/// <summary>上一次 <c>WorldDemographicsTick.Tick</c> 处理过的日历天索引。-1 = 从未处理过。
+	/// 用于让"按天概率"的受孕 / 出生流程在 per-tick 调用环境下只在 day boundary 触发一次。
+	/// 不入存档：读档后默认 -1 会让下一个 AdvanceWorldSystems 立即触发一次 OnNewDay，
+	/// 由于每个 actor 状态独立检查（PregnancyTicksRemaining / Sex / 配对邻居），重复一次不会破坏一致性。</summary>
+	[JsonIgnore]
+	public int LastDemographicsDay { get; set; } = -1;
+
 	// ── 设置 ──
 	public int KillCount { get; set; }
 	public TimelineState Timeline { get; set; } = new();
@@ -166,6 +180,8 @@ public class GameState
 		Zones.Clear();
 		Crops.Clear();
 		Quests.Clear();
+		ActiveConversations.Clear();
+		LastDemographicsDay = -1;
 		KillCount = 0;
 		Timeline.Reset();
 		Weather = WeatherState.CreateDefault(WorldSeed);
