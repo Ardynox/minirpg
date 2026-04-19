@@ -115,27 +115,27 @@ public class LogModule
 			"item_burned" => FormatItemFireEvent(e, state, "log.fire.item_burned", "{item} burned for {damage} durability"),
 			"item_destroyed_by_fire" => FormatItemFireEvent(e, state, "log.fire.item_destroyed", "{item} was destroyed by fire"),
 			"fixture_burned_down" => FormatFixtureBurnedDown(e, state),
-			"actor_incapacitated" when e.TargetId != state.PlayerId
+			"actor_incapacitated" when e.TargetId != ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexCombat, LocalizationService.T("log.actor_incapacitated.other", ("target", e.TargetActorName)))],
-			"food_consumed" when e.TargetId == state.PlayerId
+			"food_consumed" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexSocial, LocalizationService.T("log.need.food_consumed", ("item", e.ItemName)))],
-			"rest_started" when e.TargetId == state.PlayerId
+			"rest_started" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexSocial, LocalizationService.T("log.need.rest_started"))],
-			"rest_completed" when e.TargetId == state.PlayerId
+			"rest_completed" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexSuccess, LocalizationService.T("log.need.rest_completed"))],
-			"need_stage_changed" when e.TargetId == state.PlayerId
+			"need_stage_changed" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexWarning, LocalizationService.T("log.need.stage_changed", ("need", LocalizeNeed(e.EffectType)), ("stage", LocalizeThought(e.ActionName))))],
-			"thought_applied" when e.TargetId == state.PlayerId
+			"thought_applied" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexDim, LocalizationService.T("log.need.thought_applied", ("thought", LocalizeThought(e.ActionName)), ("value", e.ItemName)))],
-			"bleeding_started" when e.TargetId == state.PlayerId
+			"bleeding_started" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.bleeding_started", "You start bleeding."))],
-			"treatment_applied" when e.TargetId == state.PlayerId
+			"treatment_applied" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexSuccess, LocalizationService.TOrFallback("log.health.treatment_applied", "Treatment applied to {condition}.", ("condition", LocalizeCondition(e.ActionName))))],
-			"infection_started" when e.TargetId == state.PlayerId
+			"infection_started" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.infection_started", "An infection has started."))],
-			"infection_worsened" when e.TargetId == state.PlayerId
+			"infection_worsened" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback("log.health.infection_worsened", "The infection is getting worse."))],
-			"scar_gained" when e.TargetId == state.PlayerId
+			"scar_gained" when e.TargetId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexDim, LocalizationService.TOrFallback("log.health.scar_gained", "You gained a scar."))],
 			"death_blood_loss"
 				=> [C(UIColors.HexCombat, LocalizationService.TOrFallback("log.health.death_blood_loss", "{target} died from blood loss.", ("target", e.TargetActorName ?? "Someone")))],
@@ -148,7 +148,7 @@ public class LogModule
 			"surgery_installed" => [C(UIColors.HexSuccess, FormatSurgeryInstalled(e))],
 			"live_harvested" => [C(UIColors.HexWarning, FormatLiveHarvested(e))],
 			"operate_failed" => [C(UIColors.HexWarning, FormatOperateFailed(e))],
-			"campfire_lit" when e.InitiatorId == state.PlayerId
+			"campfire_lit" when e.InitiatorId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexEquipped, LocalizationService.TOrFallback("log.heat.campfire_lit", "You light a campfire."))],
 			_ => null,
 		};
@@ -242,7 +242,7 @@ public class LogModule
 	{
 		var lines = new List<string>();
 
-		if (e.TargetId == state.PlayerId)
+		if (e.TargetId == ActiveActorAccess.GetActiveId(state))
 		{
 			var attackerName = string.IsNullOrWhiteSpace(e.InitiatorActorName)
 				? "???"
@@ -279,7 +279,7 @@ public class LogModule
 
 	private static List<string> FormatLimbDestroyed(GameEvent e, GameState state)
 	{
-		if (e.TargetId == state.PlayerId)
+		if (e.TargetId == ActiveActorAccess.GetActiveId(state))
 			return [C(UIColors.HexWarning, LocalizationService.T("log.limb_destroyed.player", ("limb", e.LimbName)))];
 		return [C(UIColors.HexCombat, LocalizationService.T("log.limb_destroyed.other", ("target", e.TargetActorName), ("limb", e.LimbName)))];
 	}
@@ -342,7 +342,7 @@ public class LogModule
 		if (!IsEventVisibleToPlayer(e, state))
 			return null;
 
-		if (string.Equals(e.ActionName, "self", StringComparison.Ordinal) && e.TargetId == state.PlayerId)
+		if (string.Equals(e.ActionName, "self", StringComparison.Ordinal) && e.TargetId == ActiveActorAccess.GetActiveId(state))
 		{
 			return
 			[
@@ -462,7 +462,7 @@ public class LogModule
 
 	private static bool IsEventVisibleToPlayer(GameEvent e, GameState state)
 	{
-		if (e.TargetId == state.PlayerId || e.InitiatorId == state.PlayerId)
+		if (e.TargetId == ActiveActorAccess.GetActiveId(state) || e.InitiatorId == ActiveActorAccess.GetActiveId(state))
 			return true;
 
 		if (state.World == null || state.PlayerZ != e.TargetZ)

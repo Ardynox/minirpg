@@ -141,7 +141,9 @@ internal sealed class MultiplayerRuntimeCoordinator
 		if (!isMultiplayerSession || _backend == null)
 			return false;
 
-		var actorId = ActorModule.GetPlayer(_state)?.Id;
+		// 多人下玩家实际控制的是焦点角色（可能 != PlayerId），预测移动也必须以焦点为准；
+		// 否则切焦点后预测仍然作用在队长身上，画面立刻穿帮。
+		var actorId = ActiveActorAccess.GetActiveId(_state);
 		if (string.IsNullOrWhiteSpace(actorId))
 			return false;
 

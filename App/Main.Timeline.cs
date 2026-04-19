@@ -528,9 +528,10 @@ public partial class Main
 		_log.Add(LocalizationService.T("death.turn", ("turn", _state.Turn)));
 		_log.Add(LocalizationService.T("death.floor", ("floor", _state.PlayerZ)));
 		_log.Add(LocalizationService.T("death.kills", ("kills", _state.KillCount)));
-		var player2 = ActorModule.GetPlayer(_state);
-		if (player2 != null)
-			_log.Add(LocalizationService.T("death.gold", ("gold", player2.Gold)));
+		// 全队灭显示焦点角色身上的金币（焦点 ActiveId 在 Handler 里被清空时回退到 PlayerId 队长，符合"队长身家"的玩家直觉）。
+		var fallenActive = ActiveActorAccess.GetActive(_state);
+		if (fallenActive != null)
+			_log.Add(LocalizationService.T("death.gold", ("gold", fallenActive.Gold)));
 		_log.Add(LocalizationService.T("death.separator"));
 		_log.Add(LocalizationService.T("death.back_to_menu"));
 	}

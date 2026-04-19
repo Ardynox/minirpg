@@ -92,15 +92,17 @@ internal sealed class GameEventPresentationRouter
 				if (e.TargetId == _state.PlayerId)
 					ResAccess.GetAnimatable(_state.PlayerId)?.PlayOneShot("Pain");
 				break;
-			case "actor_killed" when e.TargetId == _state.PlayerId:
+			case "actor_killed" when e.TargetId == ActiveActorAccess.GetActiveId(_state):
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
+				// 焦点角色死亡：HandlePlayerDeath 自带"队伍仍有活人就拒绝进终局"的守卫，
+				// 实际终局走 ActiveActorDeathHandler → party_wiped 路径；这里保留调用作为 1v1 兜底。
 				_handlePlayerDeath("killed");
 				break;
-			case "death_blood_loss" when e.TargetId == _state.PlayerId:
+			case "death_blood_loss" when e.TargetId == ActiveActorAccess.GetActiveId(_state):
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 				_handlePlayerDeath("blood_loss");
 				break;
-			case "death_infection" when e.TargetId == _state.PlayerId:
+			case "death_infection" when e.TargetId == ActiveActorAccess.GetActiveId(_state):
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 				_handlePlayerDeath("infection");
 				break;
@@ -116,7 +118,7 @@ internal sealed class GameEventPresentationRouter
 			case "actor_climbed":
 				_presentActorMotion(e);
 				break;
-			case "actor_incapacitated" when e.TargetId == _state.PlayerId:
+			case "actor_incapacitated" when e.TargetId == ActiveActorAccess.GetActiveId(_state):
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 				_handlePlayerDeath("incapacitated");
 				break;

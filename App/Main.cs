@@ -310,8 +310,8 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 		_panelChrome.Update(GetViewport().GetMousePosition(), enabled: snapshot.AllowPanelChrome);
 		UpdateThreatHud(delta, snapshot);
 		UpdateTargetSummaryHud(snapshot);
-		_needsHud.Update(ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
-		_healthAlerts.Update(_state, ActorModule.GetPlayer(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
+		_needsHud.Update(ActiveActorAccess.GetActive(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
+		_healthAlerts.Update(_state, ActiveActorAccess.GetActive(_state), _state.Turn, !snapshot.SuppressHudAndAlerts);
 		_partyHud.Update(_state, !snapshot.SuppressHudAndAlerts);
 		_incidentAlerts.Update((float)delta, !snapshot.SuppressHudAndAlerts);
 		TickWorldHoverOverlay((float)delta);

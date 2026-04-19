@@ -44,17 +44,24 @@ internal sealed class GameplayCommandCoordinator
 		_doGroundInteractSelected = doGroundInteractSelected;
 	}
 
-	public void DoMove(int dx, int dy, Func<int, int, bool> trySubmitPredictedMove)
+	/// <summary>
+	/// 提交一次玩家移动。返回值告诉调用方"实际走的是哪条提交路径"：
+	/// true = 走了客户端预测（多人 + 非地表自由移动 + 预测器接受）；
+	/// false = 退化到 TimelineAction（单机 / 多人开了地表自由移动 / 预测器拒绝）。
+	/// AutoNavigationCoordinator 等需要按提交路径区分对账策略的调用方靠这个返回值定 in-flight 类型。
+	/// </summary>
+	public bool DoMove(int dx, int dy, Func<int, int, bool> trySubmitPredictedMove)
 	{
 		if (!_state.RuntimeSurfaceFreeMove && trySubmitPredictedMove(dx, dy))
-			return;
+			return true;
 
 		_submitPlayerAction(TimelinePlayerAction.Move(dx, dy));
+		return false;
 	}
 
 	public void StartDig()
 	{
-		var player = ActorModule.GetPlayer(_state);
+		var player = ActiveActorAccess.GetActive(_state);
 		if (player == null)
 			return;
 
@@ -87,7 +94,7 @@ internal sealed class GameplayCommandCoordinator
 
 	public void HandleDigDirection(string dir)
 	{
-		var player = ActorModule.GetPlayer(_state);
+		var player = ActiveActorAccess.GetActive(_state);
 		if (player == null)
 			return;
 
@@ -141,7 +148,7 @@ internal sealed class GameplayCommandCoordinator
 
 	public void DoInteract()
 	{
-		var player = ActorModule.GetPlayer(_state);
+		var player = ActiveActorAccess.GetActive(_state);
 		if (player == null)
 			return;
 
