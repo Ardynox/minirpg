@@ -20,5 +20,7 @@
   { "id": "cold_snap_chill", "labelKey": "ui.thought.cold_snap_chill", "displayName": "Chilled by the cold snap", "moodOffset": -4, "durationTurns": 240 },
   { "id": "heat_wave_fatigue", "labelKey": "ui.thought.heat_wave_fatigue", "displayName": "Drained by the heat wave", "moodOffset": -4, "durationTurns": 240 },
   { "id": "rescued_traveler", "labelKey": "ui.thought.rescued_traveler", "displayName": "Helped a lost traveler", "moodOffset": 3, "durationTurns": 240 },
-  { "id": "supplies_arrived", "labelKey": "ui.thought.supplies_arrived", "displayName": "Supplies arrived", "moodOffset": 2, "durationTurns": 180 }
+  { "id": "supplies_arrived", "labelKey": "ui.thought.supplies_arrived", "displayName": "Supplies arrived", "moodOffset": 2, "durationTurns": 180 },
+  { "id": "revived_memory", "labelKey": "ui.thought.revived_memory", "displayName": "Memory of dying", "moodOffset": -5, "durationTurns": 120 },
+  { "id": "revived_ally", "labelKey": "ui.thought.revived_ally", "displayName": "Saw an ally return from death", "moodOffset": 8, "durationTurns": 60 }
 ]
