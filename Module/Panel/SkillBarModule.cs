@@ -9,7 +9,7 @@ namespace MiniRPG.Module.Panel;
 
 public enum SkillBarTab { All, Combat, Utility, Social }
 
-public sealed class SkillBarModule : IPanel
+public sealed class SkillBarModule : IPanel, ITooltipRegistrar
 {
 	private const int GridColumns = 6;
 	private const float TileWidth = 70f;
@@ -47,6 +47,9 @@ public sealed class SkillBarModule : IPanel
 	private Actor? _player;
 	private int _selectedIndex;
 	private int _hoverIndex = -1;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	public SkillBarModule(PanelContainer panel)
 	{
@@ -276,6 +279,18 @@ public sealed class SkillBarModule : IPanel
 		button.MouseEntered += () => OnCellHover(capturedIndex);
 		button.MouseExited += () => OnCellHoverExit(capturedIndex);
 		PanelButtonScaleRegistry.Track(PanelId, button);
+
+		if (_tooltipLayer != null)
+		{
+			_tooltipLayer.Attach(button, () =>
+			{
+				if (capturedIndex < 0 || capturedIndex >= _filtered.Count)
+					return string.Empty;
+				return SkillTooltipBuilder.BuildSkillDetailBbcode(
+					_filtered[capturedIndex], _player, state: null, ArmedSkillId);
+			});
+		}
+
 		return button;
 	}
 
@@ -317,7 +332,7 @@ public sealed class SkillBarModule : IPanel
 			var skill = _filtered[i];
 			var button = _skillButtons[i];
 			button.Text = BuildTileLabel(skill);
-			button.TooltipText = skill.Name;
+			// 不再写 button.TooltipText：RichTooltip factory 已包含完整名称 + 详情。
 		}
 	}
 

@@ -8,7 +8,7 @@ namespace MiniRPG.Module.Panel;
 
 public enum SkillTab { All, Combat, Utility, Social }
 
-public class SkillManagerModule : ListPanelBase
+public class SkillManagerModule : ListPanelBase, ITooltipRegistrar
 {
 	public override string PanelId => "skill_mgr";
 	public override PanelContainer PanelNode => _panel;
@@ -27,6 +27,9 @@ public class SkillManagerModule : ListPanelBase
 	private List<InteractionDef> _allSkills = [];
 	private SkillTab _currentTab = SkillTab.All;
 	private Actor? _player;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	private static readonly SkillTab[] Tabs = [SkillTab.All, SkillTab.Combat, SkillTab.Utility, SkillTab.Social];
 	private static readonly string[] TabLabels = ["All", "Combat", "Utility", "Social"];
@@ -199,6 +202,18 @@ public class SkillManagerModule : ListPanelBase
 					"social" => "SocialRowButton",
 					_ => "RowButton",
 				};
+		}
+
+		if (_tooltipLayer != null)
+		{
+			var capturedIndex = index;
+			_tooltipLayer.Attach(row, () =>
+			{
+				if (capturedIndex < 0 || capturedIndex >= _filtered.Count)
+					return string.Empty;
+				return SkillTooltipBuilder.BuildSkillDetailBbcode(
+					_filtered[capturedIndex], _player, State, ArmedSkillId);
+			});
 		}
 	}
 
