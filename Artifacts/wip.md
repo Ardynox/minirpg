@@ -13,7 +13,10 @@
 
 <!-- 按开工时间倒序。完成后删除本条。 -->
 
+- qtwx-mcp-7 | App/RuntimeUi/MainAppFlowCoordinator.cs(P1-1 三处 finalize + P0-13 6 处 async void) + MiniRPG.Shared/Module/GameSessionModule.cs(ChangeFloor / FinalizeLoadedGame / StartWorldCharacter 三个方法) + App/Main.Audio.cs(P1-7) + App/Main.cs(_ExitTree 278-295 P1-16) + App/RuntimeUi/MultiplayerRuntimeCoordinator.cs(HandleMultiplayerDisconnected 338-347) | 会话清理收口 + async void 守卫 进行中 2026-04-19；App/Main.Multiplayer.cs(8 处 async void) 暂跳过等其他进程 commit 后补做
 - ⚠️ 协作提示 | MiniRPG.Shared/Core/Conversation/* 整目录 + MiniRPG.Shared/Core/Data/GameState.cs(ActiveConversations 字段) | 当前 untracked / 未完工：ConversationModule.cs 引用了未定义的 GameEvent.ConversationDefId / ActorDerivedStateUpdater，主项目编译失败；GameState.ActiveConversations 已加但 SaveModule + SavePayload 未对应，导致 SavePayloadCoverageTests 失败。不属于"死亡-焦点"任务，请负责的 BG3 对话进程接通后再 push。
+- qtwx-mcp-3 | MiniRPG.Shared/Core/World/Generators/SurfaceGenerator.cs（接 GrassCoverSampler 到生成器） | Wave 2.1 进行中 2026-04-19
+- cursor-opus-killedby | MiniRPG.Shared/Core/Combat/CombatModule.cs + Core/Combat/SurgeryModule.cs + Core/Social/ActorMemoryModule.cs + Core/Social/RumorBus.cs + Core/AI/Utility/InputResolver.cs + Tests | T1 actor_killed 凶手归因 进行中 2026-04-19
 
 ## 已完成（最近）
 
