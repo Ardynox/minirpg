@@ -134,7 +134,7 @@ water-surface variation as separate surface/detail layers.
 | Wave 2.1 | `MiniRPG.Shared/Core/World/Generators/SurfaceGenerator.cs` | 接 `GrassCoverSampler.Sample` 写 `chunk.GrassCover[i]`；不动 `ClassifyVoxel` / `grass_block` 现有游戏语义 | `17927bca`（+ 4 case 测试） |
 | Wave 2.2 hot | `Module/Render/IsometricVoxelRenderer.cs` + `Module/Render/Surface/GrassOverlayPass.cs` | 渲染器在土块顶面绘制后 → 调 `GrassOverlayPass.DrawTopFace`；契约里的 `object ctx` 占位升级为 `readonly record struct GrassOverlayDrawContext(TerrainAtlas, Vector2, Color, long, Action<Rect2,Vector2,Color,long>)`；接通 4 个 DebugModule 钩子分支；EmitFace 委托缓存一次避免逐格 alloc | `26ed8cec` |
 | Wave 2.3 | `MiniRPG.Shared/Core/Debug/DebugModule.cs` | 新增 `ShowGrassCover` (bool) / `ForceGrassOverlay` (`GrassOverlayForceMode` Auto/On/Off enum) / `GrassDensityThreshold` (byte) / `GrassVariantOverride` (int) 4 个 static 字段，对齐 `IsSurfaceFreeMoveEnabled` 风格避开 GameState 高频争用 | `3f014f10`（+ `DebugModuleTests` +1 默认值断言） |
-| Wave 3.1 | `Tests/MiniRPG.Tests/GrassSurfaceCoverIntegrationTests.cs` | 端到端集成（生成 → 数据 → 渲染开关 → 视觉效果模拟） | _commit hash 待 Wave 3.1 落地后由 Wave 3.3 收口时补_ |
+| Wave 3.1 | `Tests/MiniRPG.Tests/GrassSurfaceCoverIntegrationTests.cs` | 端到端集成（生成 → 数据 → 渲染开关 → 老存档兜底，6 case 全过） | `6f18de1a` |
 
 ### 4 个接口最终签名
 

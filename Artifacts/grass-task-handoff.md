@@ -1,5 +1,9 @@
 # Grass Surface Cover 任务并行交接契约
 
+> **ARCHIVED 2026-04-19**：草地任务全部 4 路（Wave 1 路 A/B/C/D）+ Wave 2.1/2.2/2.3 + Wave 3.1/3.2/3.3 已全部完成。
+> 实际落地结果（含 9 个 commit hash 链 + 5 条 Acceptance Check 验证 + 后续 SurfaceCover 延伸方向）见 `Artifacts/grass-surface-cover-todo.md` 末尾 **Done Note 2026-04-19** 段。
+> 本文件保留作为"如何做并行任务交接契约 + Wave-based 调度"的范例参考，下次做 farmland / 燃烧痕 / 雨后湿地 / 踩踏 / 雪压 / 水面状态等 SurfaceCover 类抽象时可直接照搬本文档结构。
+
 本文档冻结 4 个接口签名 + 4 路文件分配，让多个 AI 进程可独立并行做。
 **所有路按本契约对齐；签名变动必须先回到本文档讨论再改。**
 
