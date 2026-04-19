@@ -42,6 +42,7 @@ internal sealed class MainAppFlowCoordinator
 	private readonly Action _showMapEditorHints;
 	private readonly Action<bool> _finalizeSessionPanels;
 	private readonly Action _doEnterGame;
+	private readonly Action _onSessionEndedAudio;
 	private readonly Action _hideSettingsPanels;
 	private readonly Action _clearArmedSkill;
 	private readonly Action _endInspectMode;
@@ -123,6 +124,7 @@ internal sealed class MainAppFlowCoordinator
 		Action showMapEditorHints,
 		Action<bool> finalizeSessionPanels,
 		Action doEnterGame,
+		Action onSessionEndedAudio,
 		Action hideSettingsPanels,
 		Action clearArmedSkill,
 		Action endInspectMode,
@@ -178,6 +180,7 @@ internal sealed class MainAppFlowCoordinator
 		_showMapEditorHints = showMapEditorHints;
 		_finalizeSessionPanels = finalizeSessionPanels;
 		_doEnterGame = doEnterGame;
+		_onSessionEndedAudio = onSessionEndedAudio;
 		_hideSettingsPanels = hideSettingsPanels;
 		_clearArmedSkill = clearArmedSkill;
 		_endInspectMode = endInspectMode;
@@ -228,6 +231,7 @@ internal sealed class MainAppFlowCoordinator
 			_doSave(path, _session.DescribeSavePath(path));
 		}
 
+		_onSessionEndedAudio();
 		_hideSettingsPanels();
 		_inputModule.CancelSelection();
 		_panels.ClearFocus();
@@ -252,6 +256,7 @@ internal sealed class MainAppFlowCoordinator
 		_setPlayerDead(false);
 		_disableWatchMode();
 		_resetTimelineStatusLog();
+		_onSessionEndedAudio();
 	}
 
 	public void HandleMenuContinue()

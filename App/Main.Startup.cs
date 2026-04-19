@@ -468,6 +468,7 @@ public partial class Main
 			ShowMapEditorHints,
 			FinalizeSessionPanels,
 			DoEnterGame,
+			OnSessionEndedAudio,
 			HideSettingsPanels,
 			() => ClearArmedSkill(restoreFocus: false),
 			() => EndSkillTargetCursorMode(restoreFocus: false),
