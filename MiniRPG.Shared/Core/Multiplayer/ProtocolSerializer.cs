@@ -70,6 +70,7 @@ public static class ProtocolSerializer
 			ClientCommandKind.EndTurn => JsonSerializer.Deserialize<EndTurnClientCommand>(raw, Options),
 			ClientCommandKind.UseSkill => JsonSerializer.Deserialize<UseSkillClientCommand>(raw, Options),
 			ClientCommandKind.EndCombat => JsonSerializer.Deserialize<EndCombatClientCommand>(raw, Options),
+			ClientCommandKind.Climb => JsonSerializer.Deserialize<ClimbClientCommand>(raw, Options),
 			_ => null,
 		};
 	}
