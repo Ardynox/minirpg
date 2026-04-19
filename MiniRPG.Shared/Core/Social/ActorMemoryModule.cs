@@ -71,14 +71,6 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 	/// <summary>Strength of the memory written for bystanders that identify the killer.</summary>
 	public const float KilledByMemoryStrength = 1.0f;
 
-	/// <summary>
-	/// Strength of the <see cref="ActorMemoryKind.KindnessReceived"/> entry
-	/// recorded on the recipient when a gift_given event fires. Tuned to
-	/// match <see cref="CasualtyWitnessedMemoryStrength"/> so a couple of
-	/// gifts can plausibly offset the memory of a single witnessed death.
-	/// </summary>
-	public const float KindnessReceivedMemoryStrength = 0.4f;
-
 	/// <summary>Chebyshev radius (same Z) within which an actor is considered to have witnessed a casualty.</summary>
 	public const int CasualtyWitnessRadius = 8;
 
