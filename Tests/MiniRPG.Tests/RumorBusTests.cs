@@ -150,6 +150,48 @@ public sealed class RumorBusTests
 	}
 
 	[Fact]
+	public void OnEvent_ActorKilled_EmitsCasualtyReportedRumor()
+	{
+		var bus = new RumorBus();
+		var ev = new GameEvent("actor_killed")
+		{
+			TargetId = "villager_3",
+			TargetActorName = "Villager",
+			TargetFaction = Factions.Player,
+			TargetX = 7,
+			TargetY = 9,
+			TargetZ = 1,
+			Damage = 5,
+		};
+
+		bus.OnEvent(new GameState(), ev);
+
+		Assert.Single(bus.Active);
+		var rumor = bus.Active[0];
+		Assert.Equal("villager_3", rumor.SubjectId);
+		Assert.Equal(RumorKind.CasualtyReported, rumor.Kind);
+		Assert.Equal(7, rumor.SourceX);
+		Assert.Equal(9, rumor.SourceY);
+		Assert.Equal(1, rumor.SourceZ);
+	}
+
+	[Fact]
+	public void OnEvent_ActorKilled_BlankTargetId_DoesNotEmit()
+	{
+		var bus = new RumorBus();
+		var ev = new GameEvent("actor_killed")
+		{
+			TargetX = 0,
+			TargetY = 0,
+			TargetZ = 0,
+		};
+
+		bus.OnEvent(new GameState(), ev);
+
+		Assert.Empty(bus.Active);
+	}
+
+	[Fact]
 	public void Tick_ReducesCredibility()
 	{
 		var bus = new RumorBus();

@@ -21,6 +21,8 @@ public enum ActorMemoryKind
 	KindnessReceived,
 	/// <summary>Remembered as someone who betrayed us.</summary>
 	BetrayalBy,
+	/// <summary>Remembered as someone whose death we witnessed.</summary>
+	CasualtyWitnessed,
 }
 
 /// <summary>
@@ -54,6 +56,12 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 
 	/// <summary>Strength of the memory written when a hostile attack lands.</summary>
 	public const float HostileAttackMemoryStrength = 0.5f;
+
+	/// <summary>Strength of the memory written for bystanders of a death.</summary>
+	public const float CasualtyWitnessedMemoryStrength = 0.4f;
+
+	/// <summary>Chebyshev radius (same Z) within which an actor is considered to have witnessed a casualty.</summary>
+	public const int CasualtyWitnessRadius = 8;
 
 	private readonly Dictionary<string, List<ActorMemory>> _byActor
 		= new(StringComparer.Ordinal);
@@ -177,8 +185,15 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 	{
 		if (ev == null) return;
 
-		if (string.Equals(ev.Type, "combat_attack", StringComparison.Ordinal))
-			HandleCombatAttack(ev);
+		switch (ev.Type)
+		{
+			case "combat_attack":
+				HandleCombatAttack(ev);
+				break;
+			case "actor_killed":
+				HandleActorKilled(state, ev);
+				break;
+		}
 	}
 
 	private void HandleCombatAttack(GameEvent ev)
@@ -193,5 +208,36 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 		Record(
 			ev.TargetId!,
 			new ActorMemory(ev.InitiatorId!, ActorMemoryKind.HostileAttackBy, HostileAttackMemoryStrength));
+	}
+
+	// "actor_killed" is currently emitted without an InitiatorId (Combat /
+	// Surgery only set TargetId / TargetX/Y/Z), so we cannot record a
+	// per-killer grudge here. What we CAN do is mark every nearby actor as
+	// a witness to the casualty — once the InputResolver / utility action
+	// reads this they can react to seeing a death even without knowing who
+	// caused it. The killer-attribution path lands when CombatModule starts
+	// populating InitiatorId on the kill event.
+	private void HandleActorKilled(GameState state, GameEvent ev)
+	{
+		if (state == null) return;
+		if (string.IsNullOrWhiteSpace(ev.TargetId)) return;
+
+		var deathX = ev.TargetX;
+		var deathY = ev.TargetY;
+		var deathZ = ev.TargetZ;
+		var victimId = ev.TargetId!;
+
+		foreach (var actor in state.Actors.Values)
+		{
+			if (actor == null) continue;
+			if (string.Equals(actor.Id, victimId, StringComparison.Ordinal)) continue;
+			if (actor.Z != deathZ) continue;
+			if (Math.Abs(actor.X - deathX) > CasualtyWitnessRadius) continue;
+			if (Math.Abs(actor.Y - deathY) > CasualtyWitnessRadius) continue;
+
+			Record(
+				actor.Id,
+				new ActorMemory(victimId, ActorMemoryKind.CasualtyWitnessed, CasualtyWitnessedMemoryStrength));
+		}
 	}
 }

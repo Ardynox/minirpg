@@ -149,8 +149,15 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 	{
 		if (ev == null) return;
 
-		if (string.Equals(ev.Type, "combat_attack", StringComparison.Ordinal))
-			HandleHostileCombatAttack(ev);
+		switch (ev.Type)
+		{
+			case "combat_attack":
+				HandleHostileCombatAttack(ev);
+				break;
+			case "actor_killed":
+				HandleActorKilled(ev);
+				break;
+		}
 	}
 
 	private void HandleHostileCombatAttack(GameEvent ev)
@@ -164,6 +171,22 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 		Emit(
 			subjectId: ev.InitiatorId!,
 			kind: RumorKind.AttackWitnessed,
+			sourceX: ev.TargetX,
+			sourceY: ev.TargetY,
+			sourceZ: ev.TargetZ);
+	}
+
+	// CombatModule / SurgeryModule emit "actor_killed" with the victim
+	// identity populated but no InitiatorId. Subject of the rumor is the
+	// victim — every nearby NPC that queries audible rumors next turn will
+	// pick it up as a CasualtyReported signal anchored at the death cell.
+	private void HandleActorKilled(GameEvent ev)
+	{
+		if (string.IsNullOrWhiteSpace(ev.TargetId)) return;
+
+		Emit(
+			subjectId: ev.TargetId!,
+			kind: RumorKind.CasualtyReported,
 			sourceX: ev.TargetX,
 			sourceY: ev.TargetY,
 			sourceZ: ev.TargetZ);

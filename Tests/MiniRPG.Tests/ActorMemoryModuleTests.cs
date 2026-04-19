@@ -136,6 +136,58 @@ public sealed class ActorMemoryModuleTests
 	}
 
 	[Fact]
+	public void OnEvent_ActorKilled_RecordsCasualtyMemoryOnNearbyBystanders()
+	{
+		var module = new ActorMemoryModule();
+		var state = new GameState();
+		state.Actors["bystander_close"] = new Actor { Id = "bystander_close", X = 6, Y = 6, Z = 0 };
+		state.Actors["bystander_far"] = new Actor { Id = "bystander_far", X = 99, Y = 99, Z = 0 };
+		state.Actors["bystander_other_z"] = new Actor { Id = "bystander_other_z", X = 5, Y = 5, Z = 1 };
+		state.Actors["victim"] = new Actor { Id = "victim", X = 5, Y = 5, Z = 0 };
+
+		var ev = new GameEvent("actor_killed")
+		{
+			TargetId = "victim",
+			TargetX = 5,
+			TargetY = 5,
+			TargetZ = 0,
+		};
+
+		module.OnEvent(state, ev);
+
+		var bystanderMemories = module.GetMemories("bystander_close");
+		Assert.Single(bystanderMemories);
+		Assert.Equal("victim", bystanderMemories[0].SubjectId);
+		Assert.Equal(ActorMemoryKind.CasualtyWitnessed, bystanderMemories[0].Kind);
+		Assert.Equal(ActorMemoryModule.CasualtyWitnessedMemoryStrength, bystanderMemories[0].Strength, 3);
+
+		// Out-of-range neighbours and cross-Z observers stay unaffected.
+		Assert.Empty(module.GetMemories("bystander_far"));
+		Assert.Empty(module.GetMemories("bystander_other_z"));
+		// The victim does not record a memory about itself.
+		Assert.Empty(module.GetMemories("victim"));
+	}
+
+	[Fact]
+	public void OnEvent_ActorKilled_BlankVictimId_IsIgnored()
+	{
+		var module = new ActorMemoryModule();
+		var state = new GameState();
+		state.Actors["bystander"] = new Actor { Id = "bystander", X = 0, Y = 0, Z = 0 };
+
+		var ev = new GameEvent("actor_killed")
+		{
+			TargetX = 0,
+			TargetY = 0,
+			TargetZ = 0,
+		};
+
+		module.OnEvent(state, ev);
+
+		Assert.Equal(0, module.ActorsWithMemories);
+	}
+
+	[Fact]
 	public void Tick_ReducesMemoryStrength()
 	{
 		var module = new ActorMemoryModule();
