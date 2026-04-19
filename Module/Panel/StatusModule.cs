@@ -6,9 +6,9 @@ using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
 
-public enum StatusTab { Limb, Capacity, Tag, Buff, Equip, Needs, Health }
+public enum StatusTab { Limb, Capacity, Tag, Buff, Equip, Needs, Health, Family, Genome }
 
-public class StatusPanelModule : IPanel
+public class StatusPanelModule : IPanel, ITooltipRegistrar
 {
 	private enum StatusContentMode
 	{
@@ -56,7 +56,10 @@ public class StatusPanelModule : IPanel
 	}
 
 	private static readonly StatusTab[] Tabs =
-		[StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip, StatusTab.Needs, StatusTab.Health];
+	[
+		StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip, StatusTab.Needs, StatusTab.Health,
+		StatusTab.Family, StatusTab.Genome,
+	];
 
 	private readonly PanelContainer _panel;
 	private readonly Label _nameInfo;
@@ -64,6 +67,7 @@ public class StatusPanelModule : IPanel
 	private readonly Label _hintBar;
 	private readonly List<Button> _tabButtons;
 	private readonly RichTextLabel _contentText;
+	private readonly VBoxContainer _perItemContainer;
 	private readonly List<string> _lines = [];
 
 	private StatusTab _currentTab = StatusTab.Limb;
@@ -76,6 +80,15 @@ public class StatusPanelModule : IPanel
 	private int _cachedTurn;
 	private bool _cachedUsePlayerHeader = true;
 	private StatusContentMode _contentMode = StatusContentMode.Actor;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer)
+	{
+		_tooltipLayer = layer;
+		// 重新渲染让已存在的逐项 row 拿到 tooltip（_perItemContainer 模式下）
+		if (_perItemContainer.Visible)
+			RebuildPerItemRows();
+	}
 
 	public bool Dirty { get; set; }
 
@@ -88,6 +101,18 @@ public class StatusPanelModule : IPanel
 		_tabBar = vbox.GetNode<HBoxContainer>("TabBar");
 		_contentText = vbox.GetNode<RichTextLabel>("ContentText");
 		_hintBar = vbox.GetNode<Label>("HintBar");
+
+		_perItemContainer = new VBoxContainer
+		{
+			Name = "PerItemContainer",
+			Visible = false,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+		};
+		_perItemContainer.AddThemeConstantOverride("separation", 2);
+		vbox.AddChild(_perItemContainer);
+		// 紧跟 _contentText 之后，HintBar 之前
+		vbox.MoveChild(_perItemContainer, _contentText.GetIndex() + 1);
 
 		var tabLabels = new string[Tabs.Length];
 		for (var i = 0; i < Tabs.Length; i++)
@@ -231,6 +256,20 @@ public class StatusPanelModule : IPanel
 
 	private void RenderContent()
 	{
+		// Buff / 装备 / 标签 三 Tab 走逐项 Control 模式以支持 per-item hover tooltip。
+		// 其他 Tab（含尸体内容）保持原 RichTextLabel 整段渲染。
+		if (_contentMode == StatusContentMode.Actor && IsPerItemTab(_currentTab))
+		{
+			_contentText.Visible = false;
+			_perItemContainer.Visible = true;
+			RebuildPerItemRows();
+			return;
+		}
+
+		ClearPerItemRows();
+		_perItemContainer.Visible = false;
+		_contentText.Visible = true;
+
 		_contentText.Clear();
 		if (_lines.Count == 0)
 			return;
@@ -250,10 +289,196 @@ public class StatusPanelModule : IPanel
 		_contentText.AppendText(sb.ToString());
 	}
 
+	private static bool IsPerItemTab(StatusTab tab) =>
+		tab == StatusTab.Buff || tab == StatusTab.Equip || tab == StatusTab.Tag;
+
+	private void ClearPerItemRows()
+	{
+		foreach (var child in _perItemContainer.GetChildren())
+			child.QueueFree();
+	}
+
+	private void RebuildPerItemRows()
+	{
+		ClearPerItemRows();
+		if (_cachedActor == null)
+			return;
+
+		switch (_currentTab)
+		{
+			case StatusTab.Buff:
+				RebuildBuffRows(_cachedActor);
+				break;
+			case StatusTab.Equip:
+				RebuildEquipRows(_cachedActor, _cachedState);
+				break;
+			case StatusTab.Tag:
+				RebuildTagRows(_cachedActor);
+				break;
+		}
+	}
+
+	private void RebuildBuffRows(Actor actor)
+	{
+		if (actor.Buffs.Count == 0)
+		{
+			AddRowLabel(LocalizationService.T("ui.common.none"), tooltipFactory: null);
+			return;
+		}
+
+		foreach (var buff in actor.Buffs)
+		{
+			var capturedBuffId = buff.Id;
+			var turns = buff.RemainingTurns < 0
+				? LocalizationService.T("ui.status.buff.permanent")
+				: LocalizationService.T("ui.status.buff.turns", ("value", buff.RemainingTurns));
+			var rowText = $"{buff.Name} ({turns})";
+
+			AddRowLabel(rowText, () => BuildBuffTooltipBbcode(actor, capturedBuffId));
+		}
+	}
+
+	private void RebuildEquipRows(Actor actor, GameState? state)
+	{
+		var hasAny = false;
+		foreach (var limb in actor.Limbs)
+		{
+			if (limb.EquipSlots.Count == 0)
+				continue;
+
+			var limbHeaderAdded = false;
+			foreach (var slot in limb.EquipSlots)
+			{
+				if (slot.ItemId == null)
+					continue;
+
+				var item = actor.Inventory.Find(i => i.InstanceId == slot.ItemId);
+				if (item == null)
+					continue;
+
+				if (!limbHeaderAdded)
+				{
+					AddRowLabel(
+						LocalizationService.T("ui.status.equip.section", ("limb", limb.Name)),
+						tooltipFactory: null,
+						isHeader: true);
+					limbHeaderAdded = true;
+				}
+				hasAny = true;
+
+				var itemName = state == null
+					? item.Name
+					: IdentificationModule.GetItemDisplayName(state, item);
+				var inlineStats = state == null
+					? ItemFormatHelper.InlineStats(item)
+					: ItemFormatHelper.InlineStats(state, item);
+				var statStr = string.IsNullOrWhiteSpace(inlineStats) ? string.Empty : $" {inlineStats}";
+				var rowText = $"  {itemName} ({GameLocalizer.LocalizeEquipLayer(slot.Layer)}){statStr}";
+				var capturedInstanceId = slot.ItemId;
+				AddRowLabel(rowText, () =>
+				{
+					var current = actor.Inventory.Find(i => i.InstanceId == capturedInstanceId);
+					return current == null
+						? string.Empty
+						: ItemFormatHelper.BuildDetail(state, current);
+				});
+			}
+		}
+
+		if (!hasAny)
+		{
+			AddRowLabel(LocalizationService.T("ui.status.empty.equipment"), tooltipFactory: null);
+			return;
+		}
+
+		var weight = LocalizationService.T(
+			"ui.status.equip.weight",
+			("current", actor.CarryWeight.ToString("F1")),
+			("max", actor.MaxCarryWeight.ToString("F1")));
+		if (actor.IsOverweight)
+			weight += $" {LocalizationService.T("ui.status.equip.overweight")}";
+		AddRowLabel(weight, tooltipFactory: null);
+	}
+
+	private void RebuildTagRows(Actor actor)
+	{
+		var tags = actor.ComputeTags();
+		if (tags.Count == 0)
+		{
+			AddRowLabel(LocalizationService.T("ui.common.none"), tooltipFactory: null);
+			return;
+		}
+
+		foreach (var (key, value) in tags)
+		{
+			var capturedKey = key;
+			var rowText = $"{GameLocalizer.LocalizeTagKey(key)}: {value}";
+			AddRowLabel(rowText, () => BuildTagTooltipBbcode(actor, capturedKey));
+		}
+	}
+
+	private void AddRowLabel(string text, Func<string>? tooltipFactory, bool isHeader = false)
+	{
+		var label = new Label
+		{
+			Text = text,
+			MouseFilter = tooltipFactory != null
+				? Control.MouseFilterEnum.Stop
+				: Control.MouseFilterEnum.Ignore,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+		};
+		if (isHeader)
+			label.AddThemeColorOverride("font_color", UIColors.TextHeader);
+
+		_perItemContainer.AddChild(label);
+
+		if (tooltipFactory != null && _tooltipLayer != null)
+			_tooltipLayer.Attach(label, tooltipFactory);
+	}
+
+	private static string BuildBuffTooltipBbcode(Actor actor, string buffId)
+	{
+		var buff = actor.Buffs.Find(b => string.Equals(b.Id, buffId, StringComparison.Ordinal));
+		if (buff == null)
+			return string.Empty;
+
+		var sb = new StringBuilder();
+		sb.AppendLine($"[b]{buff.Name}[/b]");
+		var turns = buff.RemainingTurns < 0
+			? LocalizationService.T("ui.status.buff.permanent")
+			: LocalizationService.T("ui.status.buff.turns", ("value", buff.RemainingTurns));
+		sb.AppendLine($"[color=#aaaaaa]{turns}[/color]");
+		if (buff.Tags.Count > 0)
+		{
+			sb.AppendLine();
+			foreach (var (key, value) in buff.Tags)
+			{
+				var sign = value >= 0 ? "+" : string.Empty;
+				sb.AppendLine($"  [color=#cccccc]{GameLocalizer.LocalizeTagKey(key)}[/color] {sign}{value}");
+			}
+		}
+		return sb.ToString();
+	}
+
+	private static string BuildTagTooltipBbcode(Actor actor, string tagKey)
+	{
+		var tags = actor.ComputeTags();
+		if (!tags.TryGetValue(tagKey, out var value))
+			return string.Empty;
+
+		var sb = new StringBuilder();
+		sb.AppendLine($"[b]{GameLocalizer.LocalizeTagKey(tagKey)}[/b]");
+		sb.AppendLine($"[color=#aaaaaa]value[/color] {value}");
+		return sb.ToString();
+	}
+
 	private void ClearContent()
 	{
 		_nameInfo.Text = string.Empty;
 		_contentText.Clear();
+		ClearPerItemRows();
+		_perItemContainer.Visible = false;
+		_contentText.Visible = true;
 		_lines.Clear();
 	}
 

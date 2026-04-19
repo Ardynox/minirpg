@@ -415,7 +415,8 @@ public partial class Main
 			_panels,
 			_panelLayouts,
 			_panelDrag,
-			_panelChrome);
+			_panelChrome,
+			_richTooltips);
 		_statusPanelController.PanelsChanged += RefreshPanelLauncherState;
 
 		_inputModule = new InputModule(_inputBar, _inputBindings);

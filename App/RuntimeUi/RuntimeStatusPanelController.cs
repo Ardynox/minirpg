@@ -22,6 +22,8 @@ internal sealed class RuntimeStatusPanelController
 	private readonly PanelHoverChromeService _panelChrome;
 	private readonly Dictionary<string, PanelEntry> _entries = new(StringComparer.Ordinal);
 
+	private readonly RichTooltipLayer? _tooltipLayer;
+
 	public RuntimeStatusPanelController(
 		GameState state,
 		PanelContainer templatePanel,
@@ -30,7 +32,8 @@ internal sealed class RuntimeStatusPanelController
 		PanelManager panels,
 		PanelLayoutService panelLayouts,
 		PanelDragService panelDrag,
-		PanelHoverChromeService panelChrome)
+		PanelHoverChromeService panelChrome,
+		RichTooltipLayer? tooltipLayer = null)
 	{
 		_state = state;
 		_templatePanel = templatePanel;
@@ -40,6 +43,7 @@ internal sealed class RuntimeStatusPanelController
 		_panelLayouts = panelLayouts;
 		_panelDrag = panelDrag;
 		_panelChrome = panelChrome;
+		_tooltipLayer = tooltipLayer;
 	}
 
 	public event Action? PanelsChanged;
@@ -192,6 +196,8 @@ internal sealed class RuntimeStatusPanelController
 		var module = new StatusPanelModule(node, panelId);
 		module.CloseRequested += () => CloseByKey(key);
 		_panels.Register(module);
+		if (_tooltipLayer != null)
+			module.RegisterTooltips(_tooltipLayer);
 		_panelLayouts.RegisterPanel(panelId, node);
 		_panelDrag.Register(new DraggablePanelRegistration(
 			panelId,
