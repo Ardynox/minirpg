@@ -756,6 +756,84 @@ public sealed class SaveModuleTests
 	}
 
 	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripStorytellerState()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		state.StorytellerState.ThreatLevel = 27.5f;
+		state.StorytellerState.LastCheckTurn = 90;
+		state.StorytellerState.LastIncidentTurn["raid_pirates"] = 60;
+		state.StorytellerState.LastIncidentTurn["cold_snap"] = 75;
+		state.StorytellerState.PendingIncidents.Add(new MiniRPG.Core.Event.PendingIncident
+		{
+			IncidentDefId = "wandering_trader",
+			TriggerTurn = 110,
+			Params = new Dictionary<string, string> { ["scale"] = "small" },
+		});
+		state.StorytellerState.History.Add(new MiniRPG.Core.Event.IncidentRecord
+		{
+			DefId = "raid_pirates",
+			Turn = 60,
+			Category = MiniRPG.Core.Event.IncidentCategory.Threat,
+		});
+		state.StorytellerState.History.Add(new MiniRPG.Core.Event.IncidentRecord
+		{
+			DefId = "cold_snap",
+			Turn = 75,
+			Category = MiniRPG.Core.Event.IncidentCategory.Neutral,
+		});
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		Assert.NotNull(saveFile.Payload.Storyteller);
+		Assert.Equal(27.5f, saveFile.Payload.Storyteller!.ThreatLevel);
+		Assert.Equal(90, saveFile.Payload.Storyteller.LastCheckTurn);
+		Assert.Equal(2, saveFile.Payload.Storyteller.LastIncidentTurn.Count);
+		Assert.Single(saveFile.Payload.Storyteller.PendingIncidents);
+		Assert.Equal(2, saveFile.Payload.Storyteller.History.Count);
+
+		var restored = new GameState();
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal(27.5f, restored.StorytellerState.ThreatLevel);
+		Assert.Equal(90, restored.StorytellerState.LastCheckTurn);
+		Assert.Equal(60, restored.StorytellerState.LastIncidentTurn["raid_pirates"]);
+		Assert.Equal(75, restored.StorytellerState.LastIncidentTurn["cold_snap"]);
+
+		var pending = Assert.Single(restored.StorytellerState.PendingIncidents);
+		Assert.Equal("wandering_trader", pending.IncidentDefId);
+		Assert.Equal(110, pending.TriggerTurn);
+		Assert.Equal("small", pending.Params["scale"]);
+
+		Assert.Equal(2, restored.StorytellerState.History.Count);
+		Assert.Equal("raid_pirates", restored.StorytellerState.History[0].DefId);
+		Assert.Equal(MiniRPG.Core.Event.IncidentCategory.Threat, restored.StorytellerState.History[0].Category);
+		Assert.Equal("cold_snap", restored.StorytellerState.History[1].DefId);
+		Assert.Equal(MiniRPG.Core.Event.IncidentCategory.Neutral, restored.StorytellerState.History[1].Category);
+	}
+
+	[Fact]
+	public void ApplySnapshot_Storyteller_FallsBackToDefault_WhenSnapshotMissing()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+		var saveFile = SaveModule.BuildSnapshot(state);
+		saveFile.Payload.Storyteller = null;
+
+		var restored = new GameState();
+		restored.StorytellerState.ThreatLevel = 99f;
+		restored.StorytellerState.LastIncidentTurn["stale"] = 1;
+		restored.StorytellerState.History.Add(new MiniRPG.Core.Event.IncidentRecord { DefId = "stale" });
+
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal(0f, restored.StorytellerState.ThreatLevel);
+		Assert.Empty(restored.StorytellerState.LastIncidentTurn);
+		Assert.Empty(restored.StorytellerState.PendingIncidents);
+		Assert.Empty(restored.StorytellerState.History);
+	}
+
+	[Fact]
 	public void ApplySnapshot_Party_FallsBackToDefault_WhenSnapshotMissing()
 	{
 		ResetSaveCache();

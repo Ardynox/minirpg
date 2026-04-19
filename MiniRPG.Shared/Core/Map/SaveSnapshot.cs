@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Event;
 using MiniRPG.Core.Multiplayer;
 
 namespace MiniRPG.Core.Map;
@@ -146,6 +147,9 @@ public sealed class SavePayload
 
 	[JsonPropertyName("social")]
 	public SocialSnapshot? Social { get; set; }
+
+	[JsonPropertyName("storyteller")]
+	public StorytellerSnapshot? Storyteller { get; set; }
 }
 
 public sealed class PartySnapshot
@@ -185,6 +189,48 @@ public sealed class RelationEntrySnapshot
 
 	[JsonPropertyName("lastInteractionTurn")]
 	public int LastInteractionTurn { get; set; }
+}
+
+public sealed class StorytellerSnapshot
+{
+	[JsonPropertyName("lastIncidentTurn")]
+	public Dictionary<string, int> LastIncidentTurn { get; set; } = new(StringComparer.Ordinal);
+
+	[JsonPropertyName("pendingIncidents")]
+	public List<PendingIncidentSnapshot> PendingIncidents { get; set; } = [];
+
+	[JsonPropertyName("history")]
+	public List<IncidentRecordSnapshot> History { get; set; } = [];
+
+	[JsonPropertyName("threatLevel")]
+	public float ThreatLevel { get; set; }
+
+	[JsonPropertyName("lastCheckTurn")]
+	public int LastCheckTurn { get; set; }
+}
+
+public sealed class PendingIncidentSnapshot
+{
+	[JsonPropertyName("incidentDefId")]
+	public string IncidentDefId { get; set; } = "";
+
+	[JsonPropertyName("triggerTurn")]
+	public int TriggerTurn { get; set; }
+
+	[JsonPropertyName("params")]
+	public Dictionary<string, string> Params { get; set; } = new(StringComparer.Ordinal);
+}
+
+public sealed class IncidentRecordSnapshot
+{
+	[JsonPropertyName("defId")]
+	public string DefId { get; set; } = "";
+
+	[JsonPropertyName("turn")]
+	public int Turn { get; set; }
+
+	[JsonPropertyName("category")]
+	public IncidentCategory Category { get; set; }
 }
 
 public sealed class RoomRuntimeSnapshot

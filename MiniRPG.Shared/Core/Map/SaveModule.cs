@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Event;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Social;
@@ -174,6 +175,7 @@ public static class SaveModule
 			Room = BuildRoomSnapshot(state.Room),
 			Party = BuildPartySnapshot(state.Party),
 			Social = BuildSocialSnapshot(state.SocialState),
+			Storyteller = BuildStorytellerSnapshot(state.StorytellerState),
 		};
 
 		return new SaveFile
@@ -235,6 +237,7 @@ public static class SaveModule
 		RoomRuntimeModule.SyncLegacyPlayerAlias(state);
 		state.Party = CreatePartyState(payload.Party);
 		state.SocialState = CreateSocialState(payload.Social);
+		state.StorytellerState = CreateStorytellerState(payload.Storyteller);
 		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
@@ -534,6 +537,84 @@ public static class SaveModule
 		{
 			foreach (var (actorId, turn) in snapshot.SocialCooldowns)
 				state.SocialCooldowns[actorId] = turn;
+		}
+
+		return state;
+	}
+
+	private static StorytellerSnapshot BuildStorytellerSnapshot(StorytellerState story) => new()
+	{
+		LastIncidentTurn = new Dictionary<string, int>(story.LastIncidentTurn, StringComparer.Ordinal),
+		PendingIncidents = MapList(
+			story.PendingIncidents,
+			static pending => new PendingIncidentSnapshot
+			{
+				IncidentDefId = pending.IncidentDefId,
+				TriggerTurn = pending.TriggerTurn,
+				Params = new Dictionary<string, string>(pending.Params, StringComparer.Ordinal),
+			}),
+		History = MapList(
+			story.History,
+			static record => new IncidentRecordSnapshot
+			{
+				DefId = record.DefId,
+				Turn = record.Turn,
+				Category = record.Category,
+			}),
+		ThreatLevel = story.ThreatLevel,
+		LastCheckTurn = story.LastCheckTurn,
+	};
+
+	private static StorytellerState CreateStorytellerState(StorytellerSnapshot? snapshot)
+	{
+		var state = new StorytellerState
+		{
+			LastIncidentTurn = new Dictionary<string, int>(StringComparer.Ordinal),
+		};
+		if (snapshot == null)
+			return state;
+
+		state.ThreatLevel = snapshot.ThreatLevel;
+		state.LastCheckTurn = snapshot.LastCheckTurn;
+
+		if (snapshot.LastIncidentTurn != null)
+		{
+			foreach (var (defId, turn) in snapshot.LastIncidentTurn)
+				state.LastIncidentTurn[defId] = turn;
+		}
+
+		if (snapshot.PendingIncidents != null)
+		{
+			foreach (var pending in snapshot.PendingIncidents)
+			{
+				if (string.IsNullOrEmpty(pending.IncidentDefId))
+					continue;
+
+				state.PendingIncidents.Add(new PendingIncident
+				{
+					IncidentDefId = pending.IncidentDefId,
+					TriggerTurn = pending.TriggerTurn,
+					Params = pending.Params != null
+						? new Dictionary<string, string>(pending.Params, StringComparer.Ordinal)
+						: new Dictionary<string, string>(StringComparer.Ordinal),
+				});
+			}
+		}
+
+		if (snapshot.History != null)
+		{
+			foreach (var record in snapshot.History)
+			{
+				if (string.IsNullOrEmpty(record.DefId))
+					continue;
+
+				state.History.Add(new IncidentRecord
+				{
+					DefId = record.DefId,
+					Turn = record.Turn,
+					Category = record.Category,
+				});
+			}
 		}
 
 		return state;
