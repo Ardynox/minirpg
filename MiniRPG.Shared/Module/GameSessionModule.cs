@@ -586,6 +586,7 @@ public class GameSessionModule : IDebugSessionActions
 
 	public void ChangeFloor(bool goDown)
 	{
+		_fogTracker.Clear();
 		if (goDown) { _state.PlayerZ++; var player = ActorModule.GetPlayer(_state); if (player != null) player.Z = _state.PlayerZ; }
 		else { _state.PlayerZ--; var player = ActorModule.GetPlayer(_state); if (player != null) player.Z = _state.PlayerZ; }
 
