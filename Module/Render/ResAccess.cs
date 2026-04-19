@@ -161,7 +161,8 @@ public static class ResAccess
 				case ResourceLoader.ThreadLoadStatus.Loaded:
 				{
 					var res = ResourceLoader.LoadThreadedGet(path);
-					_cache[path] = res;
+					if (res != null)
+						_cache[path] = res;
 					foreach (var cb in callbacks)
 					{
 						try { cb(res); }
