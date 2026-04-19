@@ -44,6 +44,8 @@ public class ChunkData
 	public byte[] SandDepth { get; set; } = new byte[Area];
 	public byte[] Wetness { get; set; } = new byte[Area];
 	public byte[] IceDepth { get; set; } = new byte[Area];
+	/// <summary>Per-cell grass cover weight (0 = none), persisted with chunk snapshots.</summary>
+	public byte[] GrassCover { get; set; } = new byte[Area];
 	public int LastWeatherSimTurn { get; set; }
 
 	// ── 便捷访问 ──

@@ -27,62 +27,70 @@ public sealed class SavePayloadCoverageTests
 	/// GameState 字段名 → SavePayload 上的对应字段名。
 	/// 显式映射，让任何漏存或重命名一目了然。
 	/// </summary>
-	private static readonly Dictionary<string, string> ExpectedPayloadMapping = new(StringComparer.Ordinal)
+	private static readonly Dictionary<string, string> ExpectedPayloadMapping = BuildExpectedPayloadMapping();
+
+	private static Dictionary<string, string> BuildExpectedPayloadMapping()
 	{
-		// ── 基础玩家状态 ──
-		[nameof(GameState.Turn)] = nameof(SavePayload.Turn),
-		[nameof(GameState.WorldSeed)] = nameof(SavePayload.WorldSeed),
-		[nameof(GameState.PlayerX)] = nameof(SavePayload.PlayerX),
-		[nameof(GameState.PlayerY)] = nameof(SavePayload.PlayerY),
-		[nameof(GameState.PlayerZ)] = nameof(SavePayload.PlayerZ),
-		[nameof(GameState.PlayerId)] = nameof(SavePayload.PlayerId),
-		[nameof(GameState.PlayerAppearanceId)] = nameof(SavePayload.PlayerAppearanceId),
+		var map = new Dictionary<string, string>(StringComparer.Ordinal);
+		void Add(string gameStateField, string payloadField)
+		{
+			if (typeof(GameState).GetProperty(gameStateField) != null
+				&& typeof(SavePayload).GetProperty(payloadField) != null)
+				map[gameStateField] = payloadField;
+		}
 
-		// ── 生物 / 设施 / 经济 ──
-		[nameof(GameState.Actors)] = nameof(SavePayload.Actors),
-		[nameof(GameState.Facilities)] = nameof(SavePayload.Facilities),
-		[nameof(GameState.StockpileZones)] = nameof(SavePayload.StockpileZones),
-		[nameof(GameState.EconomicDomains)] = nameof(SavePayload.EconomicDomains),
-		[nameof(GameState.Room)] = nameof(SavePayload.Room),
+		Add(nameof(GameState.Turn), nameof(SavePayload.Turn));
+		Add(nameof(GameState.WorldSeed), nameof(SavePayload.WorldSeed));
+		Add(nameof(GameState.PlayerX), nameof(SavePayload.PlayerX));
+		Add(nameof(GameState.PlayerY), nameof(SavePayload.PlayerY));
+		Add(nameof(GameState.PlayerZ), nameof(SavePayload.PlayerZ));
+		Add(nameof(GameState.PlayerId), nameof(SavePayload.PlayerId));
+		Add(nameof(GameState.PlayerAppearanceId), nameof(SavePayload.PlayerAppearanceId));
+		Add(nameof(GameState.Actors), nameof(SavePayload.Actors));
+		Add(nameof(GameState.Facilities), nameof(SavePayload.Facilities));
+		Add(nameof(GameState.StockpileZones), nameof(SavePayload.StockpileZones));
+		Add(nameof(GameState.EconomicDomains), nameof(SavePayload.EconomicDomains));
+		Add(nameof(GameState.Room), nameof(SavePayload.Room));
+		Add(nameof(GameState.Party), nameof(SavePayload.Party));
+		Add(nameof(GameState.StorytellerState), nameof(SavePayload.Storyteller));
+		Add(nameof(GameState.SocialState), nameof(SavePayload.Social));
+		Add(nameof(GameState.Zones), nameof(SavePayload.Zones));
+		Add(nameof(GameState.Crops), nameof(SavePayload.Crops));
+		Add(nameof(GameState.Quests), nameof(SavePayload.Quests));
+		Add(nameof(GameState.KillCount), nameof(SavePayload.KillCount));
+		Add(nameof(GameState.Timeline), nameof(SavePayload.Timeline));
+		Add(nameof(GameState.Weather), nameof(SavePayload.Weather));
+		Add(nameof(GameState.WatchMode), nameof(SavePayload.WatchMode));
+		Add(nameof(GameState.IdentifiedActorTypes), nameof(SavePayload.IdentifiedActorTypes));
+		Add(nameof(GameState.IdentifiedItemTypes), nameof(SavePayload.IdentifiedItemTypes));
+		Add(nameof(GameState.GeneratorId), nameof(SavePayload.GeneratorId));
+		Add(nameof(GameState.ViewModeId), nameof(SavePayload.ViewModeId));
+		// ActiveConversations / SavePayload.ActiveConversations 由 BG3 对话进程引入，可能尚未 push。
+		// 用反射防御 + 同时存在时才记入映射。
+		if (typeof(GameState).GetProperty("ActiveConversations") != null
+			&& typeof(SavePayload).GetProperty("ActiveConversations") != null)
+			map["ActiveConversations"] = "ActiveConversations";
 
-		// ── 队伍 / 叙事 / 社交（P0-1 修复点） ──
-		[nameof(GameState.Party)] = nameof(SavePayload.Party),
-		[nameof(GameState.StorytellerState)] = nameof(SavePayload.Storyteller),
-		[nameof(GameState.SocialState)] = nameof(SavePayload.Social),
-
-		// ── 区域 / 农业（P0-1 修复点） ──
-		[nameof(GameState.Zones)] = nameof(SavePayload.Zones),
-		[nameof(GameState.Crops)] = nameof(SavePayload.Crops),
-
-		// ── 任务 / 计数 / 时间线 / 天气 ──
-		[nameof(GameState.Quests)] = nameof(SavePayload.Quests),
-		[nameof(GameState.KillCount)] = nameof(SavePayload.KillCount),
-		[nameof(GameState.Timeline)] = nameof(SavePayload.Timeline),
-		[nameof(GameState.Weather)] = nameof(SavePayload.Weather),
-
-		// ── 显式开关 ──
-		[nameof(GameState.WatchMode)] = nameof(SavePayload.WatchMode),
-		[nameof(GameState.IdentifiedActorTypes)] = nameof(SavePayload.IdentifiedActorTypes),
-		[nameof(GameState.IdentifiedItemTypes)] = nameof(SavePayload.IdentifiedItemTypes),
-		[nameof(GameState.GeneratorId)] = nameof(SavePayload.GeneratorId),
-		[nameof(GameState.ViewModeId)] = nameof(SavePayload.ViewModeId),
-	};
+		return map;
+	}
 
 	/// <summary>
 	/// 已知"故意不持久化"的字段名单。新增进来的字段必须配一行注释说明理由，
 	/// 否则下一次扫描就要把它挪进 ExpectedPayloadMapping。
 	/// </summary>
-	private static readonly HashSet<string> KnownNonPersistedFields = new(StringComparer.Ordinal)
+	private static readonly HashSet<string> KnownNonPersistedFields = BuildKnownNonPersistedFields();
+
+	private static HashSet<string> BuildKnownNonPersistedFields()
 	{
-		// JobBoardState：每次会话由 FacilityConstructionModule.RebuildConstructionTickets 从 Facilities 重建。
-		nameof(GameState.JobBoardState),
-		// RngSeed：WorldSeed 的别名属性，已经通过 WorldSeed 持久化。
-		nameof(GameState.RngSeed),
-		// ActiveConversations：BG3 对话进程的 in-progress 字段，ConversationModule + Snapshot 还在路上。
-		// 临时白名单是为了让 build 不被这一字段一直阻塞别的任务；接通持久化后请把本行删掉，
-		// 改进 ExpectedPayloadMapping 即可。
-		nameof(GameState.ActiveConversations),
-	};
+		var set = new HashSet<string>(StringComparer.Ordinal)
+		{
+			// JobBoardState：每次会话由 FacilityConstructionModule.RebuildConstructionTickets 从 Facilities 重建。
+			nameof(GameState.JobBoardState),
+			// RngSeed：WorldSeed 的别名属性，已经通过 WorldSeed 持久化。
+			nameof(GameState.RngSeed),
+		};
+		return set;
+	}
 
 	[Fact]
 	public void EveryNonRuntimeGameStateField_HasMatchingSavePayloadField()
