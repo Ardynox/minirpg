@@ -223,6 +223,13 @@ public partial class Main
 		_consequenceRouter.Register(_relationships);
 		_consequenceRouter.Register(_actorMemories);
 		_consequenceRouter.Register(_rumorBus);
+		// Inject the same simulation-side modules into the AIDispatcher
+		// ambient context so social InputResolvers can read live state;
+		// without these the AIBehaviorContext.Relationships/ActorMemories/Rumors
+		// stay null and every relationship-aware Consideration scores 0.
+		MiniRPG.Core.AI.AIDispatcher.Relationships = _relationships;
+		MiniRPG.Core.AI.AIDispatcher.ActorMemories = _actorMemories;
+		MiniRPG.Core.AI.AIDispatcher.Rumors = _rumorBus;
 		var localBackend = new LocalSessionBackend(_session, _state, Dispatch);
 		localBackend.AttachConsequenceRouter(_consequenceRouter);
 		_sessionBackend = localBackend;

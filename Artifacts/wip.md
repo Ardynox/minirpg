@@ -13,11 +13,12 @@
 
 <!-- 按开工时间倒序。完成后删除本条。 -->
 
-- qtwx-mcp-6 | App/Main.Startup.cs(InitializeCoreServices) + App/Main.Timeline.cs(ApplyTimelineStep 仅一行) + MiniRPG.Shared/Core/AI/Utility/InputResolver.cs + MiniRPG.Shared/Core/Social/{RelationshipModule,ActorMemoryModule,RumorBus}.cs + Data/Config/utility_actions.json(flee_combat) + Tests/MiniRPG.Tests/InputResolverSocialTests.cs + Docs/涌现世界路线图.md | 涌现社交管线接通（P0-2/P0-3/P0-4/P1-23 路线图第 1-4 步接线度 0%→30%） 2026-04-19
+- qtwx-mcp-6 | App/Main.Startup.cs(InitializeCoreServices) + MiniRPG.Shared/Core/AI/Utility/InputResolver.cs + MiniRPG.Shared/Core/Social/{ActorMemoryModule,RumorBus}.cs + Data/Config/utility_actions.json(flee_combat) + Tests/MiniRPG.Tests/InputResolverSocialTests.cs + Docs/涌现世界路线图.md | 涌现社交管线接通 P0-3/P0-4/P1-23（P0-2 已被 cursor-opus-focus@8d7a34eb 提前修了，下游 5 步继续） 2026-04-19
 - qtwx-mcp-8 | Module/Render/IsometricVoxelRenderer*.cs + TerrainAtlas.cs + WeatherFxController.cs + ResAccess.cs + Module/Panel/RichTooltipLayer.cs + TurnPanelModule.cs + Module/WorldManagerModule.cs + MiniRPG.Shared/Module/Render/FogOfWarTracker.cs + Assets/Shaders/water/* + Scene/WaterPainterly*.bak | 渲染/UI 资源泄漏修复（P0-12/P1-18/P1-19/P1-20/P2-13/P2-14） 2026-04-19
 - claude-mp-fix | MiniRPG.Shared/Core/Multiplayer/{ProtocolSerializer,HostedLobbyService,DedicatedGameServerHost}.cs + 新建 ServerSideConsequenceDispatcher.cs + MiniRPG.Shared/Module/Network/ENetGameServer.cs + 4 个新测试 | 多人四桩 P0-5/6/7/8（Climb 反序列化/脏包防崩/房间二人加入/服务端社交模拟）进行中 2026-04-19
 - cursor-opus-focus | App/Main.cs(313-314) + App/Main.Timeline.cs(HandlePlayerDeath/ApplyTimelineStep) + App/RuntimeUi/{GameplayCommandCoordinator,GameEventPresentationRouter,MultiplayerRuntimeCoordinator}.cs + Module/LogModule.cs + 新增 MiniRPG.Shared/Core/Data/ActiveActorAccess.cs + PartyModule.TryGetActiveActor + Data/I18n/{zh_CN,en}.json + Tests/ActiveActorDeathHandlerIntegrationTests.cs + Docs/多人联机契约.md | 死亡-焦点链路打通（P0-9/P0-10/P1-5）进行中 2026-04-19
 - cursor-opus | MiniRPG.Shared/Core/Map/SaveModule.cs + SaveSnapshot.cs + Core/Data/GameState.cs + NestModule.cs + MapGenModule.cs + 新建 5 个 Snapshot 类型 + Tests/SaveModuleTests.cs + Tests/SavePayloadCoverageTests.cs | 存档完整性（P0-1 5 子系统）+ 静态污染清理（P1-13/14/15）
+- cursor-opus | Module/Panel/RichTooltipLayer.cs：line 167 一行 cast 修编译阻塞（Math.Ceiling 二义性，影响 Tests 运行）| 紧急 build fix（不动语义，不主动认领 P1-18）
 
 ## 已完成（最近）
 
