@@ -20,6 +20,14 @@ public sealed unsafe class ENetGameServer : IDisposable
 
 	public bool IsListening => _host != null;
 
+	/// <summary>
+	/// Diagnostic sink. Subscribed by the server process (or test harness) so
+	/// dirty-packet warnings reach the operator log without polluting the
+	/// transport with Godot-specific calls. Raised when a packet's payload
+	/// fails to deserialize or when an event handler swallows an exception.
+	/// </summary>
+	public event Action<string>? Trace;
+
 	public TransportError Listen(string address, int port, int maxClients = 8)
 	{
 		if (_host != null)
@@ -56,7 +64,20 @@ public sealed unsafe class ENetGameServer : IDisposable
 
 		ENetEvent netEvent = default;
 		while (enet_host_service(_host, &netEvent, 0) > 0)
-			HandleEvent(&netEvent);
+		{
+			try
+			{
+				HandleEvent(&netEvent);
+			}
+			catch (Exception ex)
+			{
+				// Top-level guard: a dirty packet or unexpected gameplay-side
+				// exception must never crash the dedicated server's poll loop.
+				// Anything that escapes the per-handler catches inside the
+				// command pipeline lands here and is reported via Trace.
+				Trace?.Invoke($"[ENetGameServer] Unhandled exception during HandleEvent: {ex.GetType().Name}: {ex.Message}");
+			}
+		}
 
 		enet_host_flush(_host);
 	}
@@ -109,6 +130,7 @@ public sealed unsafe class ENetGameServer : IDisposable
 		var command = ProtocolSerializer.DeserializeCommand(payload);
 		if (command == null)
 		{
+			Trace?.Invoke($"[ENetGameServer] Discarded malformed command from peer {(nuint)peer} ({payload.Length} bytes).");
 			SendMessage(peer, new CommandRejectedMessage
 			{
 				Reason = "Failed to deserialize command.",
@@ -141,6 +163,7 @@ public sealed unsafe class ENetGameServer : IDisposable
 		var request = ProtocolSerializer.DeserializeConnectRequest(payload);
 		if (request == null)
 		{
+			Trace?.Invoke($"[ENetGameServer] Discarded malformed join request from peer {(nuint)peer} ({payload.Length} bytes).");
 			SendMessage(peer, new CommandRejectedMessage
 			{
 				Reason = "Invalid join request.",
