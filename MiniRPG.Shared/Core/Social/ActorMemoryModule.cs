@@ -59,11 +59,25 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 	/// <summary>Strength of the memory written when a hostile attack lands.</summary>
 	public const float HostileAttackMemoryStrength = 0.5f;
 
+	/// <summary>Strength of the memory written when an actor receives a gift.</summary>
+	public const float KindnessReceivedMemoryStrength = 0.35f;
+
+	/// <summary>Strength when a concrete victim is named on <see cref="TheftDetector.EventType"/>.</summary>
+	public const float TheftBetrayalMemoryStrength = 0.6f;
+
 	/// <summary>Strength of the memory written for bystanders of a death.</summary>
 	public const float CasualtyWitnessedMemoryStrength = 0.4f;
 
 	/// <summary>Strength of the memory written for bystanders that identify the killer.</summary>
 	public const float KilledByMemoryStrength = 1.0f;
+
+	/// <summary>
+	/// Strength of the <see cref="ActorMemoryKind.KindnessReceived"/> entry
+	/// recorded on the recipient when a gift_given event fires. Tuned to
+	/// match <see cref="CasualtyWitnessedMemoryStrength"/> so a couple of
+	/// gifts can plausibly offset the memory of a single witnessed death.
+	/// </summary>
+	public const float KindnessReceivedMemoryStrength = 0.4f;
 
 	/// <summary>Chebyshev radius (same Z) within which an actor is considered to have witnessed a casualty.</summary>
 	public const int CasualtyWitnessRadius = 8;
@@ -198,6 +212,9 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 			case "actor_killed":
 				HandleActorKilled(state, ev);
 				break;
+			case "gift_given":
+				HandleGiftGiven(ev);
+				break;
 		}
 	}
 
@@ -251,5 +268,20 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 					new ActorMemory(killerId, ActorMemoryKind.KilledBy, KilledByMemoryStrength));
 			}
 		}
+	}
+
+	// gift_given is the friendly counterpart of actor_killed: the recipient
+	// (TargetId) records the giver (InitiatorId) as someone who helped them.
+	// Witness propagation is intentionally NOT modelled here - giving items
+	// is currently a private interaction and "everyone nearby remembers it"
+	// would inflate edge counts without a payoff in the AI consumer side.
+	private void HandleGiftGiven(GameEvent ev)
+	{
+		if (string.IsNullOrWhiteSpace(ev.InitiatorId) || string.IsNullOrWhiteSpace(ev.TargetId))
+			return;
+
+		Record(
+			ev.TargetId!,
+			new ActorMemory(ev.InitiatorId!, ActorMemoryKind.KindnessReceived, KindnessReceivedMemoryStrength));
 	}
 }

@@ -108,6 +108,7 @@ public static class ServerActionGateway
 			PickupClientCommand pickup => ExecutePickup(state, pickup),
 			InventoryToggleEquipClientCommand toggleEquip => ExecuteInventoryToggleEquip(state, toggleEquip),
 			InventoryDropClientCommand drop => ExecuteInventoryDrop(state, drop),
+			GiveItemClientCommand giveItem => ExecuteGiveItem(state, giveItem),
 			ChestTakeClientCommand take => ExecuteChestTake(state, take, timestamp),
 			ChestTakeAllClientCommand takeAll => ExecuteChestTakeAll(state, takeAll, timestamp),
 			ChestPutClientCommand put => ExecuteChestPut(state, put, timestamp),
@@ -194,6 +195,28 @@ public static class ServerActionGateway
 			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
 
 		var events = InteractionModule.DropItem(state, actor, command.InventoryIndex);
+		return ServerActionResult.Accept(events: events);
+	}
+
+	// Funnel through SocialModule.TryGiveItem so the inventory transfer +
+	// gift_given event live in one place; the social subsystems
+	// (RelationshipModule / ActorMemoryModule) react to the event purely
+	// via GameEventConsequenceRouter, no extra wiring needed here.
+	private static ServerActionResult ExecuteGiveItem(GameState state, GiveItemClientCommand command)
+	{
+		var actor = ResolveActor(state, command.ActorId);
+		if (actor == null)
+			return ServerActionResult.Reject(
+				LocalizationService.T("inventory.invalid_index"),
+				ErrorCode.InvalidActor.ToWireCode());
+
+		var events = MiniRPG.Core.Social.SocialModule.TryGiveItem(
+			state, actor.Id, command.TargetActorId, command.ItemInstanceId);
+		if (events.Count == 0)
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("log.gift.rejected", "Cannot give that item right now."),
+				ErrorCode.GiftRejected.ToWireCode());
+
 		return ServerActionResult.Accept(events: events);
 	}
 
