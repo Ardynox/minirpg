@@ -12,7 +12,7 @@ namespace MiniRPG.Module;
 /// 高亮激活角色，显示 HP/心情简要指示器。
 /// 点击切换激活角色，Tab 键循环。
 /// </summary>
-public sealed class PartyHudModule
+public sealed class PartyHudModule : ITooltipRegistrar
 {
 	private readonly PanelContainer _root;
 	private readonly VBoxContainer _memberList;
@@ -20,6 +20,9 @@ public sealed class PartyHudModule
 
 	private GameState? _state;
 	private bool _visible;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	public PartyHudModule(PanelContainer root)
 	{
@@ -106,6 +109,7 @@ public sealed class PartyHudModule
 		{
 			var slot = new PartyMemberSlot(this);
 			_memberList.AddChild(slot.Root);
+			slot.AttachTooltip(_tooltipLayer);
 			_slots.Add(slot);
 		}
 
@@ -162,6 +166,42 @@ public sealed class PartyHudModule
 				CustomMinimumSize = new Vector2(50, 0),
 			};
 			Root.AddChild(_hpLabel);
+		}
+
+		public void AttachTooltip(RichTooltipLayer? layer)
+		{
+			if (layer == null) return;
+			layer.Attach(Root, BuildTooltipBbcode);
+		}
+
+		private string BuildTooltipBbcode()
+		{
+			var state = _parent._state;
+			if (state == null || string.IsNullOrEmpty(_actorId))
+				return string.Empty;
+			var actor = ActorModule.GetById(state, _actorId);
+			if (actor == null)
+				return string.Empty;
+
+			var sb = new System.Text.StringBuilder();
+			var displayName = actor.DisplayName ?? actor.Id;
+			sb.AppendLine($"[b]{displayName}[/b]");
+
+			var totalHp = 0;
+			var maxHp = 0;
+			foreach (var limb in actor.Limbs)
+			{
+				totalHp += limb.Durability;
+				maxHp += limb.MaxDurability;
+			}
+			sb.AppendLine($"[color=#aaaaaa]HP[/color] {totalHp}/{maxHp}");
+			sb.AppendLine($"[color=#aaaaaa]Mood[/color] {actor.MoodValue}");
+			sb.AppendLine($"[color=#aaaaaa]Pos[/color] ({actor.X},{actor.Y},{actor.Z})");
+
+			if (actor.Race != null && !string.IsNullOrEmpty(actor.Race.Name))
+				sb.AppendLine($"[color=#aaaaaa]Race[/color] {actor.Race.Name}");
+
+			return sb.ToString();
 		}
 
 		public void Update(Actor actor, bool isActive)

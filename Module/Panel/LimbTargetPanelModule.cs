@@ -5,7 +5,7 @@ using MiniRPG.Core.Combat;
 
 namespace MiniRPG.Module.Panel;
 
-public sealed class LimbTargetPanelModule : ListPanelBase
+public sealed class LimbTargetPanelModule : ListPanelBase, ITooltipRegistrar
 {
 	public sealed class LimbTargetOption
 	{
@@ -45,6 +45,9 @@ public sealed class LimbTargetPanelModule : ListPanelBase
 	private GameState? _state;
 	private LimbTargetRequest? _request;
 	private readonly List<LimbTargetOption> _options = [];
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	public LimbTargetPanelModule(PanelContainer panel)
 	{
@@ -248,5 +251,40 @@ public sealed class LimbTargetPanelModule : ListPanelBase
 		row.Text = option.IsMissing
 			? $"{option.Label}{missing}{vital}"
 			: $"{option.Label}  {option.CurrentDurability}/{option.MaxDurability}{missing}{vital}";
+
+		if (_tooltipLayer != null)
+		{
+			var capturedIndex = index;
+			_tooltipLayer.Attach(row, () =>
+			{
+				if (capturedIndex < 0 || capturedIndex >= _options.Count)
+					return string.Empty;
+				return BuildLimbTooltipBbcode(_options[capturedIndex]);
+			});
+		}
+	}
+
+	private static string BuildLimbTooltipBbcode(LimbTargetOption option)
+	{
+		var sb = new System.Text.StringBuilder();
+		sb.AppendLine($"[b]{option.Label}[/b]");
+		sb.AppendLine($"[color=#aaaaaa]耐久[/color] {option.CurrentDurability}/{option.MaxDurability}");
+
+		if (option.IsVital)
+			sb.AppendLine($"[color=#ff8888]要害[/color] 受重创可致命");
+		if (option.IsMissing)
+			sb.AppendLine($"[color=#888888]缺失[/color] 不可作为目标");
+		if (!option.IsVital && !option.IsMissing && option.MaxDurability > 0)
+		{
+			var ratio = (float)option.CurrentDurability / option.MaxDurability;
+			if (ratio < 0.3f)
+				sb.AppendLine($"[color=#ffaa66]状态[/color] 严重受损");
+			else if (ratio < 0.7f)
+				sb.AppendLine($"[color=#dddd66]状态[/color] 受伤");
+			else
+				sb.AppendLine($"[color=#88dd88]状态[/color] 良好");
+		}
+
+		return sb.ToString();
 	}
 }

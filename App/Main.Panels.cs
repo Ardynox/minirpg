@@ -124,6 +124,7 @@ public partial class Main
 		_panels.Register(_limbTargetPanel);
 		RegisterAlwaysDirectDraggable(_limbTargetPanel);
 		RegisterCommonPanelChrome(_limbTargetPanel, "MarginContainer/VBox/HeaderBar/Header", CloseLimbTargetPanel);
+		TryRegisterPanelTooltip(_limbTargetPanel, _richTooltips);
 		return _limbTargetPanel;
 	}
 

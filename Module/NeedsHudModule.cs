@@ -4,7 +4,7 @@ using MiniRPG.Module.Panel;
 
 namespace MiniRPG.Module;
 
-public sealed class NeedsHudModule
+public sealed class NeedsHudModule : ITooltipRegistrar
 {
 	private readonly PanelContainer _root;
 	private readonly Label _hungerLabel;
@@ -20,6 +20,56 @@ public sealed class NeedsHudModule
 	private float _prevThirst = -1f;
 	private float _prevRest = -1f;
 	private float _prevMood = -1f;
+
+	private Actor? _currentActor;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer)
+	{
+		_tooltipLayer = layer;
+		AttachNeedTooltip(_hungerBar, NeedIds.Hunger);
+		AttachNeedTooltip(_thirstBar, NeedIds.Thirst);
+		AttachNeedTooltip(_restBar, NeedIds.Rest);
+		AttachNeedTooltip(_moodBar, NeedIds.Mood);
+	}
+
+	private void AttachNeedTooltip(ProgressBar bar, string needId)
+	{
+		if (_tooltipLayer == null) return;
+		// 进度条默认 MouseFilter=Ignore 收不到 hover，改为 Stop 才能 Attach 起作用
+		bar.MouseFilter = Control.MouseFilterEnum.Stop;
+		_tooltipLayer.Attach(bar, () => BuildNeedTooltipBbcode(needId));
+	}
+
+	private string BuildNeedTooltipBbcode(string needId)
+	{
+		if (_currentActor == null) return string.Empty;
+
+		var name = NeedCatalog.GetNeedDisplayName(needId);
+		var sb = new System.Text.StringBuilder();
+		sb.AppendLine($"[b]{name}[/b]");
+
+		float value;
+		if (needId == NeedIds.Mood)
+		{
+			value = _currentActor.MoodValue;
+			sb.AppendLine($"[color=#aaaaaa]当前[/color] {value:0.0}");
+		}
+		else
+		{
+			value = NeedSystem.GetNeedValueSnapshot(_currentActor, needId);
+			sb.AppendLine($"[color=#aaaaaa]当前[/color] {value:0.0}");
+			var def = NeedCatalog.GetNeed(needId);
+			if (def != null)
+				sb.AppendLine($"[color=#aaaaaa]警告阈值[/color] {def.WarningThreshold:0}");
+		}
+
+		var stageId = NeedCatalog.ResolveStageId(needId, value);
+		if (!string.IsNullOrEmpty(stageId))
+			sb.AppendLine($"[color=#aaaaaa]状态[/color] {NeedCatalog.GetThoughtDisplayName(stageId)}");
+
+		return sb.ToString();
+	}
 
 	public NeedsHudModule(PanelContainer root)
 	{
@@ -125,6 +175,7 @@ public sealed class NeedsHudModule
 
 	public void Update(Actor? player, int currentTurn, bool visible)
 	{
+		_currentActor = player;
 		if (!visible || player == null)
 		{
 			_root.Visible = false;
