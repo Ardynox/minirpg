@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Conversation;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Farm;
@@ -158,6 +159,9 @@ public sealed class SavePayload
 
 	[JsonPropertyName("crops")]
 	public List<CropInstanceSnapshot>? Crops { get; set; }
+
+	[JsonPropertyName("activeConversations")]
+	public List<ConversationStateSnapshot>? ActiveConversations { get; set; }
 }
 
 public sealed class PartySnapshot
@@ -581,6 +585,37 @@ public sealed class ActorSnapshot
 
 	[JsonPropertyName("healthLastUpdatedTurn")]
 	public int? HealthLastUpdatedTurn { get; set; }
+
+	// ── 人口学 / 基因（Phase 6 Commit 9）老存档读不出来时全部走默认值 ──
+	[JsonPropertyName("sex")]
+	public Sex? Sex { get; set; }
+
+	[JsonPropertyName("birthTurn")]
+	public int? BirthTurn { get; set; }
+
+	[JsonPropertyName("pregnancyTicksRemaining")]
+	public int? PregnancyTicksRemaining { get; set; }
+
+	[JsonPropertyName("mateActorId")]
+	public string? MateActorId { get; set; }
+
+	[JsonPropertyName("motherActorId")]
+	public string? MotherActorId { get; set; }
+
+	[JsonPropertyName("fatherActorId")]
+	public string? FatherActorId { get; set; }
+
+	[JsonPropertyName("genome")]
+	public MiniRPG.Core.Genetics.GenePool? Genome { get; set; }
+
+	[JsonPropertyName("lastResolvedLifeStage")]
+	public LifeStage? LastResolvedLifeStage { get; set; }
+
+	[JsonPropertyName("carriedByActorId")]
+	public string? CarriedByActorId { get; set; }
+
+	[JsonPropertyName("carriedInfantId")]
+	public string? CarriedInfantId { get; set; }
 }
 
 public sealed class NeedStateSnapshot

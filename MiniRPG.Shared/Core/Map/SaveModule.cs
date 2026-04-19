@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Conversation;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Facility;
@@ -179,6 +180,11 @@ public static class SaveModule
 			Storyteller = BuildStorytellerSnapshot(state.StorytellerState),
 			Zones = BuildZoneSnapshots(state.Zones),
 			Crops = BuildCropSnapshots(state.Crops),
+			ActiveConversations = state.ActiveConversations.Count == 0
+				? []
+				: [.. state.ActiveConversations
+					.OrderBy(static kv => kv.Key, StringComparer.Ordinal)
+					.Select(static kv => ConversationStateSnapshot.FromRuntime(kv.Value))],
 		};
 
 		return new SaveFile
@@ -244,6 +250,12 @@ public static class SaveModule
 		state.Zones = CreateZoneDictionary(payload.Zones);
 		state.Crops = CreateCropDictionary(payload.Crops);
 		state.Quests = MapList(payload.Quests, CreateQuest);
+		state.ActiveConversations = payload.ActiveConversations is { Count: > 0 }
+			? payload.ActiveConversations.ToDictionary(
+				static s => s.NpcActorId,
+				static s => s.ToRuntime(),
+				StringComparer.Ordinal)
+			: new Dictionary<string, ConversationState>(StringComparer.Ordinal);
 
 		DirtyChunkCache.Clear();
 		foreach (var chunk in payload.DirtyChunks)
@@ -841,6 +853,16 @@ public static class SaveModule
 		BloodLossValue = actor.BloodLossValue,
 		WetnessValue = actor.WetnessValue,
 		HealthLastUpdatedTurn = actor.HealthLastUpdatedTurn,
+		Sex = actor.Sex,
+		BirthTurn = actor.BirthTurn,
+		PregnancyTicksRemaining = actor.PregnancyTicksRemaining,
+		MateActorId = actor.MateActorId,
+		MotherActorId = actor.MotherActorId,
+		FatherActorId = actor.FatherActorId,
+		Genome = actor.Genome?.Clone(),
+		LastResolvedLifeStage = actor.LastResolvedLifeStage,
+		CarriedByActorId = actor.CarriedByActorId,
+		CarriedInfantId = actor.CarriedInfantId,
 	};
 
 	private static Actor CreateActor(ActorSnapshot snapshot)
@@ -930,6 +952,16 @@ public static class SaveModule
 			BloodLossValue = snapshot.BloodLossValue ?? 0f,
 			WetnessValue = snapshot.WetnessValue ?? 0f,
 			HealthLastUpdatedTurn = snapshot.HealthLastUpdatedTurn ?? 0,
+			Sex = snapshot.Sex ?? Sex.Female,
+			BirthTurn = snapshot.BirthTurn ?? -1,
+			PregnancyTicksRemaining = snapshot.PregnancyTicksRemaining,
+			MateActorId = snapshot.MateActorId,
+			MotherActorId = snapshot.MotherActorId,
+			FatherActorId = snapshot.FatherActorId,
+			Genome = snapshot.Genome?.Clone(),
+			LastResolvedLifeStage = snapshot.LastResolvedLifeStage ?? LifeStage.Adult,
+			CarriedByActorId = snapshot.CarriedByActorId,
+			CarriedInfantId = snapshot.CarriedInfantId,
 		};
 
 		EnsureVitalLimbTags(actor);
