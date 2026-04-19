@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Godot;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Demographics;
 using MiniRPG.Core.Health;
 
 namespace MiniRPG.Module.Panel;
@@ -180,6 +181,62 @@ internal static class ActorStatusTextBuilder
 			("y", actor.Y),
 			("floor", actor.Z),
 			("gold", identified ? actor.Gold : "--"))}");
+		if (identified)
+		{
+			var demographicsLine = BuildDemographicsLine(state, actor);
+			if (!string.IsNullOrWhiteSpace(demographicsLine))
+			{
+				sb.Append('\n');
+				sb.Append(demographicsLine);
+			}
+		}
+		return sb.ToString();
+	}
+
+	private static string BuildDemographicsLine(GameState? state, Actor actor)
+	{
+		var sex = LocalizationService.TOrFallback(
+			$"ui.demographics.sex.{actor.Sex.ToString().ToLowerInvariant()}",
+			actor.Sex.ToString());
+		var sb = new StringBuilder();
+		sb.Append(sex);
+
+		if (state != null)
+		{
+			LifeStageCatalog.EnsureLoaded();
+			var stage = DemographicsService.GetStage(actor, state);
+			var stageLabel = LocalizationService.TOrFallback(
+				$"ui.demographics.stage.{stage.ToString().ToLowerInvariant()}",
+				stage.ToString());
+			var ageYears = DemographicsService.GetAgeYears(actor, state);
+			sb.Append(" / ");
+			sb.Append(stageLabel);
+			sb.Append(" (");
+			sb.Append(LocalizationService.TOrFallback("ui.demographics.age_years", "{years}y", ("years", ageYears)));
+			sb.Append(')');
+		}
+
+		if (actor.PregnancyTicksRemaining is > 0)
+		{
+			LifeStageCatalog.EnsureLoaded();
+			var gestation = Math.Max(1, LifeStageCatalog.Conception.GestationTurns);
+			var elapsed = Math.Max(0, gestation - actor.PregnancyTicksRemaining.Value);
+			var pct = (int)Math.Round(elapsed * 100f / gestation);
+			sb.Append("  ");
+			sb.Append(LocalizationService.TOrFallback("ui.demographics.pregnant", "Pregnant ({pct}%)", ("pct", pct)));
+		}
+
+		if (DemographicsService.IsCarried(actor))
+		{
+			sb.Append("  ");
+			sb.Append(LocalizationService.TOrFallback("ui.demographics.carried", "(carried)"));
+		}
+		else if (DemographicsService.HasCarriedInfant(actor))
+		{
+			sb.Append("  ");
+			sb.Append(LocalizationService.TOrFallback("ui.demographics.carrying_infant", "(carrying infant)"));
+		}
+
 		return sb.ToString();
 	}
 
