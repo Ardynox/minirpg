@@ -19,11 +19,26 @@ public sealed class TerrainAtlas
 	private ImageTexture? _atlasTexture;
 	private readonly Dictionary<string, FaceRegions> _regions = new(StringComparer.OrdinalIgnoreCase);
 
+	/// <summary>
+	/// 草地 overlay（SurfaceCover）变体在图集内的 region，由 <see cref="Build"/> 末尾 procedural 生成并入图。
+	/// 顺序即 variant 索引（0..GrassOverlayVariantCount-1）。
+	/// </summary>
+	private readonly List<Rect2> _grassOverlayRegions = new();
+
+	/// <summary>
+	/// 草地 overlay 目标变体数量；与 <c>Module.Render.Surface.GrassOverlayPass.VariantCount</c> 对齐。
+	/// 改这里时记得同步对面那一处常量。
+	/// </summary>
+	private const int GrassOverlayVariantTarget = 6;
+
 	/// <summary>打包后的单张图集纹理，所有面共用。</summary>
 	public Texture2D? AtlasTexture => _atlasTexture;
 
 	/// <summary>是否已完成构建。</summary>
 	public bool IsBuilt => _atlasTexture != null;
+
+	/// <summary>本次 Build 输出的草地 overlay 变体数量；用于 Wave 2.2 渲染器对齐。</summary>
+	public int GrassOverlayVariantCount => _grassOverlayRegions.Count;
 
 	/// <summary>
 	/// 查询指定地形的图集区域。
@@ -32,12 +47,28 @@ public sealed class TerrainAtlas
 		_regions.TryGetValue(terrainStringId, out regions);
 
 	/// <summary>
+	/// 查询指定草地 overlay 变体（0..<see cref="GrassOverlayVariantCount"/>-1）在图集中的 region。
+	/// 越界返回 false 且 region 为 default。
+	/// </summary>
+	public bool TryGetGrassOverlayVariant(int index, out Rect2 region)
+	{
+		if (index < 0 || index >= _grassOverlayRegions.Count)
+		{
+			region = default;
+			return false;
+		}
+		region = _grassOverlayRegions[index];
+		return true;
+	}
+
+	/// <summary>
 	/// 构建图集：遍历所有已注册地形，为每种地形生成 top/left/right 面并打包进单张纹理。
 	/// 应在 Init 阶段调用一次。
 	/// </summary>
 	public void Build()
 	{
 		_regions.Clear();
+		_grassOverlayRegions.Clear();
 		_atlasTexture?.Dispose();
 		_atlasTexture = null;
 		LoadCustomMappings();
@@ -65,9 +96,10 @@ public sealed class TerrainAtlas
 			return;
 
 		// ── 布局计算 ──
-		// Row 0: top faces  (128×64 each)
-		// Row 1: left faces (64×176 each)
-		// Row 2: right faces (64×176 each)
+		// Row 0: top faces      (128×64 each, N 张)
+		// Row 1: left faces     (64×176 each, N 张)
+		// Row 2: right faces    (64×176 each, N 张)
+		// Row 3: grass overlays (128×64 each, GrassOverlayVariantTarget 张)
 
 		var topW = VoxelFaceImageUtil.TopFaceWidth;
 		var topH = VoxelFaceImageUtil.TopFaceHeight;
@@ -79,9 +111,11 @@ public sealed class TerrainAtlas
 		var topRowWidth = count * topW;
 		// side rows: N faces × 64 wide
 		var sideRowWidth = count * sideW;
+		// overlay row: GrassOverlayVariantTarget faces × 128 wide
+		var overlayRowWidth = GrassOverlayVariantTarget * topW;
 
-		var atlasWidth = Math.Max(topRowWidth, sideRowWidth);
-		var atlasHeight = topH + sideH + sideH; // 64 + 176 + 176 = 416
+		var atlasWidth = Math.Max(Math.Max(topRowWidth, sideRowWidth), overlayRowWidth);
+		var atlasHeight = topH + sideH + sideH + topH; // 64 + 176 + 176 + 64 = 480
 
 		// Round up to next multiple of 4 for GPU alignment
 		atlasWidth = (atlasWidth + 3) & ~3;
@@ -113,6 +147,18 @@ public sealed class TerrainAtlas
 				new Rect2(topX, topY, topW, topH),
 				new Rect2(leftX, leftY, sideW, sideH),
 				new Rect2(rightX, rightY, sideW, sideH));
+		}
+
+		// ── 第三遍：Blit grass overlay 变体到 row 3 ──
+		// 6 个 procedural 变体（密度/朝向/簇大小三维差异）；与 GrassOverlayPass.VariantCount 对齐。
+		// 共用同一张 _atlasTexture，让 Wave 2.2 渲染器走 DrawTextureRectRegion 自动合批。
+		var overlayY = topH + sideH + sideH;
+		for (var i = 0; i < GrassOverlayVariantTarget; i++)
+		{
+			var overlayImage = CreateGrassOverlayImage(i, topW, topH);
+			var overlayX = i * topW;
+			BlitImage(atlasImage, overlayImage, overlayX, overlayY);
+			_grassOverlayRegions.Add(new Rect2(overlayX, overlayY, topW, topH));
 		}
 
 		_atlasTexture = ImageTexture.CreateFromImage(atlasImage);
@@ -355,6 +401,126 @@ public sealed class TerrainAtlas
 		catch (Exception ex)
 		{
 			Console.Error.WriteLine($"[TerrainAtlas] Failed to load custom mappings: {ex.Message}");
+		}
+	}
+
+	// ══════════════════════════════════════════════════════
+	//  Grass overlay procedural 生成（路 C，Wave 1）
+	//  6 个变体在三个维度上有可见差异：密度（3 档）× 朝向（横/纵/各向同性）× 簇大小。
+	//  仅做顶面 diamond 区域，alpha 边缘羽化，避免肉眼 tile-repeat 感。
+	// ══════════════════════════════════════════════════════
+
+	/// <summary>
+	/// procedural 生成一张草地 overlay：在等距菱形蒙版内基于多频 hash value-noise 铺出 patchy 草丛。
+	/// </summary>
+	private static Image CreateGrassOverlayImage(int variant, int width, int height)
+	{
+		// 每个变体：density / freqX / freqY / clumpScale / hueShift
+		//   density   : 草盖率，0..1（越高草越多）→ 控密度
+		//   freqX/Y   : 各向异性 noise 频率倍数（>1 → 该方向变化更快、视觉上垂直该方向的"条纹"）→ 控朝向
+		//   clumpScale: noise 采样基础尺度（像素），越大簇越大、越平滑 → 控簇形状
+		//   hueShift  : 草色色调偏移，正→偏黄、负→偏深绿
+		var (density, freqX, freqY, clumpScale, hueShift) = variant switch
+		{
+			0 => (0.30f, 1.0f, 1.0f, 4f, +0.05f),  // V0: 稀疏散点 + 黄绿
+			1 => (0.55f, 1.0f, 1.0f, 4f,  0.00f),  // V1: 中密度散点 + 标准绿
+			2 => (0.78f, 1.0f, 1.0f, 4f, -0.05f),  // V2: 密集 + 深绿
+			3 => (0.55f, 0.4f, 2.0f, 5f,  0.00f),  // V3: 横向条纹（X 频率低、Y 频率高）
+			4 => (0.55f, 2.0f, 0.4f, 5f, +0.03f),  // V4: 纵向条纹
+			5 => (0.55f, 0.7f, 0.7f, 8f, -0.03f),  // V5: 大簇 cluster
+			_ => (0.50f, 1.0f, 1.0f, 4f,  0.00f),
+		};
+
+		var image = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
+		var halfW = width / 2;
+		var halfH = height / 2;
+
+		var baseR = Math.Clamp(0.30f + hueShift, 0f, 1f);
+		var baseG = Math.Clamp(0.70f - 0.04f * hueShift, 0f, 1f);
+		var baseB = Math.Clamp(0.20f - hueShift * 0.5f, 0f, 1f);
+
+		var threshold = 1f - density;
+
+		for (var py = 0; py < height; py++)
+		for (var px = 0; px < width; px++)
+		{
+			// diamond 蒙版（与 CreateDiamondImage 同算法）：菱形外保持透明
+			var dx = Math.Abs(px - halfW) / (float)halfW;
+			var dy = Math.Abs(py - halfH) / (float)halfH;
+			if (dx + dy > 1.0f)
+			{
+				image.SetPixel(px, py, Colors.Transparent);
+				continue;
+			}
+
+			// 多频 fBm-like value-noise：3 个 octave，频率 1×/2×/4×，振幅 1/0.5/0.25
+			var nx = px * freqX / clumpScale;
+			var ny = py * freqY / clumpScale;
+			var n0 = SmoothNoise01(nx,        ny,        variant * 31 + 7);
+			var n1 = SmoothNoise01(nx * 2.0f, ny * 2.0f, variant * 31 + 11) * 0.5f;
+			var n2 = SmoothNoise01(nx * 4.0f, ny * 4.0f, variant * 31 + 13) * 0.25f;
+			var noise = (n0 + n1 + n2) / 1.75f; // 归一化 0..1
+
+			if (noise < threshold)
+			{
+				image.SetPixel(px, py, Colors.Transparent);
+				continue;
+			}
+
+			// 草色 + per-pixel 抖动；alpha 按 strength 羽化让 patch 边缘不锐利
+			var strength = (noise - threshold) / Math.Max(1e-4f, 1f - threshold);
+			var jr = (HashNoise01(px, py, variant * 7 + 23) - 0.5f) * 0.10f;
+			var jg = (HashNoise01(px, py, variant * 7 + 29) - 0.5f) * 0.10f;
+			var jb = (HashNoise01(px, py, variant * 7 + 31) - 0.5f) * 0.10f;
+			var r = Math.Clamp(baseR + jr, 0f, 1f);
+			var g = Math.Clamp(baseG + jg, 0f, 1f);
+			var b = Math.Clamp(baseB + jb, 0f, 1f);
+			var a = Math.Clamp(0.55f + strength * 0.45f, 0f, 1f); // 0.55..1.0
+
+			image.SetPixel(px, py, new Color(r, g, b, a));
+		}
+
+		return image;
+	}
+
+	/// <summary>
+	/// 双线性插值 + smoothstep 的 value noise → [0, 1)；同输入恒同输出。
+	/// </summary>
+	private static float SmoothNoise01(float x, float y, int seed)
+	{
+		var x0 = (int)Math.Floor(x);
+		var y0 = (int)Math.Floor(y);
+		var fx = x - x0;
+		var fy = y - y0;
+
+		var n00 = HashNoise01(x0,     y0,     seed);
+		var n10 = HashNoise01(x0 + 1, y0,     seed);
+		var n01 = HashNoise01(x0,     y0 + 1, seed);
+		var n11 = HashNoise01(x0 + 1, y0 + 1, seed);
+
+		// smoothstep
+		fx = fx * fx * (3f - 2f * fx);
+		fy = fy * fy * (3f - 2f * fy);
+
+		var n0 = n00 * (1f - fx) + n10 * fx;
+		var n1 = n01 * (1f - fx) + n11 * fx;
+		return n0 * (1f - fy) + n1 * fy;
+	}
+
+	/// <summary>
+	/// FNV-1a 风格整数 hash → [0, 1) 浮点；纯函数，同输入恒同输出。
+	/// </summary>
+	private static float HashNoise01(int x, int y, int seed)
+	{
+		unchecked
+		{
+			uint h = 2166136261u ^ (uint)seed;
+			h = (h ^ (uint)x) * 16777619u;
+			h = (h ^ (uint)y) * 16777619u;
+			h ^= h >> 13;
+			h *= 0x5BD1E995u;
+			h ^= h >> 15;
+			return (h & 0x00FFFFFFu) / (float)0x01000000;
 		}
 	}
 }
