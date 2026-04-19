@@ -1,0 +1,10 @@
+{
+  "pairing_radius": 2,
+  "lover_opinion_threshold": 15,
+  "conception_chance_per_day": 0.06,
+  "gestation_turns": 2160,
+  "twin_chance": 0.02,
+  "miscarriage_chance_per_trimester": 0.005,
+  "natural_death_base_chance_per_day": 0.0015,
+  "auto_conception_race_ids": ["human"]
+}

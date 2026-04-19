@@ -63,6 +63,14 @@ public sealed class ConceptionCatalogRoot
 
 	[JsonPropertyName("natural_death_base_chance_per_day")]
 	public float NaturalDeathBaseChancePerDay { get; set; } = 0.002f;
+
+	/// <summary>
+	/// race 白名单：只有 race id 在列表里的 actor 才会自动受孕配对。
+	/// null / 空列表 = 不限制（向后兼容，全 race 都可受孕）。
+	/// 用来阻止怪物 race（goblin / spider 等）也自动繁殖出小怪物。
+	/// </summary>
+	[JsonPropertyName("auto_conception_race_ids")]
+	public List<string>? AutoConceptionRaceIds { get; set; }
 }
 
 /// <summary>

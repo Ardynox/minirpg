@@ -262,4 +262,83 @@ public sealed class DemographicsConceptionTests
 		ConceptionBirthTick.OnNewDay(state);
 		Assert.Null(state.Actors["inf_mom"].PregnancyTicksRemaining);
 	}
+
+	[Fact]
+	public void ConceptionBirthTick_RaceNotInWhitelist_DoesNotConceive()
+	{
+		// 白名单只允许 human；goblin race 即便配对成功也不应受孕——避免怪物自动繁殖。
+		OverrideAllWithRaceWhitelist(gestationTurns: 100, conceptionChance: 1.0f, whitelist: ["human"]);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		var goblinMom = MakeAdultHuman("g_mom", Sex.Female);
+		goblinMom.Race = new Race { Id = "goblin" };
+		var goblinDad = MakeAdultHuman("g_dad", Sex.Male, x: 1);
+		goblinDad.Race = new Race { Id = "goblin" };
+		state.Actors["g_mom"] = goblinMom;
+		state.Actors["g_dad"] = goblinDad;
+
+		ConceptionBirthTick.OnNewDay(state);
+
+		Assert.Null(goblinMom.PregnancyTicksRemaining);
+	}
+
+	[Fact]
+	public void ConceptionBirthTick_RaceInWhitelist_StillConceives()
+	{
+		OverrideAllWithRaceWhitelist(gestationTurns: 100, conceptionChance: 1.0f, whitelist: ["human"]);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		state.Actors["mom"] = MakeAdultHuman("mom", Sex.Female);
+		state.Actors["dad"] = MakeAdultHuman("dad", Sex.Male, x: 1);
+
+		ConceptionBirthTick.OnNewDay(state);
+
+		Assert.NotNull(state.Actors["mom"].PregnancyTicksRemaining);
+	}
+
+	[Fact]
+	public void ConceptionBirthTick_EmptyWhitelist_AllRacesAllowed()
+	{
+		// 空 / null 白名单 = 不限制，跟老配置兼容。
+		OverrideAllWithRaceWhitelist(gestationTurns: 100, conceptionChance: 1.0f, whitelist: null);
+		var state = new GameState { PlayerId = "p", Turn = 0 };
+		var mom = MakeAdultHuman("mom", Sex.Female);
+		mom.Race = new Race { Id = "alien" };
+		var dad = MakeAdultHuman("dad", Sex.Male, x: 1);
+		dad.Race = new Race { Id = "alien" };
+		state.Actors["mom"] = mom;
+		state.Actors["dad"] = dad;
+
+		ConceptionBirthTick.OnNewDay(state);
+
+		Assert.NotNull(mom.PregnancyTicksRemaining);
+	}
+
+	private static void OverrideAllWithRaceWhitelist(int gestationTurns, float conceptionChance, List<string>? whitelist)
+	{
+		PresetDB.Load();
+		LifeStageCatalog.OverrideForTesting(
+			new LifeStageCatalogRoot
+			{
+				Races = new Dictionary<string, RaceLifeStageBounds>(System.StringComparer.OrdinalIgnoreCase)
+				{
+					["default"] = new RaceLifeStageBounds(),
+					["human"] = new RaceLifeStageBounds(),
+					["goblin"] = new RaceLifeStageBounds(),
+					["alien"] = new RaceLifeStageBounds(),
+				},
+			},
+			new ConceptionCatalogRoot
+			{
+				PairingRadius = 4,
+				ConceptionChancePerDay = conceptionChance,
+				GestationTurns = gestationTurns,
+				AutoConceptionRaceIds = whitelist,
+			});
+		GeneCatalog.OverrideForTesting(
+			[MakeGene("alpha")],
+			[
+				new XenotypeDef { Id = "h", RaceId = "human", FixedGenes = ["alpha"], RandomGenes = [] },
+				new XenotypeDef { Id = "g", RaceId = "goblin", FixedGenes = ["alpha"], RandomGenes = [] },
+				new XenotypeDef { Id = "a", RaceId = "alien", FixedGenes = ["alpha"], RandomGenes = [] },
+			]);
+	}
 }

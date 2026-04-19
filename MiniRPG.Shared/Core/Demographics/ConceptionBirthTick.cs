@@ -111,6 +111,7 @@ public static class ConceptionBirthTick
 			return;
 
 		var gestation = Math.Max(1, cfg.GestationTurns);
+		var raceWhitelist = cfg.AutoConceptionRaceIds;
 
 		foreach (var mother in state.Actors.Values.ToList())
 		{
@@ -121,6 +122,8 @@ public static class ConceptionBirthTick
 			if (!DemographicsService.IsAdultOrOlder(mother, state))
 				continue;
 			if (string.Equals(mother.Faction, Factions.Hostile, StringComparison.Ordinal))
+				continue;
+			if (!IsRaceAllowed(raceWhitelist, mother.Race?.Id))
 				continue;
 
 			var father = FindEligibleMate(state, mother, radius);
@@ -142,6 +145,21 @@ public static class ConceptionBirthTick
 				TargetZ = mother.Z,
 			});
 		}
+	}
+
+	private static bool IsRaceAllowed(List<string>? whitelist, string? raceId)
+	{
+		if (whitelist == null || whitelist.Count == 0)
+			return true; // 兼容老配置：未列白名单 = 不限。
+		if (string.IsNullOrWhiteSpace(raceId))
+			return false;
+		foreach (var allowed in whitelist)
+		{
+			if (string.Equals(allowed, raceId, StringComparison.Ordinal))
+				return true;
+		}
+
+		return false;
 	}
 
 	private static Actor? FindEligibleMate(GameState state, Actor mother, int radius)
