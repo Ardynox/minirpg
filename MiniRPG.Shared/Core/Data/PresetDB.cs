@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MiniRPG.Core.Config;
+using MiniRPG.Core.Genetics;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.Data;
@@ -356,7 +357,10 @@ public static class PresetDB
 		NeedSystem.EnsureInitialized(actor, currentTurn: 0);
 		HealthSystem.EnsureInitialized(actor, currentTurn: 0);
 
-		AI.Utility.PersonalityModule.GeneratePersonality(actor, new Random(instanceId.GetHashCode()));
+		var rng = new Random(instanceId.GetHashCode());
+		AI.Utility.PersonalityModule.GeneratePersonality(actor, rng);
+		actor.Sex = rng.Next(2) == 0 ? Sex.Female : Sex.Male;
+		actor.Genome = GeneSpawnService.CreateForRace(rng, actor.Race?.Id);
 
 		return actor;
 	}

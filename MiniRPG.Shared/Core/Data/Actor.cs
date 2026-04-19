@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
+using MiniRPG.Core.Genetics;
 
 namespace MiniRPG.Core.Data;
 
@@ -101,6 +102,34 @@ public class Actor
 	/// </summary>
 	public int RevivalCount { get; set; }
 
+	// ── 人口学 / 基因 / 家系 ────────────────────────────
+
+	/// <summary>生物性别。受孕 / 出生流程必读；UI 显示。</summary>
+	public Sex Sex { get; set; } = Sex.Female;
+
+	/// <summary>角色出生时的 <see cref="GameState.Turn"/>。-1 表示 legacy 老存档没记录，按常量年龄兜底。</summary>
+	public int BirthTurn { get; set; } = -1;
+
+	/// <summary>怀孕剩余 turn 数。null 表示未怀孕。每日 tick -1，到 0 触发出生。仅 Female 有意义。</summary>
+	public int? PregnancyTicksRemaining { get; set; }
+
+	/// <summary>当前配偶 actor id（爱人/夫妻/伴侣）。null = 单身。</summary>
+	public string? MateActorId { get; set; }
+
+	/// <summary>母亲 actor id（被亲属关系系统使用，写入后不应再改）。</summary>
+	public string? MotherActorId { get; set; }
+
+	/// <summary>父亲 actor id（被亲属关系系统使用，写入后不应再改）。</summary>
+	public string? FatherActorId { get; set; }
+
+	/// <summary>
+	/// 基因池（孟德尔位点 → 等位基因对）。null 时不贡献 tag。
+	/// 由 <c>GeneSpawnService.CreateForRace</c> 在 spawn 时填，由
+	/// <c>GeneInheritanceService.Inherit</c> 在出生时填给孩子。
+	/// 通过 <see cref="GenePool.GetTags"/> 自动接入 <see cref="ComputeTags"/>。
+	/// </summary>
+	public GenePool? Genome { get; set; }
+
 	// ── tag 表计算 ───────────────────────────────────────
 
 	/// <summary>
@@ -122,6 +151,7 @@ public class Actor
 		foreach (var limb in Limbs) Merge(limb);
 		if (Race != null) Merge(Race);
 		if (Profession != null) Merge(Profession);
+		if (Genome != null) Merge(Genome);
 		foreach (var buff in Buffs) Merge(buff);
 		foreach (var exp in Experiences) Merge(exp);
 		foreach (var item in Inventory) if (item.Equipped) Merge(item);

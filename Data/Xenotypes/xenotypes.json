@@ -1,0 +1,10 @@
+{
+  "xenotypes": [
+    {
+      "id": "baseliner",
+      "race_id": "human",
+      "fixed_genes": ["fast_leg"],
+      "random_genes": ["cold_skin", "night_owl"]
+    }
+  ]
+}
