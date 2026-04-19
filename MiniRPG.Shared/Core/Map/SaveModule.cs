@@ -1271,7 +1271,12 @@ public static class SaveModule
 	private static Dictionary<TKey, TValue> CopyDictionary<TKey, TValue>(IDictionary<TKey, TValue> source)
 		where TKey : notnull
 	{
-		var copy = new Dictionary<TKey, TValue>(source.Count);
+		// 透传 source 的 comparer：避免把 Ordinal dict 静默降级为默认 EqualityComparer，
+		// 否则 round-trip 后字典查询语义会与运行时不一致（特别是 string key）。
+		var comparer = source is Dictionary<TKey, TValue> typed
+			? typed.Comparer
+			: EqualityComparer<TKey>.Default;
+		var copy = new Dictionary<TKey, TValue>(source.Count, comparer);
 		foreach (var (key, value) in source)
 			copy[key] = value;
 		return copy;

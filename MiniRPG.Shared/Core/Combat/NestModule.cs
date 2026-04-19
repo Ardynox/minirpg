@@ -13,7 +13,12 @@ public static class NestModule
 {
 	private static int _nestSpawnCounter;
 
-	internal static void ResetSpawnCounter()
+	/// <summary>
+	/// 重置 Nest spawn 计数器。
+	/// 必须在新会话开始时（GameState.Reset 与 MapGenModule.InitializeWorld）调用，
+	/// 否则跨会话的 actor id 可能撞同名 (`nest_<n>`) 而引发数据冲突。
+	/// </summary>
+	public static void ResetSpawnCounter()
 	{
 		_nestSpawnCounter = 0;
 	}

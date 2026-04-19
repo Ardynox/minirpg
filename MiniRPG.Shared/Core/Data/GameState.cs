@@ -94,7 +94,7 @@ public class GameState
 	public int PlayerZ { get; set; }
 
 	// ── 生物 ──
-	public Dictionary<string, Actor> Actors { get; set; } = new();
+	public Dictionary<string, Actor> Actors { get; set; } = new(StringComparer.Ordinal);
 	public string PlayerId { get; set; } = DefaultPlayerId;
 	public string PlayerAppearanceId { get; set; } = DefaultPlayerAppearanceId;
 	public Dictionary<string, FacilityInstance> Facilities { get; set; } = new(StringComparer.Ordinal);
@@ -149,7 +149,12 @@ public class GameState
 		PlayerZ = 0;
 		PlayerId = DefaultPlayerId;
 		PlayerAppearanceId = DefaultPlayerAppearanceId;
-		Actors.Clear();
+		// 用全新的 ordinal 字典实例兜底：哪怕外部把 Actors 替换为非 ordinal dict
+		// （历史上发生过），下一个会话也保证 actor id 用 ordinal 比较。
+		Actors = new Dictionary<string, Actor>(StringComparer.Ordinal);
+		// 顺手清掉跨会话的 NestModule.NestSpawnCounter，保证 actor id 序列从 0 起。
+		// MapGenModule.InitializeWorld 也会再清一次，这里是状态层的对称。
+		NestModule.ResetSpawnCounter();
 		Facilities.Clear();
 		StockpileZones.Clear();
 		EconomicDomains.Clear();

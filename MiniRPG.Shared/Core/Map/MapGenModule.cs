@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.World;
@@ -42,6 +43,11 @@ public static class MapGenModule
 	/// </summary>
 	public static void InitializeWorld(GameState state, int? seed = null)
 	{
+		// 清掉跨会话的 static 缓存：DirtyChunkCache 是 SaveModule 持久化产物，
+		// NestSpawnCounter 是 NestModule 自增的 actor id 序列；两者不重置都会污染下一个世界。
+		SaveModule.DirtyChunkCache.Clear();
+		NestModule.ResetSpawnCounter();
+
 		var actualSeed = seed ?? state.WorldSeed;
 		if (state.WorldSeed != actualSeed)
 		{
