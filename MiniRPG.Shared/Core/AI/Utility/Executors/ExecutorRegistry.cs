@@ -53,6 +53,9 @@ public static class ExecutorRegistry
 		Register("mental_break_binge_eat", new MentalBreakBingeEatExecutor());
 		Register("mental_break_flee", new MentalBreakFleeExecutor());
 
+		Register("tend_infant", new TendInfantExecutor());
+		Register("court_mate", new CourtMateExecutor());
+
 		_initialized = true;
 	}
 

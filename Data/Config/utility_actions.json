@@ -390,6 +390,31 @@
       "requiresTarget": false,
       "targetType": "",
       "cooldownTurns": 0
+    },
+    {
+      "id": "tend_infant",
+      "executor": "tend_infant",
+      "bonusScore": 0.5,
+      "considerations": [
+        { "input": "is_carrying_infant", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["demographics", "social"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
+    },
+    {
+      "id": "court_mate",
+      "executor": "court_mate",
+      "bonusScore": 0.25,
+      "considerations": [
+        { "input": "personality_sociability", "curve": { "type": "linear", "slope": 0.6, "offset": 0.2 } },
+        { "input": "awareness_idle", "curve": { "type": "boolean", "trueValue": 1.0, "falseValue": 0.0 } }
+      ],
+      "tags": ["demographics", "social"],
+      "requiresTarget": false,
+      "targetType": "",
+      "cooldownTurns": 0
     }
   ]
 }
