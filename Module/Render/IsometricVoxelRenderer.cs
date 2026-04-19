@@ -8,6 +8,7 @@ using MiniRPG.Core.Health;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 using MiniRPG.Module.Editor;
+using MiniRPG.Module.Render.Surface;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG.Module.Render;
@@ -71,6 +72,9 @@ public partial class IsometricVoxelRenderer
 	private int _spriteCount;
 	private VoxelFaceBatchCanvas? _faceBatchCanvas;
 	private readonly List<FaceSpriteCommand> _faceCommands = [];
+	// Cached delegate so GrassOverlayPass.DrawTopFace can append to _faceCommands
+	// without triggering a per-cell heap allocation; assigned lazily on first use.
+	private Action<Rect2, Vector2, Color, long>? _emitGrassOverlayFace;
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
 	private readonly List<EntityDrawCommand> _entityCommands = [];
 	private readonly ChunkTerrainSurfaceCacheStore _terrainSurfaceCacheStore = new();
@@ -1128,6 +1132,68 @@ public partial class IsometricVoxelRenderer
 			cmd.SortKey));
 	}
 
+	/// <summary>
+	/// Wave 2.2: layer a grass overlay sprite on top of the dirt face when the
+	/// underlying terrain is dirt or grass_block. The overlay shares the atlas
+	/// texture so it folds into the same Godot CanvasItem auto-batch; cover==0
+	/// short-circuits inside <see cref="GrassOverlayPass.DrawTopFace"/>, so we
+	/// only need defensive guards on chunk-level data here.
+	/// </summary>
+	private void TryDrawGrassOverlay(
+		VoxelDrawCommand cmd,
+		ref ChunkCoord? lastChunkCoord,
+		ref ChunkData? lastChunk)
+	{
+		var terrainId = cmd.Terrain.StringId;
+		if (terrainId is not (Terrains.Dirt or Terrains.GrassBlock))
+			return;
+
+		var world = _state.World;
+		if (world == null)
+			return;
+
+		var coord = CoordUtil.WorldToChunk(cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+		if (lastChunkCoord != coord)
+		{
+			lastChunkCoord = coord;
+			lastChunk = world.Chunks.GetOrLoad(coord);
+		}
+
+		var chunk = lastChunk;
+		if (chunk?.GrassCover == null || chunk.GrassCover.Length == 0)
+			return;
+
+		var (lx, ly) = CoordUtil.WorldToLocal(cmd.WorldX, cmd.WorldY);
+		var idx = CoordUtil.LocalIndex(lx, ly);
+		if ((uint)idx >= (uint)chunk.GrassCover.Length)
+			return;
+
+		var cover = chunk.GrassCover[idx];
+
+		// Recompute the dirt face tint so the overlay inherits the same lighting,
+		// vision-band and editor-perspective alpha treatment; ShadowTop should
+		// never coincide with cover>0 (sampler returns 0 when not exposed-to-sky)
+		// but we keep the conditional in case of edge cases / debug ForceMode.On.
+		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
+		if (cmd.ShadowTop)
+			tint = new Color(tint.R * ShadowTopDarken, tint.G * ShadowTopDarken, tint.B * ShadowTopDarken, tint.A);
+		tint = ApplyEditorPerspectiveAlpha(tint, cmd.WorldX, cmd.WorldY, cmd.WorldZ);
+
+		_emitGrassOverlayFace ??= EmitGrassOverlayFaceCommand;
+		var ctx = new GrassOverlayDrawContext(
+			_terrainAtlas,
+			cmd.ScreenPos,
+			tint,
+			cmd.SortKey,
+			_emitGrassOverlayFace);
+		GrassOverlayPass.DrawTopFace(in ctx, cover, cmd.WorldX, cmd.WorldY);
+	}
+
+	private void EmitGrassOverlayFaceCommand(Rect2 region, Vector2 position, Color tint, long sortKey)
+	{
+		_faceCommands.Add(new FaceSpriteCommand(region, position, tint, sortKey));
+	}
+
 	private void DrawLeftSide(VoxelDrawCommand cmd)
 	{
 		if (!_terrainAtlas.TryGetRegions(cmd.Terrain.StringId, out var regions))
@@ -1328,16 +1394,28 @@ public partial class IsometricVoxelRenderer
 	{
 		_faceCommands.Clear();
 
+		// Per-frame "last chunk" cache so the grass-overlay path does not pay a
+		// dict lookup per cell: _drawCommands is sorted by IsoCoordUtil.SortKey
+		// (diagonal-then-depth), so neighbouring entries usually share a chunk.
+		ChunkCoord? lastGrassChunkCoord = null;
+		ChunkData? lastGrassChunk = null;
+
 		for (var i = 0; i < _drawCommands.Count; i++)
 		{
 			var terrain = _drawCommands[i];
 			if (terrain.DrawLeftSide) DrawLeftSide(terrain);
 			if (terrain.DrawRightSide) DrawRightSide(terrain);
-			if (terrain.DrawTop) DrawBlockTop(terrain);
+			if (terrain.DrawTop)
+			{
+				DrawBlockTop(terrain);
+				TryDrawGrassOverlay(terrain, ref lastGrassChunkCoord, ref lastGrassChunk);
+			}
 		}
 
 		// _drawCommands is already in stable painter order; preserve emission order so
 		// same-cell faces keep a deterministic "sides first, top last" layering.
+		// Grass overlay sprites are appended right after each top face, so painter's
+		// algorithm naturally puts the grass on top of the dirt (same atlas → auto-batch).
 		_faceBatchCanvas?.SetCommands(_faceCommands);
 
 		for (var i = 0; i < _entityCommands.Count; i++)
