@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Threading.Tasks;
 using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
-using MiniRPG.Core.Dialog;
 using MiniRPG.Core.Map;
 using MiniRPG.Core.Multiplayer;
 using MiniRPG.Core.World;
@@ -203,10 +202,12 @@ public partial class Main
 		TerrainRegistry.Load("terrains.json");
 		GameLocalizer.CaptureBaseSnapshots();
 		GameLocalizer.ApplyPresetTranslations();
-		DialogPool.Load();
+		MiniRPG.Core.Conversation.ConversationDefLoader.EnsureLoaded();
 		ResAccess.Load();
 		_combatFxRegistry = CombatFxRegistry.Load();
 		PlayerAppearanceCatalog.LoadProjectCatalog();
+		FacePartCatalog.LoadProjectCatalog();
+		MapSpriteTemplateCatalog.LoadProjectCatalog();
 		_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 	}
 
@@ -224,6 +225,8 @@ public partial class Main
 		_consequenceRouter.Register(_actorMemories);
 		_consequenceRouter.Register(_rumorBus);
 		_consequenceRouter.Register(new MiniRPG.Core.Demographics.KinshipLossCapturer());
+		_deathReportRecorder = new MiniRPG.Core.Combat.DeathReportRecorder();
+		_consequenceRouter.Register(_deathReportRecorder);
 		// Inject the same simulation-side modules into the AIDispatcher
 		// ambient context so social InputResolvers can read live state;
 		// without these the AIBehaviorContext.Relationships/ActorMemories/Rumors
@@ -294,6 +297,14 @@ public partial class Main
 		_toastOverlay = new ToastOverlay();
 		_overlayLayer.AddChild(_toastOverlay);
 
+		_playerDeathReportPanel = new MiniRPG.Module.Panel.PlayerDeathReportPanel(
+			onBackToMenu: ShowMainMenuWithCurrentContinue);
+		_overlayLayer.AddChild(_playerDeathReportPanel);
+		_playerDeathPresenter = new PlayerDeathPresenter(
+			getReport: (actorId, currentTurn) => _deathReportRecorder?.GetOrBuildReport(_state, actorId, currentTurn),
+			showReportPanel: (report, isPartyWipe) => _playerDeathReportPanel.ShowReport(report, isPartyWipe),
+			addLog: text => _log?.Add(text));
+
 		_richTooltips = new RichTooltipLayer();
 		_overlayLayer.AddChild(_richTooltips);
 	}
@@ -347,6 +358,9 @@ public partial class Main
 		var characterCreationNode = GetNode<PanelContainer>($"{OverlayRootPath}/CharacterCreationDialog");
 		characterCreationNode.Theme = _uiTheme;
 		_characterCreation = new CharacterCreationModule(characterCreationNode);
+		var characterCustomizationNode = GetNode<PanelContainer>($"{OverlayRootPath}/CharacterCustomizationPanel");
+		characterCustomizationNode.Theme = _uiTheme;
+		_characterCustomization = new CharacterCustomizationPanelModule(characterCustomizationNode);
 		var worldSettingsDialogNode = GetNode<PanelContainer>($"{OverlayRootPath}/WorldSettingsDialog");
 		worldSettingsDialogNode.Theme = _uiTheme;
 		_worldSettingsDialog = new WorldSettingsDialogModule(worldSettingsDialogNode);
@@ -371,7 +385,7 @@ public partial class Main
 		var skillManagerNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/SkillManager");
 		_skillMgr = new SkillManagerModule(skillManagerNode);
 		var inventoryNode = GetNode<PanelContainer>($"{HudRootPath}/TopRow/InventoryPanel");
-		_inventoryPanel = new InventoryPanelModule(inventoryNode, this);
+		_inventoryPanel = new InventoryGridPanelModule(inventoryNode, this);
 		var groundNode = GetNode<PanelContainer>($"{HudRootPath}/GroundPanel");
 		_groundPanel = new GroundPanelModule(groundNode, this);
 
@@ -420,9 +434,38 @@ public partial class Main
 			_worldSettingsDialog,
 			_saveNameDialog,
 			_characterCreation,
+			_characterCustomization,
 			_multiplayerRoomPanel,
 			_settingsFlowModalInput,
 		];
+
+		RegisterPanelTooltips();
+	}
+
+	/// <summary>
+	/// 把 <c>_richTooltips</c> 注入所有实现 <c>ITooltipRegistrar</c> 的常驻面板/HUD。
+	/// 懒加载面板（chest / trade / conversation / quest / debug / actor_inspect / limb_target）
+	/// 由各自的 <c>EnsureXxxPanel</c> 在创建后单独 <c>TryRegisterPanelTooltip</c>。
+	/// </summary>
+	private void RegisterPanelTooltips()
+	{
+		var layer = _richTooltips;
+		if (layer == null)
+			return;
+
+		TryRegisterPanelTooltip(_skillBar, layer);
+		TryRegisterPanelTooltip(_skillMgr, layer);
+		TryRegisterPanelTooltip(_inventoryPanel, layer);
+		TryRegisterPanelTooltip(_groundPanel, layer);
+		TryRegisterPanelTooltip(_partyHud, layer);
+		TryRegisterPanelTooltip(_needsHud, layer);
+		TryRegisterPanelTooltip(_statusPanelModule, layer);
+	}
+
+	private static void TryRegisterPanelTooltip(object? target, RichTooltipLayer layer)
+	{
+		if (target is ITooltipRegistrar registrar)
+			registrar.RegisterTooltips(layer);
 	}
 
 	private void InitializeCoordinators()
@@ -482,8 +525,8 @@ public partial class Main
 			ResetTimelineStatusLog,
 			() =>
 			{
-				if (_dialogUI != null && _dialogUI.InDialog)
-					_dialogUI.CloseDialog();
+				if (_conversationUI != null && _conversationUI.InConversation)
+					_conversationUI.CloseConversation();
 			},
 			() =>
 			{
@@ -657,10 +700,11 @@ public partial class Main
 			PresentActorMotion,
 			HandlePlayerDeath,
 			SetCurrentTarget,
-			CloseDialogPanel,
+			CloseConversationPanel,
 			CloseTradePanel,
 			EnsureTradeUI,
-			EnsureDialogUI,
+			npcId => EnsureConversationUI().OpenForNpc(npcId),
+			() => _conversationUI?.RefreshFromState(),
 			() => _playerRestModeActive = false,
 			showInfoToast: text => _toastOverlay.Show(text),
 			showWarningToast: text => _toastOverlay.ShowWarning(text),
@@ -742,7 +786,7 @@ public partial class Main
 			Ground = _groundPanel,
 			TurnPanel = _turnPanelModule,
 			ChestPanel = _chestPanel,
-			DialogPanel = _dialogPanel,
+			ConversationPanel = _conversationPanel,
 			TradePanel = _tradePanel,
 			QuestPanel = _questPanel,
 			ActorInspectPanel = _actorInspectPanel,
