@@ -14,7 +14,6 @@ internal sealed class WeatherFxController
 	// ── asset paths / constants ──────────────────────────────────────────
 	private const string WeatherAssetRoot = "res://Assets/Art/Placeholders/weather";
 	private const string WeatherScreenShaderPath = "res://Assets/Shaders/weather_screen_fx.gdshader";
-	private const string WeatherRealtimeShaderPath = "res://Assets/Shaders/weather_realtime_fx.gdshader";
 	private const string WeatherScreenFxOverlayName = "WeatherScreenFxOverlay";
 
 	internal static readonly string[] WeatherAssetIds =
@@ -48,8 +47,6 @@ internal sealed class WeatherFxController
 
 	// ── caches / materials ──────────────────────────────────────────────
 	private readonly Dictionary<string, Texture2D> _weatherTextureCache = new(System.StringComparer.OrdinalIgnoreCase);
-	private Texture2D? _weatherFxQuadTexture;
-	private Shader? _weatherFxShader;
 
 	// ── screen FX ───────────────────────────────────────────────────────
 	private ColorRect? _weatherScreenFxOverlay;
@@ -110,8 +107,6 @@ internal sealed class WeatherFxController
 		_weatherFxRoot = weatherFxRoot;
 		_peripheralWeatherFxRoot = peripheralWeatherFxRoot;
 
-		_weatherFxQuadTexture = null;
-		_weatherFxShader = null;
 		_weatherScreenFxShader = ResolveWeatherScreenFxShader();
 		_weatherTextureCache.Clear();
 		_weatherOverlaySprites.Clear();
@@ -242,8 +237,7 @@ internal sealed class WeatherFxController
 			return;
 
 		var hash = ComputeWeatherVisualHash(wx, wy, wz, _state.Turn, (int)sample.Type, (int)sample.Intensity);
-		if (WeatherFxVisualResolver.ResolveWeatherFxVisual(sample, band, hash) is { } weatherFx
-			&& !TryRenderWeatherShaderFx(cell, band, weatherFx, animationClockSeconds))
+		if (WeatherFxVisualResolver.ResolveWeatherFxVisual(sample, band, hash) is { } weatherFx)
 		{
 			var assetId = ResolveLegacyWeatherFxAssetId(sample.Type);
 			if (!string.IsNullOrEmpty(assetId))
@@ -258,8 +252,7 @@ internal sealed class WeatherFxController
 			}
 		}
 
-		if (WeatherFxVisualResolver.ResolveLightningFxVisual(sample, band, hash) is { } lightningFx
-			&& !TryRenderWeatherShaderFx(cell, band, lightningFx, animationClockSeconds))
+		if (WeatherFxVisualResolver.ResolveLightningFxVisual(sample, band, hash) is { } lightningFx)
 		{
 			RenderWeatherTextureSprite(
 				cell,
@@ -287,20 +280,6 @@ internal sealed class WeatherFxController
 
 		var sprite = AcquireWeatherSprite(band, overlay);
 		ConfigureWeatherTextureSprite(sprite, texture, cell, footprintTiles, modulate);
-	}
-
-	private bool TryRenderWeatherShaderFx(
-		Vector2I cell,
-		PlayerVisionBand band,
-		WeatherFxVisualParams visual,
-		double animationClockSeconds)
-	{
-		if (_weatherFxShader == null || _weatherFxQuadTexture == null)
-			return false;
-
-		var sprite = AcquireWeatherSprite(band, overlay: false);
-		ConfigureWeatherFxSprite(sprite, cell, visual, animationClockSeconds);
-		return true;
 	}
 
 	private static string ResolveLegacyWeatherFxAssetId(WeatherType type) => type switch
@@ -331,35 +310,6 @@ internal sealed class WeatherFxController
 		sprite.Visible = true;
 	}
 
-	private void ConfigureWeatherFxSprite(
-		Sprite2D sprite,
-		Vector2I cell,
-		WeatherFxVisualParams visual,
-		double animationClockSeconds)
-	{
-		if (_weatherFxQuadTexture == null || EnsureWeatherFxMaterial(sprite) is not { } material)
-			return;
-
-		sprite.Texture = _weatherFxQuadTexture;
-		sprite.RegionEnabled = false;
-		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
-		sprite.Scale = _tilePixelSize * visual.FootprintTiles;
-		sprite.Position = _cellToLocal(cell);
-		sprite.Modulate = Colors.White;
-		sprite.Visible = true;
-
-		material.SetShaderParameter("mode", (int)visual.Mode);
-		material.SetShaderParameter("intensity", visual.Intensity);
-		material.SetShaderParameter("band_strength", visual.BandStrength);
-		material.SetShaderParameter("time", (float)animationClockSeconds);
-		material.SetShaderParameter("seed", visual.Seed);
-		material.SetShaderParameter("wind_dir", visual.WindDirection);
-		material.SetShaderParameter("coverage_alpha", visual.CoverageAlpha * visual.Alpha);
-		material.SetShaderParameter("tint", visual.Tint);
-		material.SetShaderParameter("density", visual.Density);
-		material.SetShaderParameter("speed", visual.Speed);
-	}
-
 	// ── texture / shader resolution ─────────────────────────────────────
 
 	private Texture2D? ResolveWeatherTexture(string assetId)
@@ -384,38 +334,8 @@ internal sealed class WeatherFxController
 			(_tilePixelSize.Y * footprintTiles) / size.Y);
 	}
 
-	private ShaderMaterial? EnsureWeatherFxMaterial(Sprite2D sprite)
-	{
-		if (_weatherFxShader == null)
-			return null;
-
-		if (sprite.Material is ShaderMaterial material)
-		{
-			if (material.Shader != _weatherFxShader)
-				material.Shader = _weatherFxShader;
-			return material;
-		}
-
-		var created = new ShaderMaterial
-		{
-			Shader = _weatherFxShader,
-		};
-		sprite.Material = created;
-		return created;
-	}
-
-	private static Shader? ResolveWeatherFxShader() =>
-		ResAccess.Get<Shader>(WeatherRealtimeShaderPath);
-
 	private static Shader? ResolveWeatherScreenFxShader() =>
 		ResAccess.Get<Shader>(WeatherScreenShaderPath);
-
-	private static Texture2D ResolveWeatherQuadTexture()
-	{
-		var image = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
-		image.SetPixel(0, 0, Colors.White);
-		return ImageTexture.CreateFromImage(image);
-	}
 
 	// ── screen FX overlay setup ─────────────────────────────────────────
 
