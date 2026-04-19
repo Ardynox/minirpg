@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Godot;
 using MiniRPG.Core.World;
 using MiniRPG.Module.Network;
 
@@ -23,7 +24,14 @@ public partial class Main
 
 	private async void HandleMenuMultiplayer()
 	{
-		await OpenMultiplayerHubAsync(refreshRooms: true);
+		try
+		{
+			await OpenMultiplayerHubAsync(refreshRooms: true);
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMenuMultiplayer failed: {ex}");
+		}
 	}
 
 	private IReadOnlyList<MultiplayerHubTemplateOption> BuildMultiplayerHubTemplates() =>
@@ -69,39 +77,46 @@ public partial class Main
 
 	private async void HandleMultiplayerRoomHostCurrentSessionRequested(MultiplayerRoomHostRequest request)
 	{
-		if (!_session.GameStarted || IsMultiplayerSession)
-			return;
-
-		_multiplayerHubCoordinator.SetRoomPanelBusy(true);
-		_multiplayerHubCoordinator.SetRoomPanelStatus(
-			LocalizationService.TOrFallback("ui.multiplayer.room_panel.status.hosting", "Hosting current session..."),
-			false);
-		RefreshMultiplayerRoomPanelState();
-
-		var snapshot = SaveModule.BuildSnapshot(_state);
-		var result = await _multiplayerFlowCoordinator.CreateSnapshotRoomAsync(new MultiplayerSnapshotRoomCreateRequest
+		try
 		{
-			Settings = _multiplayerFlowCoordinator.CurrentSettings,
-			RoomDisplayName = request.RoomDisplayName,
-			IsPublic = request.IsPublic,
-			Snapshot = snapshot,
-			PrimaryActorId = snapshot.Payload.PlayerId,
-		});
+			if (!_session.GameStarted || IsMultiplayerSession)
+				return;
 
-		_multiplayerHubCoordinator.SetRoomPanelBusy(false);
-		if (!result.Success)
-		{
+			_multiplayerHubCoordinator.SetRoomPanelBusy(true);
 			_multiplayerHubCoordinator.SetRoomPanelStatus(
-				result.FailureReason ?? LocalizationService.TOrFallback(
-					"ui.multiplayer.room_panel.status.host_failed",
-					"Failed to host the current session."),
-				true);
+				LocalizationService.TOrFallback("ui.multiplayer.room_panel.status.hosting", "Hosting current session..."),
+				false);
 			RefreshMultiplayerRoomPanelState();
-			return;
-		}
 
-		CloseMultiplayerRoomPanel();
-		await ActivateMultiplayerSessionAsync(result);
+			var snapshot = SaveModule.BuildSnapshot(_state);
+			var result = await _multiplayerFlowCoordinator.CreateSnapshotRoomAsync(new MultiplayerSnapshotRoomCreateRequest
+			{
+				Settings = _multiplayerFlowCoordinator.CurrentSettings,
+				RoomDisplayName = request.RoomDisplayName,
+				IsPublic = request.IsPublic,
+				Snapshot = snapshot,
+				PrimaryActorId = snapshot.Payload.PlayerId,
+			});
+
+			_multiplayerHubCoordinator.SetRoomPanelBusy(false);
+			if (!result.Success)
+			{
+				_multiplayerHubCoordinator.SetRoomPanelStatus(
+					result.FailureReason ?? LocalizationService.TOrFallback(
+						"ui.multiplayer.room_panel.status.host_failed",
+						"Failed to host the current session."),
+					true);
+				RefreshMultiplayerRoomPanelState();
+				return;
+			}
+
+			CloseMultiplayerRoomPanel();
+			await ActivateMultiplayerSessionAsync(result);
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerRoomHostCurrentSessionRequested failed: {ex}");
+		}
 	}
 
 	private void HandleMultiplayerRoomAssignPrimaryActorRequested(string targetPlayerSessionId, string targetActorId)
@@ -272,49 +287,92 @@ public partial class Main
 
 	private async void HandleMultiplayerHubRefreshRequested(MultiplayerSettings settings)
 	{
-		_multiplayerHub.ApplyState(BuildMultiplayerHubState(
-			busy: true,
-			statusMessage: LocalizationService.TOrFallback(
-				"ui.multiplayer.status.refreshing_rooms",
-				"Refreshing room list..."),
-			statusIsError: false));
 		try
 		{
-			var rooms = await _multiplayerFlowCoordinator.RefreshRoomsAsync(settings);
-			_multiplayerHubCoordinator.SetRooms(rooms);
 			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+				busy: true,
 				statusMessage: LocalizationService.TOrFallback(
-					"ui.multiplayer.status.rooms_ready",
-					"Room list updated."),
+					"ui.multiplayer.status.refreshing_rooms",
+					"Refreshing room list..."),
 				statusIsError: false));
+			try
+			{
+				var rooms = await _multiplayerFlowCoordinator.RefreshRoomsAsync(settings);
+				_multiplayerHubCoordinator.SetRooms(rooms);
+				_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+					statusMessage: LocalizationService.TOrFallback(
+						"ui.multiplayer.status.rooms_ready",
+						"Room list updated."),
+					statusIsError: false));
+			}
+			catch (Exception ex)
+			{
+				_multiplayerHub.ApplyState(BuildMultiplayerHubState(
+					statusMessage: ex.Message,
+					statusIsError: true));
+			}
 		}
 		catch (Exception ex)
 		{
-			_multiplayerHub.ApplyState(BuildMultiplayerHubState(
-				statusMessage: ex.Message,
-				statusIsError: true));
+			GD.PushError($"HandleMultiplayerHubRefreshRequested failed: {ex}");
 		}
 	}
 
-	private async void HandleMultiplayerHubJoinRoomRequested(MultiplayerHubJoinRequest request) =>
-		await ExecuteMultiplayerHubConnectAsync(
-			() => _multiplayerFlowCoordinator.JoinRoomAsync(request),
-			LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+	private async void HandleMultiplayerHubJoinRoomRequested(MultiplayerHubJoinRequest request)
+	{
+		try
+		{
+			await ExecuteMultiplayerHubConnectAsync(
+				() => _multiplayerFlowCoordinator.JoinRoomAsync(request),
+				LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerHubJoinRoomRequested failed: {ex}");
+		}
+	}
 
-	private async void HandleMultiplayerHubJoinByCodeRequested(MultiplayerHubJoinCodeRequest request) =>
-		await ExecuteMultiplayerHubConnectAsync(
-			() => _multiplayerFlowCoordinator.JoinByCodeAsync(request),
-			LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+	private async void HandleMultiplayerHubJoinByCodeRequested(MultiplayerHubJoinCodeRequest request)
+	{
+		try
+		{
+			await ExecuteMultiplayerHubConnectAsync(
+				() => _multiplayerFlowCoordinator.JoinByCodeAsync(request),
+				LocalizationService.TOrFallback("ui.multiplayer.status.joining_room", "Joining room..."));
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerHubJoinByCodeRequested failed: {ex}");
+		}
+	}
 
-	private async void HandleMultiplayerHubCreateRequested(MultiplayerHubCreateRequest request) =>
-		await ExecuteMultiplayerHubConnectAsync(
-			() => _multiplayerFlowCoordinator.CreateTemplateRoomAsync(request),
-			LocalizationService.TOrFallback("ui.multiplayer.status.creating_room", "Creating room..."));
+	private async void HandleMultiplayerHubCreateRequested(MultiplayerHubCreateRequest request)
+	{
+		try
+		{
+			await ExecuteMultiplayerHubConnectAsync(
+				() => _multiplayerFlowCoordinator.CreateTemplateRoomAsync(request),
+				LocalizationService.TOrFallback("ui.multiplayer.status.creating_room", "Creating room..."));
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerHubCreateRequested failed: {ex}");
+		}
+	}
 
-	private async void HandleMultiplayerHubReconnectRequested(MultiplayerSettings _) =>
-		await ExecuteMultiplayerHubConnectAsync(
-			() => _multiplayerFlowCoordinator.ReconnectAsync(),
-			LocalizationService.TOrFallback("ui.multiplayer.status.reconnecting", "Reconnecting to last room..."));
+	private async void HandleMultiplayerHubReconnectRequested(MultiplayerSettings _)
+	{
+		try
+		{
+			await ExecuteMultiplayerHubConnectAsync(
+				() => _multiplayerFlowCoordinator.ReconnectAsync(),
+				LocalizationService.TOrFallback("ui.multiplayer.status.reconnecting", "Reconnecting to last room..."));
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerHubReconnectRequested failed: {ex}");
+		}
+	}
 
 	private async Task ExecuteMultiplayerHubConnectAsync(
 		Func<Task<MultiplayerConnectResult>> connectAsync,
@@ -348,9 +406,16 @@ public partial class Main
 
 	private async void HandleMultiplayerReturnToMenu()
 	{
-		await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
-		CloseMultiplayerRoomPanel();
-		_multiplayerFlowCoordinator.BackToMainMenu();
+		try
+		{
+			await CloseMultiplayerBackendAsync(suppressDisconnectHandling: true);
+			CloseMultiplayerRoomPanel();
+			_multiplayerFlowCoordinator.BackToMainMenu();
+		}
+		catch (Exception ex)
+		{
+			GD.PushError($"HandleMultiplayerReturnToMenu failed: {ex}");
+		}
 	}
 
 	private async Task CloseMultiplayerBackendAsync(bool suppressDisconnectHandling)
