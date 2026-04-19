@@ -23,6 +23,8 @@ public static class WorldDemographicsTick
 			return events;
 
 		state.LastDemographicsDay = currentDay;
+		events.AddRange(LifeStageTransitionService.OnNewDay(state));
+		events.AddRange(InfantCarryModule.OnNewDay(state));
 		events.AddRange(ConceptionBirthTick.OnNewDay(state));
 		return events;
 	}

@@ -130,6 +130,19 @@ public class Actor
 	/// </summary>
 	public GenePool? Genome { get; set; }
 
+	/// <summary>
+	/// 上一次 <c>LifeStageTransitionService</c> 解析过的生命阶段。用于侦测 day boundary
+	/// 上的阶段跨越（Infant→Child / Adult→Elder 等）并 emit lifestage_transition 事件。
+	/// 默认 Adult，避免新建 NPC 默认走"刚出生"路径。
+	/// </summary>
+	public LifeStage LastResolvedLifeStage { get; set; } = LifeStage.Adult;
+
+	/// <summary>谁正抱着我。null = 没人抱。仅 Infant 阶段有意义。</summary>
+	public string? CarriedByActorId { get; set; }
+
+	/// <summary>我正抱着谁。null = 没抱孩子。母亲在 InfantCarryModule.Sync 时被设。</summary>
+	public string? CarriedInfantId { get; set; }
+
 	// ── tag 表计算 ───────────────────────────────────────
 
 	/// <summary>

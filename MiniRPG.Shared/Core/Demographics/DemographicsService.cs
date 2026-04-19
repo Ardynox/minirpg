@@ -21,4 +21,15 @@ public static class DemographicsService
 		actor.PregnancyTicksRemaining is > 0;
 
 	public static int? GetGestationTurns() => LifeStageCatalog.Conception.GestationTurns;
+
+	public static bool IsInfant(Actor actor, GameState state) =>
+		GetStage(actor, state) == LifeStage.Infant;
+
+	public static bool IsCarried(Actor actor) => !string.IsNullOrWhiteSpace(actor.CarriedByActorId);
+
+	public static bool HasCarriedInfant(Actor actor) => !string.IsNullOrWhiteSpace(actor.CarriedInfantId);
+
+	/// <summary>查询某 actor 的所有亲属（父母 / 孩子 / 兄弟姐妹 / 配偶）。委托 <see cref="KinshipModule"/>。</summary>
+	public static System.Collections.Generic.IReadOnlyList<Actor> GetRelatives(Actor actor, GameState state) =>
+		KinshipModule.GetAllRelatives(state, actor);
 }
