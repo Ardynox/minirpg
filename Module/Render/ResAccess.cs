@@ -161,8 +161,13 @@ public static class ResAccess
 				case ResourceLoader.ThreadLoadStatus.Loaded:
 				{
 					var res = ResourceLoader.LoadThreadedGet(path);
-					if (res != null)
-						_cache[path] = res;
+					if (res == null)
+					{
+						GD.PrintErr($"{Tag} 异步加载完成但资源为 null：{path}（不写缓存、不触发回调）");
+						completed.Add(path);
+						break;
+					}
+					_cache[path] = res;
 					foreach (var cb in callbacks)
 					{
 						try { cb(res); }
