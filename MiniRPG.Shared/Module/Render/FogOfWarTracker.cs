@@ -80,8 +80,8 @@ public class FogOfWarTracker
 	{
 		if (state.World == null) return;
 
-		_fullVisible = [];
-		_directionalVisible = [];
+		_fullVisible.Clear();
+		_directionalVisible.Clear();
 
 		var world = state.World;
 		var visionActors = RoomRuntimeModule.GetVisionActors(state, connectedOnly: false);
