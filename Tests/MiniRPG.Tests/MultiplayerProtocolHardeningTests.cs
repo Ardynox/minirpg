@@ -113,4 +113,106 @@ public sealed class MultiplayerProtocolHardeningTests
 		Assert.Equal(ErrorCode.None, ProtocolErrorCodeExtensions.ParseWireCode("not_defined"));
 		Assert.Equal("trade_buy_rejected", ErrorCode.TradeBuyRejected.ToWireCode());
 	}
+
+	// ── P0-8: dirty-packet hardening ─────────────────────────────────────────
+	// A single malformed packet must not bubble an exception up to the
+	// transport poll loop; every JSON entry is expected to swallow malformed
+	// input and return null so the caller can map it to ErrorCode.DeserializationError.
+
+	[Theory]
+	[InlineData(new byte[] { 0x00 })]
+	[InlineData(new byte[] { 0x7B })] // bare "{" — truncated JSON
+	[InlineData(new byte[] { 0x7B, 0x22, 0x6B, 0x69 })] // truncated mid-key
+	[InlineData(new byte[] { 0xFF, 0xFE, 0xFD, 0xFC })] // arbitrary binary garbage
+	public void DeserializeCommand_DirtyPayload_ReturnsNullWithoutThrowing(byte[] payload)
+	{
+		var result = Record.Exception(() => ProtocolSerializer.DeserializeCommand(payload));
+		Assert.Null(result);
+		Assert.Null(ProtocolSerializer.DeserializeCommand(payload));
+	}
+
+	[Theory]
+	[InlineData(new byte[] { 0x00 })]
+	[InlineData(new byte[] { 0x7B })]
+	[InlineData(new byte[] { 0xFF, 0xFE, 0xFD, 0xFC })]
+	public void DeserializeMessage_DirtyPayload_ReturnsNullWithoutThrowing(byte[] payload)
+	{
+		var result = Record.Exception(() => ProtocolSerializer.DeserializeMessage(payload));
+		Assert.Null(result);
+		Assert.Null(ProtocolSerializer.DeserializeMessage(payload));
+	}
+
+	[Fact]
+	public void DeserializeCommand_UnknownEnumValue_ReturnsNullWithoutThrowing()
+	{
+		var json = Encoding.UTF8.GetBytes("{\"kind\":\"NotARealCommandKind\"}");
+
+		Assert.Null(Record.Exception(() => ProtocolSerializer.DeserializeCommand(json)));
+		Assert.Null(ProtocolSerializer.DeserializeCommand(json));
+	}
+
+	[Fact]
+	public void DeserializeMessage_UnknownEnumValue_ReturnsNullWithoutThrowing()
+	{
+		var json = Encoding.UTF8.GetBytes("{\"kind\":\"NotARealMessageKind\"}");
+
+		Assert.Null(Record.Exception(() => ProtocolSerializer.DeserializeMessage(json)));
+		Assert.Null(ProtocolSerializer.DeserializeMessage(json));
+	}
+
+	[Fact]
+	public void DeserializeCommand_KnownKindWithCorruptInnerEnum_ReturnsNullWithoutThrowing()
+	{
+		// Valid kind discriminator but a nested enum field carries garbage —
+		// System.Text.Json throws JsonException with JsonStringEnumConverter.
+		var json = Encoding.UTF8.GetBytes(
+			"{\"kind\":\"chestTake\",\"containerSource\":\"NotARealEnumValue\"}");
+
+		Assert.Null(Record.Exception(() => ProtocolSerializer.DeserializeCommand(json)));
+		Assert.Null(ProtocolSerializer.DeserializeCommand(json));
+	}
+
+	[Fact]
+	public void DeserializeConnectRequest_DirtyPayload_ReturnsNullWithoutThrowing()
+	{
+		var truncated = new byte[] { 0x7B, 0x22, 0x72 };
+		var garbage = new byte[] { 0xFF, 0xFE };
+
+		Assert.Null(Record.Exception(() => ProtocolSerializer.DeserializeConnectRequest(truncated)));
+		Assert.Null(Record.Exception(() => ProtocolSerializer.DeserializeConnectRequest(garbage)));
+		Assert.Null(ProtocolSerializer.DeserializeConnectRequest(truncated));
+		Assert.Null(ProtocolSerializer.DeserializeConnectRequest(garbage));
+	}
+
+	[Fact]
+	public void DeserializeCommand_RandomFuzz_NeverThrows()
+	{
+		// 100 random byte streams of varied length must never bubble an
+		// exception up to the caller — regression for the dirty-packet kill bug.
+		var rng = new System.Random(Seed: 0xC0FFEE);
+		for (var i = 0; i < 100; i++)
+		{
+			var length = rng.Next(0, 256);
+			var payload = new byte[length];
+			rng.NextBytes(payload);
+
+			var result = Record.Exception(() => ProtocolSerializer.DeserializeCommand(payload));
+			Assert.Null(result);
+		}
+	}
+
+	[Fact]
+	public void DeserializeMessage_RandomFuzz_NeverThrows()
+	{
+		var rng = new System.Random(Seed: 0xBADC0DE);
+		for (var i = 0; i < 100; i++)
+		{
+			var length = rng.Next(0, 256);
+			var payload = new byte[length];
+			rng.NextBytes(payload);
+
+			var result = Record.Exception(() => ProtocolSerializer.DeserializeMessage(payload));
+			Assert.Null(result);
+		}
+	}
 }

@@ -164,7 +164,7 @@ public sealed partial class RichTooltipLayer : Control
 		_label.Text = text;
 		// 修：原公式 Math.Min(MaxWidth, Math.Max(160, MaxWidth)) 恒等于 MaxWidth。
 		// 现按文本自然宽度在 [160, MaxWidth] 区间 clamp，让短 tooltip 不强行被拉到 420。
-		var measured = (int)Math.Ceiling(_label.GetContentWidth());
+		var measured = (int)Math.Ceiling((double)_label.GetContentWidth());
 		_label.CustomMinimumSize = new Vector2(Math.Min(MaxWidth, Math.Max(160, measured)), 0);
 		_panel.Visible = true;
 		PositionNearMouse();
