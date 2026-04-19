@@ -207,27 +207,35 @@ public sealed class TurnPanelModule
 		bar.SelfModulate = showBar ? Colors.White : HiddenBarTint;
 	}
 
+	// 缓存两个 chip 样式实例（current / normal），避免每次 FlushIfDirty 都 new StyleBoxFlat。
+	// 参考 SkillBarModule.StyleCache 模式。
+	private static StyleBoxFlat? _currentChipStyle;
+	private static StyleBoxFlat? _normalChipStyle;
+
 	private static void ApplyChipStyle(PanelContainer chip, bool isCurrent)
 	{
-		var style = new StyleBoxFlat
-		{
-			BgColor = isCurrent
-				? new Color(0.18f, 0.15f, 0.08f, 0.9f)
-				: new Color(0.1f, 0.1f, 0.16f, 0.7f),
-			CornerRadiusBottomLeft = 3,
-			CornerRadiusBottomRight = 3,
-			CornerRadiusTopLeft = 3,
-			CornerRadiusTopRight = 3,
-			ContentMarginLeft = 6,
-			ContentMarginRight = 6,
-			ContentMarginTop = 1,
-			ContentMarginBottom = 1,
-			BorderWidthBottom = 2,
-			BorderColor = isCurrent ? UIColors.FocusBorder : Colors.Transparent,
-		};
-
+		var style = isCurrent
+			? (_currentChipStyle ??= BuildChipStyle(isCurrent: true))
+			: (_normalChipStyle ??= BuildChipStyle(isCurrent: false));
 		chip.AddThemeStyleboxOverride("panel", style);
 	}
+
+	private static StyleBoxFlat BuildChipStyle(bool isCurrent) => new()
+	{
+		BgColor = isCurrent
+			? new Color(0.18f, 0.15f, 0.08f, 0.9f)
+			: new Color(0.1f, 0.1f, 0.16f, 0.7f),
+		CornerRadiusBottomLeft = 3,
+		CornerRadiusBottomRight = 3,
+		CornerRadiusTopLeft = 3,
+		CornerRadiusTopRight = 3,
+		ContentMarginLeft = 6,
+		ContentMarginRight = 6,
+		ContentMarginTop = 1,
+		ContentMarginBottom = 1,
+		BorderWidthBottom = 2,
+		BorderColor = isCurrent ? UIColors.FocusBorder : Colors.Transparent,
+	};
 
 	private static (PanelContainer Chip, RichTextLabel Label, ProgressBar Bar) CreateQueueChip()
 	{
