@@ -215,6 +215,10 @@ public partial class IsometricVoxelRenderer
 		_subViewport = subViewport;
 		_camera = camera;
 
+		// 重入时释放旧 GPU 纹理 + 清空缓存，避免新开档累积泄漏
+		DisposeEntityMarkerCache();
+		_facilityFrameBoundsCache.Clear();
+
 		if (playerVisual != null)
 		{
 			playerVisual.Visible = false;
@@ -1865,6 +1869,13 @@ public partial class IsometricVoxelRenderer
 		s.ZIndex = 1;
 		s.Modulate = tint;
 		s.Visible = true;
+	}
+
+	private void DisposeEntityMarkerCache()
+	{
+		foreach (var tex in _entityMarkerCache.Values)
+			tex?.Dispose();
+		_entityMarkerCache.Clear();
 	}
 
 	private ImageTexture GetEntityMarkerTexture(string label)
