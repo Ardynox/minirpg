@@ -796,9 +796,17 @@ public sealed class WorldManagerModule : IModalInputLayer
 		button.AddThemeColorOverride("font_disabled_color", RowDisabledTextColor);
 	}
 
+	// 缓存按 (background, border, borderWidth) 唯一的 StyleBoxFlat 实例。
+	// view refresh 时每行都会调用 4-5 次 CreateRowStyle，list 长度上百时旧版每帧都 new 数百份。
+	private static readonly Dictionary<(Color Bg, Color Border, int Width), StyleBoxFlat> _rowStyleCache = new();
+
 	private static StyleBoxFlat CreateRowStyle(Color background, Color border, int borderWidth)
 	{
-		return new StyleBoxFlat
+		var key = (background, border, borderWidth);
+		if (_rowStyleCache.TryGetValue(key, out var cached))
+			return cached;
+
+		var style = new StyleBoxFlat
 		{
 			BgColor = background,
 			BorderColor = border,
@@ -815,6 +823,8 @@ public sealed class WorldManagerModule : IModalInputLayer
 			CornerRadiusBottomRight = 6,
 			CornerRadiusBottomLeft = 6,
 		};
+		_rowStyleCache[key] = style;
+		return style;
 	}
 
 	private static Button CreateRowButton() => new()
