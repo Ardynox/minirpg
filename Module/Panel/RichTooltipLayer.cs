@@ -27,11 +27,14 @@ public sealed partial class RichTooltipLayer : Control
 	private const double FadeInSec = 0.12;
 
 	private readonly Dictionary<Control, Func<string>> _sources = new();
+	// 存储每个 control 的 lambda 委托引用，Detach 时调用 -= 真正解绑，避免信号堆积。
+	private readonly Dictionary<Control, (Action Enter, Action Exit, Action Exiting)> _signalCallbacks = new();
 
 	private PanelContainer? _panel;
 	private RichTextLabel? _label;
 	private Control? _currentHovered;
-	private SceneTreeTimer? _pendingTimer;
+	// 取代旧的 _pendingTimer 直接持有 timer 实例：每次 HoverStart/HoverEnd/Detach 自增后，旧 timer 的 Timeout 回调通过 guard 早退。
+	private int _hoverGeneration;
 
 	public RichTooltipLayer()
 	{
@@ -89,17 +92,33 @@ public sealed partial class RichTooltipLayer : Control
 		if (wasAttached)
 			return;
 
-		control.MouseEntered += () => OnHoverStart(control);
-		control.MouseExited += () => OnHoverEnd(control);
-		control.TreeExiting += () => Detach(control);
+		Action enter = () => OnHoverStart(control);
+		Action exit = () => OnHoverEnd(control);
+		Action exiting = () => Detach(control);
+		_signalCallbacks[control] = (enter, exit, exiting);
+
+		control.MouseEntered += enter;
+		control.MouseExited += exit;
+		control.TreeExiting += exiting;
 	}
 
 	public void Detach(Control control)
 	{
 		if (control == null) return;
 		_sources.Remove(control);
+		if (_signalCallbacks.Remove(control, out var callbacks)
+			&& GodotObject.IsInstanceValid(control))
+		{
+			control.MouseEntered -= callbacks.Enter;
+			control.MouseExited -= callbacks.Exit;
+			control.TreeExiting -= callbacks.Exiting;
+		}
 		if (_currentHovered == control)
+		{
+			_currentHovered = null;
+			_hoverGeneration++;
 			HideTooltip();
+		}
 	}
 
 	private void OnHoverStart(Control control)
@@ -109,10 +128,13 @@ public sealed partial class RichTooltipLayer : Control
 		var tree = GetTree();
 		if (tree == null) return;
 
-		_pendingTimer = tree.CreateTimer(Delay, processAlways: true);
+		_hoverGeneration++;
+		var myGeneration = _hoverGeneration;
 		var pending = control;
-		_pendingTimer.Timeout += () =>
+		var timer = tree.CreateTimer(Delay, processAlways: true);
+		timer.Timeout += () =>
 		{
+			if (myGeneration != _hoverGeneration) return;
 			if (_currentHovered != pending) return;
 			ShowTooltipFor(pending);
 		};
@@ -123,6 +145,7 @@ public sealed partial class RichTooltipLayer : Control
 		if (_currentHovered == control)
 		{
 			_currentHovered = null;
+			_hoverGeneration++;
 			HideTooltip();
 		}
 	}
@@ -139,7 +162,10 @@ public sealed partial class RichTooltipLayer : Control
 		if (string.IsNullOrWhiteSpace(text)) return;
 
 		_label.Text = text;
-		_label.CustomMinimumSize = new Vector2(Math.Min(MaxWidth, Math.Max(160, MaxWidth)), 0);
+		// 修：原公式 Math.Min(MaxWidth, Math.Max(160, MaxWidth)) 恒等于 MaxWidth。
+		// 现按文本自然宽度在 [160, MaxWidth] 区间 clamp，让短 tooltip 不强行被拉到 420。
+		var measured = (int)Math.Ceiling(_label.GetContentWidth());
+		_label.CustomMinimumSize = new Vector2(Math.Min(MaxWidth, Math.Max(160, measured)), 0);
 		_panel.Visible = true;
 		PositionNearMouse();
 
