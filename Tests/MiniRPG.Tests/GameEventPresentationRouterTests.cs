@@ -178,7 +178,10 @@ public sealed class GameEventPresentationRouterTests
 					EnsureDialogUiCalled = true;
 					throw new InvalidOperationException("Dialog UI should not be opened in this test.");
 				},
-				onPlayerRestCompleted: () => RestCompletedCalls++);
+				onPlayerRestCompleted: () => RestCompletedCalls++,
+				showInfoToast: text => InfoToasts.Add(text),
+				showWarningToast: text => WarningToasts.Add(text),
+				flushMap: () => FlushMapCalls++);
 		}
 
 		public GameState State { get; }
@@ -192,6 +195,9 @@ public sealed class GameEventPresentationRouterTests
 		public List<GameEvent> MotionEvents { get; } = [];
 		public List<string> DeathReasons { get; } = [];
 		public List<Actor> CurrentTargets { get; } = [];
+		public List<string> InfoToasts { get; } = [];
+		public List<string> WarningToasts { get; } = [];
+		public int FlushMapCalls { get; private set; }
 		public bool EnsureTradeUiCalled { get; private set; }
 		public bool EnsureDialogUiCalled { get; private set; }
 		public int CloseDialogCalls { get; private set; }
