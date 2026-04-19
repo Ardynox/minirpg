@@ -110,6 +110,39 @@ public sealed class DebugModuleTests
 	}
 
 	[Fact]
+	public void GrassDebugHooks_HaveExpectedDefaultsAndAreSettable()
+	{
+		var savedShow = DebugModule.ShowGrassCover;
+		var savedForce = DebugModule.ForceGrassOverlay;
+		var savedThreshold = DebugModule.GrassDensityThreshold;
+		var savedVariant = DebugModule.GrassVariantOverride;
+		try
+		{
+			Assert.False(savedShow);
+			Assert.Equal(GrassOverlayForceMode.Auto, savedForce);
+			Assert.Equal((byte)0, savedThreshold);
+			Assert.Equal(-1, savedVariant);
+
+			DebugModule.ShowGrassCover = true;
+			DebugModule.ForceGrassOverlay = GrassOverlayForceMode.Off;
+			DebugModule.GrassDensityThreshold = 128;
+			DebugModule.GrassVariantOverride = 3;
+
+			Assert.True(DebugModule.ShowGrassCover);
+			Assert.Equal(GrassOverlayForceMode.Off, DebugModule.ForceGrassOverlay);
+			Assert.Equal((byte)128, DebugModule.GrassDensityThreshold);
+			Assert.Equal(3, DebugModule.GrassVariantOverride);
+		}
+		finally
+		{
+			DebugModule.ShowGrassCover = savedShow;
+			DebugModule.ForceGrassOverlay = savedForce;
+			DebugModule.GrassDensityThreshold = savedThreshold;
+			DebugModule.GrassVariantOverride = savedVariant;
+		}
+	}
+
+	[Fact]
 	public void PlaceFacility_CreatesBlueprint_AndStatusSummaryReflectsIt()
 	{
 		var (state, player) = CreateDebugState();

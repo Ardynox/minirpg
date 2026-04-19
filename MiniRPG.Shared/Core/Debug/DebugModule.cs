@@ -264,6 +264,33 @@ public static class DebugModule
 
 	public static bool IsSurfaceFreeMoveEnabled(GameState state) => state.RuntimeSurfaceFreeMove;
 
+	// ── 草地 overlay 调试钩子（Wave 2.3） ──
+	// 进程级 visual flag，不入存档、不走多人同步；与 SurfaceFreeMove 不同，无需依赖 GameState。
+	// Wave 2.2 接 OverlayPass 到 IsometricVoxelRenderer 时读取这 4 个钩子做相应分支。
+
+	/// <summary>
+	/// 开启后由渲染器在土块顶面叠加密度色阶 / 数字，便于检视 GrassCover 分布。默认关。
+	/// </summary>
+	public static bool ShowGrassCover { get; set; }
+
+	/// <summary>
+	/// 强制覆盖 chunk.GrassCover 数据：
+	/// <see cref="GrassOverlayForceMode.Auto"/> 走真实数据；
+	/// <see cref="GrassOverlayForceMode.On"/> 全部视为 255；
+	/// <see cref="GrassOverlayForceMode.Off"/> 跳过 overlay。默认 Auto。
+	/// </summary>
+	public static GrassOverlayForceMode ForceGrassOverlay { get; set; } = GrassOverlayForceMode.Auto;
+
+	/// <summary>
+	/// 渲染器侧的密度阈值；cover &lt; 阈值时不画。默认 0（不裁剪）。
+	/// </summary>
+	public static byte GrassDensityThreshold { get; set; }
+
+	/// <summary>
+	/// 强制全部使用同一变体编号（&gt;= 0），便于检视单张贴图。-1 表示按 (wx,wy) 哈希正常分布。默认 -1。
+	/// </summary>
+	public static int GrassVariantOverride { get; set; } = -1;
+
 	public static Result MoveDownFloor(GameState state, IDebugSessionActions session)
 	{
 		if (ActorModule.GetPlayer(state) == null)
