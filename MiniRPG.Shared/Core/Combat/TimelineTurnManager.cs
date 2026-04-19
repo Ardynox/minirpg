@@ -24,6 +24,15 @@ public enum TimelinePlayerActionType
 	FacilityDeliver,
 	FacilityConstruct,
 	Climb,
+	/// <summary>
+	/// 把一具尸体（<see cref="TimelinePlayerAction.TargetItemId"/>）按 <see cref="TimelinePlayerAction.SkillId"/>
+	/// 给定的 method（<c>magic</c> / <c>tech</c> / <c>divine</c>）尝试复活。每次提交消耗一回合；
+	/// 多回合施法由 <c>Revival.Channel</c> Buff 记进度，Buff 在每次 Revive 提交时手动 -1，
+	/// 减到 0 时本轮调 <see cref="MiniRPG.Core.Revival.ReviveService.TryRevive"/> 真正完成。
+	/// 走 <see cref="MiniRPG.Module.TimelineTurnGateway"/> 提交，确保复活不再"瞬时"，
+	/// 对齐《产品愿景》死亡-复活段第 2 条"复活施法/设施需要时间"。
+	/// </summary>
+	Revive,
 }
 
 public sealed class TimelinePlayerAction
@@ -162,6 +171,20 @@ public sealed class TimelinePlayerAction
 
 	public static TimelinePlayerAction Climb(int dz) =>
 		new(TimelinePlayerActionType.Climb, dz: dz);
+
+	/// <summary>
+	/// 复活动作。每次提交消耗一回合：
+	/// 第一次提交开始仪式（在 reviver 上挂 <c>Revival.RitualBuffId</c> Buff，<c>RemainingTurns</c>
+	/// = methodConfig.ChannelTurns - 1，发 <c>revival_ritual_started</c> 事件）；
+	/// 后续每次提交 -1 并发 <c>revival_ritual_progress</c>；
+	/// 最后一次（buff 计 0 时）调 <see cref="MiniRPG.Core.Revival.ReviveService.TryRevive"/>
+	/// 真正完成或失败，事件由 ReviveService 提供。
+	/// </summary>
+	public static TimelinePlayerAction Revive(string corpseItemInstanceId, string methodId) =>
+		new(
+			TimelinePlayerActionType.Revive,
+			skillId: methodId,
+			targetItemId: corpseItemInstanceId);
 }
 
 public sealed class TimelineActorState
@@ -664,6 +687,8 @@ public static class TimelineTurnManager
 				return TryExecuteFacilityConstruct(state, player, action, events);
 			case TimelinePlayerActionType.Climb:
 				return TryExecuteClimb(state, player, action, events);
+			case TimelinePlayerActionType.Revive:
+				return TryExecuteRevive(state, player, action, events);
 			default:
 				return PlayerActionOutcome.Failed;
 		}
@@ -926,6 +951,117 @@ public static class TimelineTurnManager
 		}
 
 		return PlayerActionOutcome.Failed;
+	}
+
+	/// <summary>
+	/// 复活动作。每次提交消耗 1 timeline charge，把复活仪式按
+	/// <see cref="MiniRPG.Core.Revival.RevivalCostModel.GetChannelTurns"/> 拆成多回合：
+	/// 第一次提交挂 ritual buff、发 started 事件；中间每次提交 -1 + 发 progress；
+	/// 最后一次（buff RemainingTurns 减到 1）真正调 ReviveService.TryRevive 把 success/failure 事件 + 副作用
+	/// 落盘并移除 buff。
+	///
+	/// 重要：buff 的 RemainingTurns 字段在 <see cref="Actor.TickBuffs"/> 里会自动 -1。
+	/// 为了让"channel 计数"只在玩家持续提交 Revive 动作时推进（不是被动消逝），本方法
+	/// 不在仪式状态调用 player.TickBuffs，并显式手动减 ritual buff 的 RemainingTurns。
+	/// </summary>
+	private static PlayerActionOutcome TryExecuteRevive(
+		GameState state,
+		Actor player,
+		TimelinePlayerAction action,
+		List<GameEvent> events)
+	{
+		var corpseInstanceId = action.TargetItemId;
+		var methodId = action.SkillId;
+		if (string.IsNullOrEmpty(corpseInstanceId) || string.IsNullOrEmpty(methodId))
+			return PlayerActionOutcome.Failed;
+
+		var method = MiniRPG.Core.Revival.RevivalCostModel.GetMethod(methodId);
+		if (method == null)
+		{
+			events.Add(new GameEvent("revival_failed")
+			{
+				EffectType = methodId,
+				ActionName = MiniRPG.Core.Revival.ReviveService.FailureReasons.UnknownMethod,
+			});
+			IdentificationModule.PopulateInitiatorIdentity(events[^1], state, player);
+			return PlayerActionOutcome.ConsumedTurn;
+		}
+
+		var corpse = FindNearbyCorpse(state, player, corpseInstanceId);
+		if (corpse == null)
+		{
+			events.Add(new GameEvent("revival_failed")
+			{
+				EffectType = methodId,
+				ActionName = MiniRPG.Core.Revival.ReviveService.FailureReasons.NotACorpse,
+			});
+			IdentificationModule.PopulateInitiatorIdentity(events[^1], state, player);
+			return PlayerActionOutcome.ConsumedTurn;
+		}
+
+		var ritualBuff = player.Buffs.FirstOrDefault(b =>
+			string.Equals(b.Id, RevivalRitualBuffId, System.StringComparison.Ordinal));
+		var channelTurns = Math.Max(1, method.ChannelTurns);
+
+		if (ritualBuff == null)
+		{
+			ritualBuff = new Buff
+			{
+				Id = RevivalRitualBuffId,
+				Name = "Revival ritual",
+				RemainingTurns = channelTurns,
+				Tags = new Dictionary<string, int>(System.StringComparer.Ordinal),
+			};
+			player.AddBuff(ritualBuff);
+
+			var startedEvent = new GameEvent("revival_ritual_started")
+			{
+				EffectType = methodId,
+				ActionName = corpseInstanceId,
+				Damage = channelTurns,
+			};
+			IdentificationModule.PopulateInitiatorIdentity(startedEvent, state, player);
+			events.Add(startedEvent);
+		}
+
+		ritualBuff.RemainingTurns = Math.Max(0, ritualBuff.RemainingTurns - 1);
+
+		if (ritualBuff.RemainingTurns > 0)
+		{
+			var progressEvent = new GameEvent("revival_ritual_progress")
+			{
+				EffectType = methodId,
+				ActionName = corpseInstanceId,
+				Damage = ritualBuff.RemainingTurns,
+			};
+			IdentificationModule.PopulateInitiatorIdentity(progressEvent, state, player);
+			events.Add(progressEvent);
+			return PlayerActionOutcome.ConsumedTurn;
+		}
+
+		// channel 完毕：把仪式 buff 撤掉，调 ReviveService 拍板。
+		player.RemoveBuff(RevivalRitualBuffId);
+		var outcome = MiniRPG.Core.Revival.ReviveService.TryRevive(state, corpse, player, methodId, state.Turn);
+		events.AddRange(outcome.Events);
+		return PlayerActionOutcome.ConsumedTurn;
+	}
+
+	private const string RevivalRitualBuffId = "revival_ritual";
+
+	/// <summary>
+	/// 当前只找 player 自己背包里的尸体物品。
+	/// 留地面 corpse / 容器内 corpse 给上层（设施 worker / 技能 executor）：
+	/// 它们应在调用 Revive 之前先把 corpse 拉进 inventory，或自行实现 ground lookup。
+	/// </summary>
+	private static Item? FindNearbyCorpse(GameState state, Actor player, string corpseInstanceId)
+	{
+		foreach (var item in player.Inventory)
+		{
+			if (string.Equals(item.InstanceId, corpseInstanceId, System.StringComparison.Ordinal)
+				&& item.Corpse != null)
+				return item;
+		}
+		return null;
 	}
 
 	private static void FinalizeConsumedAction(
