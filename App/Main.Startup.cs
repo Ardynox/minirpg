@@ -307,6 +307,10 @@ public partial class Main
 
 		_richTooltips = new RichTooltipLayer();
 		_overlayLayer.AddChild(_richTooltips);
+
+		// 启动条按钮在 BindPanelLauncherBar 时设了原生 TooltipText 作 fallback；
+		// 此处 _richTooltips 创建好后再升级为富文本（Attach 会自动清空原生 TooltipText）。
+		BindPanelLauncherRichTooltips();
 	}
 
 	private void InitializePanelsAndChrome()
