@@ -308,7 +308,7 @@ public static class SurgeryModule
 			return CreateFailure(state, surgeon, skill, target: target, reason: "invalid_target");
 
 		if (target.Limbs.FirstOrDefault(existing => string.Equals(existing.Id, limbId, StringComparison.Ordinal)) is { } existingLimb)
-			RemoveLiveLimb(state, target, existingLimb, events: null);
+			RemoveLiveLimb(state, target, existingLimb, events: null, attacker: surgeon);
 
 		var replacement = PresetDB.CloneLimb(metadata.ReplacementLimbPresetId);
 		replacement.Id = limbId;
@@ -361,7 +361,7 @@ public static class SurgeryModule
 			return CreateFailure(state, surgeon, skill, target: target, reason: "invalid_target");
 
 		var result = new ActionExecutionResult { Consumed = true };
-		RemoveLiveLimb(state, target, targetLimb, result.Events);
+		RemoveLiveLimb(state, target, targetLimb, result.Events, attacker: surgeon);
 		InventoryModule.Add(surgeon, harvested);
 
 		var evt = new GameEvent(LiveHarvestedEventType)
@@ -416,7 +416,7 @@ public static class SurgeryModule
 		return corpse;
 	}
 
-	private static void RemoveLiveLimb(GameState state, Actor target, Limb targetLimb, List<GameEvent>? events)
+	private static void RemoveLiveLimb(GameState state, Actor target, Limb targetLimb, List<GameEvent>? events, Actor? attacker)
 	{
 		HealthSystem.AddOrUpdateInjury(
 			target,
@@ -463,6 +463,8 @@ public static class SurgeryModule
 				TargetZ = target.Z,
 			};
 			IdentificationModule.PopulateTargetIdentity(deathEvent, state, target);
+			if (attacker != null && !string.Equals(attacker.Id, target.Id, StringComparison.Ordinal))
+				IdentificationModule.PopulateInitiatorIdentity(deathEvent, state, attacker);
 			events?.Add(deathEvent);
 			TrySpawnCorpseOnDeath(state, target, events ?? [], fatalCause);
 			ActorModule.Remove(state, target.Id);
@@ -478,6 +480,8 @@ public static class SurgeryModule
 				TargetZ = target.Z,
 			};
 			IdentificationModule.PopulateTargetIdentity(killedEvent, state, target);
+			if (attacker != null && !string.Equals(attacker.Id, target.Id, StringComparison.Ordinal))
+				IdentificationModule.PopulateInitiatorIdentity(killedEvent, state, attacker);
 			events?.Add(killedEvent);
 			TrySpawnCorpseOnDeath(state, target, events ?? [], "actor_killed");
 			ActorModule.Remove(state, target.Id);

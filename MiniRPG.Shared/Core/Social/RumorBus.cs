@@ -177,9 +177,13 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 	}
 
 	// CombatModule / SurgeryModule emit "actor_killed" with the victim
-	// identity populated but no InitiatorId. Subject of the rumor is the
-	// victim — every nearby NPC that queries audible rumors next turn will
-	// pick it up as a CasualtyReported signal anchored at the death cell.
+	// identity populated; the InitiatorId is populated when the death has
+	// an identifiable killer (combat / live-harvest), and absent for
+	// environmental / surgery-side-effect deaths. We always anchor a
+	// CasualtyReported rumor at the death cell with the victim as subject;
+	// when the killer is known we additionally emit an AttackWitnessed
+	// rumor with the killer as subject and full credibility — this is the
+	// channel NPCs use to point at "the one who did it" later.
 	private void HandleActorKilled(GameEvent ev)
 	{
 		if (string.IsNullOrWhiteSpace(ev.TargetId)) return;
@@ -190,5 +194,16 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 			sourceX: ev.TargetX,
 			sourceY: ev.TargetY,
 			sourceZ: ev.TargetZ);
+
+		if (!string.IsNullOrWhiteSpace(ev.InitiatorId))
+		{
+			Emit(
+				subjectId: ev.InitiatorId!,
+				kind: RumorKind.AttackWitnessed,
+				sourceX: ev.TargetX,
+				sourceY: ev.TargetY,
+				sourceZ: ev.TargetZ,
+				credibility: 1.0f);
+		}
 	}
 }

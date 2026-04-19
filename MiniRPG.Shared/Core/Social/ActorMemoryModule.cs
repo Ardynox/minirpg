@@ -23,6 +23,8 @@ public enum ActorMemoryKind
 	BetrayalBy,
 	/// <summary>Remembered as someone whose death we witnessed.</summary>
 	CasualtyWitnessed,
+	/// <summary>Remembered as someone who killed an actor we know of (we saw them do it).</summary>
+	KilledBy,
 }
 
 /// <summary>
@@ -59,6 +61,9 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 
 	/// <summary>Strength of the memory written for bystanders of a death.</summary>
 	public const float CasualtyWitnessedMemoryStrength = 0.4f;
+
+	/// <summary>Strength of the memory written for bystanders that identify the killer.</summary>
+	public const float KilledByMemoryStrength = 1.0f;
 
 	/// <summary>Chebyshev radius (same Z) within which an actor is considered to have witnessed a casualty.</summary>
 	public const int CasualtyWitnessRadius = 8;
@@ -210,13 +215,12 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 			new ActorMemory(ev.InitiatorId!, ActorMemoryKind.HostileAttackBy, HostileAttackMemoryStrength));
 	}
 
-	// "actor_killed" is currently emitted without an InitiatorId (Combat /
-	// Surgery only set TargetId / TargetX/Y/Z), so we cannot record a
-	// per-killer grudge here. What we CAN do is mark every nearby actor as
-	// a witness to the casualty — once the InputResolver / utility action
-	// reads this they can react to seeing a death even without knowing who
-	// caused it. The killer-attribution path lands when CombatModule starts
-	// populating InitiatorId on the kill event.
+	// Every actor on the same Z-layer within Chebyshev <= CasualtyWitnessRadius
+	// gets a CasualtyWitnessed memory anchored on the victim. When CombatModule /
+	// SurgeryModule populate InitiatorId on the kill event we ALSO write a
+	// stronger KilledBy memory anchored on the killer for the same set of
+	// witnesses; the killer themselves is excluded so they don't grow a memory
+	// of their own actions.
 	private void HandleActorKilled(GameState state, GameEvent ev)
 	{
 		if (state == null) return;
@@ -226,6 +230,7 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 		var deathY = ev.TargetY;
 		var deathZ = ev.TargetZ;
 		var victimId = ev.TargetId!;
+		var killerId = string.IsNullOrWhiteSpace(ev.InitiatorId) ? null : ev.InitiatorId;
 
 		foreach (var actor in state.Actors.Values)
 		{
@@ -238,6 +243,13 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 			Record(
 				actor.Id,
 				new ActorMemory(victimId, ActorMemoryKind.CasualtyWitnessed, CasualtyWitnessedMemoryStrength));
+
+			if (killerId != null && !string.Equals(actor.Id, killerId, StringComparison.Ordinal))
+			{
+				Record(
+					actor.Id,
+					new ActorMemory(killerId, ActorMemoryKind.KilledBy, KilledByMemoryStrength));
+			}
 		}
 	}
 }

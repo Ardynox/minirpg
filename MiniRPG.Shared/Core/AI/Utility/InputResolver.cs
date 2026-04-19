@@ -546,7 +546,15 @@ public static class InputResolver
 			if (ctx.TargetActor == null) return 0f;
 			var module = ctx.BehaviorContext?.ActorMemories;
 			if (module == null) return 0f;
-			return Clamp01(module.SumStrength(ctx.Self.Id, ctx.TargetActor.Id, ActorMemoryKind.HostileAttackBy));
+			// Fear-flavoured memories aggregate: someone who has attacked
+			// us, betrayed us, or whom we saw kill someone all push the
+			// "I'm afraid of this person" signal up the same axis.
+			var observerId = ctx.Self.Id;
+			var subjectId = ctx.TargetActor.Id;
+			var sum = module.SumStrength(observerId, subjectId, ActorMemoryKind.HostileAttackBy)
+				+ module.SumStrength(observerId, subjectId, ActorMemoryKind.BetrayalBy)
+				+ module.SumStrength(observerId, subjectId, ActorMemoryKind.KilledBy);
+			return Clamp01(sum);
 		};
 
 		_resolvers["MemoryDebtOwedTo<target>"] = static ctx =>

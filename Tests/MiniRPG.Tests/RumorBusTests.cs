@@ -192,6 +192,58 @@ public sealed class RumorBusTests
 	}
 
 	[Fact]
+	public void OnEvent_ActorKilled_WithInitiator_EmitsCasualtyAndAttackWitnessed()
+	{
+		var bus = new RumorBus();
+		var ev = new GameEvent("actor_killed")
+		{
+			InitiatorId = "raider_7",
+			InitiatorFaction = Factions.Hostile,
+			TargetId = "villager_3",
+			TargetFaction = Factions.Player,
+			TargetX = 7,
+			TargetY = 9,
+			TargetZ = 1,
+			Damage = 5,
+		};
+
+		bus.OnEvent(new GameState(), ev);
+
+		Assert.Equal(2, bus.Active.Count);
+		var casualty = bus.Active.Single(r => r.Kind == RumorKind.CasualtyReported);
+		Assert.Equal("villager_3", casualty.SubjectId);
+		Assert.Equal(7, casualty.SourceX);
+		Assert.Equal(9, casualty.SourceY);
+		Assert.Equal(1, casualty.SourceZ);
+
+		var attack = bus.Active.Single(r => r.Kind == RumorKind.AttackWitnessed);
+		Assert.Equal("raider_7", attack.SubjectId);
+		Assert.Equal(7, attack.SourceX);
+		Assert.Equal(9, attack.SourceY);
+		Assert.Equal(1, attack.SourceZ);
+		Assert.Equal(1.0f, attack.Credibility, 3);
+	}
+
+	[Fact]
+	public void OnEvent_ActorKilled_BlankInitiator_OnlyEmitsCasualtyReported()
+	{
+		var bus = new RumorBus();
+		var ev = new GameEvent("actor_killed")
+		{
+			InitiatorId = string.Empty,
+			TargetId = "wolf_1",
+			TargetX = 3,
+			TargetY = 4,
+			TargetZ = 0,
+		};
+
+		bus.OnEvent(new GameState(), ev);
+
+		Assert.Single(bus.Active);
+		Assert.Equal(RumorKind.CasualtyReported, bus.Active[0].Kind);
+	}
+
+	[Fact]
 	public void Tick_ReducesCredibility()
 	{
 		var bus = new RumorBus();

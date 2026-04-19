@@ -152,6 +152,54 @@ public sealed class CombatModuleTests
 		Assert.Contains(player.Buffs, b => b.Tags.ContainsKey("blocking"));
 	}
 
+	[Fact]
+	public void Attack_KillingBlow_PopulatesInitiatorIdOnActorKilledEvent()
+	{
+		var (state, player, enemy) = SkillCastingTestHelper.CreateCombatState();
+		var action = new InteractionDef { Id = "punch", Name = "Punch", Power = 3, EffectType = "melee_attack" };
+		// Strip every existing vital tag so that destroying any single limb
+		// makes IsDead true; then mark exactly the limb we'll attack so the
+		// vital pick is deterministic.
+		foreach (var l in enemy.Limbs)
+		{
+			l.Tags.Remove(CombatModule.VitalTag);
+			l.Tags.Remove("\u8981\u5bb3");
+		}
+		var vital = enemy.Limbs[0];
+		vital.Tags[CombatModule.VitalTag] = 1;
+		vital.MaxDurability = 1;
+		vital.Durability = 1;
+
+		var events = CombatModule.Attack(state, player, enemy, action, vital);
+
+		var killed = events.FirstOrDefault(e => e.Type == "actor_killed");
+		Assert.NotNull(killed);
+		Assert.Equal(player.Id, killed!.InitiatorId);
+		Assert.Equal(enemy.Id, killed.TargetId);
+	}
+
+	[Fact]
+	public void ApplyEnvironmentalDamage_LethalBlow_LeavesInitiatorIdEmpty()
+	{
+		var (state, _, enemy) = SkillCastingTestHelper.CreateCombatState();
+		foreach (var l in enemy.Limbs)
+		{
+			l.Tags.Remove(CombatModule.VitalTag);
+			l.Tags.Remove("\u8981\u5bb3");
+		}
+		var vital = enemy.Limbs[0];
+		vital.Tags[CombatModule.VitalTag] = 1;
+		vital.MaxDurability = 1;
+		vital.Durability = 1;
+
+		var events = CombatModule.ApplyEnvironmentalDamage(state, enemy, vital, 5, "fire");
+
+		var killed = events.FirstOrDefault(e => e.Type == "actor_killed");
+		Assert.NotNull(killed);
+		Assert.True(string.IsNullOrEmpty(killed!.InitiatorId));
+		Assert.Equal(enemy.Id, killed.TargetId);
+	}
+
 	// ── CheckVitalStatus ─────────────────────────────────
 
 	[Fact]

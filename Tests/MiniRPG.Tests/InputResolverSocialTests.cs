@@ -151,19 +151,49 @@ public sealed class InputResolverSocialTests
 	}
 
 	[Fact]
-	public void MemoryFearTowards_SumsHostileAttackByEntries()
+	public void MemoryFearTowards_SumsFearFlavoredEntries()
 	{
 		var state = new GameState();
 		var module = new ActorMemoryModule();
-		module.Record("a", new ActorMemory("b", ActorMemoryKind.HostileAttackBy, 0.3f));
-		module.Record("a", new ActorMemory("b", ActorMemoryKind.HostileAttackBy, 0.4f));
-		// Different kind / different subject must not contribute.
-		module.Record("a", new ActorMemory("b", ActorMemoryKind.BetrayalBy, 0.5f));
+		// HostileAttackBy + BetrayalBy + KilledBy all aggregate into the
+		// same fear axis. Different subject / unrelated kind must NOT
+		// contribute.
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.HostileAttackBy, 0.2f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.HostileAttackBy, 0.1f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.BetrayalBy, 0.15f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.KilledBy, 0.25f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.DebtOwedTo, 0.5f));
 		module.Record("a", new ActorMemory("c", ActorMemoryKind.HostileAttackBy, 0.6f));
 		var ctx = MakeContext(MakeActor("a"), MakeActor("b"),
 			new AIBehaviorContext(state) { ActorMemories = module }, state);
 
 		Assert.Equal(0.7f, InputResolver.Resolve("MemoryFearTowards<target>", ctx), 3);
+	}
+
+	[Fact]
+	public void MemoryFearTowards_KilledByAlone_Contributes()
+	{
+		var state = new GameState();
+		var module = new ActorMemoryModule();
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.KilledBy, 0.5f));
+		var ctx = MakeContext(MakeActor("a"), MakeActor("b"),
+			new AIBehaviorContext(state) { ActorMemories = module }, state);
+
+		Assert.Equal(0.5f, InputResolver.Resolve("MemoryFearTowards<target>", ctx), 3);
+	}
+
+	[Fact]
+	public void MemoryFearTowards_OverflowingSum_IsClampedToOne()
+	{
+		var state = new GameState();
+		var module = new ActorMemoryModule();
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.HostileAttackBy, 0.6f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.BetrayalBy, 0.6f));
+		module.Record("a", new ActorMemory("b", ActorMemoryKind.KilledBy, 0.6f));
+		var ctx = MakeContext(MakeActor("a"), MakeActor("b"),
+			new AIBehaviorContext(state) { ActorMemories = module }, state);
+
+		Assert.Equal(1f, InputResolver.Resolve("MemoryFearTowards<target>", ctx), 3);
 	}
 
 	// ── MemoryDebtOwedTo<target> ────────────────────────────────────

@@ -80,7 +80,7 @@ public static class CombatModule
 			}
 		}
 
-		AppendDamageOutcome(state, target, targetLimb, events);
+		AppendDamageOutcome(state, target, targetLimb, events, attacker);
 		return events;
 	}
 
@@ -113,7 +113,7 @@ public static class CombatModule
 			damage,
 			damageType,
 			events);
-		AppendDamageOutcome(state, target, targetLimb, events);
+		AppendDamageOutcome(state, target, targetLimb, events, attacker: null);
 		return events;
 	}
 
@@ -244,7 +244,7 @@ public static class CombatModule
 		return limb == null ? null : (action, limb);
 	}
 
-	private static void AppendDamageOutcome(GameState state, Actor target, Limb targetLimb, List<GameEvent> events)
+	private static void AppendDamageOutcome(GameState state, Actor target, Limb targetLimb, List<GameEvent> events, Actor? attacker)
 	{
 		if (targetLimb.Durability > 0)
 			return;
@@ -309,6 +309,8 @@ public static class CombatModule
 				Damage = goldDrop,
 			};
 			IdentificationModule.PopulateTargetIdentity(killedEvent, state, target);
+			if (attacker != null && !string.Equals(attacker.Id, target.Id, StringComparison.Ordinal))
+				IdentificationModule.PopulateInitiatorIdentity(killedEvent, state, attacker);
 			SurgeryModule.TrySpawnCorpseOnDeath(state, target, events, killedEvent.Type);
 			ActorModule.Remove(state, target.Id);
 			events.Add(killedEvent);
