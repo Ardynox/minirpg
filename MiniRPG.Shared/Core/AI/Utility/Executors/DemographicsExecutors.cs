@@ -1,27 +1,81 @@
 using System;
+using System.Collections.Generic;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Data;
 using MiniRPG.Core.Health;
+using MiniRPG.Core.Needs;
 using MiniRPG.Core.World;
 
 namespace MiniRPG.Core.AI.Utility;
 
 /// <summary>
-/// 母亲（或父亲）抱着 carriedInfant 时专心待命：消耗一个回合做"抚育"动作。
-/// 等价于 IdleExecutor 的语义但 action id / 名字独立，让玩家在 inspect 看到
-/// "她在抚育婴儿"而不是 idle / wander。
+/// 母亲（或父亲）抱着 carriedInfant 时的"喂养 + 安抚"组合动作：
+/// 1. 占用一个回合做抚育（消耗 turn）。
+/// 2. 如果背包里有食物，消耗 1 份 → 提升 carriedInfant 的 baby_food need
+///    （nutrition×20 算法，与 NeedActionModule.ConsumeFood 对齐）。
+/// 3. 婴儿不在 state（已死 / 已脱离）→ no-op，让 utility 重新选别的 action。
+///
+/// 没食物时仍 Consumed=true 占用回合（"安抚但没奶"），让动作分数曲线不
+/// 来回切换；UI 看到的状态行（status text）能稳定显示 "(carrying infant)"。
 /// </summary>
 public sealed class TendInfantExecutor : IUtilityExecutor
 {
+	public const int DefaultBabyFoodPerFood = 30;
+
 	public ActionExecutionResult Execute(GameState state, Actor actor, Perception perception, UtilityEvalResult eval)
 	{
-		_ = state;
 		_ = perception;
 		_ = eval;
-		// 真实"喂养"行为（消耗食物 / 提升婴儿 BabyFood need）等 NeedSystem.BabyFood
-		// 系统接通后再补；现在 Phase 6 之后只有 carry 状态没有 need，先以"占用回合"
-		// 为信号让 UI / 玩家观察到母亲处于抚育状态。
-		_ = actor;
-		return new ActionExecutionResult { Consumed = true };
+
+		if (string.IsNullOrWhiteSpace(actor.CarriedInfantId))
+			return new ActionExecutionResult();
+		if (!state.Actors.TryGetValue(actor.CarriedInfantId!, out var infant))
+			return new ActionExecutionResult();
+
+		var result = new ActionExecutionResult { Consumed = true };
+
+		var foodIndex = FindFoodInInventory(actor);
+		if (foodIndex < 0)
+			return result; // 没食物：仍占用回合做"安抚"，但不喂养。
+
+		var food = actor.Inventory[foodIndex];
+		var nutritionPerFood = Math.Max(1, food.Tags.GetValueOrDefault(ItemTags.Nutrition, 1));
+		actor.Inventory.RemoveAt(foodIndex);
+
+		NeedSystem.EnsureInitialized(infant, state.Turn);
+		var current = NeedSystem.GetNeedValue(infant, NeedIds.BabyFood);
+		var nutrition = Math.Min(NeedSystem.NeedMax, nutritionPerFood * 20f);
+		NeedSystem.SetNeedValue(infant, NeedIds.BabyFood, current + nutrition);
+		NeedSystem.Sync(infant, state.Turn, result.Events, state);
+
+		result.Events.Add(new GameEvent("infant_nursed")
+		{
+			InitiatorId = actor.Id,
+			InitiatorActorName = actor.DisplayName,
+			TargetId = infant.Id,
+			TargetActorName = infant.DisplayName,
+			TargetX = infant.X,
+			TargetY = infant.Y,
+			TargetZ = infant.Z,
+			ItemTypeId = food.Id,
+			ItemName = food.Name,
+		});
+		return result;
+	}
+
+	private static int FindFoodInInventory(Actor actor)
+	{
+		for (var i = 0; i < actor.Inventory.Count; i++)
+		{
+			var item = actor.Inventory[i];
+			if (item.Equipped)
+				continue;
+			if (string.Equals(item.Category, ItemCategories.Food, StringComparison.Ordinal)
+				|| item.Tags.ContainsKey(ItemTags.Nutrition))
+				return i;
+		}
+
+		return -1;
 	}
 }
 

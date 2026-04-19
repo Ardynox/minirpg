@@ -29,7 +29,17 @@ public static class LifeStageTransitionService
 
 			actor.LastResolvedLifeStage = current;
 			if (previous == LifeStage.Infant && current >= LifeStage.Child)
+			{
 				actor.CarriedByActorId = null;
+				// 婴儿长大 → 切回默认 need profile，让 baby_food 自动消失，
+				// 重新加 hunger/thirst/rest 走 humanoid_standard 衰减。
+				if (actor.Race != null
+					&& string.Equals(actor.Race.NeedProfileId, "human_infant", System.StringComparison.Ordinal))
+				{
+					actor.Race.NeedProfileId = "";
+					MiniRPG.Core.Needs.NeedSystem.EnsureInitialized(actor, state.Turn);
+				}
+			}
 
 			events.Add(new GameEvent("lifestage_transition")
 			{

@@ -97,6 +97,13 @@ public static class ConceptionBirthTick
 		child.FatherActorId = father?.Id;
 		child.Sex = rng.Next(2) == 0 ? Sex.Female : Sex.Male;
 		child.Genome = GeneInheritanceService.Inherit(rng, mother.Genome, father?.Genome, raceId);
+		child.LastResolvedLifeStage = LifeStage.Infant;
+
+		// 切到 human_infant need profile（baby_food + rest，无 hunger/thirst），
+		// 让 baby 真正按婴儿需求曲线衰减；EnsureInitialized 重新生成 needs 字典。
+		if (child.Race != null)
+			child.Race.NeedProfileId = "human_infant";
+		MiniRPG.Core.Needs.NeedSystem.EnsureInitialized(child, state.Turn);
 
 		state.Actors[childId] = child;
 		return child;
