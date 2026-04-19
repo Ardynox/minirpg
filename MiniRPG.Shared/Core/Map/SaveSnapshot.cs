@@ -143,6 +143,9 @@ public sealed class SavePayload
 
 	[JsonPropertyName("party")]
 	public PartySnapshot? Party { get; set; }
+
+	[JsonPropertyName("social")]
+	public SocialSnapshot? Social { get; set; }
 }
 
 public sealed class PartySnapshot
@@ -155,6 +158,33 @@ public sealed class PartySnapshot
 
 	[JsonPropertyName("maxSize")]
 	public int MaxSize { get; set; } = 6;
+}
+
+public sealed class SocialSnapshot
+{
+	[JsonPropertyName("relations")]
+	public List<RelationEntrySnapshot> Relations { get; set; } = [];
+
+	[JsonPropertyName("socialCooldowns")]
+	public Dictionary<string, int> SocialCooldowns { get; set; } = new(StringComparer.Ordinal);
+}
+
+public sealed class RelationEntrySnapshot
+{
+	[JsonPropertyName("fromId")]
+	public string FromId { get; set; } = "";
+
+	[JsonPropertyName("toId")]
+	public string ToId { get; set; } = "";
+
+	[JsonPropertyName("opinion")]
+	public int Opinion { get; set; }
+
+	[JsonPropertyName("tags")]
+	public List<string> Tags { get; set; } = [];
+
+	[JsonPropertyName("lastInteractionTurn")]
+	public int LastInteractionTurn { get; set; }
 }
 
 public sealed class RoomRuntimeSnapshot

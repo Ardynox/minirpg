@@ -9,6 +9,7 @@ using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
 using MiniRPG.Core.Health;
+using MiniRPG.Core.Social;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
 using MiniRPG.Core.Zone;
@@ -172,6 +173,7 @@ public static class SaveModule
 				static domain => domain.Clone()),
 			Room = BuildRoomSnapshot(state.Room),
 			Party = BuildPartySnapshot(state.Party),
+			Social = BuildSocialSnapshot(state.SocialState),
 		};
 
 		return new SaveFile
@@ -232,6 +234,7 @@ public static class SaveModule
 		RoomRuntimeModule.RefreshControlledActorIds(state);
 		RoomRuntimeModule.SyncLegacyPlayerAlias(state);
 		state.Party = CreatePartyState(payload.Party);
+		state.SocialState = CreateSocialState(payload.Social);
 		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
@@ -483,6 +486,57 @@ public static class SaveModule
 			ActiveId = snapshot.ActiveActorId ?? string.Empty,
 			MaxSize = snapshot.MaxSize > 0 ? snapshot.MaxSize : 6,
 		};
+	}
+
+	private static SocialSnapshot BuildSocialSnapshot(SocialState social) => new()
+	{
+		Relations = MapList(
+			social.Relations
+				.OrderBy(static entry => entry.Key, StringComparer.Ordinal)
+				.Select(static entry => entry.Value),
+			static relation => new RelationEntrySnapshot
+			{
+				FromId = relation.FromId,
+				ToId = relation.ToId,
+				Opinion = relation.Opinion,
+				Tags = [.. relation.Tags.OrderBy(static tag => tag, StringComparer.Ordinal)],
+				LastInteractionTurn = relation.LastInteractionTurn,
+			}),
+		SocialCooldowns = new Dictionary<string, int>(social.SocialCooldowns, StringComparer.Ordinal),
+	};
+
+	private static SocialState CreateSocialState(SocialSnapshot? snapshot)
+	{
+		var state = new SocialState();
+		if (snapshot == null)
+			return state;
+
+		if (snapshot.Relations != null)
+		{
+			foreach (var entry in snapshot.Relations)
+			{
+				if (string.IsNullOrEmpty(entry.FromId) || string.IsNullOrEmpty(entry.ToId))
+					continue;
+
+				var key = $"{entry.FromId}:{entry.ToId}";
+				state.Relations[key] = new RelationEntry
+				{
+					FromId = entry.FromId,
+					ToId = entry.ToId,
+					Opinion = entry.Opinion,
+					Tags = entry.Tags != null ? [.. entry.Tags] : [],
+					LastInteractionTurn = entry.LastInteractionTurn,
+				};
+			}
+		}
+
+		if (snapshot.SocialCooldowns != null)
+		{
+			foreach (var (actorId, turn) in snapshot.SocialCooldowns)
+				state.SocialCooldowns[actorId] = turn;
+		}
+
+		return state;
 	}
 
 	private static ChunkSnapshot BuildChunkSnapshot(ChunkCoord coord, ChunkData chunk) => new()

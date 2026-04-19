@@ -709,6 +709,53 @@ public sealed class SaveModuleTests
 	}
 
 	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripSocialState()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		state.SocialState.Relations["hero:enemy_player"] = new MiniRPG.Core.Social.RelationEntry
+		{
+			FromId = "hero",
+			ToId = "enemy_player",
+			Opinion = -42,
+			Tags = ["rival", "threat"],
+			LastInteractionTurn = 17,
+		};
+		state.SocialState.Relations["enemy_player:hero"] = new MiniRPG.Core.Social.RelationEntry
+		{
+			FromId = "enemy_player",
+			ToId = "hero",
+			Opinion = -55,
+			Tags = ["target"],
+			LastInteractionTurn = 18,
+		};
+		state.SocialState.SocialCooldowns["hero"] = 30;
+		state.SocialState.SocialCooldowns["enemy_player"] = 32;
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		Assert.NotNull(saveFile.Payload.Social);
+		Assert.Equal(2, saveFile.Payload.Social!.Relations.Count);
+
+		var restored = new GameState();
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal(2, restored.SocialState.Relations.Count);
+		var heroToEnemy = restored.SocialState.Relations["hero:enemy_player"];
+		Assert.Equal(-42, heroToEnemy.Opinion);
+		Assert.Equal(17, heroToEnemy.LastInteractionTurn);
+		Assert.Contains("rival", heroToEnemy.Tags);
+		Assert.Contains("threat", heroToEnemy.Tags);
+
+		var enemyToHero = restored.SocialState.Relations["enemy_player:hero"];
+		Assert.Equal(-55, enemyToHero.Opinion);
+		Assert.Equal("target", Assert.Single(enemyToHero.Tags));
+
+		Assert.Equal(30, restored.SocialState.SocialCooldowns["hero"]);
+		Assert.Equal(32, restored.SocialState.SocialCooldowns["enemy_player"]);
+	}
+
+	[Fact]
 	public void ApplySnapshot_Party_FallsBackToDefault_WhenSnapshotMissing()
 	{
 		ResetSaveCache();
