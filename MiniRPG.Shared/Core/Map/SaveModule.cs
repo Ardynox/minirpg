@@ -11,6 +11,7 @@ using MiniRPG.Core.Facility;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Weather;
 using MiniRPG.Core.World;
+using MiniRPG.Core.Zone;
 
 namespace MiniRPG.Core.Map;
 
@@ -170,6 +171,7 @@ public static class SaveModule
 				state.EconomicDomains.Values.OrderBy(static domain => domain.Id, StringComparer.Ordinal),
 				static domain => domain.Clone()),
 			Room = BuildRoomSnapshot(state.Room),
+			Party = BuildPartySnapshot(state.Party),
 		};
 
 		return new SaveFile
@@ -229,6 +231,7 @@ public static class SaveModule
 		state.Room = CreateRoomRuntimeState(payload.Room);
 		RoomRuntimeModule.RefreshControlledActorIds(state);
 		RoomRuntimeModule.SyncLegacyPlayerAlias(state);
+		state.Party = CreatePartyState(payload.Party);
 		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
@@ -462,6 +465,26 @@ public static class SaveModule
 		return room;
 	}
 
+	private static PartySnapshot BuildPartySnapshot(PartyState party) => new()
+	{
+		MemberIds = [.. party.MemberIds],
+		ActiveActorId = party.ActiveId,
+		MaxSize = party.MaxSize,
+	};
+
+	private static PartyState CreatePartyState(PartySnapshot? snapshot)
+	{
+		if (snapshot == null)
+			return new PartyState();
+
+		return new PartyState
+		{
+			MemberIds = snapshot.MemberIds != null ? [.. snapshot.MemberIds] : [],
+			ActiveId = snapshot.ActiveActorId ?? string.Empty,
+			MaxSize = snapshot.MaxSize > 0 ? snapshot.MaxSize : 6,
+		};
+	}
+
 	private static ChunkSnapshot BuildChunkSnapshot(ChunkCoord coord, ChunkData chunk) => new()
 	{
 		Cx = coord.Cx,
@@ -482,6 +505,7 @@ public static class SaveModule
 		SandDepth = [.. chunk.SandDepth],
 		Wetness = [.. chunk.Wetness],
 		IceDepth = [.. chunk.IceDepth],
+		GrassCover = [.. chunk.GrassCover],
 		LastWeatherSimTurn = chunk.LastWeatherSimTurn,
 	};
 
@@ -497,6 +521,7 @@ public static class SaveModule
 			SandDepth = CloneOrDefault(snapshot.SandDepth, ChunkData.Area),
 			Wetness = CloneOrDefault(snapshot.Wetness, ChunkData.Area),
 			IceDepth = CloneOrDefault(snapshot.IceDepth, ChunkData.Area),
+			GrassCover = CloneOrDefault(snapshot.GrassCover, ChunkData.Area),
 			LastWeatherSimTurn = snapshot.LastWeatherSimTurn ?? 0,
 		};
 

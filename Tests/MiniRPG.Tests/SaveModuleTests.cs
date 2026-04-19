@@ -658,6 +658,77 @@ public sealed class SaveModuleTests
 	}
 
 	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripPartyState()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		var memberA = new Actor
+		{
+			Id = "member_a",
+			X = 1,
+			Y = 1,
+			Z = 0,
+			Glyph = "@",
+			DisplayName = "Member A",
+			Faction = Factions.Player,
+		};
+		var memberB = new Actor
+		{
+			Id = "member_b",
+			X = 2,
+			Y = 1,
+			Z = 0,
+			Glyph = "@",
+			DisplayName = "Member B",
+			Faction = Factions.Player,
+		};
+		state.Actors[memberA.Id] = memberA;
+		state.Actors[memberB.Id] = memberB;
+
+		state.Party.MemberIds.Clear();
+		state.Party.MemberIds.Add("hero");
+		state.Party.MemberIds.Add(memberA.Id);
+		state.Party.MemberIds.Add(memberB.Id);
+		state.Party.ActiveId = memberA.Id;
+		state.Party.MaxSize = 4;
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		Assert.NotNull(saveFile.Payload.Party);
+		Assert.Equal(3, saveFile.Payload.Party!.MemberIds.Count);
+		Assert.Equal("hero", saveFile.Payload.Party.MemberIds[0]);
+		Assert.Equal(memberA.Id, saveFile.Payload.Party.ActiveActorId);
+		Assert.Equal(4, saveFile.Payload.Party.MaxSize);
+
+		var restored = new GameState();
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal(["hero", "member_a", "member_b"], restored.Party.MemberIds);
+		Assert.Equal("member_a", restored.Party.ActiveId);
+		Assert.Equal(4, restored.Party.MaxSize);
+	}
+
+	[Fact]
+	public void ApplySnapshot_Party_FallsBackToDefault_WhenSnapshotMissing()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+		var saveFile = SaveModule.BuildSnapshot(state);
+		saveFile.Payload.Party = null;
+
+		var restored = new GameState();
+		restored.Party.MemberIds.Add("stale_member");
+		restored.Party.ActiveId = "stale_member";
+		restored.Party.MaxSize = 99;
+
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Empty(restored.Party.MemberIds);
+		Assert.Equal(string.Empty, restored.Party.ActiveId);
+		Assert.Equal(6, restored.Party.MaxSize);
+	}
+
+	[Fact]
 	public void BuildSnapshot_And_ApplySnapshot_RoundTripFireHazardsAndItemDurability()
 	{
 		ResetSaveCache();

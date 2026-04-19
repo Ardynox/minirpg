@@ -140,6 +140,21 @@ public sealed class SavePayload
 
 	[JsonPropertyName("room")]
 	public RoomRuntimeSnapshot? Room { get; set; }
+
+	[JsonPropertyName("party")]
+	public PartySnapshot? Party { get; set; }
+}
+
+public sealed class PartySnapshot
+{
+	[JsonPropertyName("memberIds")]
+	public List<string> MemberIds { get; set; } = [];
+
+	[JsonPropertyName("activeActorId")]
+	public string ActiveActorId { get; set; } = "";
+
+	[JsonPropertyName("maxSize")]
+	public int MaxSize { get; set; } = 6;
 }
 
 public sealed class RoomRuntimeSnapshot
@@ -824,6 +839,9 @@ public sealed class ChunkSnapshot
 
 	[JsonPropertyName("iceDepth")]
 	public byte[]? IceDepth { get; set; }
+
+	[JsonPropertyName("grassCover")]
+	public byte[]? GrassCover { get; set; }
 
 	[JsonPropertyName("lastWeatherSimTurn")]
 	public int? LastWeatherSimTurn { get; set; }
