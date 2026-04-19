@@ -659,7 +659,10 @@ public partial class Main
 			CloseTradePanel,
 			EnsureTradeUI,
 			EnsureDialogUI,
-			() => _playerRestModeActive = false);
+			() => _playerRestModeActive = false,
+			showInfoToast: text => _toastOverlay.Show(text),
+			showWarningToast: text => _toastOverlay.ShowWarning(text),
+			flushMap: FlushMap);
 		_limbTargetCoordinator = new LimbTargetCoordinator(
 			_state,
 			_log,

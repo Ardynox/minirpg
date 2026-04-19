@@ -150,6 +150,22 @@ public class LogModule
 			"operate_failed" => [C(UIColors.HexWarning, FormatOperateFailed(e))],
 			"campfire_lit" when e.InitiatorId == ActiveActorAccess.GetActiveId(state)
 				=> [C(UIColors.HexEquipped, LocalizationService.TOrFallback("log.heat.campfire_lit", "You light a campfire."))],
+			"party_member_lost"
+				=> [C(UIColors.HexWarning, LocalizationService.T(
+					string.Equals(e.EffectType, "was_active", StringComparison.Ordinal)
+						? "log.party.member_lost.was_active"
+						: "log.party.member_lost",
+					("member", e.TargetActorName ?? "?")))],
+			"active_actor_switched"
+				=> [C(UIColors.HexUtility, LocalizationService.T(
+					"log.party.active_switched",
+					("member", e.TargetActorName ?? "?")))],
+			"party_wiped"
+				=> [C(UIColors.HexCombat, LocalizationService.T("log.party.wiped"))],
+			"actor_revived"
+				=> [C(UIColors.HexSuccess, LocalizationService.T(
+					"log.party.revived",
+					("member", e.TargetActorName ?? "?")))],
 			_ => null,
 		};
 	}

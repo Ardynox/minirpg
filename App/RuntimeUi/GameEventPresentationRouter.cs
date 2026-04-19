@@ -21,6 +21,9 @@ internal sealed class GameEventPresentationRouter
 	private readonly Func<TradeUIModule> _ensureTradeUi;
 	private readonly Func<DialogUIModule> _ensureDialogUi;
 	private readonly Action _onPlayerRestCompleted;
+	private readonly Action<string> _showInfoToast;
+	private readonly Action<string> _showWarningToast;
+	private readonly Action _flushMap;
 
 	public GameEventPresentationRouter(
 		GameState state,
@@ -37,7 +40,10 @@ internal sealed class GameEventPresentationRouter
 		Action closeTradePanel,
 		Func<TradeUIModule> ensureTradeUi,
 		Func<DialogUIModule> ensureDialogUi,
-		Action onPlayerRestCompleted)
+		Action onPlayerRestCompleted,
+		Action<string> showInfoToast,
+		Action<string> showWarningToast,
+		Action flushMap)
 	{
 		_state = state;
 		_log = log;
@@ -54,6 +60,9 @@ internal sealed class GameEventPresentationRouter
 		_ensureTradeUi = ensureTradeUi;
 		_ensureDialogUi = ensureDialogUi;
 		_onPlayerRestCompleted = onPlayerRestCompleted;
+		_showInfoToast = showInfoToast;
+		_showWarningToast = showWarningToast;
+		_flushMap = flushMap;
 	}
 
 	public void Dispatch(List<GameEvent> events)
@@ -126,6 +135,29 @@ internal sealed class GameEventPresentationRouter
 				// 由 ActiveActorDeathHandler 在全队都死后派出；走"回主菜单"终局。
 				// HandlePlayerDeath 自带"还有活人就拒绝进终局"的守卫，这里安全地无条件转发。
 				_handlePlayerDeath("party_wiped");
+				break;
+			case "party_member_lost":
+				// 队员倒下：弹个 Toast 让玩家立刻看到（日志由 LogModule 同步翻译）。
+				_showWarningToast(LocalizationService.T(
+					string.Equals(e.EffectType, "was_active", StringComparison.Ordinal)
+						? "log.party.member_lost.was_active"
+						: "log.party.member_lost",
+					("member", e.TargetActorName ?? "?")));
+				break;
+			case "active_actor_switched":
+				// PartyModule.ActiveId 已经被 ActiveActorDeathHandler 改完；
+				// FlushMap 内部的 SyncViewToActiveActor 会把相机和 PlayerX/Y/Z 同步到新焦点，
+				// 这里立刻 flush 一次让相机不要等到下一帧才切。
+				_showInfoToast(LocalizationService.T(
+					"log.party.active_switched",
+					("member", e.TargetActorName ?? "?")));
+				_flushMap();
+				break;
+			case "actor_revived":
+				// 复活通道暂时还没人发，先备好翻译；ReviveService 接通时直接派 GameEvent 即可。
+				_showInfoToast(LocalizationService.T(
+					"log.party.revived",
+					("member", e.TargetActorName ?? "?")));
 				break;
 			case "interaction":
 				DispatchInteraction(e);
