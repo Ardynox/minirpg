@@ -3,8 +3,17 @@
     {
       "id": "baseliner",
       "race_id": "human",
-      "fixed_genes": ["fast_leg"],
-      "random_genes": ["cold_skin", "night_owl"]
+      "fixed_genes": ["fast_leg", "fertile"],
+      "random_genes": [
+        "cold_skin",
+        "night_owl",
+        "strong_arm",
+        "keen_eye",
+        "tough_skin",
+        "heat_resist",
+        "long_life",
+        "quick_metabolism"
+      ]
     }
   ]
 }

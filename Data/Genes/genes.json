@@ -1,0 +1,104 @@
+{
+  "genes": [
+    {
+      "id": "fast_leg",
+      "locus": "fast_leg",
+      "dominance": "Dominant",
+      "allele_a": "F",
+      "allele_b": "f",
+      "tags_if_a_dominant": { "speed_small": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "speed_small": 1 }
+    },
+    {
+      "id": "cold_skin",
+      "locus": "cold_skin",
+      "dominance": "Recessive",
+      "allele_a": "C",
+      "allele_b": "c",
+      "tags_if_a_dominant": { "cold_resist": 1 },
+      "tags_if_homozygous_b": { "cold_resist": 2 },
+      "tags_if_codominant_mixed": { "cold_resist": 1 }
+    },
+    {
+      "id": "night_owl",
+      "locus": "night_owl",
+      "dominance": "Codominant",
+      "allele_a": "N",
+      "allele_b": "n",
+      "tags_if_a_dominant": { "night_shift": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "night_shift": 1 }
+    },
+    {
+      "id": "strong_arm",
+      "locus": "strong_arm",
+      "dominance": "Dominant",
+      "allele_a": "S",
+      "allele_b": "s",
+      "tags_if_a_dominant": { "melee_damage": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "melee_damage": 1 }
+    },
+    {
+      "id": "keen_eye",
+      "locus": "keen_eye",
+      "dominance": "Codominant",
+      "allele_a": "K",
+      "allele_b": "k",
+      "tags_if_a_dominant": { "vision_radius": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "vision_radius": 1, "visual_acuity": 1 }
+    },
+    {
+      "id": "tough_skin",
+      "locus": "tough_skin",
+      "dominance": "Dominant",
+      "allele_a": "T",
+      "allele_b": "t",
+      "tags_if_a_dominant": { "armor_skin": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "armor_skin": 1 }
+    },
+    {
+      "id": "heat_resist",
+      "locus": "heat_resist",
+      "dominance": "Recessive",
+      "allele_a": "H",
+      "allele_b": "h",
+      "tags_if_a_dominant": { "heat_tolerance": 1 },
+      "tags_if_homozygous_b": { "heat_tolerance": 2 },
+      "tags_if_codominant_mixed": { "heat_tolerance": 1 }
+    },
+    {
+      "id": "fertile",
+      "locus": "fertile",
+      "dominance": "Codominant",
+      "allele_a": "R",
+      "allele_b": "r",
+      "tags_if_a_dominant": { "fertility": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "fertility": 1 }
+    },
+    {
+      "id": "long_life",
+      "locus": "long_life",
+      "dominance": "Recessive",
+      "allele_a": "L",
+      "allele_b": "l",
+      "tags_if_a_dominant": {},
+      "tags_if_homozygous_b": { "longevity": 1 },
+      "tags_if_codominant_mixed": {}
+    },
+    {
+      "id": "quick_metabolism",
+      "locus": "quick_metabolism",
+      "dominance": "Codominant",
+      "allele_a": "M",
+      "allele_b": "m",
+      "tags_if_a_dominant": { "metabolism_speed": 1 },
+      "tags_if_homozygous_b": {},
+      "tags_if_codominant_mixed": { "metabolism_speed": 1 }
+    }
+  ]
+}
