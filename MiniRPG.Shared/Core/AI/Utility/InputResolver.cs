@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Demographics;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Job;
 using MiniRPG.Core.Needs;
@@ -26,6 +27,7 @@ public static class InputResolver
 		RegisterEnvironmentInputs();
 		RegisterAwarenessInputs();
 		RegisterMiscInputs();
+		RegisterDemographicsInputs();
 	}
 
 	public static float Resolve(string inputId, InputContext ctx)
@@ -357,6 +359,22 @@ public static class InputResolver
 							return 1f;
 					}
 				}
+			}
+			return 0f;
+		};
+
+		// 食物保质期（plan: food-ai）：让 AI 知道"背包里有不腐烂的食物可以放心吃"。
+		// 只看背包；地面食物的具体 SpawnedAtTurn 在 entity 上没保留，无法精确评估。
+		// AI 在腐烂食物面前应选择 wander/hunt 而不是 eat_food。
+		_resolvers["safe_food_available"] = static ctx =>
+		{
+			var turn = ctx.State?.Turn ?? 0;
+			foreach (var item in ctx.Self.Inventory)
+			{
+				if (item.Category != ItemCategories.Food && !item.Tags.ContainsKey(ItemTags.Nutrition))
+					continue;
+				if (FoodFreshnessEvaluator.Evaluate(item, turn) != FoodFreshnessStage.Rotten)
+					return 1f;
 			}
 			return 0f;
 		};
@@ -705,6 +723,51 @@ public static class InputResolver
 			return string.Equals(ctx.Self.BrainId, "party_follower", StringComparison.Ordinal) ? 1f : 0f;
 		};
 	}
+
+	private static void RegisterDemographicsInputs()
+	{
+		_resolvers["is_pregnant"] = static ctx => ctx.Self.PregnancyTicksRemaining is > 0 ? 1f : 0f;
+
+		_resolvers["pregnancy_progress_norm"] = static ctx =>
+		{
+			if (ctx.Self.PregnancyTicksRemaining is not int remaining || remaining <= 0)
+				return 0f;
+			LifeStageCatalog.EnsureLoaded();
+			var gestation = Math.Max(1, LifeStageCatalog.Conception.GestationTurns);
+			var elapsed = Math.Max(0, gestation - remaining);
+			return Clamp01((float)elapsed / gestation);
+		};
+
+		_resolvers["is_infant"] = static ctx =>
+		{
+			if (ctx.State == null) return 0f;
+			LifeStageCatalog.EnsureLoaded();
+			return LifeStageCatalog.GetLifeStage(ctx.State, ctx.Self) == LifeStage.Infant ? 1f : 0f;
+		};
+
+		_resolvers["is_carrying_infant"] = static ctx =>
+			!string.IsNullOrWhiteSpace(ctx.Self.CarriedInfantId) ? 1f : 0f;
+
+		_resolvers["is_being_carried"] = static ctx =>
+			!string.IsNullOrWhiteSpace(ctx.Self.CarriedByActorId) ? 1f : 0f;
+
+		_resolvers["kin_grief_recent"] = static ctx =>
+		{
+			if (ctx.State == null) return 0f;
+			var turn = ctx.State.Turn;
+			foreach (var thought in ctx.Self.Thoughts)
+			{
+				if (!IsKinGriefThoughtId(thought.Id))
+					continue;
+				if (thought.ExpiresOnTurn < 0 || turn <= thought.ExpiresOnTurn)
+					return 1f;
+			}
+			return 0f;
+		};
+	}
+
+	private static bool IsKinGriefThoughtId(string id) =>
+		id is "lost_child" or "lost_parent" or "lost_spouse" or "lost_family";
 
 	private static float GetPersonality(Actor actor, string trait)
 	{
