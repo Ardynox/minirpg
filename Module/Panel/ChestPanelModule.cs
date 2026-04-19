@@ -5,7 +5,7 @@ using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
-public class ChestPanelModule : ListPanelBase
+public class ChestPanelModule : ListPanelBase, ITooltipRegistrar
 {
 	public override string PanelId => "chest";
 	public override PanelContainer PanelNode => _panel;
@@ -32,8 +32,11 @@ public class ChestPanelModule : ListPanelBase
 	private readonly IHost _host;
 
 	private Item? _chestItem;
+	private RichTooltipLayer? _tooltipLayer;
 
 	public Item? CurrentChest => _chestItem;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	public override bool Visible
 	{
@@ -127,6 +130,18 @@ public class ChestPanelModule : ListPanelBase
 	{
 		var item = _chestItem!.Contents![i];
 		row.Text = ItemFormatHelper.BuildRowText(_host.State, item);
+
+		if (_tooltipLayer != null)
+		{
+			var capturedIndex = i;
+			_tooltipLayer.Attach(row, () =>
+			{
+				var contents = _chestItem?.Contents;
+				if (contents == null || capturedIndex < 0 || capturedIndex >= contents.Count)
+					return string.Empty;
+				return ItemFormatHelper.BuildDetail(_host.State, contents[capturedIndex]);
+			});
+		}
 	}
 
 	protected override void HandleRowGuiInput(InputEvent ev, int index)

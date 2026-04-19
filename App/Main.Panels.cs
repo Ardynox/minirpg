@@ -1,5 +1,7 @@
 using System;
 using Godot;
+using MiniRPG.Module;
+using MiniRPG.Module.Panel;
 
 namespace MiniRPG;
 
@@ -15,8 +17,8 @@ public partial class Main
 
 		if (_tradeUI?.InTrade == true)
 			_tradeUI.Refresh();
-		if (_dialogUI?.InDialog == true)
-			_dialogUI.RefreshCurrentEntry();
+		if (_conversationUI?.InConversation == true)
+			_conversationUI.RefreshFromState();
 	}
 
 	// ── 懒加载低频面板 ──────────────────────────────────
@@ -33,21 +35,22 @@ public partial class Main
 		_panels.Register(_chestPanel);
 		RegisterAlwaysDirectDraggable(_chestPanel);
 		RegisterCommonPanelChrome(_chestPanel, "MarginContainer/VBox/HeaderBar/Header", CloseChestPanel);
+		TryRegisterPanelTooltip(_chestPanel, _richTooltips);
 		return _chestPanel;
 	}
 
-	private DialogPanelModule EnsureDialogPanel()
+	private ConversationPanelModule EnsureConversationPanel()
 	{
-		if (_dialogPanel != null) return _dialogPanel;
+		if (_conversationPanel != null) return _conversationPanel;
 		var scene = LoadPackedSceneCached(DialogPanelScenePath);
 		var node = scene.Instantiate<PanelContainer>();
 		TopRow.AddChild(node);
 		LocalizationService.LocalizeTree(node);
-		_dialogPanel = new DialogPanelModule(node);
-		_panels.Register(_dialogPanel);
-		RegisterAlwaysDirectDraggable(_dialogPanel);
-		RegisterCommonPanelChrome(_dialogPanel, "MarginContainer/VBox/HeaderBar/Header", CloseDialogPanel);
-		return _dialogPanel;
+		_conversationPanel = new ConversationPanelModule(node);
+		_panels.Register(_conversationPanel);
+		RegisterAlwaysDirectDraggable(_conversationPanel);
+		RegisterCommonPanelChrome(_conversationPanel, "MarginContainer/VBox/HeaderBar/Header", CloseConversationPanel);
+		return _conversationPanel;
 	}
 
 	private TradePanelModule EnsureTradePanel()
@@ -61,6 +64,7 @@ public partial class Main
 		_panels.Register(_tradePanel);
 		RegisterAlwaysDirectDraggable(_tradePanel);
 		RegisterCommonPanelChrome(_tradePanel, "MarginContainer/VBox/HeaderBar/Header", CloseTradePanel);
+		TryRegisterPanelTooltip(_tradePanel, _richTooltips);
 		return _tradePanel;
 	}
 
@@ -130,11 +134,11 @@ public partial class Main
 		return _tradeUI;
 	}
 
-	private DialogUIModule EnsureDialogUI()
+	private ConversationUIModule EnsureConversationUI()
 	{
-		if (_dialogUI != null) return _dialogUI;
-		_dialogUI = new DialogUIModule(this, EnsureDialogPanel(), _panels);
-		return _dialogUI;
+		if (_conversationUI != null) return _conversationUI;
+		_conversationUI = new ConversationUIModule(this, EnsureConversationPanel(), _panels);
+		return _conversationUI;
 	}
 
 	private static PackedScene LoadPackedSceneCached(string path)
@@ -316,19 +320,19 @@ public partial class Main
 		_panels.OnPanelClosed(_tradePanel);
 	}
 
-	private void CloseDialogPanel()
+	private void CloseConversationPanel()
 	{
-		if (_dialogUI != null && _dialogUI.InDialog)
+		if (_conversationUI != null && _conversationUI.InConversation)
 		{
-			_dialogUI.CloseDialog();
+			_conversationUI.CloseConversation();
 			return;
 		}
 
-		if (_dialogPanel == null || !_dialogPanel.Visible)
+		if (_conversationPanel == null || !_conversationPanel.Visible)
 			return;
 
-		_dialogPanel.Close();
-		_panels.OnPanelClosed(_dialogPanel);
+		_conversationPanel.Close();
+		_panels.OnPanelClosed(_conversationPanel);
 	}
 
 	private void CloseAllInGamePanels()
@@ -339,7 +343,7 @@ public partial class Main
 		CloseSkillBarPanel();
 		CloseSkillManagerPanel();
 		CloseQuestPanel();
-		CloseDialogPanel();
+		CloseConversationPanel();
 		CloseTradePanel();
 		CloseDebugPanel();
 		CloseLimbTargetPanel();

@@ -5,7 +5,7 @@ using MiniRPG.Core.Config;
 
 namespace MiniRPG.Module.Panel;
 
-public class GroundPanelModule : ListPanelBase
+public class GroundPanelModule : ListPanelBase, ITooltipRegistrar
 {
 	public override string PanelId => "ground";
 	public override PanelContainer PanelNode => _panel;
@@ -36,6 +36,9 @@ public class GroundPanelModule : ListPanelBase
 	private int _cachedX = int.MinValue;
 	private int _cachedY = int.MinValue;
 	private bool _dirty = true;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	public override bool Visible
 	{
@@ -128,6 +131,17 @@ public class GroundPanelModule : ListPanelBase
 		var statSegment = string.IsNullOrWhiteSpace(stats) ? string.Empty : $"  {stats}";
 		var weightSegment = string.IsNullOrWhiteSpace(weight) ? string.Empty : $"  {weight}";
 		row.Text = $"{icon} {nameText}{statSegment}{weightSegment}";
+
+		if (_tooltipLayer != null)
+		{
+			var capturedIndex = index;
+			_tooltipLayer.Attach(row, () =>
+			{
+				if (capturedIndex < 0 || capturedIndex >= _groundItems.Count)
+					return string.Empty;
+				return ItemFormatHelper.BuildDetail(_host.State, _groundItems[capturedIndex]);
+			});
+		}
 	}
 
 	protected override void HandleRowGuiInput(InputEvent ev, int index)

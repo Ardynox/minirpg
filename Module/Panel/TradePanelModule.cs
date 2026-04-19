@@ -8,7 +8,7 @@ namespace MiniRPG.Module.Panel;
 
 public enum TradeTab { Buy, Sell }
 
-public class TradePanelModule : ListPanelBase
+public class TradePanelModule : ListPanelBase, ITooltipRegistrar
 {
 	public override string PanelId => "trade";
 	public override PanelContainer PanelNode => _panel;
@@ -29,6 +29,9 @@ public class TradePanelModule : ListPanelBase
 	private List<(int InvIndex, Item Item)> _sellItems = [];
 	private readonly List<Button> _tabButtons;
 	private TradeTab _currentTab = TradeTab.Buy;
+	private RichTooltipLayer? _tooltipLayer;
+
+	public void RegisterTooltips(RichTooltipLayer layer) => _tooltipLayer = layer;
 
 	private static readonly TradeTab[] Tabs = [TradeTab.Buy, TradeTab.Sell];
 	private static readonly string[] TabLabels = ["Buy", "Sell"];
@@ -229,6 +232,25 @@ public class TradePanelModule : ListPanelBase
 				("item", itemName),
 				("stats", statSegment),
 				("price", sp));
+		}
+
+		if (_tooltipLayer != null)
+		{
+			var capturedIndex = i;
+			_tooltipLayer.Attach(row, () =>
+			{
+				Item? tooltipItem = null;
+				if (_currentTab == TradeTab.Buy && capturedIndex >= 0 && capturedIndex < _buyGoods.Count)
+					tooltipItem = _buyGoods[capturedIndex].Item;
+				else if (_currentTab == TradeTab.Sell && capturedIndex >= 0 && capturedIndex < _sellItems.Count)
+					tooltipItem = _sellItems[capturedIndex].Item;
+
+				if (tooltipItem == null)
+					return string.Empty;
+				return _state == null
+					? ItemFormatHelper.BuildDetail(tooltipItem)
+					: ItemFormatHelper.BuildDetail(_state, tooltipItem);
+			});
 		}
 	}
 

@@ -462,9 +462,9 @@ public partial class Main
 		TryRegisterPanelTooltip(_statusPanelModule, layer);
 	}
 
-	private static void TryRegisterPanelTooltip(object? target, RichTooltipLayer layer)
+	private static void TryRegisterPanelTooltip(object? target, RichTooltipLayer? layer)
 	{
-		if (target is ITooltipRegistrar registrar)
+		if (layer != null && target is ITooltipRegistrar registrar)
 			registrar.RegisterTooltips(layer);
 	}
 
