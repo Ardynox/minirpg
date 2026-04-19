@@ -4,7 +4,9 @@ using System.Text.Json.Serialization;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Event;
+using MiniRPG.Core.Farm;
 using MiniRPG.Core.Multiplayer;
+using MiniRPG.Core.Zone;
 
 namespace MiniRPG.Core.Map;
 
@@ -150,6 +152,12 @@ public sealed class SavePayload
 
 	[JsonPropertyName("storyteller")]
 	public StorytellerSnapshot? Storyteller { get; set; }
+
+	[JsonPropertyName("zones")]
+	public List<ZoneSnapshot>? Zones { get; set; }
+
+	[JsonPropertyName("crops")]
+	public List<CropInstanceSnapshot>? Crops { get; set; }
 }
 
 public sealed class PartySnapshot
@@ -231,6 +239,72 @@ public sealed class IncidentRecordSnapshot
 
 	[JsonPropertyName("category")]
 	public IncidentCategory Category { get; set; }
+}
+
+public sealed class ZoneSnapshot
+{
+	[JsonPropertyName("id")]
+	public string Id { get; set; } = "";
+
+	[JsonPropertyName("name")]
+	public string Name { get; set; } = "";
+
+	[JsonPropertyName("type")]
+	public ZoneType Type { get; set; }
+
+	[JsonPropertyName("ownerDomainId")]
+	public string OwnerDomainId { get; set; } = "";
+
+	[JsonPropertyName("cells")]
+	public List<ZoneCell> Cells { get; set; } = [];
+
+	[JsonPropertyName("cropId")]
+	public string CropId { get; set; } = "";
+
+	[JsonPropertyName("allowedAnimalIds")]
+	public List<string> AllowedAnimalIds { get; set; } = [];
+
+	[JsonPropertyName("allowedItemIds")]
+	public List<string> AllowedItemIds { get; set; } = [];
+
+	[JsonPropertyName("allowedCategories")]
+	public List<string> AllowedCategories { get; set; } = [];
+
+	[JsonPropertyName("priority")]
+	public int Priority { get; set; } = 50;
+
+	[JsonPropertyName("enabled")]
+	public bool Enabled { get; set; } = true;
+}
+
+public sealed class CropInstanceSnapshot
+{
+	[JsonPropertyName("id")]
+	public string Id { get; set; } = "";
+
+	[JsonPropertyName("cropDefId")]
+	public string CropDefId { get; set; } = "";
+
+	[JsonPropertyName("x")]
+	public int X { get; set; }
+
+	[JsonPropertyName("y")]
+	public int Y { get; set; }
+
+	[JsonPropertyName("z")]
+	public int Z { get; set; }
+
+	[JsonPropertyName("growth")]
+	public int Growth { get; set; }
+
+	[JsonPropertyName("mature")]
+	public bool Mature { get; set; }
+
+	[JsonPropertyName("withered")]
+	public bool Withered { get; set; }
+
+	[JsonPropertyName("plantedTurn")]
+	public int PlantedTurn { get; set; }
 }
 
 public sealed class RoomRuntimeSnapshot

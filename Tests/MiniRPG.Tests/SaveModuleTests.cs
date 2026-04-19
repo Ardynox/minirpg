@@ -813,6 +813,142 @@ public sealed class SaveModuleTests
 	}
 
 	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripZonesAndCrops()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+
+		var growingZone = new MiniRPG.Core.Zone.ZoneDef
+		{
+			Id = "zone_potato_field",
+			Name = "Potato Field",
+			Type = MiniRPG.Core.Zone.ZoneType.Growing,
+			OwnerDomainId = "player_domain",
+			CropId = "potato",
+			Cells =
+			[
+				new ZoneCell(10, 10, 0),
+				new ZoneCell(10, 11, 0),
+				new ZoneCell(11, 10, 0),
+				new ZoneCell(11, 11, 0),
+			],
+			Priority = 75,
+			Enabled = true,
+		};
+		state.Zones[growingZone.Id] = growingZone;
+
+		var forbiddenZone = new MiniRPG.Core.Zone.ZoneDef
+		{
+			Id = "zone_no_go",
+			Name = "Dangerous Cave",
+			Type = MiniRPG.Core.Zone.ZoneType.Forbidden,
+			OwnerDomainId = "player_domain",
+			Cells = [new ZoneCell(20, 20, 0)],
+			AllowedAnimalIds = ["cow", "chicken"],
+			AllowedItemIds = ["food_meal"],
+			AllowedCategories = ["food"],
+			Priority = 90,
+			Enabled = false,
+		};
+		state.Zones[forbiddenZone.Id] = forbiddenZone;
+
+		state.Crops["crop_1"] = new MiniRPG.Core.Farm.CropInstance
+		{
+			Id = "crop_1",
+			CropDefId = "potato",
+			X = 10,
+			Y = 10,
+			Z = 0,
+			Growth = 12,
+			Mature = false,
+			Withered = false,
+			PlantedTurn = 30,
+		};
+		state.Crops["crop_2"] = new MiniRPG.Core.Farm.CropInstance
+		{
+			Id = "crop_2",
+			CropDefId = "potato",
+			X = 10,
+			Y = 11,
+			Z = 0,
+			Growth = 20,
+			Mature = true,
+			Withered = false,
+			PlantedTurn = 22,
+		};
+		state.Crops["crop_3"] = new MiniRPG.Core.Farm.CropInstance
+		{
+			Id = "crop_3",
+			CropDefId = "potato",
+			X = 11,
+			Y = 10,
+			Z = 0,
+			Growth = 5,
+			Mature = false,
+			Withered = true,
+			PlantedTurn = 18,
+		};
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		Assert.NotNull(saveFile.Payload.Zones);
+		Assert.Equal(2, saveFile.Payload.Zones!.Count);
+		Assert.NotNull(saveFile.Payload.Crops);
+		Assert.Equal(3, saveFile.Payload.Crops!.Count);
+
+		var restored = new GameState();
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Equal(2, restored.Zones.Count);
+		var restoredGrowing = restored.Zones["zone_potato_field"];
+		Assert.Equal(MiniRPG.Core.Zone.ZoneType.Growing, restoredGrowing.Type);
+		Assert.Equal("potato", restoredGrowing.CropId);
+		Assert.Equal(4, restoredGrowing.Cells.Count);
+		Assert.Equal(75, restoredGrowing.Priority);
+		Assert.True(restoredGrowing.Enabled);
+
+		var restoredForbidden = restored.Zones["zone_no_go"];
+		Assert.Equal(MiniRPG.Core.Zone.ZoneType.Forbidden, restoredForbidden.Type);
+		Assert.False(restoredForbidden.Enabled);
+		Assert.Contains("cow", restoredForbidden.AllowedAnimalIds);
+		Assert.Contains("food_meal", restoredForbidden.AllowedItemIds);
+		Assert.Contains("food", restoredForbidden.AllowedCategories);
+
+		Assert.Equal(3, restored.Crops.Count);
+		var c1 = restored.Crops["crop_1"];
+		Assert.Equal("potato", c1.CropDefId);
+		Assert.Equal((10, 10, 0), (c1.X, c1.Y, c1.Z));
+		Assert.Equal(12, c1.Growth);
+		Assert.False(c1.Mature);
+
+		var c2 = restored.Crops["crop_2"];
+		Assert.True(c2.Mature);
+		Assert.False(c2.Withered);
+		Assert.Equal(22, c2.PlantedTurn);
+
+		var c3 = restored.Crops["crop_3"];
+		Assert.True(c3.Withered);
+	}
+
+	[Fact]
+	public void ApplySnapshot_ZonesAndCrops_FallBackToEmpty_WhenSnapshotMissing()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+		var saveFile = SaveModule.BuildSnapshot(state);
+		saveFile.Payload.Zones = null;
+		saveFile.Payload.Crops = null;
+
+		var restored = new GameState();
+		restored.Zones["stale_zone"] = new MiniRPG.Core.Zone.ZoneDef { Id = "stale_zone" };
+		restored.Crops["stale_crop"] = new MiniRPG.Core.Farm.CropInstance { Id = "stale_crop" };
+
+		SaveModule.ApplySnapshot(restored, saveFile);
+
+		Assert.Empty(restored.Zones);
+		Assert.Empty(restored.Crops);
+	}
+
+	[Fact]
 	public void ApplySnapshot_Storyteller_FallsBackToDefault_WhenSnapshotMissing()
 	{
 		ResetSaveCache();

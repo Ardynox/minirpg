@@ -9,6 +9,7 @@ using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Event;
 using MiniRPG.Core.Facility;
+using MiniRPG.Core.Farm;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Social;
 using MiniRPG.Core.Weather;
@@ -176,6 +177,8 @@ public static class SaveModule
 			Party = BuildPartySnapshot(state.Party),
 			Social = BuildSocialSnapshot(state.SocialState),
 			Storyteller = BuildStorytellerSnapshot(state.StorytellerState),
+			Zones = BuildZoneSnapshots(state.Zones),
+			Crops = BuildCropSnapshots(state.Crops),
 		};
 
 		return new SaveFile
@@ -238,6 +241,8 @@ public static class SaveModule
 		state.Party = CreatePartyState(payload.Party);
 		state.SocialState = CreateSocialState(payload.Social);
 		state.StorytellerState = CreateStorytellerState(payload.Storyteller);
+		state.Zones = CreateZoneDictionary(payload.Zones);
+		state.Crops = CreateCropDictionary(payload.Crops);
 		state.Quests = MapList(payload.Quests, CreateQuest);
 
 		DirtyChunkCache.Clear();
@@ -618,6 +623,96 @@ public static class SaveModule
 		}
 
 		return state;
+	}
+
+	private static List<ZoneSnapshot> BuildZoneSnapshots(IDictionary<string, ZoneDef> zones) => MapList(
+		zones.Values.OrderBy(static zone => zone.Id, StringComparer.Ordinal),
+		static zone => new ZoneSnapshot
+		{
+			Id = zone.Id,
+			Name = zone.Name,
+			Type = zone.Type,
+			OwnerDomainId = zone.OwnerDomainId,
+			Cells = [.. zone.Cells],
+			CropId = zone.CropId,
+			AllowedAnimalIds = [.. zone.AllowedAnimalIds],
+			AllowedItemIds = [.. zone.AllowedItemIds],
+			AllowedCategories = [.. zone.AllowedCategories],
+			Priority = zone.Priority,
+			Enabled = zone.Enabled,
+		});
+
+	private static Dictionary<string, ZoneDef> CreateZoneDictionary(List<ZoneSnapshot>? snapshots)
+	{
+		var result = new Dictionary<string, ZoneDef>(StringComparer.Ordinal);
+		if (snapshots == null)
+			return result;
+
+		foreach (var snapshot in snapshots)
+		{
+			if (string.IsNullOrEmpty(snapshot.Id))
+				continue;
+
+			result[snapshot.Id] = new ZoneDef
+			{
+				Id = snapshot.Id,
+				Name = snapshot.Name,
+				Type = snapshot.Type,
+				OwnerDomainId = snapshot.OwnerDomainId,
+				Cells = snapshot.Cells != null ? [.. snapshot.Cells] : [],
+				CropId = snapshot.CropId,
+				AllowedAnimalIds = snapshot.AllowedAnimalIds != null ? [.. snapshot.AllowedAnimalIds] : [],
+				AllowedItemIds = snapshot.AllowedItemIds != null ? [.. snapshot.AllowedItemIds] : [],
+				AllowedCategories = snapshot.AllowedCategories != null ? [.. snapshot.AllowedCategories] : [],
+				Priority = snapshot.Priority,
+				Enabled = snapshot.Enabled,
+			};
+		}
+
+		return result;
+	}
+
+	private static List<CropInstanceSnapshot> BuildCropSnapshots(IDictionary<string, CropInstance> crops) => MapList(
+		crops.Values.OrderBy(static crop => crop.Id, StringComparer.Ordinal),
+		static crop => new CropInstanceSnapshot
+		{
+			Id = crop.Id,
+			CropDefId = crop.CropDefId,
+			X = crop.X,
+			Y = crop.Y,
+			Z = crop.Z,
+			Growth = crop.Growth,
+			Mature = crop.Mature,
+			Withered = crop.Withered,
+			PlantedTurn = crop.PlantedTurn,
+		});
+
+	private static Dictionary<string, CropInstance> CreateCropDictionary(List<CropInstanceSnapshot>? snapshots)
+	{
+		var result = new Dictionary<string, CropInstance>(StringComparer.Ordinal);
+		if (snapshots == null)
+			return result;
+
+		foreach (var snapshot in snapshots)
+		{
+			if (string.IsNullOrEmpty(snapshot.Id))
+				continue;
+
+			result[snapshot.Id] = new CropInstance
+			{
+				Id = snapshot.Id,
+				CropDefId = snapshot.CropDefId,
+				X = snapshot.X,
+				Y = snapshot.Y,
+				Z = snapshot.Z,
+				Growth = snapshot.Growth,
+				Mature = snapshot.Mature,
+				Withered = snapshot.Withered,
+				PlantedTurn = snapshot.PlantedTurn,
+			};
+		}
+
+		return result;
 	}
 
 	private static ChunkSnapshot BuildChunkSnapshot(ChunkCoord coord, ChunkData chunk) => new()
