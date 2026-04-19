@@ -87,10 +87,25 @@ public sealed class RoomRuntimeHost
 	{
 		State = state;
 		_options = options;
+		Consequences = new ServerSideConsequenceDispatcher(
+			errorSink: message => AppendLifecycleAudit(
+				"consequence_error",
+				result: "rejected",
+				code: message));
 	}
 
 	public GameState State { get; }
 	public List<ServerAuditLogEntry> AuditLogs { get; } = [];
+
+	/// <summary>
+	/// Per-room authoritative consequence pipeline. Receives every batch of
+	/// <see cref="GameEvent"/>s produced by <see cref="ServerActionGateway.Execute"/>
+	/// before the snapshot is built and broadcast, so simulation-layer state
+	/// (relationships, memories, rumors, incident statistics) can react on the
+	/// same tick. Symmetric to the local-session wiring; without this, NPC
+	/// combat in multiplayer would never affect the social graph.
+	/// </summary>
+	public ServerSideConsequenceDispatcher Consequences { get; }
 
 	public void SynchronizeRoom(RoomRuntimeState room)
 	{
@@ -273,6 +288,13 @@ public sealed class RoomRuntimeHost
 				_options.Telemetry.RecordRollback(State.Room.RoomId);
 			if (result.Events.Any(static evt => string.Equals(evt.Type, "Resync", StringComparison.OrdinalIgnoreCase)))
 				_options.Telemetry.RecordResync(State.Room.RoomId);
+
+			// P0-7: route accepted authoritative events through the
+			// per-room consequence dispatcher BEFORE BuildSnapshot so any
+			// state mutations the handlers introduce are reflected in the
+			// next snapshot/delta sent to clients.
+			Consequences.DispatchConsequences(State, result.Events);
+
 			var transition = ResolveModeTransition(command, modeBefore, timestamp);
 			if (transition != null)
 			{
