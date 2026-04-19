@@ -37,7 +37,15 @@ public sealed class HostedLobbyService : ILobbyService
 	{
 		var ticket = _inner.JoinRoom(request);
 		if (_gameHost.TryGetRoom(ticket.RoomId, out var roomHost))
+		{
+			// P0-6: lobby just minted a fresh PlayerSessionId / JoinToken in
+			// _inner.JoinRoom; without pushing the updated RoomRuntimeState to
+			// the game host the new player's join token is unknown to
+			// RoomRuntimeHost.Connect and authentication fails with
+			// invalid_join_token. Sync first, then record the audit log.
+			roomHost.SynchronizeRoom(_inner.GetRoomState(ticket.RoomId));
 			roomHost.AppendLifecycleAudit("join", ticket.PlayerSessionId, ticket.PrimaryActorId, result: "ok", code: null);
+		}
 		return ticket;
 	}
 
@@ -45,7 +53,13 @@ public sealed class HostedLobbyService : ILobbyService
 	{
 		var ticket = _inner.ReconnectClaim(request);
 		if (_gameHost.TryGetRoom(ticket.RoomId, out var roomHost))
+		{
+			// Same reason as JoinRoom: lobby rotates ReconnectToken inside
+			// _inner.ReconnectClaim, so the game host needs the updated room
+			// state before the next ENet authentication round-trip.
+			roomHost.SynchronizeRoom(_inner.GetRoomState(ticket.RoomId));
 			roomHost.AppendLifecycleAudit("reconnect", ticket.PlayerSessionId, ticket.PrimaryActorId, result: "ok", code: null);
+		}
 		return ticket;
 	}
 
