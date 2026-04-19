@@ -801,6 +801,7 @@ public class GameSessionModule : IDebugSessionActions
 		ActiveSessionKind? sessionKindOverride = null,
 		bool suppressLocalPersistence = false)
 	{
+		_fogTracker.Clear();
 		_state.Weather ??= WeatherState.CreateDefault(_state.WorldSeed);
 		if (!string.IsNullOrWhiteSpace(header?.WorldId) && knownWorld == null)
 			_worldStore.TryLoadWorld(header.WorldId!, out knownWorld);
