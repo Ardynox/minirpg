@@ -393,7 +393,14 @@ public partial class Main
 	private void ApplyTimelineStep(TimelineStepResult result)
 	{
 		if (result.Events.Count > 0)
+		{
+			// Consequence handlers (relationships, memory, rumor, etc.) must
+			// observe AI-produced events before the presentation router runs;
+			// state changes have to land before UI/log/FX render them so a
+			// later log line can already reflect "victim now fears attacker".
+			_consequenceRouter?.DispatchConsequences(_state, result.Events);
 			Dispatch(result.Events);
+		}
 
 		TickSimulationSystems();
 		FinalizeTimelineStepUi();

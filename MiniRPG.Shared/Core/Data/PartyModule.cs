@@ -91,6 +91,32 @@ public static class PartyModule
 	public static Actor? GetActiveActor(GameState state) =>
 		ActorModule.GetById(state, GetActiveId(state));
 
+	/// <summary>
+	/// 严格版"取焦点角色"：仅在 <see cref="PartyState.ActiveId"/> 非空且对应 actor 实体存在时返回 true。
+	/// 区别于 <see cref="GetActiveActor"/>：本方法不隐式回退到 <see cref="GameState.PlayerId"/>，
+	/// 让调用方（典型如 <c>ActiveActorAccess</c>）决定回退策略。
+	/// </summary>
+	/// <remarks>
+	/// 设计意图（见 <c>Docs/产品愿景.md</c> 玩家控制模型）：
+	/// 玩家控制的"焦点角色"是 Party 的事实，但单机老存档 / 多人首帧未对齐时 Party 可能未初始化。
+	/// 这种过渡态下调用方应回退到 <see cref="GameState.PlayerId"/>，避免 null 沿调用栈扩散。
+	/// </remarks>
+	public static bool TryGetActiveActor(
+		GameState state,
+		[System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Actor? actor)
+	{
+		var activeId = state.Party.ActiveId;
+		if (!string.IsNullOrEmpty(activeId)
+			&& state.Actors.TryGetValue(activeId, out var found))
+		{
+			actor = found;
+			return true;
+		}
+
+		actor = null;
+		return false;
+	}
+
 	/// <summary>判断是否是队伍成员。兼容旧存档：Party 为空时视 PlayerId 为唯一成员。</summary>
 	public static bool IsPartyMember(GameState state, string actorId)
 	{
