@@ -120,6 +120,11 @@ internal sealed class GameEventPresentationRouter
 				ResAccess.GetAnimatable(_state.PlayerId)?.Play("Die", false);
 				_handlePlayerDeath("incapacitated");
 				break;
+			case "party_wiped":
+				// 由 ActiveActorDeathHandler 在全队都死后派出；走"回主菜单"终局。
+				// HandlePlayerDeath 自带"还有活人就拒绝进终局"的守卫，这里安全地无条件转发。
+				_handlePlayerDeath("party_wiped");
+				break;
 			case "interaction":
 				DispatchInteraction(e);
 				break;

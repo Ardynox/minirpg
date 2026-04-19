@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Module.Render;
+using MiniRPG.Module.Session;
 
 namespace MiniRPG;
 
@@ -399,6 +400,10 @@ public partial class Main
 			// state changes have to land before UI/log/FX render them so a
 			// later log line can already reflect "victim now fears attacker".
 			_consequenceRouter?.DispatchConsequences(_state, result.Events);
+			// 队员死亡 → 切焦点 / 全灭判定。放在 Consequence 之后，让关系/记忆先看到原始
+			// actor_killed；Handler 派出的 party_member_lost / active_actor_switched / party_wiped
+			// 走的是 UI / 终局通道，不属于关系层关心的范畴。
+			ProcessActiveActorDeaths(result.Events);
 			Dispatch(result.Events);
 		}
 
@@ -406,6 +411,38 @@ public partial class Main
 		FinalizeTimelineStepUi();
 		SyncTimelineAutoAdvanceState(emitStatusLog: true);
 	}
+
+	/// <summary>
+	/// 拦截本 step 内的"队员死亡"事件，把焦点切换 / 全队灭决策派给 <see cref="ActiveActorDeathHandler"/>。
+	/// Handler 产出的 party_member_lost / active_actor_switched / party_wiped 事件追加到本 step 的事件流，
+	/// 由后续 <c>Dispatch</c> 一起翻译给日志 / Router；这样切焦点和"回主菜单"走的是同一个事件通道。
+	/// </summary>
+	private void ProcessActiveActorDeaths(List<GameEvent> events)
+	{
+		// 先快照：Handler 会向 events 追加新事件，避免在 foreach 时 mutate 同一个集合。
+		var snapshot = events.ToArray();
+		List<GameEvent>? produced = null;
+		for (var i = 0; i < snapshot.Length; i++)
+		{
+			var ev = snapshot[i];
+			if (!IsPartyDeathTrigger(ev))
+				continue;
+			if (string.IsNullOrWhiteSpace(ev.TargetId))
+				continue;
+			if (!PartyModule.IsPartyMember(_state, ev.TargetId))
+				continue;
+
+			produced ??= [];
+			ActiveActorDeathHandler.Handle(_state, ev.TargetId, produced);
+		}
+
+		if (produced != null && produced.Count > 0)
+			events.AddRange(produced);
+	}
+
+	private static bool IsPartyDeathTrigger(GameEvent e) =>
+		e.Type is "actor_killed" or "actor_incapacitated"
+			or "death_blood_loss" or "death_infection";
 
 	// Drive per-turn decay for the second-layer simulation modules.
 	// Called once per timeline step after the event batch has been
@@ -450,10 +487,24 @@ public partial class Main
 	}
 
 	/// <summary>
+	/// 进入"全队灭"终局流程：暂停玩家输入、清掉战斗 / 寻路态、写一段死亡日志，
+	/// 让玩家点回主菜单。
 	/// </summary>
+	/// <remarks>
+	/// 设计意图（见 <c>Docs/产品愿景.md</c> 死亡与复活）：
+	/// 焦点角色死亡 ≠ 终局——只要 Party 还有活人就应该自动切焦点继续玩。
+	/// 真正进入终局的入口是 <see cref="ProcessActiveActorDeaths"/> →
+	/// <see cref="ActiveActorDeathHandler"/> 返回 AllMembersDead → 派 <c>party_wiped</c> 事件 →
+	/// <see cref="GameEventPresentationRouter"/> 调本方法（reason="party_wiped"）。
+	/// 这里再做一道防御：万一旧路径（某些 Router 分支仍按 PlayerId 匹配）误触，
+	/// 队伍如果还有活人就拒绝进终局，让玩家继续操作下一焦点。
+	/// </remarks>
 	public void HandlePlayerDeath(string reason)
 	{
 		if (PlayerDead) return;
+		if (_state.Party.MemberIds.Count > 0 && PartyModule.AnyMemberAlive(_state))
+			return;
+
 		PlayerDead = true;
 		CancelLayoutEditMode();
 
