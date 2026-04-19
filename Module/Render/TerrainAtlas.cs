@@ -116,6 +116,9 @@ public sealed class TerrainAtlas
 		}
 
 		_atlasTexture = ImageTexture.CreateFromImage(atlasImage);
+
+		// 释放图片加载缓存：图集已 blit 完成，原始 Image 不再需要常驻内存
+		_imageLoadCache.Clear();
 	}
 
 	// ══════════════════════════════════════════════════════
