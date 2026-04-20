@@ -41,11 +41,18 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 	private readonly Button _autoPackBtn;
 	private readonly PopupMenu _contextMenu;
 	private readonly IInventoryPanelHost _host;
+	private readonly Label? _hintBar;
+	private string _defaultHintText = string.Empty;
 
 	private readonly Dictionary<string, Control> _gridCanvases = new(StringComparer.Ordinal);
 	private readonly Dictionary<string, Control> _placementVisuals = new(StringComparer.Ordinal);
 	private string _selectedInstanceId = string.Empty;
 	private bool _visible;
+
+	// HintBar 平时显示通用提示，拖拽 _CanDropData 拒绝时切换为红色 + 拒绝原因，
+	// drag 结束 Refresh 时由 ClearDragHint 还原。
+	private static readonly Color HintNormalColor = new(0.85f, 0.85f, 0.9f, 0.85f);
+	private static readonly Color HintRejectColor = new(1f, 0.45f, 0.45f, 1f);
 
 	private const int ContextEquipUnequip = 0;
 	private const int ContextUse = 1;
@@ -79,11 +86,15 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 		_gridStack = gridScroll.GetNode<VBoxContainer>("GridStack");
 		_unplacedHint = vbox.GetNode<Label>("UnplacedHint");
 		_detailBox = vbox.GetNode<RichTextLabel>("DetailBox");
-		var hintBar = vbox.GetNodeOrNull<Label>("HintBar");
-		if (hintBar != null)
-			hintBar.Text = LocalizationService.TOrFallback(
-				"ui.inventory.hint_grid",
-				"Drag to move | R rotates | Right-click for options | F auto-packs");
+		_hintBar = vbox.GetNodeOrNull<Label>("HintBar");
+		_defaultHintText = LocalizationService.TOrFallback(
+			"ui.inventory.hint_grid",
+			"Drag to move | R rotates | Right-click for options | F auto-packs");
+		if (_hintBar != null)
+		{
+			_hintBar.Text = _defaultHintText;
+			_hintBar.Modulate = HintNormalColor;
+		}
 		var actionBar = vbox.GetNode<HBoxContainer>("ActionBar");
 		_equipBtn = actionBar.GetNode<Button>("EquipBtn");
 		_useBtn = actionBar.GetNode<Button>("UseBtn");
@@ -129,6 +140,21 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 		RenderHeader(player);
 		RenderDetail(player);
 		UpdateActionButtons(player);
+		ClearDragHint();
+	}
+
+	private void ShowDragHint(string text)
+	{
+		if (_hintBar == null) return;
+		_hintBar.Text = text;
+		_hintBar.Modulate = HintRejectColor;
+	}
+
+	private void ClearDragHint()
+	{
+		if (_hintBar == null) return;
+		_hintBar.Text = _defaultHintText;
+		_hintBar.Modulate = HintNormalColor;
 	}
 
 	private void WireActionButtons()
@@ -403,11 +429,42 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null) return false;
 		var item = player.Inventory.Find(i => i.InstanceId == instanceId);
-		if (item == null || !item.IsEquippable) return false;
+		if (item == null) return false;
 
-		// ??? BodyPart + Layer ??????????????????
-		return string.Equals(item.BodyPart, slot.BodyPart, StringComparison.Ordinal)
-			&& item.Layer == slot.Layer;
+		if (!item.IsEquippable)
+		{
+			ShowDragHint(LocalizationService.TOrFallback(
+				"ui.inventory.cannot_equip_not_equippable",
+				"This item cannot be equipped."));
+			return false;
+		}
+
+		// 必须 BodyPart + Layer 同时匹配；不匹配时把原因写到 hint 让玩家立刻看到。
+		var bodyMatch = string.Equals(item.BodyPart, slot.BodyPart, StringComparison.Ordinal);
+		var layerMatch = item.Layer == slot.Layer;
+		if (bodyMatch && layerMatch)
+		{
+			ClearDragHint();
+			return true;
+		}
+
+		var slotBodyLabel = GameLocalizer.LocalizeBodyPart(slot.BodyPart);
+		var slotLayerLabel = GameLocalizer.LocalizeEquipLayer(slot.Layer);
+		var itemBodyLabel = GameLocalizer.LocalizeBodyPart(item.BodyPart);
+		var itemLayerLabel = GameLocalizer.LocalizeEquipLayer(item.Layer);
+		string hint = !bodyMatch
+			? LocalizationService.TOrFallback(
+				"ui.inventory.cannot_equip_wrong_bodypart",
+				"This goes on {item_part}, not {slot_part}.",
+				("item_part", itemBodyLabel),
+				("slot_part", slotBodyLabel))
+			: LocalizationService.TOrFallback(
+				"ui.inventory.cannot_equip_wrong_layer",
+				"Wrong layer: this is {item_layer}, slot is {slot_layer}.",
+				("item_layer", itemLayerLabel),
+				("slot_layer", slotLayerLabel));
+		ShowDragHint(hint);
+		return false;
 	}
 
 	private void DropOnEquipStrip(Variant data)
@@ -857,25 +914,61 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 
 	private bool CanDropAtGrid(string gridId, Vector2 atPosition, Variant data)
 	{
-		if (data.VariantType != Variant.Type.Dictionary) return false;
+		if (data.VariantType != Variant.Type.Dictionary)
+		{
+			ShowDragHint(LocalizationService.T("log.inventory.grid_error.ItemNotFound"));
+			return false;
+		}
 		var dict = data.AsGodotDictionary();
 		var instanceId = dict.TryGetValue("instance_id", out var iv) ? iv.AsString() : "";
-		if (string.IsNullOrEmpty(instanceId)) return false;
+		if (string.IsNullOrEmpty(instanceId))
+		{
+			ShowDragHint(LocalizationService.T("log.inventory.grid_error.ItemNotFound"));
+			return false;
+		}
 
 		var player = ActorModule.GetPlayer(_host.State);
 		if (player == null) return false;
-		if (!player.GridInventories.TryGetValue(gridId, out var grid)) return false;
+		if (!player.GridInventories.TryGetValue(gridId, out var grid))
+		{
+			ShowDragHint(LocalizationService.T("log.inventory.grid_error.GridNotFound"));
+			return false;
+		}
 
 		var item = player.Inventory.Find(i => i.InstanceId == instanceId);
-		if (item == null) return false;
+		if (item == null)
+		{
+			ShowDragHint(LocalizationService.T("log.inventory.grid_error.ItemNotFound"));
+			return false;
+		}
 		var def = ItemSizeRegistry.GetDef(item);
 		var (cellX, cellY) = WorldToCell(atPosition);
 		var offsetX = dict.TryGetValue("pickup_offset_x", out var oxv) ? oxv.AsInt32() : 0;
 		var offsetY = dict.TryGetValue("pickup_offset_y", out var oyv) ? oyv.AsInt32() : 0;
 		var anchorX = cellX - offsetX;
 		var anchorY = cellY - offsetY;
-		return grid.CanPlaceAt(anchorX, anchorY, def.Width, def.Height, excludeInstanceId: instanceId)
-			|| (def.AllowRotation && grid.CanPlaceAt(anchorX, anchorY, def.Height, def.Width, excludeInstanceId: instanceId));
+
+		var fitsDirect = grid.CanPlaceAt(anchorX, anchorY, def.Width, def.Height, excludeInstanceId: instanceId);
+		var fitsRotated = def.AllowRotation
+			&& grid.CanPlaceAt(anchorX, anchorY, def.Height, def.Width, excludeInstanceId: instanceId);
+
+		if (fitsDirect || fitsRotated)
+		{
+			ClearDragHint();
+			return true;
+		}
+
+		// 算最具体的拒绝原因：优先 OutOfBounds（含旋转后仍越界），否则 OverlapsExisting。
+		var directOob = anchorX < 0 || anchorY < 0
+			|| anchorX + def.Width > grid.Width || anchorY + def.Height > grid.Height;
+		var rotatedOob = !def.AllowRotation
+			|| anchorX < 0 || anchorY < 0
+			|| anchorX + def.Height > grid.Width || anchorY + def.Width > grid.Height;
+		var reasonKey = directOob && rotatedOob
+			? "log.inventory.grid_error.OutOfBounds"
+			: "log.inventory.grid_error.OverlapsExisting";
+		ShowDragHint(LocalizationService.T(reasonKey));
+		return false;
 	}
 
 	private void DropAtGrid(string gridId, Vector2 atPosition, Variant data)
