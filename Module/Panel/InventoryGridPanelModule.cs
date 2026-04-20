@@ -453,12 +453,19 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 
 	private void OnEquipStripGuiInput(InputEvent ev, string instanceId)
 	{
-		if (ev is not InputEventMouseButton mb || !mb.Pressed) return;
-		_selectedInstanceId = instanceId;
-		if (mb.ButtonIndex == MouseButton.Right)
-			ShowContextMenu(mb.GlobalPosition);
-		else
+		if (ev is not InputEventMouseButton mb) return;
+		// 在按下那一瞬间 Refresh 会 QueueFree 当前 strip，drag threshold 还没到就把 drag
+		// 源销毁了，结果左键永远拖不动。press 只记选中 + 弹菜单，Refresh 留到 release。
+		if (mb.Pressed)
+		{
+			_selectedInstanceId = instanceId;
+			if (mb.ButtonIndex == MouseButton.Right)
+				ShowContextMenu(mb.GlobalPosition);
+		}
+		else if (mb.ButtonIndex == MouseButton.Left)
+		{
 			Refresh();
+		}
 	}
 
 	// ?? ???????? ???????????????????????????????
@@ -575,7 +582,18 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 		var h = placement.Height * CellSize + (placement.Height - 1) * CellGap;
 		var isSelected = string.Equals(item.InstanceId, _selectedInstanceId, StringComparison.Ordinal);
 
-		var container = new Control
+		var capturedGridId = sourceGridId;
+		var capturedInstance = item.InstanceId;
+		var placementWidth = placement.Width;
+		var placementHeight = placement.Height;
+		var placementX = placement.X;
+		var placementY = placement.Y;
+
+		// placement 容器必须是 DragDropControl：Godot 4 里 _GetDragData 只问"按下时最深命中
+		// 的那个 Control"，不会向父节点冒泡。如果 placement 只是普通 Control，拖拽永远
+		// 不会从 canvas 启动。OnCanDrop/OnDrop 把局部坐标转回 canvas 局部坐标，然后委托
+		// 给 canvas 的同名处理。
+		var container = new DragDropControl
 		{
 			Position = new Vector2(
 				CellGap + placement.X * (CellSize + CellGap),
@@ -583,11 +601,51 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 			Size = new Vector2(w, h),
 			CustomMinimumSize = new Vector2(w, h),
 			TooltipText = ItemFormatHelper.GetDisplayName(_host.State, item),
-			// MouseFilter=Pass：click/right-click 走 placement.GuiInput（选中 + 上下文菜单），
-			// 同时让鼠标拖拽事件冒泡到父 canvas 的 SetDragForwarding 启动拖拽。
 			MouseFilter = Control.MouseFilterEnum.Pass,
 		};
 		container.SetMeta("instance_id", item.InstanceId);
+
+		container.OnGetDragData = (pos) =>
+		{
+			var player = ActorModule.GetPlayer(_host.State);
+			if (player == null) return default;
+			var it = player.Inventory.Find(i => i.InstanceId == capturedInstance);
+			if (it == null) return default;
+
+			// pos 在 placement 局部（像素），换成 placement 内部的 cell 偏移。
+			var stride = CellSize + CellGap;
+			var pickupCellX = Mathf.Clamp(Mathf.FloorToInt(pos.X / stride), 0, placementWidth - 1);
+			var pickupCellY = Mathf.Clamp(Mathf.FloorToInt(pos.Y / stride), 0, placementHeight - 1);
+
+			_selectedInstanceId = capturedInstance;
+			AttachDragPreview(it, placementWidth, placementHeight);
+
+			return new Godot.Collections.Dictionary
+			{
+				["source"] = DragSourceGrid,
+				["instance_id"] = capturedInstance,
+				["source_grid_id"] = capturedGridId,
+				["pickup_offset_x"] = pickupCellX,
+				["pickup_offset_y"] = pickupCellY,
+			};
+		};
+
+		container.OnCanDrop = (pos, data) =>
+		{
+			// 把 placement 局部坐标加回 placement 在 canvas 里的偏移，再走 canvas 逻辑。
+			var canvasPos = new Vector2(
+				CellGap + placementX * (CellSize + CellGap) + pos.X,
+				CellGap + placementY * (CellSize + CellGap) + pos.Y);
+			return CanDropAtGrid(capturedGridId, canvasPos, data);
+		};
+
+		container.OnDrop = (pos, data) =>
+		{
+			var canvasPos = new Vector2(
+				CellGap + placementX * (CellSize + CellGap) + pos.X,
+				CellGap + placementY * (CellSize + CellGap) + pos.Y);
+			DropAtGrid(capturedGridId, canvasPos, data);
+		};
 
 		// ????????????
 		if (isSelected)
@@ -634,7 +692,6 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 		label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 		container.AddChild(label);
 
-		var capturedInstance = item.InstanceId;
 		container.GuiInput += ev => OnPlacementGuiInput(ev, capturedInstance);
 
 		if (_tooltipLayer != null)
@@ -682,12 +739,19 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 
 	private void OnPlacementGuiInput(InputEvent ev, string instanceId)
 	{
-		if (ev is not InputEventMouseButton mb || !mb.Pressed) return;
-		_selectedInstanceId = instanceId;
-		if (mb.ButtonIndex == MouseButton.Right)
-			ShowContextMenu(mb.GlobalPosition);
-		else
+		if (ev is not InputEventMouseButton mb) return;
+		// 按下时 Refresh 会 QueueFree 当前 placement 容器，drag 还没启动就丢了源 Control，
+		// 直接导致"左键按住拖不动"。press 只记选中 + 弹菜单，Refresh 推迟到 release。
+		if (mb.Pressed)
+		{
+			_selectedInstanceId = instanceId;
+			if (mb.ButtonIndex == MouseButton.Right)
+				ShowContextMenu(mb.GlobalPosition);
+		}
+		else if (mb.ButtonIndex == MouseButton.Left)
+		{
 			Refresh();
+		}
 	}
 
 	private string LocalizeGridTitle(GridInventory grid) => grid.Kind switch
@@ -705,8 +769,10 @@ public sealed class InventoryGridPanelModule : IPanel, ITooltipRegistrar
 	private const string DragSourceGrid = "grid";
 	private const string DragSourceEquipped = "equipped";
 
-	// canvas 用 atPosition hit-test 找哪个 placement 被拖：placement.MouseFilter=Pass
-	// 把鼠标拖拽事件冒泡上来，canvas 的 SetDragForwarding 在这里启动拖拽。
+	// Canvas 级 drag start：主路径是 placement（DragDropControl）自己的 OnGetDragData，
+	// 本方法只在 placement 没接住（比如按空网格背景）时兜底做 hit-test。
+	// 注意 Godot 4 的 _GetDragData 只问"按下时最顶层命中的 Control"，不会向父节点冒泡；
+	// placement 必须自己是 DragDropControl，不能靠冒泡到这里启动拖拽。
 	private Variant GetDragDataForGrid(string gridId, Vector2 atPosition)
 	{
 		var player = ActorModule.GetPlayer(_host.State);
