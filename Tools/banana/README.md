@@ -246,6 +246,10 @@ python Tools/banana/rembg_cutout.py `
 - `--model` 默认 `u2net`；边缘更稳可试 `isnet-general-use`（首次会下载 ONNX 权重）。
 - `--alpha-matting`：更干净边缘，更慢，需 rembg 完整依赖。
 
+**首次运行 / 离线**：默认模型从 GitHub 拉取 `u2net.onnx`（约 176MB）。若自动下载失败，用浏览器下载  
+https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx  
+保存到 **`%USERPROFILE%\.u2net\u2net.onnx`**（rembg 默认目录），或放到任意目录后设置环境变量 **`U2NET_HOME`** 指向该目录（目录内需有 `u2net.onnx`，不要指向文件本身）。也可在 **`Tools/banana/.env`** 里写 `U2NET_HOME=...`（`rembg_cutout.py` 启动时会加载）。
+
 ---
 
 ## 8. xais 中转：aspect 烟测 + prop 批 1 重出

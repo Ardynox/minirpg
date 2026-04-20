@@ -15,11 +15,28 @@ rembg 抠图 CLI — 输入任意 PNG/JPG/WebP，输出带 alpha 的 PNG（通�
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = Path(__file__).resolve().parent
+
+
+def load_env() -> None:
+    """读 Tools/banana/.env（如有），写入 os.environ。与 banana_gen.py 行为一致。"""
+    env_path = TOOLS_DIR / ".env"
+    if not env_path.exists():
+        return
+    for raw in env_path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
 
 # 与 banana_gen.py 一致：输出必须在 Artifacts/ 或 Assets/ 下
 MAX_OUT_REL_DEPTH = 8
@@ -66,6 +83,7 @@ def validate_in_path(path: Path) -> None:
 
 def main() -> int:
     _force_utf8_stdio()
+    load_env()
 
     parser = argparse.ArgumentParser(
         description="rembg 抠图：输出 PNG（透明背景）",
@@ -103,7 +121,15 @@ def main() -> int:
     try:
         session = new_session(args.model)
     except Exception as exc:
-        sys.exit(f"[rembg] 模型 '{args.model}' 不可用: {type(exc).__name__}: {exc}")
+        home = os.path.expanduser(os.getenv("U2NET_HOME", os.path.join("~", ".u2net")))
+        sys.exit(
+            f"[rembg] 模型 '{args.model}' 不可用: {type(exc).__name__}: {exc}\n"
+            "        首次运行需下载 ONNX 权重（约 176MB）。若自动下载失败（GitHub/SSL）：\n"
+            "        1) 浏览器打开："
+            "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx\n"
+            f"        2) 保存为：{os.path.join(home, args.model + '.onnx')}\n"
+            "        3) 或设环境变量 U2NET_HOME 为「已放 *.onnx 的目录」，再重跑本脚本。"
+        )
 
     try:
         if args.alpha_matting:
