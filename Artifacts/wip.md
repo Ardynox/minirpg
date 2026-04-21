@@ -13,7 +13,6 @@
 
 <!-- 按开工时间倒序。完成后删除本条。 -->
 
-- cursor-opus-asset-pipeline | `Tools/validate_art_res_paths.py`(新) `Artifacts/asset_pipeline_coordination_2026-04-21.md`(新) `Docs/运行与测试.md` | 2026-04-21 完成登记后可删：资源路径校验脚本 + 分包协调稿；不动 Banana 驱动与 Assets 大图
 - qtwx-mcp-9-water-subview | `Scene/WaterPainterlyBlockSubview.{cs,tscn}`(新) `Scene/WaterPainterlyBlockSubviewDebug.{cs,tscn}`(新 iso 调试场景) | 进行中 2026-04-20 V1 完成：把 `WaterPainterlyBlockPreview` 的水块包进 `SubViewportContainer + SubViewport`，相机按游戏 2:1 等距（yaw 45°、pitch 30°、正交）、自动 fit grid，只渲染 +X/+Z 两个可见侧面，砍 boat/drop/debug-UI/mouse-input，[Export] block/grid/viewport/相机参数，公开 `SpawnRipple/SpawnRippleQuiet/SpawnWakeRipple/ClearRipples/GetViewportTexture`。Debug 场景用 `IsoCoordUtil` 画 5×5 的 iso ground tile（菱形顶 + 两片侧面 parallelogram），中心一格换成 WaterPainterlyBlockSubview（128×128），鼠标点水 = 生成 ripple，[/]调 amp、F 切 splash、C 切背景、R 清 ripple、滚轮 zoom、中键 pan。`dotnet build` 0 错 0 警。**原 `WaterPainterlyBlockPreview.cs` 本轮未动**（V1 先走重复代码让 subview 能独立跑通确认方向，V2 再抽 shared core 给 Preview 和 Subview 共用，避免一次改 1800 行带来回归风险）。不动别的 Water*Preview / 主渲染 / IsometricVoxelRenderer
 - qtwx-mcp-1-billbar | `Module/Panel/InlineBillBarModule.cs`(新) `Scene/InlineBillBar.tscn`(新) `MiniRPG.Shared/Module/ServerActionGateway.cs` `App/Main.UiMode.cs` `App/Main.Panels.cs` `Docs/界面与面板.md` | 进行中 2026-04-20
 - qtwx-mcp-1-revive-facility | `Data/facilities.json` `Data/entity_render.json` `Data/I18n/{en,zh_CN}.json` `App/RuntimeUi/GameEventPresentationRouter.cs` | 进行中 2026-04-20
