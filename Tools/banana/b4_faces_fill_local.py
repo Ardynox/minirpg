@@ -5,6 +5,7 @@ API 不可用或与 Banana 并行时使用；风格为透明底 + 土色线框 +
 
     python Tools/banana/b4_faces_fill_local.py
     python Tools/banana/b4_faces_fill_local.py --force
+    python Tools/banana/b4_faces_fill_local.py --size 256
 """
 from __future__ import annotations
 
@@ -46,7 +47,7 @@ def res_to_fs(res: str) -> Path:
     return ROOT / rel
 
 
-def _draw(path: Path, stem: str, size: int = 128) -> None:
+def _draw(path: Path, stem: str, size: int) -> None:
     from PIL import Image, ImageDraw, ImageFont
 
     h = int(hashlib.sha256(stem.encode()).hexdigest(), 16)
@@ -81,10 +82,17 @@ def _draw(path: Path, stem: str, size: int = 128) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true")
+    ap.add_argument(
+        "--size",
+        type=int,
+        default=256,
+        help="Square canvas edge (identity card + PortraitComposer use 256).",
+    )
     args = ap.parse_args()
+    size = max(32, min(512, args.size))
 
     paths = _iter_image_paths()
-    _log(f"===== b4_faces_fill_local: {len(paths)} targets =====")
+    _log(f"===== b4_faces_fill_local: {len(paths)} targets size={size} =====")
     ok = 0
     for res in paths:
         fs = res_to_fs(res)
@@ -92,7 +100,7 @@ def main() -> int:
             _log(f"[skip] {fs.relative_to(ROOT)}")
             continue
         stem = fs.stem
-        _draw(fs, stem)
+        _draw(fs, stem, size=size)
         _log(f"[ok]   {fs.relative_to(ROOT)}")
         ok += 1
     _log(f"===== done wrote={ok} total_defined={len(paths)} =====")
@@ -100,4 +108,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-	raise SystemExit(main())
+    raise SystemExit(main())

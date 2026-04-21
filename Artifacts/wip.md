@@ -20,6 +20,8 @@
 
 ## 已完成（最近）
 
+- cursor-opus-b4-faces-256 | 2026-04-21 完成。`Tools/banana/b4_faces_fill_local.py` 默认画布 **256×256**（`--size` 可改）；`python ... --force` 重写 **62/62** `Assets/Faces/**/*.png`，与身份卡 B4、`PortraitComposer` 画布一致。新增 `Artifacts/style_locks_B4.md`；更新 `Artifacts/style_locks_registry.md`（B4 状态 + Faces 快照）。决策标尺 0：**Y**（肖像合成走磁盘 PNG 时不再被 128 升采样糊掉；仍为土色占位可后续 Banana 替换）。
+
 - cursor-opus-style-locks | 2026-04-21 完成。落实身份卡 §0.2：新增 `Artifacts/style_locks_B0.md`（全局锚点摘 `Assets/Art/README.md` / 需求清单 §0）、`Artifacts/style_locks_registry.md`（各批子锁登记表 + `Placeholders` 子目录 PNG 快照）、`Artifacts/素材身份卡_运行时映射补充_2026-04-21.md`（天气 id、`limb_*` 与身份卡 B7.4 命名差异）。决策标尺 0：**N**（不改玩法；收敛多通道发包与验收口径，服务后续 B4/B9/B10）。
 
 - cursor-opus-item-world | 2026-04-21 完成。**接入**：`ItemWorldRenderRegistry.Load()`（`GameDataLocator` + 大小写不敏感 JSON）；`IsometricVoxelRenderer` 构造时加载注册表；`EntityDrawCommand` 携带地面物品 `templateId`/`category`/`stackIndex`，在实体绘制阶段优先 `TryDrawGroundItemWorldSprite`（`texture`/`catalog_texture` → `ResAccess.Get`，`tile` 仍跳过并回退圆点）；`EntityAccess.TryGetGroundItemRenderKeys`。**数据**：`item_world_render.json` 的 `default` + 九类 `categories` 改为 `res://Assets/Art/Placeholders/item_world/category_*.png`；`items` 覆盖仍多为 `catalog_texture`。**生成**：`Tools/banana/b2_item_world_driver.py`（banana 64px）；`b2_item_world_fill_local.py` 在 API 限额时用 PIL 写入 9 张土色块兜底（本轮已执行，磁盘已有 `category_*.png`）。`Assets/Art/README.md` §接入、`Docs/界面与面板.md` §3.3；测试扩 `ItemWorldRenderMapping_UsesSupportedKinds` + `Load_FromProjectData_ReturnsRegistryWithCategories`。`dotnet build` + `ItemWorldRenderRegistryTests` 6/6。决策标尺 0：**Y**（地图掉落物一眼可读；无图时行为与旧版一致）。

@@ -8,14 +8,14 @@
 | B1 | `Artifacts/style_locks_B1.md` | 待填 | 特效 / 天气 / 品牌；天气 id 见下方「与身份卡差异」 |
 | B2 | `Artifacts/style_locks_B2.md` | 待填 | NPC 俯视 + 立绘 |
 | B3 | `Artifacts/style_locks_B3.md` | 待填 | 物品图标 130（可拆子批，可共用一个 B3 lock） |
-| B4 | `Artifacts/style_locks_B4.md` | 待填 | 人脸部件 62 张 |
+| B4 | `Artifacts/style_locks_B4.md` | **已锁定（初版）** | 62 张已落盘；本地兜底线框，可再跑 Banana 重刷 |
 | B5 | `Artifacts/style_locks_B5.md` | 待填 | need / condition / thought |
 | B6 | `Artifacts/style_locks_B6.md` | 待填 | profession / race / interaction / incident |
 | B7 | `Artifacts/style_locks_B7.md` | 待填 | surgery / room / capacity / limb |
 | B8 | `Artifacts/style_locks_B8.md` | 待填 | 作物 + 材料世界堆 |
 | B9 | `Artifacts/style_locks_B9.md` | 待填 | 依赖 B4 + 男女素体 |
 | B10 | `Artifacts/style_locks_B10.md` | 待填 | Generated 重刷，**最晚** |
-| B11 | `Artifacts/style_locks_B11.md` | 待填 | facility 蓝图 |
+| B11 | `Artifacts/style_locks_B11.md` | 待填 | 磁盘已有 10 张蓝图占位（`b11_facility_blueprint_fill_local.py`）；子锁文件可补写 |
 | B12 | `Artifacts/style_locks_B12.md` | 待填 | P2 生活细节 + 联机色带 |
 
 ## 磁盘占位进度快照（2026-04-21 清点）
@@ -34,7 +34,14 @@
 | `crops/` | 21 | B8.1 |
 | `material_world/` | 24 | B8.2 |
 
-**下一优先缺口（相对身份卡依赖图）**：B4 人脸 PNG（`Assets/Faces/**` 仍多靠程序占位）、B9 装备 overlay、B10/B11/B12 按路线图。
+### `Assets/Faces/**/*.png`（B4）
+
+| 指标 | 值 |
+| --- | ---: |
+| 张数 | **62**（与 `Data/FaceParts/*.json` 非空 `imagePath` 一致） |
+| 画布 | **256×256**（`b4_faces_fill_local.py` 默认；2026-04-21 `--force` 已对齐身份卡） |
+
+**下一优先缺口（相对身份卡依赖图）**：**B9** 装备 overlay（依赖男女素体 + B4 定稿）、**B10** Generated 重刷、**B12** P2。B11 占位图已齐，差「风格子锁」文档可选补。
 
 ## 与身份卡原文的差异（避免发包对不上号）
 
