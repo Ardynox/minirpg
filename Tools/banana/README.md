@@ -165,6 +165,18 @@ python Tools/banana/banana_gen.py `
     --out Artifacts/preview/foo.png
 ```
 
+### 2.5 本地兜底（无 API：`B2` / `B4` / `B7`）
+
+计费不可用或只想先把路径填满时，可用 PIL 在 `Assets/` 下落占位 PNG（风格与 `b2_item_world_fill_local` 一致：土色块 + 线框）。
+
+| 脚本 | 落点 |
+|------|------|
+| `python Tools/banana/b2_item_world_fill_local.py` | `Assets/Art/Placeholders/item_world/category_*.png` |
+| `python Tools/banana/b7_ui_icons_fill_local.py` | `Assets/Art/Placeholders/ui_icons/surgery_*、room_*、capacity_*、limb_*` |
+| `python Tools/banana/b4_faces_fill_local.py` | `Assets/Faces/...`（与 `Data/FaceParts/*.json` 中非空 `imagePath` 一一对应，当前 **62** 张） |
+
+替换 Banana 真图后无需删兜底脚本；合并前跑 `python Tools/validate_art_res_paths.py --catalog --combat-audit`。
+
 ---
 
 ## 3. 与 Banana 总表的关系

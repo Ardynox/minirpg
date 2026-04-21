@@ -6,6 +6,7 @@ Usage (repo root):
   python Tools/validate_art_res_paths.py
   python Tools/validate_art_res_paths.py --catalog        # include resource_catalog.json (many paths)
   python Tools/validate_art_res_paths.py --combat-audit    # combat_fx.json resourceId vs resource_catalog ids
+  python Tools/validate_art_res_paths.py --no-faces       # skip Data/FaceParts/*.json
 
 Exit 0 if no errors. Exit 1 on missing files or catalog drift.
 """
@@ -26,7 +27,11 @@ DEFAULT_SCAN_FILES: tuple[str, ...] = (
     "Data/item_world_render.json",
 )
 
-RES_ART = re.compile(r"res://Assets/Art/[^\s\"]+\.(?:png|jpg|jpeg|webp|tres|tscn)\b")
+# Face customization (res://Assets/Faces/...)
+DEFAULT_FACEPART_GLOB = "Data/FaceParts/*.json"
+
+# Broader than Art-only: includes Assets/Faces for character customization
+RES_ASSETS = re.compile(r"res://Assets/[^\s\"]+\.(?:png|jpg|jpeg|webp|tres|tscn)\b")
 
 
 def iter_strings(obj: Any) -> Iterator[str]:
@@ -44,7 +49,7 @@ def iter_res_paths_in_file(path: Path) -> set[str]:
     data = json.loads(path.read_text(encoding="utf-8"))
     found: set[str] = set()
     for s in iter_strings(data):
-        for m in RES_ART.finditer(s):
+        for m in RES_ASSETS.finditer(s):
             found.add(m.group(0))
     return found
 
@@ -67,11 +72,19 @@ def main() -> int:
         action="store_true",
         help="Ensure every resourceId in combat_fx.json exists in resource_catalog entries",
     )
+    ap.add_argument(
+        "--no-faces",
+        action="store_true",
+        help="Skip Data/FaceParts/*.json (face part image paths)",
+    )
     args = ap.parse_args()
 
     errors: list[str] = []
 
     files = list(DEFAULT_SCAN_FILES)
+    if not args.no_faces:
+        for fp in sorted(ROOT.glob(DEFAULT_FACEPART_GLOB)):
+            files.append(str(fp.relative_to(ROOT)).replace("\\", "/"))
     if args.catalog:
         files.append("Data/resource_catalog.json")
 
