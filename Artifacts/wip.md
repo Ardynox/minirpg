@@ -20,6 +20,8 @@
 
 ## 已完成（最近）
 
+- cursor-opus-b9-equipment-overlays | 2026-04-21 完成。**B9**：新增 `EquipmentOverlayPaths`（8 向路径 + `HasFull*Set`）；`MapSpriteRuntimeFactory` 在投影放大后按向叠 PNG，缺套则回退程序几何；`Clear()` 释放 overlay 图缓存。`Tools/banana/b9_equipment_overlay_fill_local.py` 写入 **88** 张 `Generated/equipment_overlays/` 占位（256²）。补全 `Artifacts/style_locks_B1.md`…`B12.md`（初版/登记）并刷新 `Artifacts/style_locks_registry.md`。`Assets/Art/README.md` 接入表补一行。`dotnet build MiniRPG.csproj` 0 错 0 警；`dotnet test` 在 xunit 进程末尾仍可能因 Godot `PortraitComposer` 非宿主环境偶发 **AccessViolation**（与本轮改动无关的已知限制）。决策标尺 0：**Y**（地图上装备三类在齐套 PNG 时走贴图管线，占位可换正式图）。
+
 - cursor-opus-b4-faces-256 | 2026-04-21 完成。`Tools/banana/b4_faces_fill_local.py` 默认画布 **256×256**（`--size` 可改）；`python ... --force` 重写 **62/62** `Assets/Faces/**/*.png`，与身份卡 B4、`PortraitComposer` 画布一致。新增 `Artifacts/style_locks_B4.md`；更新 `Artifacts/style_locks_registry.md`（B4 状态 + Faces 快照）。决策标尺 0：**Y**（肖像合成走磁盘 PNG 时不再被 128 升采样糊掉；仍为土色占位可后续 Banana 替换）。
 
 - cursor-opus-style-locks | 2026-04-21 完成。落实身份卡 §0.2：新增 `Artifacts/style_locks_B0.md`（全局锚点摘 `Assets/Art/README.md` / 需求清单 §0）、`Artifacts/style_locks_registry.md`（各批子锁登记表 + `Placeholders` 子目录 PNG 快照）、`Artifacts/素材身份卡_运行时映射补充_2026-04-21.md`（天气 id、`limb_*` 与身份卡 B7.4 命名差异）。决策标尺 0：**N**（不改玩法；收敛多通道发包与验收口径，服务后续 B4/B9/B10）。
