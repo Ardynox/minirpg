@@ -7,6 +7,7 @@ Usage (repo root):
   python Tools/validate_art_res_paths.py --catalog        # include resource_catalog.json (many paths)
   python Tools/validate_art_res_paths.py --combat-audit    # combat_fx.json resourceId vs resource_catalog ids
   python Tools/validate_art_res_paths.py --no-faces       # skip Data/FaceParts/*.json
+  python Tools/validate_art_res_paths.py --facilities-blueprint  # B11 blueprint PNGs per facility_* key
 
 Exit 0 if no errors. Exit 1 on missing files or catalog drift.
 """
@@ -77,6 +78,11 @@ def main() -> int:
         action="store_true",
         help="Skip Data/FaceParts/*.json (face part image paths)",
     )
+    ap.add_argument(
+        "--facilities-blueprint",
+        action="store_true",
+        help="Require facility_<id>_blueprint.png for each facility_* key in entity_render.json",
+    )
     args = ap.parse_args()
 
     errors: list[str] = []
@@ -115,6 +121,21 @@ def main() -> int:
             for rid in sorted(ids_in_fx):
                 if rid not in cat_ids:
                     errors.append(f"combat_fx resourceId '{rid}' not found in resource_catalog.entries[].id")
+
+    if args.facilities_blueprint:
+        er = ROOT / "Data" / "entity_render.json"
+        if not er.is_file():
+            errors.append("facilities-blueprint: entity_render.json missing")
+        else:
+            data = json.loads(er.read_text(encoding="utf-8"))
+            bp_root = ROOT / "Assets" / "Art" / "Generated" / "facilities_blueprint"
+            for key in sorted(data.keys()):
+                if not key.startswith("facility_"):
+                    continue
+                fid = key[len("facility_") :]
+                fs = bp_root / f"facility_{fid}_blueprint.png"
+                if not fs.is_file():
+                    errors.append(f"facilities-blueprint: missing {fs.relative_to(ROOT)}")
 
     for line in errors:
         print(f"ERROR {line}", file=sys.stderr)

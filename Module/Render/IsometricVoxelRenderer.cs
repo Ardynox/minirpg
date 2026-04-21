@@ -51,6 +51,7 @@ public partial class IsometricVoxelRenderer
 	private const float WallRightSideDarken = 0.68f;
 	private readonly GameState _state;
 	private readonly FogOfWarTracker _fogTracker;
+	private readonly ItemWorldRenderRegistry _itemWorldRegistry;
 	private readonly int _viewW;
 	private readonly int _viewH;
 
@@ -75,6 +76,10 @@ public partial class IsometricVoxelRenderer
 	// Cached delegate so GrassOverlayPass.DrawTopFace can append to _faceCommands
 	// without triggering a per-cell heap allocation; assigned lazily on first use.
 	private Action<Rect2, Vector2, Color, long>? _emitGrassOverlayFace;
+
+	// Shader3D grass path: MultiMeshInstance2D blade batch under _root.
+	// Legacy atlas overlay and this field are mutually exclusive via DebugModule.GrassRenderMode.
+	private GrassBladeField? _grassBladeField;
 	private readonly List<VoxelDrawCommand> _drawCommands = [];
 	private readonly List<EntityDrawCommand> _entityCommands = [];
 	private readonly ChunkTerrainSurfaceCacheStore _terrainSurfaceCacheStore = new();
@@ -130,10 +135,16 @@ public partial class IsometricVoxelRenderer
 		["Special1"] = "Special1",
 	};
 
-	public IsometricVoxelRenderer(GameState state, FogOfWarTracker fogTracker, int viewW, int viewH)
+	public IsometricVoxelRenderer(
+		GameState state,
+		FogOfWarTracker fogTracker,
+		int viewW,
+		int viewH,
+		ItemWorldRenderRegistry? itemWorldRegistry = null)
 	{
 		_state = state;
 		_fogTracker = fogTracker;
+		_itemWorldRegistry = itemWorldRegistry ?? ItemWorldRenderRegistry.Load();
 		_viewW = viewW;
 		_viewH = viewH;
 		_lightingCalc = new VoxelLightingCalculator(_lightMap);
@@ -249,6 +260,17 @@ public partial class IsometricVoxelRenderer
 		};
 		_faceBatchCanvas.SetAtlasTexture(_terrainAtlas.AtlasTexture);
 		_root.AddChild(_faceBatchCanvas);
+
+		// Shader3D grass path: child of _root so camera transform applies.
+		// AO decal 层 z=0，blade 层 z=1，都在 _faceBatchCanvas(z=0) 之上但被 weather fx(z=1+) 压下。
+		_grassBladeField?.QueueFree();
+		_grassBladeField = new GrassBladeField
+		{
+			Name = "GrassBladeField",
+			ZIndex = 0,
+			AoEnabled = DebugModule.GrassBladeAo,
+		};
+		_root.AddChild(_grassBladeField);
 
 		_weatherFxController = new WeatherFxController(_state);
 		var weatherOverlayRoot = new Node2D { Name = "WeatherOverlayRoot", ZIndex = 1, Visible = false };
@@ -927,6 +949,7 @@ public partial class IsometricVoxelRenderer
 
 		var dayNight = DayNightCycle.Compute(_state.Turn);
 		_lightingCalc.Configure(_lighting, dayNight);
+		UpdateGrassBladeFieldUniforms(dayNight);
 		BeginFrame();
 
 		var cx = _viewCenterX;
@@ -1133,17 +1156,25 @@ public partial class IsometricVoxelRenderer
 	}
 
 	/// <summary>
-	/// Wave 2.2: layer a grass overlay sprite on top of the dirt face when the
-	/// underlying terrain is dirt or grass_block. The overlay shares the atlas
-	/// texture so it folds into the same Godot CanvasItem auto-batch; cover==0
-	/// short-circuits inside <see cref="GrassOverlayPass.DrawTopFace"/>, so we
-	/// only need defensive guards on chunk-level data here.
+	/// Wave 2.2 / 4.1: dispatch grass on top of dirt/grass_block surfaces.
+	///
+	/// Modes（<see cref="DebugModule.GrassRenderMode"/>）：
+	///   <see cref="GrassRenderMode.Legacy"/>：走 <see cref="TerrainAtlas"/> overlay，与 dirt 顶面同 atlas auto-batch。
+	///   <see cref="GrassRenderMode.Shader3D"/>：把每格 blade 实例喂给 <see cref="_grassBladeField"/>，
+	///                                           MultiMeshInstance2D 单独一次 draw call 画全场草叶。
+	///   <see cref="GrassRenderMode.Off"/>：完全跳过。
+	///
+	/// cover==0 时两路径都短路；非 dirt/grass_block 的 terrain 直接跳过。
 	/// </summary>
 	private void TryDrawGrassOverlay(
 		VoxelDrawCommand cmd,
+		GrassRenderMode mode,
 		ref ChunkCoord? lastChunkCoord,
 		ref ChunkData? lastChunk)
 	{
+		if (mode == GrassRenderMode.Off)
+			return;
+
 		var terrainId = cmd.Terrain.StringId;
 		if (terrainId is not (Terrains.Dirt or Terrains.GrassBlock))
 			return;
@@ -1169,11 +1200,29 @@ public partial class IsometricVoxelRenderer
 			return;
 
 		var cover = chunk.GrassCover[idx];
+		if (cover == 0)
+			return;
 
-		// Recompute the dirt face tint so the overlay inherits the same lighting,
-		// vision-band and editor-perspective alpha treatment; ShadowTop should
-		// never coincide with cover>0 (sampler returns 0 when not exposed-to-sky)
-		// but we keep the conditional in case of edge cases / debug ForceMode.On.
+		// Shader3D 路径：把 blade 实例喂给 MultiMesh，不占 _faceCommands。
+		if (mode == GrassRenderMode.Shader3D)
+		{
+			if (_grassBladeField != null)
+			{
+				GrassBladeEmitter.EmitTile(
+					_grassBladeField,
+					cmd.ScreenPos,
+					cmd.WorldX,
+					cmd.WorldY,
+					worldSeed: _state.WorldSeed,
+					cover: cover,
+					bladesPerTile: Math.Clamp(DebugModule.GrassBladesPerTile, 0, 128),
+					variantOverride: DebugModule.GrassVariantOverride);
+			}
+			return;
+		}
+
+		// Legacy 路径：recompute the dirt face tint so the overlay inherits the same lighting,
+		// vision-band and editor-perspective alpha treatment.
 		var tint = GetFaceTint(cmd.WorldX, cmd.WorldY, cmd.WorldZ, VoxelFace.Top);
 		if (cmd.ShadowTop)
 			tint = new Color(tint.R * ShadowTopDarken, tint.G * ShadowTopDarken, tint.B * ShadowTopDarken, tint.A);
@@ -1192,6 +1241,33 @@ public partial class IsometricVoxelRenderer
 	private void EmitGrassOverlayFaceCommand(Rect2 region, Vector2 position, Color tint, long sortKey)
 	{
 		_faceCommands.Add(new FaceSpriteCommand(region, position, tint, sortKey));
+	}
+
+	/// <summary>
+	/// 每帧把 <see cref="DayNightSnapshot"/> 转成 shader uniform 喟 <see cref="_grassBladeField"/>。
+	/// 太阳方向走屏幕空间单位向量（x 从 DayNight sunDirX 取，y 用 sunAltitude 反向 → 越高越从上方打）；
+	/// 夜晚 altitude=0 → sun_dir 平行地面，ambient 系数压低还原 DayNight 的夜色。
+	/// </summary>
+	private void UpdateGrassBladeFieldUniforms(DayNightSnapshot dayNight)
+	{
+		if (_grassBladeField == null)
+			return;
+
+		// sun_dir：x 照抄 cos(sunAngle)，y 用 -altitude（高在屏幕 -y 方向 = 上方）。
+		// altitude 为 0 时加一点 -0.15 兜底，避免除零 / 完全水平。
+		var sy = -Math.Max(dayNight.SunAltitude, 0.15f);
+		var sunDir = new Vector2(dayNight.SunDirectionX, sy).Normalized();
+
+		var sunColor = new Color(dayNight.SunTintR, dayNight.SunTintG, dayNight.SunTintB);
+		// ambient 夹到 [0.25, 0.95]，保证夜里不死黑、白天不过曝。
+		var ambient = Math.Clamp(dayNight.AmbientMultiplier * 0.70f, 0.25f, 0.95f);
+
+		_grassBladeField.UpdateSunUniforms(sunDir, sunColor, ambient);
+		_grassBladeField.UpdateWindUniforms(
+			windSpeed: DebugModule.GrassWindSpeed,
+			windAmplitude: DebugModule.GrassWindAmplitude,
+			windDir: new Vector2(1f, 0.15f));
+		_grassBladeField.AoEnabled = DebugModule.GrassBladeAo;
 	}
 
 	private void DrawLeftSide(VoxelDrawCommand cmd)
@@ -1309,7 +1385,10 @@ public partial class IsometricVoxelRenderer
 					null,
 					null,
 					label,
-					tint));
+					tint,
+					null,
+					null,
+					0));
 			}
 		}
 
@@ -1360,7 +1439,26 @@ public partial class IsometricVoxelRenderer
 						if (ShouldHidePreviewFixture(WorldToolPreviewState, worldX, worldY, worldZ, entity.EntityId))
 							continue;
 
-						_entityCommands.Add(new EntityDrawCommand(key, pos, null, null, entity.EntityId, entity.Glyph, tint));
+						string? itemTid = null;
+						string? itemCat = null;
+						if (entity.Type == CellEntityType.Item && EntityAccess.TryGetGroundItemRenderKeys(entity, out var tid, out var cat))
+						{
+							itemTid = tid;
+							itemCat = cat;
+						}
+
+						var sortKey = key + (entity.Type == CellEntityType.Item ? i : 0);
+						_entityCommands.Add(new EntityDrawCommand(
+							sortKey,
+							pos,
+							null,
+							null,
+							entity.EntityId,
+							entity.Glyph,
+							tint,
+							itemTid,
+							itemCat,
+							i));
 					}
 				}
 			}
@@ -1394,6 +1492,11 @@ public partial class IsometricVoxelRenderer
 	{
 		_faceCommands.Clear();
 
+		// Shader3D 路径：开始累积 blade 实例（Legacy / Off 会走空 Begin/End）。
+		var grassMode = DebugModule.GrassRenderMode;
+		if (_grassBladeField != null)
+			_grassBladeField.BeginFill();
+
 		// Per-frame "last chunk" cache so the grass-overlay path does not pay a
 		// dict lookup per cell: _drawCommands is sorted by IsoCoordUtil.SortKey
 		// (diagonal-then-depth), so neighbouring entries usually share a chunk.
@@ -1408,9 +1511,12 @@ public partial class IsometricVoxelRenderer
 			if (terrain.DrawTop)
 			{
 				DrawBlockTop(terrain);
-				TryDrawGrassOverlay(terrain, ref lastGrassChunkCoord, ref lastGrassChunk);
+				TryDrawGrassOverlay(terrain, grassMode, ref lastGrassChunkCoord, ref lastGrassChunk);
 			}
 		}
+
+		if (_grassBladeField != null)
+			_grassBladeField.EndFill();
 
 		// _drawCommands is already in stable painter order; preserve emission order so
 		// same-cell faces keep a deterministic "sides first, top last" layering.
@@ -1421,6 +1527,9 @@ public partial class IsometricVoxelRenderer
 		for (var i = 0; i < _entityCommands.Count; i++)
 		{
 			var entity = _entityCommands[i];
+			if (entity.GroundItemTemplateId != null
+				&& TryDrawGroundItemWorldSprite(entity))
+				continue;
 			if (entity.Actor != null && TryDrawActorSprite(entity.ScreenPos, entity.Actor, entity.Tint))
 				continue;
 			if (entity.Facility != null && TryDrawFacilitySprite(entity.ScreenPos, entity.Facility, entity.Tint))
@@ -1481,7 +1590,10 @@ public partial class IsometricVoxelRenderer
 		sprite.Scale = visual.Scale;
 		sprite.Skew = 0f;
 		sprite.ZIndex = 1;
-		sprite.Modulate = tint * ResolveFacilityStageTint(facility.Stage);
+		// 专用蓝图贴图已自带线稿色；不再叠 ResolveFacilityStageTint 的蓝色（建造阶段仍用原逻辑）。
+		sprite.Modulate = visual.SkipFacilityStageTint
+			? tint
+			: tint * ResolveFacilityStageTint(facility.Stage);
 		sprite.Position = ResolveFacilitySpritePosition(pos, size, visual);
 		sprite.Visible = true;
 		return true;
@@ -1490,6 +1602,28 @@ public partial class IsometricVoxelRenderer
 	private bool TryResolveActorSpriteVisual(Actor actor, out ActorSpriteVisual visual)
 	{
 		visual = default;
+
+		// 玩家专属：捏脸数据 + 当前装备驱动的运行时合成 sprite，绕过 entity_render.json 静态条目。
+		// 由 MapSpriteRuntimeFactory 按 FaceCustomizationData + EquipmentAppearanceData 生成 8 方向 sheet 并缓存，
+		// 玩家小人在地图上的肤色 / 发色 / 衣色 / 武器 / 披风 / 头盔立刻反映捏脸 + 装备结果。
+		// region 按 actor 朝向选行（0-7），与 entity_render.json type:"texture" + useFacing:true 同款管线。
+		if (string.Equals(actor.Faction, Factions.Player, StringComparison.Ordinal)
+			&& actor.FaceCustomization != null)
+		{
+			var equipment = EquipmentSpriteOverlay.Project(actor);
+			var runtimeTexture = MapSpriteRuntimeFactory.Instance.GetOrBuild(actor.FaceCustomization, equipment);
+			var directionRow = Math.Clamp(
+				DirectionalSpriteHelper.ResolveDirectionRow(actor.FacingX, actor.FacingY),
+				0,
+				MapSpriteRuntimeFactory.DirectionCount - 1);
+			visual = new ActorSpriteVisual(
+				runtimeTexture,
+				new Rect2(0f, directionRow * MapSpriteRuntimeFactory.ExportSize, MapSpriteRuntimeFactory.ExportSize, MapSpriteRuntimeFactory.ExportSize),
+				new Vector2(0.25f, 0.25f),
+				new Vector2(0f, 6f));
+			return true;
+		}
+
 		var entry = ResolveActorRenderEntry(actor);
 		if (entry == null)
 			return false;
@@ -1523,6 +1657,14 @@ public partial class IsometricVoxelRenderer
 		return true;
 	}
 
+	private const string FacilityBlueprintTextureFolder = "res://Assets/Art/Generated/facilities_blueprint/";
+
+	private static bool TryResolveFacilityBlueprintTexturePath(string facilityDefId, out string path)
+	{
+		path = $"{FacilityBlueprintTextureFolder}facility_{facilityDefId}_blueprint.png";
+		return ResourceLoader.Exists(path);
+	}
+
 	private bool TryResolveFacilitySpriteVisual(FacilityInstance facility, out FacilitySpriteVisual visual)
 	{
 		visual = default;
@@ -1530,7 +1672,16 @@ public partial class IsometricVoxelRenderer
 		if (entry == null || entry.TexturePath is not { Length: > 0 } texturePath)
 			return false;
 
-		var texture = ResAccess.Get<Texture2D>(texturePath);
+		var loadPath = texturePath;
+		var skipStageTint = false;
+		if (facility.Stage == FacilityStage.Blueprint
+			&& TryResolveFacilityBlueprintTexturePath(facility.FacilityDefId, out var blueprintPath))
+		{
+			loadPath = blueprintPath;
+			skipStageTint = true;
+		}
+
+		var texture = ResAccess.Get<Texture2D>(loadPath);
 		if (texture == null)
 			return false;
 
@@ -1540,7 +1691,8 @@ public partial class IsometricVoxelRenderer
 			region,
 			ResolveFacilitySpriteScale(entry.Scale),
 			ResolveEntitySpriteOffset(entry.Offset),
-			ResolveFacilityFrameBounds(texturePath, texture, region));
+			ResolveFacilityFrameBounds(loadPath, texture, region),
+			skipStageTint);
 		return true;
 	}
 
@@ -1575,7 +1727,10 @@ public partial class IsometricVoxelRenderer
 			facility,
 			facility.FacilityDefId,
 			label,
-			placement.Tint);
+			placement.Tint,
+			null,
+			null,
+			0);
 		return true;
 	}
 
@@ -1738,6 +1893,67 @@ public partial class IsometricVoxelRenderer
 		return true;
 	}
 
+	private bool TryDrawGroundItemWorldSprite(EntityDrawCommand entity)
+	{
+		if (string.IsNullOrWhiteSpace(entity.GroundItemTemplateId))
+			return false;
+		if (!TryResolveGroundItemWorldTexture(
+			entity.GroundItemTemplateId,
+			entity.GroundItemCategory,
+			out var texture,
+			out var scale))
+			return false;
+
+		var size = texture.GetSize();
+		var anchor = entity.ScreenPos - new Vector2(0, IsoCoordUtil.TileHalfH * 0.5f);
+		var stack = GroundItemStackLayout.GetOffset(entity.GroundItemStackIndex);
+		var pos = anchor + GroundItemStackLayout.BaseOffset + stack - new Vector2(
+			size.X * scale.X * 0.5f,
+			size.Y * scale.Y * 0.5f);
+
+		var sprite = AcquireSprite();
+		sprite.Centered = false;
+		sprite.Texture = texture;
+		sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
+		sprite.RegionEnabled = false;
+		sprite.Scale = scale;
+		sprite.Skew = 0f;
+		sprite.ZIndex = 0;
+		sprite.Modulate = entity.Tint;
+		sprite.Position = pos;
+		sprite.Visible = true;
+		return true;
+	}
+
+	private bool TryResolveGroundItemWorldTexture(
+		string? templateId,
+		string? category,
+		out Texture2D texture,
+		out Vector2 scale)
+	{
+		texture = null!;
+		scale = GroundItemStackLayout.DefaultScale;
+		if (string.IsNullOrWhiteSpace(templateId))
+			return false;
+
+		var cat = string.IsNullOrWhiteSpace(category) ? ItemCategories.Misc : category;
+		if (!_itemWorldRegistry.TryResolve(templateId, cat, out var spec))
+			return false;
+
+		if (spec.Kind is not (ItemWorldRenderKind.Texture or ItemWorldRenderKind.CatalogTexture))
+			return false;
+		if (string.IsNullOrWhiteSpace(spec.Value))
+			return false;
+
+		var tex = ResAccess.Get<Texture2D>(spec.Value);
+		if (tex == null)
+			return false;
+
+		texture = tex;
+		scale = spec.Scale;
+		return true;
+	}
+
 	private static Vector2 ResolveEntitySpriteScale(float[]? scale)
 	{
 		if (scale is [var x, var y] && x > 0f && y > 0f)
@@ -1827,23 +2043,8 @@ public partial class IsometricVoxelRenderer
 
 	private ResAccess.RenderEntry? ResolveActorRenderEntry(Actor actor)
 	{
-		if (actor.Id == _state.PlayerId)
-		{
-			var appearance = PlayerAppearanceCatalog.GetOrDefault(_state.PlayerAppearanceId);
-			var tuning = ResAccess.GetEntry("player");
-			return new ResAccess.RenderEntry
-			{
-				Type = "sprite_sheet",
-				SheetDir = appearance.SheetDir,
-				DefaultAnim = appearance.DefaultAnim,
-				Scale = tuning?.Scale,
-				Offset = tuning?.Offset,
-				FrameWidth = tuning?.FrameWidth ?? 0,
-				FrameHeight = tuning?.FrameHeight ?? 0,
-				UseFacing = true,
-			};
-		}
-
+		// 玩家分支已在 TryResolveActorSpriteVisual 顶部走 MapSpriteRuntimeFactory 拦截，
+		// 不会走到这里查 entity_render.json。本方法只为非玩家 actor 解析渲染条目。
 		if (TryGetSupportedActorEntry(actor.Id, out var direct))
 			return direct;
 		if (!string.IsNullOrWhiteSpace(actor.TemplateId) && TryGetSupportedActorEntry(actor.TemplateId, out var template))
@@ -2166,7 +2367,10 @@ public partial class IsometricVoxelRenderer
 		FacilityInstance? Facility,
 		string? EntityId,
 		string Label,
-		Color Tint);
+		Color Tint,
+		string? GroundItemTemplateId = null,
+		string? GroundItemCategory = null,
+		int GroundItemStackIndex = 0);
 
 	private readonly record struct FacilityRenderPlacement(
 		bool Visible,
@@ -2185,7 +2389,8 @@ public partial class IsometricVoxelRenderer
 		Rect2? Region,
 		Vector2 Scale,
 		Vector2 Offset,
-		FacilityFrameBounds FrameBounds);
+		FacilityFrameBounds FrameBounds,
+		bool SkipFacilityStageTint);
 
 	private readonly record struct FacilityFrameBounds(
 		int Width,

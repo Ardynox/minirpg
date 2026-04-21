@@ -22,7 +22,7 @@
 | 优先级 | 批次 | 内容 | 建议执行方式 |
 |--------|------|------|----------------|
 | P1 | **B4** | `Assets/Faces/` 人脸部件（JSON 非空路径 **62** 条；`bald` 无图） | **本地兜底已齐**：`python Tools/banana/b4_faces_fill_local.py`；后续可用 Banana 按类重出替换 PNG |
-| P1 | **B11** | facility 蓝图 10 张 | 可评估 shader 替代；若出图则单列目录 `Generated/facilities_blueprint/` |
+| P1 | **B11** | facility 蓝图 10 张 | **已落地**：`b11_facility_blueprint_fill_local.py` + `IsometricVoxelRenderer` 蓝图阶段优先；可选 Banana 换血替换 PNG |
 | P2 | **B9** | 装备 overlay | **依赖于** B4 与玩家素体定型 |
 | P2 | **B10** | Generated 全量风格重刷 | 清单写明等 B0–B2 锚点稳定后再开 |
 | P2 | **B12** | 生活细节 overlay + 联机色带 | 路线图项，不与 P0 抢通道 |

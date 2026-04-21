@@ -174,6 +174,7 @@ python Tools/banana/banana_gen.py `
 | `python Tools/banana/b2_item_world_fill_local.py` | `Assets/Art/Placeholders/item_world/category_*.png` |
 | `python Tools/banana/b7_ui_icons_fill_local.py` | `Assets/Art/Placeholders/ui_icons/surgery_*、room_*、capacity_*、limb_*` |
 | `python Tools/banana/b4_faces_fill_local.py` | `Assets/Faces/...`（与 `Data/FaceParts/*.json` 中非空 `imagePath` 一一对应，当前 **62** 张） |
+| `python Tools/banana/b11_facility_blueprint_fill_local.py` | `Assets/Art/Generated/facilities_blueprint/facility_<id>_blueprint.png`（与 `entity_render.json` 每条 `facility_*` 对应，当前 **10** 张；蓝图阶段渲染优先走该图，见 `IsometricVoxelRenderer`） |
 
 替换 Banana 真图后无需删兜底脚本；合并前跑 `python Tools/validate_art_res_paths.py --catalog --combat-audit`。
 

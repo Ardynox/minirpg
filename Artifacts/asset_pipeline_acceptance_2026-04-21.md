@@ -17,9 +17,18 @@ B4 人脸占位落盘 + 校验脚本覆盖 `Assets/Faces`，角色定制里「�
 
 1. **Godot `.import`**：新 PNG 首次进工程后应用编辑器打开项目或运行导入，由引擎生成/更新 `.png.import`。CI 若以无 Godot 方式仅验文件存在，当前 `validate_art_res_paths.py` 已足够。
 2. **B4 美学**：本批为**土色块占位**，与 Banana 成品并存策略 — 有 API 后按 `Artifacts/banana资源生成提示词总表_2026-04-18.md` 与人脸资产卡分批替换，勿删 `b4_faces_fill_local.py`。
-3. **后续批次**（未在本轮执行）：B11 蓝图、B9 装备、B10 Generated 重刷、B12 overlay — 仍见 `Artifacts/素材需求清单_2026-04-20.md` §5。
+3. **后续批次**：B9 仍为 **运行时几何**（`MapSpriteRuntimeFactory` / `EquipmentAppearanceData`），无单独 PNG 批次硬依赖；**B10 / B12** 仍见 `Artifacts/素材需求清单_2026-04-20.md` §5（B11 已闭合）。
+
+## B11 追认（2026-04-21 晚）
+
+| 项 | 命令 / 说明 |
+|----|-------------|
+| 占位 10 张 | `python Tools/banana/b11_facility_blueprint_fill_local.py` → `Assets/Art/Generated/facilities_blueprint/facility_*_blueprint.png` |
+| 渲染接线 | `FacilityStage.Blueprint` 且存在上述路径时优先加载，`SkipFacilityStageTint` 避免蓝叠蓝 |
+| 校验 | `python Tools/validate_art_res_paths.py --facilities-blueprint` |
+| 单测 | `IsometricRender` 过滤 53/53 通过（与构建同批） |
 
 ## 签字栏
 
 - **资源路径 & 脚本**：见本仓库 commit（`b4_faces_fill_local.py`、`validate_art_res_paths.py` 扩展、PNG 资产）。
-- **总负责人结论**：本轮 **可验收关闭**；下一里程碑为「Banana 换血 B4」或「B11/B9 择一开干」。
+- **总负责人结论**：**B4 + B11** 占位与对接已完成可签；下一里程碑优先 **Banana 换血 B4/B11 真图**，或 **B10 Generated 风格重刷**（等视觉锚点稳定）。
