@@ -14,9 +14,9 @@
 | B7 | `Artifacts/style_locks_B7.md` | **已锁定（初版）** | limb 文件名见映射补充 |
 | B8 | `Artifacts/style_locks_B8.md` | **已锁定（初版）** | 同上 |
 | B9 | `Artifacts/style_locks_B9.md` | **已锁定（初版）** | 88 PNG + `EquipmentOverlayPaths` + 投影后叠图 |
-| B10 | `Artifacts/style_locks_B10.md` | **登记待批** | 整批重刷最晚；开批前补 Gemini 批复 |
+| B10 | `Artifacts/style_locks_B10.md` | **已锁定（初版）** | 磁盘齐；「重刷」= 审美换代，开批前补 Gemini 批复 |
 | B11 | `Artifacts/style_locks_B11.md` | **已锁定（初版）** | 蓝图占位 10 张已齐 |
-| B12 | `Artifacts/style_locks_B12.md` | **P2** | 细节/mp 非 P0 |
+| B12 | `Artifacts/style_locks_B12.md` | **已锁定（初版）** | detail 20 + mp 8 占位已齐；运行时接线待需 |
 
 ## 磁盘占位进度快照（`Placeholders`）
 
@@ -31,6 +31,8 @@
 | `ui_icons/` | 169 | B5+B6+B7 等 |
 | `crops/` | 21 | B8.1 |
 | `material_world/` | 24 | B8.2 |
+| `detail/` | 20 | B12.1 |
+| `mp/` | 8 | B12.2 |
 
 ### `Assets/Faces/**/*.png`（B4）
 
@@ -47,7 +49,7 @@
 | 画布 | **256×256**（与 `MapSpriteRuntimeFactory.ExportSize` 一致） |
 | 生成 | `Tools/banana/b9_equipment_overlay_fill_local.py` |
 
-**下一优先（产品级美术）**：B10 Generated 重刷；B12 P2；各批「Gemini 批复」段可按需补写。
+**下一优先（产品级美术）**：B10 按身份卡整批 **审美重刷**；按需为 B12 `detail`/`mp` **接线**；各批「Gemini 批复」段可按需补写。
 
 ## 与身份卡原文的差异
 

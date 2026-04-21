@@ -209,6 +209,7 @@ no photorealistic, no 3d render, no glossy plastic, no dramatic lighting, no blo
 | 角色地图表现 | NPC / 怪物 | `Data/entity_render.json`（type:"texture" + 8 方向 PNG，由 `Tools/MonsterMapAssetGenerator` 程序化生成） |
 | 角色地图表现 | 玩家 | `App/RuntimeUi/MapSpriteRuntimeFactory.cs` 运行时按 `FaceCustomizationData + EquipmentAppearanceData` 合成，**绕过 entity_render.json**；身体仍程序画。若某类装备在 `Assets/Art/Generated/equipment_overlays/` **凑齐 8 向 PNG**（`equip_weapon_*` / `equip_cloak_*` / `equip_helmet_*`，见 `EquipmentOverlayPaths`），则该类改在投影放大后叠图（B9）；否则该类仍走程序几何体。占位生成：`Tools/banana/b9_equipment_overlay_fill_local.py`。离线 default fallback：`Tools/BaseHumanSpriteGenerator`（`dotnet run -p Tools/MonsterMapAssetGenerator -- generate-humans`） |
 | 世界物品图 | 掉落物、地上物品 | `Data/item_world_render.json`；分类默认图 `Assets/Art/Placeholders/item_world/category_<类>.png`（`Tools/banana/b2_item_world_driver.py`）；运行时 `IsometricVoxelRenderer` + `ItemWorldRenderRegistry.Load()` |
+| 生活细节 / 联机顶标（P2） | 脚印、光晕、槽位色带 | `Assets/Art/Placeholders/detail/*.png`、`mp/player_slot_*.png`（`Tools/banana/b12_detail_mp_fill_local.py`）；**待**渲染或 UI 按需 `ResourceLoader` 接入 |
 | 特效帧 | 命中、投射物、buff | `Data/resource_catalog.json`、`Data/combat_fx.json` |
 | UI 皮肤 | 面板、按钮、主题 | `Assets/UI/Themes/*` 及相关场景/代码引用 |
 
