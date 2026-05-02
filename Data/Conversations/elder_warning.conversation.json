@@ -1,0 +1,21 @@
+{
+  "id": "elder_warning",
+  "triggers": { "actorTags": ["prof:elder"], "priority": 11 },
+  "entryNode": "warn",
+  "nodes": [
+    {
+      "id": "warn",
+      "speaker": "npc",
+      "lines": ["年轻人，林子里最近不太平。"],
+      "onEnter": [{ "type": "memory", "key": "heard_elder_warning" }],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "多谢提醒。",
+          "effects": [{ "type": "relationship", "observer": "player", "subject": "npc", "value": 1 }]
+        }
+      ]
+    }
+  ]
+}

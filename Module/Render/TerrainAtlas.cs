@@ -415,29 +415,27 @@ public sealed class TerrainAtlas
 	/// </summary>
 	private static Image CreateGrassOverlayImage(int variant, int width, int height)
 	{
-		// 每个变体：density / freqX / freqY / clumpScale / hueShift
-		//   density   : 草盖率，0..1（越高草越多）→ 控密度
-		//   freqX/Y   : 各向异性 noise 频率倍数（>1 → 该方向变化更快、视觉上垂直该方向的"条纹"）→ 控朝向
-		//   clumpScale: noise 采样基础尺度（像素），越大簇越大、越平滑 → 控簇形状
-		//   hueShift  : 草色色调偏移，正→偏黄、负→偏深绿
-		var (density, freqX, freqY, clumpScale, hueShift) = variant switch
+		// 6 个变体的 8 维参数（低饱和写实风 v2 2026-04-19，回拉绿色调）：
+		//   density          : 草盖率，0..1，越高草越多
+		//   freqX / freqY    : 各向异性 noise 频率倍数（>1 → 该方向变化更快、视觉上垂直该方向的"条纹"）
+		//   clumpScale       : noise 采样基础尺度（像素），越大簇越大、越平滑
+		//   baseR/baseG/baseB: per-variant 基色。低饱和≠偏黄；这里 G 拉到 0.45..0.62 区间，
+		//                      仍避开荧光绿 (0.30, 0.70, 0.20)，但保证整体读出来是"绿草"而不是"枯地"。
+		// 语义标签和数值见每行尾注释；调整时务必同步更新 Artifacts/grass-surface-cover-todo.md。
+		var (density, freqX, freqY, clumpScale, baseR, baseG, baseB) = variant switch
 		{
-			0 => (0.30f, 1.0f, 1.0f, 4f, +0.05f),  // V0: 稀疏散点 + 黄绿
-			1 => (0.55f, 1.0f, 1.0f, 4f,  0.00f),  // V1: 中密度散点 + 标准绿
-			2 => (0.78f, 1.0f, 1.0f, 4f, -0.05f),  // V2: 密集 + 深绿
-			3 => (0.55f, 0.4f, 2.0f, 5f,  0.00f),  // V3: 横向条纹（X 频率低、Y 频率高）
-			4 => (0.55f, 2.0f, 0.4f, 5f, +0.03f),  // V4: 纵向条纹
-			5 => (0.55f, 0.7f, 0.7f, 8f, -0.03f),  // V5: 大簇 cluster
-			_ => (0.50f, 1.0f, 1.0f, 4f,  0.00f),
+			0 => (0.35f, 1.0f, 1.0f,  3.5f, 0.40f, 0.58f, 0.25f),  // V0: 春嫩草（稀疏 + 明亮黄绿）
+			1 => (0.55f, 1.0f, 1.0f,  4.5f, 0.32f, 0.55f, 0.22f),  // V1: 仲夏草（标准写实绿，最常见）
+			2 => (0.75f, 1.0f, 1.0f,  5.0f, 0.26f, 0.48f, 0.20f),  // V2: 深绿密草（高密度冷绿草垫）
+			3 => (0.55f, 0.5f, 2.0f,  5.0f, 0.42f, 0.55f, 0.25f),  // V3: 黄绿野草（横向条纹，偏黄但仍绿）
+			4 => (0.60f, 2.0f, 0.5f,  4.0f, 0.28f, 0.45f, 0.22f),  // V4: 苔绿条纹（纵向，偏冷）
+			5 => (0.50f, 0.8f, 0.8f,  9.0f, 0.22f, 0.40f, 0.18f),  // V5: 深苔大簇（暗对比块，但仍可识别为绿）
+			_ => (0.55f, 1.0f, 1.0f,  4.5f, 0.32f, 0.55f, 0.22f),  // 兜底：等同 V1
 		};
 
 		var image = Image.CreateEmpty(width, height, false, Image.Format.Rgba8);
 		var halfW = width / 2;
 		var halfH = height / 2;
-
-		var baseR = Math.Clamp(0.30f + hueShift, 0f, 1f);
-		var baseG = Math.Clamp(0.70f - 0.04f * hueShift, 0f, 1f);
-		var baseB = Math.Clamp(0.20f - hueShift * 0.5f, 0f, 1f);
 
 		var threshold = 1f - density;
 
@@ -467,20 +465,121 @@ public sealed class TerrainAtlas
 				continue;
 			}
 
-			// 草色 + per-pixel 抖动；alpha 按 strength 羽化让 patch 边缘不锐利
+			// strength 越接近 0（草丛边缘），AO/alpha 越暗 → 形成"草根阴影"立体感
 			var strength = (noise - threshold) / Math.Max(1e-4f, 1f - threshold);
-			var jr = (HashNoise01(px, py, variant * 7 + 23) - 0.5f) * 0.10f;
-			var jg = (HashNoise01(px, py, variant * 7 + 29) - 0.5f) * 0.10f;
-			var jb = (HashNoise01(px, py, variant * 7 + 31) - 0.5f) * 0.10f;
-			var r = Math.Clamp(baseR + jr, 0f, 1f);
-			var g = Math.Clamp(baseG + jg, 0f, 1f);
-			var b = Math.Clamp(baseB + jb, 0f, 1f);
-			var a = Math.Clamp(0.55f + strength * 0.45f, 0f, 1f); // 0.55..1.0
+
+			// per-pixel 微抖动 ±0.03（旧版 ±0.10 太杂；写实风需要保留 noise 大块结构）
+			var jr = (HashNoise01(px, py, variant * 7 + 23) - 0.5f) * 0.03f;
+			var jg = (HashNoise01(px, py, variant * 7 + 29) - 0.5f) * 0.03f;
+			var jb = (HashNoise01(px, py, variant * 7 + 31) - 0.5f) * 0.03f;
+
+			// AO 草根阴影：边缘 strength 越低 → shadowFactor 越接近 0.50（暗 50%），
+			// 草丛中心 strength≈1 → shadowFactor=1（基色全亮）。
+			// 写实风需要"边缘有阴影但中心仍是绿草"，同时为 blade 提供暗部对比。
+			var shadowFactor = Math.Clamp(0.50f + strength * 0.50f, 0.50f, 1.0f);
+			var r = Math.Clamp((baseR + jr) * shadowFactor, 0f, 1f);
+			var g = Math.Clamp((baseG + jg) * shadowFactor, 0f, 1f);
+			var b = Math.Clamp((baseB + jb) * shadowFactor, 0f, 1f);
+
+			// alpha 区间 [0.45, 1.0]：保证哪怕最稀疏的草也能读出绿意，但仍能透出一点土色保留写实感。
+			var a = Math.Clamp(0.45f + strength * 0.55f, 0f, 1f);
 
 			image.SetPixel(px, py, new Color(r, g, b, a));
 		}
 
+		// ── 第二遍：blade 高光 pass ──
+		// 在已铺好的草色块上画"草叶"，让视觉从"色块"升级为"一根一根立体的草"。
+		// 算法：对每个非透明像素按 hash 概率触发，往屏幕上方绘制 1~2 px 宽、4~8 px 高的草叶，
+		// 包含根部暗化（对比度）与顶部高光（立体感）。
+		ApplyGrassBladeHighlights(image, variant, density, baseR, baseG, baseB);
+
 		return image;
+	}
+
+	/// <summary>
+	/// 在 base 色块上叠加 procedural "草叶" 效果。纯 CPU 端，仅用 noise/hash，无外部资源。
+	/// </summary>
+	private static void ApplyGrassBladeHighlights(
+		Image image, int variant, float density,
+		float baseR, float baseG, float baseB)
+	{
+		// blade 概率：从 5~9% 提升到 12~24%，密草更立体
+		var bladeProb = 0.12f + density * 0.12f;
+		
+		// blade 长度：从 4~5 px 提升到 4~8 px
+		var minHeight = 4;
+		var maxHeight = (int)(5 + density * 3);
+
+		var width = image.GetWidth();
+		var height = image.GetHeight();
+
+		for (var py = 0; py < height; py++)
+		for (var px = 0; px < width; px++)
+		{
+			var c = image.GetPixel(px, py);
+			if (c.A < 0.01f) continue;
+
+			// hash 触发器
+			var trigger = HashNoise01(px, py, variant * 13 + 41);
+			if (trigger > bladeProb) continue;
+
+			// 必须下方有草（确保在 patch 内部）
+			if (py + 1 >= height || image.GetPixel(px, py + 1).A < 0.01f) continue;
+
+			// 随机高度与倾斜
+			var hHash = HashNoise01(px, py, variant * 17 + 53);
+			var bHeight = minHeight + (int)(hHash * (maxHeight - minHeight));
+			
+			// 倾斜方向：V3 横向条纹 → 略向左斜；V4 纵向条纹 → 更直立；其他随机
+			var tiltHash = HashNoise01(px, py, variant * 19 + 61);
+			var tiltX = variant switch {
+				3 => -1,
+				4 => 0,
+				_ => (int)Math.Floor(tiltHash * 3) - 1 // -1, 0, 1
+			};
+
+			// 绘制一根草叶
+			for (var bi = 0; bi < bHeight; bi++)
+			{
+				var bx = px + (bi > bHeight / 2 ? tiltX : 0); // 中段以上开始倾斜
+				var by = py - bi;
+				
+				if (bx < 0 || bx >= width || by < 0 || by >= height) break;
+				
+				var existing = image.GetPixel(bx, by);
+				// 允许草叶稍微超出原有 patch 边缘（但不能超出菱形蒙版，蒙版由外层保证）
+				// 这里的 existing.A 检查决定了草叶是否能画在透明处。为了立体感，我们允许它画在 patch 边缘。
+				
+				// t=0 根部, t=1 顶端
+				var t = bi / (float)Math.Max(1, bHeight - 1);
+				
+				// 颜色逻辑：根部暗化 (0.6x) -> 中部基色 -> 顶部高光 (1.7x)
+				float boost;
+				if (t < 0.2f) boost = 0.6f + t * 2.0f; // 0.6 -> 1.0
+				else boost = 1.0f + (t - 0.2f) * 0.875f; // 1.0 -> 1.7 (at t=1.0)
+
+				var r = Math.Clamp(baseR * boost, 0f, 1f);
+				var g = Math.Clamp(baseG * boost, 0f, 1f);
+				var b = Math.Clamp(baseB * boost, 0f, 1f);
+				
+				// 抢救饱和度
+				r = r * 0.8f + baseR * 0.2f;
+				g = g * 0.8f + baseG * 0.2f;
+				b = b * 0.8f + baseB * 0.2f;
+
+				var a = Math.Clamp(0.6f + (1f - t) * 0.4f, 0f, 1f); // 底部实，顶部虚
+
+				// 简单的 alpha 混合（覆盖式）
+				image.SetPixel(bx, by, new Color(r, g, b, Math.Max(existing.A, a)));
+
+				// 宽度：根部 2px (bi=0,1)，向上收窄
+				if (bi < 2 && px + 1 < width)
+				{
+					var ex2 = image.GetPixel(px + 1, by);
+					image.SetPixel(px + 1, by, new Color(r * 0.9f, g * 0.9f, b * 0.9f, Math.Max(ex2.A, a * 0.8f)));
+				}
+			}
+		}
 	}
 
 	/// <summary>

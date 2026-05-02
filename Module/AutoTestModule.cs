@@ -864,21 +864,21 @@ public class AutoTestModule
 				await context.StepAsync();
 
 				var dialogSnapshot = context.Snapshot();
-				context.Check(dialogSnapshot.DialogOpen,
+				context.Check(dialogSnapshot.ConversationOpen,
 					"qa_interaction_hub.dialog.open_panel",
-					$"Expected dialog_open=true after talk interaction; actual dialog_open={dialogSnapshot.DialogOpen}.",
-					$"Expected dialog_open=true after talk interaction; actual dialog_open={dialogSnapshot.DialogOpen}.");
-				context.Check(dialogSnapshot.DialogOptionCount > 0,
+					$"Expected conversation_open=true after talk interaction; actual conversation_open={dialogSnapshot.ConversationOpen}.",
+					$"Expected conversation_open=true after talk interaction; actual conversation_open={dialogSnapshot.ConversationOpen}.");
+				context.Check(dialogSnapshot.ConversationOptionCount > 0,
 					"qa_interaction_hub.dialog.options_present",
-					$"Expected dialog_option_count > 0; actual dialog_option_count={dialogSnapshot.DialogOptionCount}.",
-					$"Expected dialog_option_count > 0; actual dialog_option_count={dialogSnapshot.DialogOptionCount}.");
+					$"Expected conversation_option_count > 0; actual conversation_option_count={dialogSnapshot.ConversationOptionCount}.",
+					$"Expected conversation_option_count > 0; actual conversation_option_count={dialogSnapshot.ConversationOptionCount}.");
 				context.Check(
 					!dialogSnapshot.TradeOpen
 					&& dialogSnapshot.TradeItemCount == 0
-					&& string.Equals(dialogSnapshot.FocusedPanelId, "dialog", StringComparison.Ordinal),
+					&& string.Equals(dialogSnapshot.FocusedPanelId, "conversation", StringComparison.Ordinal),
 					"qa_interaction_hub.dialog.trade_exclusive",
-					$"Expected dialog state exclusive with trade closed; actual trade_open={dialogSnapshot.TradeOpen} trade_item_count={dialogSnapshot.TradeItemCount} focused_panel_id={dialogSnapshot.FocusedPanelId ?? "<null>"}.",
-					$"Expected dialog state exclusive with trade_open=false trade_item_count=0 focused_panel_id=dialog; actual trade_open={dialogSnapshot.TradeOpen} trade_item_count={dialogSnapshot.TradeItemCount} focused_panel_id={dialogSnapshot.FocusedPanelId ?? "<null>"}.");
+					$"Expected conversation state exclusive with trade closed; actual trade_open={dialogSnapshot.TradeOpen} trade_item_count={dialogSnapshot.TradeItemCount} focused_panel_id={dialogSnapshot.FocusedPanelId ?? "<null>"}.",
+					$"Expected conversation state exclusive with trade_open=false trade_item_count=0 focused_panel_id=conversation; actual trade_open={dialogSnapshot.TradeOpen} trade_item_count={dialogSnapshot.TradeItemCount} focused_panel_id={dialogSnapshot.FocusedPanelId ?? "<null>"}.");
 			}
 		}
 	}

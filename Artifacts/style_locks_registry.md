@@ -8,15 +8,15 @@
 | B1 | `Artifacts/style_locks_B1.md` | **已锁定（初版）** | 磁盘齐；Gemini 细化可追加「批复」段 |
 | B2 | `Artifacts/style_locks_B2.md` | **已锁定（初版）** | 同上 |
 | B3 | `Artifacts/style_locks_B3.md` | **已锁定（初版）** | 同上 |
-| B4 | `Artifacts/style_locks_B4.md` | **已锁定（初版）** | 62×256 人脸；可 Banana 重刷 |
+| B4 | `Artifacts/style_locks_B4.md` | **已锁定（初版）** | 62×256 人脸；`b4_faces_driver.py` |
 | B5 | `Artifacts/style_locks_B5.md` | **已锁定（初版）** | 同上 |
 | B6 | `Artifacts/style_locks_B6.md` | **已锁定（初版）** | 同上 |
 | B7 | `Artifacts/style_locks_B7.md` | **已锁定（初版）** | limb 文件名见映射补充 |
 | B8 | `Artifacts/style_locks_B8.md` | **已锁定（初版）** | 同上 |
-| B9 | `Artifacts/style_locks_B9.md` | **已锁定（初版）** | 88 PNG + `EquipmentOverlayPaths` + 投影后叠图 |
-| B10 | `Artifacts/style_locks_B10.md` | **已锁定（初版）** | 磁盘齐；「重刷」= 审美换代，开批前补 Gemini 批复 |
-| B11 | `Artifacts/style_locks_B11.md` | **已锁定（初版）** | 蓝图占位 10 张已齐 |
-| B12 | `Artifacts/style_locks_B12.md` | **已锁定（初版）** | detail 20 + mp 8 占位已齐；运行时接线待需 |
+| B9 | `Artifacts/style_locks_B9.md` | **已锁定（初版）** | 88 PNG；换血 `b9_equipment_overlay_driver.py` |
+| B10 | `Artifacts/style_locks_B10.md` | **已锁定（初版）** | 磁盘齐；换血 `b10_generated_driver.py`；「重刷」= 审美换代，开批前补 Gemini 批复 |
+| B11 | `Artifacts/style_locks_B11.md` | **已锁定（初版）** | 蓝图占位 10 张已齐；真图批跑 `Tools/banana/b11_facility_blueprint_driver.py` |
+| B12 | `Artifacts/style_locks_B12.md` | **已锁定（初版）** | detail 20 + mp 8；换血 `b12_detail_mp_driver.py`；运行时接线待需 |
 
 ## 磁盘占位进度快照（`Placeholders`）
 
@@ -49,7 +49,7 @@
 | 画布 | **256×256**（与 `MapSpriteRuntimeFactory.ExportSize` 一致） |
 | 生成 | `Tools/banana/b9_equipment_overlay_fill_local.py` |
 
-**下一优先（产品级美术）**：B10 按身份卡整批 **审美重刷**；按需为 B12 `detail`/`mp` **接线**；各批「Gemini 批复」段可按需补写。
+**下一优先（产品级美术）**：B10 按身份卡整批 **审美重刷**（`Tools/banana/b10_generated_driver.py`）；B4 真脸（`b4_faces_driver.py`）；按需为 B12 `detail`/`mp` **接线**；各批「Gemini 批复」段可按需补写。
 
 ## 与身份卡原文的差异
 

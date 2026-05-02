@@ -15,6 +15,11 @@ namespace MiniRPG.Module.Render;
 ///   ZStep     = 64  (每层 Z 的像素偏移 = 方块侧面高度)
 ///
 /// Z 约定：Z=0 为基准地表，Z>0 为地下（屏幕上更低），Z&lt;0 为地上（屏幕上更高）。
+///
+/// 度量衡口径（详见 <c>Docs/开发约定.md</c>「度量衡口径」节）：
+///   1 世界 cell（1 个体素方块）= 真实空间 <b>1.5 m × 1.5 m × 1.5 m</b>。
+///   一个 chunk = 32 × 32 cell = 48 m × 48 m。
+///   人物 ≈ 1.7 m，sprite 在屏幕上略高出格顶 ≈ 0.2 m，与"人占 1 cell"的逻辑寻路占位保持一致。
 /// </summary>
 public static class IsoCoordUtil
 {

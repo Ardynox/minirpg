@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -543,7 +544,7 @@ public static class AppSettingsStore
 			return false;
 		}
 
-		json = File.ReadAllText(path);
+		json = File.ReadAllText(path, Encoding.UTF8);
 		return true;
 	}
 
@@ -553,7 +554,7 @@ public static class AppSettingsStore
 		var directory = Path.GetDirectoryName(path);
 		if (!string.IsNullOrWhiteSpace(directory))
 			Directory.CreateDirectory(directory);
-		File.WriteAllText(path, json);
+		File.WriteAllText(path, json, Encoding.UTF8);
 	}
 
 	private static string GetSettingsPath() =>

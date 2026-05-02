@@ -1,6 +1,6 @@
 ﻿# Render Mapping Audit Report
 
-Generated (UTC): 2026-04-17T07:22:21.9202294Z
+Generated (UTC): 2026-04-21T09:44:06.2613754Z
 
 ## Scope
 - Data/entity_render.json
@@ -10,8 +10,8 @@ Generated (UTC): 2026-04-17T07:22:21.9202294Z
 - Data/items.json
 
 ## Summary
-- actors_checked: 24
-- items_checked: 132
+- actors_checked: 25
+- items_checked: 133
 - missing_faction_fallbacks: 0
 - missing_actor_mappings: 0
 - missing_item_mappings: 0

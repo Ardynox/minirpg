@@ -106,8 +106,8 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 		_graph.Clear();
 	}
 
-	/// <summary>Per-turn decay rate; relationships drift toward zero by this factor each call to <see cref="Tick"/>.</summary>
-	public const float DefaultDecayPerTurn = 0.02f;
+	/// <summary>Per-turn decay rate; relationships drift toward zero by this factor each call to <see cref="Tick"/>.（按 240 turn/day 校准；旧 120 turn/day 历法下为 0.02）</summary>
+	public const float DefaultDecayPerTurn = 0.01f;
 
 	/// <summary>Absolute magnitude below which an edge is dropped instead of carrying a near-zero.</summary>
 	public const float CleanupThreshold = 0.005f;
@@ -161,6 +161,10 @@ public sealed class RelationshipModule : IGameEventConsequenceHandler
 				break;
 			case "gift_given":
 				HandleGiftGiven(ev);
+				break;
+			case "relationship_adjust":
+				if (!string.IsNullOrWhiteSpace(ev.InitiatorId) && !string.IsNullOrWhiteSpace(ev.TargetId))
+					Adjust(ev.InitiatorId!, ev.TargetId!, trustDelta: ev.RelationshipTrustDelta);
 				break;
 		}
 	}

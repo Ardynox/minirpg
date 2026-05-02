@@ -18,8 +18,6 @@
     <Compile Remove="Tools\**\*.cs" />
     <!-- TEMP: exclude while Main.cs refactor is in progress -->
     <Compile Remove="App\Main.InspectAndSkill.cs" />
-    <!-- TEMP: 别进程 GrassSurfacePreview 调用了不存在的 Key.BracketLeft/Right；预览脚本不影响主玩法 -->
-    <Compile Remove="App\Previews\**\*.cs" />
     <EmbeddedResource Remove="Tests\**\*" />
     <None Remove="Tests\**\*" />
   </ItemGroup>

@@ -40,7 +40,10 @@ public sealed class ActorInspectPanelModule : IPanel
 	}
 
 	private static readonly StatusTab[] Tabs =
-		[StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip, StatusTab.Needs, StatusTab.Health];
+	[
+		StatusTab.Limb, StatusTab.Capacity, StatusTab.Tag, StatusTab.Buff, StatusTab.Equip, StatusTab.Needs, StatusTab.Health,
+		StatusTab.Family, StatusTab.Genome,
+	];
 
 	private readonly PanelContainer _panel;
 	private readonly Label _nameInfo;

@@ -127,6 +127,15 @@ public partial class Main
 		_saveNameDialog.CancelRequested += CloseSaveNameDialog;
 		_characterCreation.ConfirmRequested += _mainAppFlowCoordinator.HandleCharacterCreationConfirmed;
 		_characterCreation.CancelRequested += _mainAppFlowCoordinator.HandleCharacterCreationCanceled;
+		_characterCreation.ConfirmRequested += _ => _characterCustomization.Close();
+		_characterCreation.CancelRequested += _characterCustomization.Close;
+		_characterCreation.OpenFaceCustomizationRequested += initial => _characterCustomization.Open(initial);
+		_characterCustomization.Applied += face =>
+		{
+			_characterCreation.ApplyFaceCustomization(face);
+			_characterCustomization.Close();
+		};
+		_characterCustomization.Canceled += () => _characterCustomization.Close();
 		_worldSettingsDialog.ConfirmRequested += _mainAppFlowCoordinator.HandleWorldSettingsConfirmed;
 		_worldSettingsDialog.CancelRequested += _mainAppFlowCoordinator.HandleWorldSettingsCanceled;
 		_confirmDialog.ActionSelected += _mainAppFlowCoordinator.HandleConfirmDialogActionSelected;

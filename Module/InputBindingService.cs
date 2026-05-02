@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using Godot;
 using MiniRPG.Core.Config;
@@ -288,7 +289,7 @@ public sealed class InputBindingService
 
 		try
 		{
-			var json = File.ReadAllText(SavePath);
+			var json = File.ReadAllText(SavePath, Encoding.UTF8);
 			var store = JsonSerializer.Deserialize<BindingStore>(json, new JsonSerializerOptions
 			{
 				PropertyNameCaseInsensitive = true,
@@ -337,7 +338,7 @@ public sealed class InputBindingService
 		}
 
 		var json = JsonSerializer.Serialize(store, new JsonSerializerOptions { WriteIndented = true });
-		File.WriteAllText(SavePath, json);
+		File.WriteAllText(SavePath, json, Encoding.UTF8);
 	}
 
 	private static InputGesture ReadGesture(BindingStoreRow row)

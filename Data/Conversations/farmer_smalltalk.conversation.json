@@ -1,0 +1,28 @@
+{
+  "id": "farmer_smalltalk",
+  "triggers": { "professionId": "farmer", "priority": 7 },
+  "entryNode": "field",
+  "nodes": [
+    {
+      "id": "field",
+      "speaker": "npc",
+      "lines": ["今年收成还行，就是税重。"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "保重。",
+          "next": "bye"
+        }
+      ]
+    },
+    {
+      "id": "bye",
+      "speaker": "npc",
+      "lines": ["嗯，你也小心路上的狼。"],
+      "onEnter": [],
+      "branches": []
+    }
+  ]
+}

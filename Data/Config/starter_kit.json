@@ -1,0 +1,37 @@
+{
+  "$comment": "创建角色界面「初始携带物品」白名单 + 每类上限。非 debug 模式下严格按这里裁剪：itemId 不在 items 列表里 → 丢弃；同类总数超 limit → 截断。通用默认包（fallbackKit）用在职业未配置 starterKit 时。",
+  "categories": [
+    {
+      "id": "food",
+      "limit": 4,
+      "items": ["meal_simple", "meal_lavish", "bread"]
+    },
+    {
+      "id": "drink",
+      "limit": 3,
+      "items": ["water_flask", "water_bottle_clean"]
+    },
+    {
+      "id": "rest",
+      "limit": 1,
+      "items": ["bedroll"]
+    },
+    {
+      "id": "ingredient",
+      "limit": 4,
+      "items": ["raw_meat", "berries"]
+    },
+    {
+      "id": "tool",
+      "limit": 2,
+      "items": ["torch", "rope"]
+    }
+  ],
+  "fallbackKit": {
+    "meal_simple": 2,
+    "water_flask": 2,
+    "bedroll": 1,
+    "raw_meat": 2,
+    "berries": 2
+  }
+}

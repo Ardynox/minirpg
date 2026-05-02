@@ -121,6 +121,20 @@ public class GroundPanelModule : ListPanelBase, ITooltipRegistrar
 	private void ApplyRowContent(Button row, int index)
 	{
 		var item = _groundItems[index];
+		var rowIcon = PlaceholderUiIconCatalog.ResolveGroundItemIcon(item);
+		if (rowIcon != null)
+		{
+			row.Icon = rowIcon;
+			row.AddThemeConstantOverride("icon_max_width", 24);
+			row.AddThemeConstantOverride("icon_max_height", 24);
+		}
+		else
+		{
+			row.Icon = null;
+			row.RemoveThemeConstantOverride("icon_max_width");
+			row.RemoveThemeConstantOverride("icon_max_height");
+		}
+
 		var icon = item.IsContainer ? "[C]" : "   ";
 		var itemName = ItemFormatHelper.GetDisplayName(_host.State, item);
 		var nameText = item.IsContainer

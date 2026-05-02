@@ -1,0 +1,244 @@
+[gd_scene format=3 uid="uid://dy0t0jry3c0hh"]
+
+[ext_resource type="Theme" uid="uid://caqth0tidi6r6" path="res://Assets/UI/Themes/UITheme.tres" id="2_theme"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_calm"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_base"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_marsh"]
+
+[node name="WaterSeascapePreview" type="Control" unique_id=583577653]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Background" type="ColorRect" parent="." unique_id=460053289]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0470588, 0.0588235, 0.0666667, 1)
+
+[node name="Title" type="Label" parent="." unique_id=1046588825]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 28.0
+offset_right = 760.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 28
+text = "Seascape Top Surface Preview"
+
+[node name="Subtitle" type="Label" parent="." unique_id=1516967888]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 74.0
+offset_right = 1180.0
+offset_bottom = 122.0
+text = "A standalone water study for 2.5D top faces. Each cluster shares one material and samples the same world-space wave field across tile seams."
+
+[node name="Footer" type="Label" parent="." unique_id=1372711165]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 984.0
+offset_right = 1400.0
+offset_bottom = 1026.0
+text = "Open this scene directly to compare presets. Tweak the ShaderMaterial uniforms on any tile to steer from calm basin to rough marsh without adding textures."
+
+[node name="CalmGroup" type="Control" parent="." unique_id=1611221523]
+anchors_preset = 0
+offset_left = 80.0
+offset_top = 180.0
+offset_right = 500.0
+offset_bottom = 520.0
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="CalmGroup" unique_id=1379870616]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 44.0
+offset_right = 402.0
+offset_bottom = 286.0
+color = Color(0.0862745, 0.105882, 0.113725, 0.8)
+
+[node name="Label" type="Label" parent="CalmGroup" unique_id=925545386]
+layout_mode = 0
+offset_left = 18.0
+offset_right = 220.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 20
+text = "Calm Basin"
+
+[node name="Hint" type="Label" parent="CalmGroup" unique_id=613786004]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 22.0
+offset_right = 380.0
+offset_bottom = 54.0
+text = "Lower steepness, softer motion, broader glints."
+
+[node name="TileA" type="ColorRect" parent="CalmGroup" unique_id=863410997]
+material = SubResource("ShaderMaterial_calm")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 68.0
+offset_right = 306.0
+offset_bottom = 164.0
+
+[node name="TileB" type="ColorRect" parent="CalmGroup" unique_id=1869381158]
+material = SubResource("ShaderMaterial_calm")
+layout_mode = 0
+offset_left = 210.0
+offset_top = 116.0
+offset_right = 402.0
+offset_bottom = 212.0
+
+[node name="TileC" type="ColorRect" parent="CalmGroup" unique_id=448477368]
+material = SubResource("ShaderMaterial_calm")
+layout_mode = 0
+offset_left = 18.0
+offset_top = 116.0
+offset_right = 210.0
+offset_bottom = 212.0
+
+[node name="TileD" type="ColorRect" parent="CalmGroup" unique_id=1643745347]
+material = SubResource("ShaderMaterial_calm")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 164.0
+offset_right = 306.0
+offset_bottom = 260.0
+
+[node name="BaseGroup" type="Control" parent="." unique_id=508813425]
+anchors_preset = 0
+offset_left = 540.0
+offset_top = 180.0
+offset_right = 960.0
+offset_bottom = 520.0
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="BaseGroup" unique_id=240294058]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 44.0
+offset_right = 402.0
+offset_bottom = 286.0
+color = Color(0.0784314, 0.0980392, 0.105882, 0.8)
+
+[node name="Label" type="Label" parent="BaseGroup" unique_id=95317462]
+layout_mode = 0
+offset_left = 18.0
+offset_right = 260.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 20
+text = "Seascape Core"
+
+[node name="Hint" type="Label" parent="BaseGroup" unique_id=140762036]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 22.0
+offset_right = 390.0
+offset_bottom = 54.0
+text = "The intended baseline: sharper peaks and stronger shimmer."
+
+[node name="TileA" type="ColorRect" parent="BaseGroup" unique_id=2122115131]
+material = SubResource("ShaderMaterial_base")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 68.0
+offset_right = 306.0
+offset_bottom = 164.0
+
+[node name="TileB" type="ColorRect" parent="BaseGroup" unique_id=1120987717]
+material = SubResource("ShaderMaterial_base")
+layout_mode = 0
+offset_left = 210.0
+offset_top = 116.0
+offset_right = 402.0
+offset_bottom = 212.0
+
+[node name="TileC" type="ColorRect" parent="BaseGroup" unique_id=1241643795]
+material = SubResource("ShaderMaterial_base")
+layout_mode = 0
+offset_left = 18.0
+offset_top = 116.0
+offset_right = 210.0
+offset_bottom = 212.0
+
+[node name="TileD" type="ColorRect" parent="BaseGroup" unique_id=912646290]
+material = SubResource("ShaderMaterial_base")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 164.0
+offset_right = 306.0
+offset_bottom = 260.0
+
+[node name="MarshGroup" type="Control" parent="." unique_id=2096540702]
+anchors_preset = 0
+offset_left = 1000.0
+offset_top = 180.0
+offset_right = 1420.0
+offset_bottom = 520.0
+mouse_filter = 2
+
+[node name="Backdrop" type="ColorRect" parent="MarshGroup" unique_id=805867090]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 44.0
+offset_right = 402.0
+offset_bottom = 286.0
+color = Color(0.0862745, 0.101961, 0.0901961, 0.8)
+
+[node name="Label" type="Label" parent="MarshGroup" unique_id=267901429]
+layout_mode = 0
+offset_left = 18.0
+offset_right = 280.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 20
+text = "Rough Marsh"
+
+[node name="Hint" type="Label" parent="MarshGroup" unique_id=35160548]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 22.0
+offset_right = 390.0
+offset_bottom = 54.0
+text = "Higher peakiness with murkier color for swampy turbulence."
+
+[node name="TileA" type="ColorRect" parent="MarshGroup" unique_id=1668624851]
+material = SubResource("ShaderMaterial_marsh")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 68.0
+offset_right = 306.0
+offset_bottom = 164.0
+
+[node name="TileB" type="ColorRect" parent="MarshGroup" unique_id=1414129707]
+material = SubResource("ShaderMaterial_marsh")
+layout_mode = 0
+offset_left = 210.0
+offset_top = 116.0
+offset_right = 402.0
+offset_bottom = 212.0
+
+[node name="TileC" type="ColorRect" parent="MarshGroup" unique_id=1762054197]
+material = SubResource("ShaderMaterial_marsh")
+layout_mode = 0
+offset_left = 18.0
+offset_top = 116.0
+offset_right = 210.0
+offset_bottom = 212.0
+
+[node name="TileD" type="ColorRect" parent="MarshGroup" unique_id=1903938084]
+material = SubResource("ShaderMaterial_marsh")
+layout_mode = 0
+offset_left = 114.0
+offset_top = 164.0
+offset_right = 306.0
+offset_bottom = 260.0

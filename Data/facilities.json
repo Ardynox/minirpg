@@ -1,5 +1,25 @@
 [
   {
+    "id": "gene_assembler",
+    "name": "Gene assembler",
+    "glyph": "G",
+    "description": "Installs or adjusts germline traits under medical supervision.",
+    "canRotate": true,
+    "footprint": [
+      { "x": 0, "y": 0, "passable": false, "blocksSight": false, "glyph": "G" }
+    ],
+    "useSlots": [
+      { "id": "console", "x": 0, "y": 1, "purpose": "Access" }
+    ],
+    "constructionCost": [
+      { "itemId": "mat_steel", "count": 6 },
+      { "itemId": "mat_wood", "count": 8 }
+    ],
+    "maxHitPoints": 48,
+    "tags": ["medical", "research"],
+    "interactions": ["personal_use"]
+  },
+  {
     "id": "shelf",
     "name": "Shelf",
     "glyph": "S",

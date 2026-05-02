@@ -3,39 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace MiniRPG.Core.Data;
 
-public class DialogEntry
-{
-	[JsonPropertyName("id")]
-	public string Id { get; set; } = "";
-
-	[JsonPropertyName("speaker")]
-	public string Speaker { get; set; } = "npc";
-
-	[JsonPropertyName("template")]
-	public string Template { get; set; } = "";
-
-	[JsonPropertyName("condition")]
-	public DialogCondition? Condition { get; set; }
-
-	[JsonPropertyName("options")]
-	public List<DialogOption> Options { get; set; } = [];
-
-	[JsonPropertyName("effects")]
-	public List<DialogEffect> Effects { get; set; } = [];
-
-	[JsonPropertyName("nextId")]
-	public string? NextId { get; set; }
-
-	[JsonPropertyName("priority")]
-	public int Priority { get; set; }
-
-	/// <summary>
-	/// 标签组：标记这条对话属于哪个话题/类别，用于 DialogPool 索引。
-	/// 如 ["greet", "trade", "lore"]。不参与条件匹配，只用于分组查找。
-	/// </summary>
-	[JsonPropertyName("tags")]
-	public List<string> Tags { get; set; } = [];
-}
+// 旧 Dialog 系统已被 MiniRPG.Shared/Core/Conversation/* 替代；
+// 仅保留 DialogCondition / DialogEffect 两个条件表达式模型，
+// 继续被 ConversationModule + DialogConditionMatcher 复用。
 
 /// <summary>
 /// 通用标签条件。所有维度统一为 tag 键值对：
@@ -60,21 +30,6 @@ public class DialogCondition
 	public Dictionary<string, float>? MaxTags { get; set; }
 }
 
-public class DialogOption
-{
-	[JsonPropertyName("text")]
-	public string Text { get; set; } = "";
-
-	[JsonPropertyName("nextId")]
-	public string? NextId { get; set; }
-
-	[JsonPropertyName("effects")]
-	public List<DialogEffect> Effects { get; set; } = [];
-
-	[JsonPropertyName("condition")]
-	public DialogCondition? Condition { get; set; }
-}
-
 /// <summary>
 /// 副作用。Type:
 ///   "affinity" / "mood" -- 修改 NPC 对话状态数值
@@ -92,20 +47,4 @@ public class DialogEffect
 
 	[JsonPropertyName("value")]
 	public float Value { get; set; }
-}
-
-/// <summary>
-/// 对话集合。不再绑定 npcId/profession，改为纯标签分组。
-/// category 用于 DialogPool 索引（如 "greet", "trade", "lore", "react"）。
-/// </summary>
-public class DialogSet
-{
-	[JsonPropertyName("id")]
-	public string Id { get; set; } = "";
-
-	[JsonPropertyName("category")]
-	public string Category { get; set; } = "general";
-
-	[JsonPropertyName("entries")]
-	public List<DialogEntry> Entries { get; set; } = [];
 }

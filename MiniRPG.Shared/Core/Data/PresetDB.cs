@@ -57,6 +57,12 @@ public class ProfessionPreset
 	public string Name { get; set; } = "";
 	[JsonPropertyName("tags")]
 	public Dictionary<string, int> Tags { get; set; } = new();
+	/// <summary>
+	/// 该职业的默认初始携带物品（itemId → 数量）。空字典表示"用通用默认包"
+	/// （由 <c>StarterKitResolver.ResolveDefault</c> 决定，目前是 9 件求生包）。
+	/// </summary>
+	[JsonPropertyName("starterKit")]
+	public Dictionary<string, int> StarterKit { get; set; } = new();
 }
 
 public class ItemPreset
@@ -288,6 +294,10 @@ public static class PresetDB
 		Event.StorytellerDefLoader.Load();
 		Social.SocialInteractionLoader.Load();
 
+		// 触发 FoodFreshnessEvaluator cctor 替换 Item.FreshnessSamePhaseHook，
+		// 让 starter kit 的同时刻 spawn 食物可以按"半保质期 bucket"合堆。
+		Needs.FoodFreshnessEvaluator.EnsureInitialized();
+
 		_loaded = true;
 	}
 
@@ -361,6 +371,9 @@ public static class PresetDB
 		AI.Utility.PersonalityModule.GeneratePersonality(actor, rng);
 		actor.Sex = rng.Next(2) == 0 ? Sex.Female : Sex.Male;
 		actor.Genome = GeneSpawnService.CreateForRace(rng, actor.Race?.Id);
+		// 给所有 actor 派生稳定随机外观（玩家随后会被 PlayerCreationOptions.FaceCustomization 覆盖）。
+		// 用 instanceId hash 作为种子保证同一 instance 多次 reload 看起来一致。
+		actor.FaceCustomization = FaceCustomizationData.CreateRandom(rng);
 
 		return actor;
 	}
@@ -411,7 +424,13 @@ public static class PresetDB
 	}
 
 	/// <summary>根据物品预设 ID 克隆一个新的 Item 实例。</summary>
-	public static Item CloneItem(string itemId)
+	/// <param name="itemId">预设 ID。</param>
+	/// <param name="spawnedAtTurn">
+	/// 可选生成回合号；当 item 是可腐物（食物 / 带 Nutrition tag）时，会写入 <see cref="Item.SpawnedAtTurn"/>，
+	/// 后续 <c>FoodFreshnessEvaluator</c> 用它判定新鲜阶段。其他 item 即使传了也忽略。
+	/// 不传则默认为 -1（不追踪 / 永不过期）。
+	/// </param>
+	public static Item CloneItem(string itemId, int? spawnedAtTurn = null)
 	{
 		if (!Items.TryGetValue(itemId, out var preset))
 			throw new ArgumentException($"Unknown item preset: {itemId}");
@@ -448,12 +467,16 @@ public static class PresetDB
 			Tags = new(preset.Tags),
 		};
 		item.InitializeRuntimeState(instanceId: null, maxDurability: ResolveItemMaxDurability(preset));
+		if (spawnedAtTurn.HasValue && IsPerishableForSpawn(item))
+			item.SpawnedAtTurn = spawnedAtTurn.Value;
 		return item;
 	}
 
-	// ── 内部工具 ─────────────────────────────────────────
+	private static bool IsPerishableForSpawn(Item item) =>
+		string.Equals(item.Category, ItemCategories.Food, StringComparison.Ordinal)
+		|| item.Tags.ContainsKey(ItemTags.Nutrition);
 
-	private interface IHasId { string Id { get; } }
+	// ── 内部工具 ─────────────────────────────────────────
 
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{

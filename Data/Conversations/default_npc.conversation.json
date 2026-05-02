@@ -1,0 +1,35 @@
+{
+  "id": "default_npc",
+  "triggers": { "priority": 0 },
+  "entryNode": "greet",
+  "nodes": [
+    {
+      "id": "greet",
+      "speaker": "npc",
+      "lines": ["嗯？有事吗，旅人？"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "只是路过，打个招呼。",
+          "next": "wave",
+          "effects": [{ "type": "affinity", "value": 1 }]
+        },
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "再见。",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "wave",
+      "speaker": "npc",
+      "lines": ["那就慢走。这附近不太平，小心点。"],
+      "onEnter": [],
+      "branches": []
+    }
+  ]
+}

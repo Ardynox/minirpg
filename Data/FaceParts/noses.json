@@ -1,0 +1,10 @@
+[
+	{ "id": "small_button",    "displayName": "小巧",   "imagePath": "res://Assets/Faces/Nose/small_button.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "straight_roman",  "displayName": "罗马直", "imagePath": "res://Assets/Faces/Nose/straight_roman.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "hooked",          "displayName": "鹰钩",   "imagePath": "res://Assets/Faces/Nose/hooked.png",          "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "wide_flat",       "displayName": "宽扁",   "imagePath": "res://Assets/Faces/Nose/wide_flat.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "long_pointed",    "displayName": "长尖",   "imagePath": "res://Assets/Faces/Nose/long_pointed.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "crooked_broken",  "displayName": "歪鼻",   "imagePath": "res://Assets/Faces/Nose/crooked_broken.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "upturned",        "displayName": "上翘",   "imagePath": "res://Assets/Faces/Nose/upturned.png",        "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "broad_bulbous",   "displayName": "宽球",   "imagePath": "res://Assets/Faces/Nose/broad_bulbous.png",   "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

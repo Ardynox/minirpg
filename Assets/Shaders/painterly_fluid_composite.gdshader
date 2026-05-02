@@ -33,6 +33,10 @@ uniform float normal_tilt        : hint_range(0.0, 200.0) = 60.0;
 // Refraction strength on the back buffer (how much surface tilt warps
 // the underlying scene).
 uniform float refraction_strength : hint_range(0.0, 0.10) = 0.025;
+// Chromatic dispersion — wavelength-dependent refraction. R refracts
+// less, B refracts more (real water Δn ≈ 0.005 between red and blue).
+// 0 disables, ~0.06 gives a subtle prism rim that reads as "glassy".
+uniform float dispersion_strength : hint_range(0.0, 0.20) = 0.06;
 
 // Lighting / scene constants — same trio used by droplet & sheet shaders.
 uniform vec3  sun_dir              = vec3(-0.6, 0.75, 0.3);
@@ -93,14 +97,20 @@ void fragment() {
 	float ndv = max(dot(N, V), 0.0);
 	float fres = pow(1.0 - ndv, 4.0);
 
-	// --- Refraction ---
+	// --- Refraction (with chromatic dispersion) ---
 	// Sample the back buffer offset by the surface tilt — the more the
 	// surface bulges sideways, the more the scene below appears warped.
 	// Multiply by (1 - fres·0.5) so grazing edges refract less (where
-	// they reflect more).
-	vec3 refracted = textureLod(screen_texture,
-		SCREEN_UV + N.xy * refraction_strength * (1.0 - fres * 0.5),
-		0.0).rgb;
+	// they reflect more). Each channel uses a slightly different offset
+	// scale (R < G < B) so the rim of every droplet picks up a faint
+	// rainbow split — same trick a real prism (or glass marble) does.
+	vec2 base_ofs = N.xy * refraction_strength * (1.0 - fres * 0.5);
+	float r_scale = 1.0 - dispersion_strength;
+	float b_scale = 1.0 + dispersion_strength;
+	vec3 refracted;
+	refracted.r = textureLod(screen_texture, SCREEN_UV + base_ofs * r_scale, 0.0).r;
+	refracted.g = textureLod(screen_texture, SCREEN_UV + base_ofs,           0.0).g;
+	refracted.b = textureLod(screen_texture, SCREEN_UV + base_ofs * b_scale, 0.0).b;
 
 	// --- Environment reflection ---
 	// Reflection vector for screen-aligned view: reflect(-V, N) where V

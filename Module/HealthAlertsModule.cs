@@ -9,6 +9,8 @@ namespace MiniRPG.Module;
 public sealed class HealthAlertsModule
 {
 	private readonly PanelContainer _root;
+	private readonly HBoxContainer[] _rows;
+	private readonly TextureRect[] _icons;
 	private readonly Label[] _labels;
 	private GameState? _cachedState;
 	private Actor? _cachedActor;
@@ -17,14 +19,32 @@ public sealed class HealthAlertsModule
 	{
 		_root = root;
 		var vbox = _root.GetNode<VBoxContainer>("Margin/VBox");
+		_rows =
+		[
+			vbox.GetNode<HBoxContainer>("Alert1"),
+			vbox.GetNode<HBoxContainer>("Alert2"),
+			vbox.GetNode<HBoxContainer>("Alert3"),
+			vbox.GetNode<HBoxContainer>("Alert4"),
+			vbox.GetNode<HBoxContainer>("Alert5"),
+			vbox.GetNode<HBoxContainer>("Alert6"),
+		];
+		_icons =
+		[
+			vbox.GetNode<TextureRect>("Alert1/Icon"),
+			vbox.GetNode<TextureRect>("Alert2/Icon"),
+			vbox.GetNode<TextureRect>("Alert3/Icon"),
+			vbox.GetNode<TextureRect>("Alert4/Icon"),
+			vbox.GetNode<TextureRect>("Alert5/Icon"),
+			vbox.GetNode<TextureRect>("Alert6/Icon"),
+		];
 		_labels =
 		[
-			vbox.GetNode<Label>("Alert1"),
-			vbox.GetNode<Label>("Alert2"),
-			vbox.GetNode<Label>("Alert3"),
-			vbox.GetNode<Label>("Alert4"),
-			vbox.GetNode<Label>("Alert5"),
-			vbox.GetNode<Label>("Alert6"),
+			vbox.GetNode<Label>("Alert1/Text"),
+			vbox.GetNode<Label>("Alert2/Text"),
+			vbox.GetNode<Label>("Alert3/Text"),
+			vbox.GetNode<Label>("Alert4/Text"),
+			vbox.GetNode<Label>("Alert5/Text"),
+			vbox.GetNode<Label>("Alert6/Text"),
 		];
 		HideImmediate();
 	}
@@ -77,12 +97,33 @@ public sealed class HealthAlertsModule
 
 		for (var i = 1; i <= 6; i++)
 		{
-			vbox.AddChild(new Label
+			var row = new HBoxContainer
 			{
 				Name = $"Alert{i.ToString(CultureInfo.InvariantCulture)}",
 				MouseFilter = Control.MouseFilterEnum.Ignore,
 				Visible = false,
-			});
+			};
+			row.AddThemeConstantOverride("separation", 4);
+
+			var icon = new TextureRect
+			{
+				Name = "Icon",
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				CustomMinimumSize = new Vector2(22, 22),
+				StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+				ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+				Visible = false,
+			};
+			var label = new Label
+			{
+				Name = "Text",
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				Visible = false,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			};
+			row.AddChild(icon);
+			row.AddChild(label);
+			vbox.AddChild(row);
 		}
 
 		return root;
@@ -120,14 +161,25 @@ public sealed class HealthAlertsModule
 	public void HideImmediate()
 	{
 		_root.Visible = false;
+		foreach (var row in _rows)
+		{
+			row.Visible = false;
+		}
+
 		foreach (var label in _labels)
 		{
 			label.Visible = false;
 			label.Text = string.Empty;
 		}
+
+		foreach (var icon in _icons)
+		{
+			icon.Visible = false;
+			icon.Texture = null;
+		}
 	}
 
-	private void RenderAlerts(IReadOnlyList<(string Text, Color Color)> alerts)
+	private void RenderAlerts(IReadOnlyList<(string Text, Color Color, Texture2D? Icon)> alerts)
 	{
 		if (alerts.Count == 0)
 		{
@@ -140,21 +192,56 @@ public sealed class HealthAlertsModule
 		{
 			if (i < alerts.Count)
 			{
+				_rows[i].Visible = true;
 				_labels[i].Visible = true;
 				_labels[i].Text = alerts[i].Text;
 				_labels[i].AddThemeColorOverride("font_color", alerts[i].Color);
+				var tex = alerts[i].Icon;
+				_icons[i].Texture = tex;
+				_icons[i].Visible = tex != null;
 			}
 			else
 			{
+				_rows[i].Visible = false;
 				_labels[i].Visible = false;
 				_labels[i].Text = string.Empty;
+				_icons[i].Visible = false;
+				_icons[i].Texture = null;
 			}
 		}
 	}
 
-	private static List<(string Text, Color Color)> BuildAlerts(Actor actor)
+	private static Texture2D? ResolveDyingAlertIcon(string? fatalCause, Actor actor, HealthConditionState? infection)
 	{
-		var alerts = new List<(int Priority, string Text, Color Color)>();
+		var icon = fatalCause switch
+		{
+			"death_blood_loss" => PlaceholderUiIconCatalog.TryLoadTexture(
+				PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.BloodLoss)),
+			"death_infection" => PlaceholderUiIconCatalog.TryLoadTexture(
+				PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.Infection)),
+			_ => null,
+		};
+		if (icon != null)
+			return icon;
+
+		if (actor.BloodLossValue >= 85f)
+		{
+			var blood = PlaceholderUiIconCatalog.TryLoadTexture(
+				PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.BloodLoss));
+			if (blood != null)
+				return blood;
+		}
+
+		if ((infection?.Severity ?? 0f) >= 90f)
+			return PlaceholderUiIconCatalog.TryLoadTexture(
+				PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.Infection));
+
+		return null;
+	}
+
+	private static List<(string Text, Color Color, Texture2D? Icon)> BuildAlerts(Actor actor)
+	{
+		var alerts = new List<(int Priority, string Text, Color Color, Texture2D? Icon)>();
 		var infection = actor.HealthConditions.FirstOrDefault(condition =>
 			string.Equals(condition.Id, HealthConditionIds.Infection, System.StringComparison.Ordinal));
 		var hypothermia = actor.HealthConditions.FirstOrDefault(condition =>
@@ -173,10 +260,12 @@ public sealed class HealthAlertsModule
 				"death_infection" => HealthCatalog.GetConditionDisplayName(HealthConditionIds.Infection),
 				_ => LocalizationService.TOrFallback("ui.health.alert.critical", "critical"),
 			};
+			var dyingIcon = ResolveDyingAlertIcon(fatalCause, actor, infection);
 			alerts.Add((
 				0,
 				LocalizationService.TOrFallback("ui.health.alert.dying", "Dying: {reason}", ("reason", reason)),
-				UIColors.TextWarning));
+				UIColors.TextWarning,
+				dyingIcon));
 		}
 
 		var temperatureCondition = (hypothermia?.Severity ?? 0f) >= (heatstroke?.Severity ?? 0f)
@@ -187,24 +276,40 @@ public sealed class HealthAlertsModule
 			var color = string.Equals(temperatureCondition!.Id, HealthConditionIds.Hypothermia, System.StringComparison.Ordinal)
 				? UIColors.TextUtility
 				: UIColors.TextEquipped;
-			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(temperatureCondition.Id)} {temperatureCondition.Severity:0.#}", color));
+			var tempId = string.Equals(temperatureCondition.Id, HealthConditionIds.Hypothermia, System.StringComparison.Ordinal)
+				? HealthConditionIds.Hypothermia
+				: HealthConditionIds.Heatstroke;
+			var tempIcon = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForCondition(tempId));
+			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(temperatureCondition.Id)} {temperatureCondition.Severity:0.#}", color, tempIcon));
 		}
 
 		if ((onFire?.Severity ?? 0f) > 0f)
-			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.OnFire)} {onFire!.Severity:0.#}", UIColors.TextWarning));
+		{
+			var fireIcon = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.OnFire));
+			alerts.Add((1, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.OnFire)} {onFire!.Severity:0.#}", UIColors.TextWarning, fireIcon));
+		}
 
 		if ((infection?.Severity ?? 0f) >= 8f)
-			alerts.Add((2, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.Infection)} {infection!.Severity:0.#}", UIColors.TextEquipped));
+		{
+			var infIcon = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.Infection));
+			alerts.Add((2, $"{HealthCatalog.GetConditionDisplayName(HealthConditionIds.Infection)} {infection!.Severity:0.#}", UIColors.TextEquipped, infIcon));
+		}
+
 		if (actor.BloodLossValue >= 8f)
-			alerts.Add((3, $"{LocalizationService.TOrFallback("ui.health.alert.bleeding", "Bleeding")} {actor.BloodLossValue:0.#}", UIColors.TextWarning));
+		{
+			var bleedIcon = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForCondition(HealthConditionIds.BloodLoss));
+			alerts.Add((3, $"{LocalizationService.TOrFallback("ui.health.alert.bleeding", "Bleeding")} {actor.BloodLossValue:0.#}", UIColors.TextWarning, bleedIcon));
+		}
+
 		if (actor.PainValue >= 70f)
-			alerts.Add((4, $"{LocalizationService.TOrFallback("ui.health.alert.extreme_pain", "Extreme pain")} {actor.PainValue:0.#}", UIColors.TextWarning));
+			alerts.Add((4, $"{LocalizationService.TOrFallback("ui.health.alert.extreme_pain", "Extreme pain")} {actor.PainValue:0.#}", UIColors.TextWarning, null));
+
 		if (actor.WetnessValue >= 70f)
-			alerts.Add((5, $"{LocalizationService.TOrFallback("ui.health.alert.soaked", "Severe wetness")} {actor.WetnessValue:0.#}", UIColors.TextUtility));
+			alerts.Add((5, $"{LocalizationService.TOrFallback("ui.health.alert.soaked", "Severe wetness")} {actor.WetnessValue:0.#}", UIColors.TextUtility, null));
 
 		return alerts
 			.OrderBy(static entry => entry.Priority)
-			.Select(static entry => (entry.Text, entry.Color))
+			.Select(static entry => (entry.Text, entry.Color, entry.Icon))
 			.ToList();
 	}
 }

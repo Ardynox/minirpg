@@ -205,9 +205,7 @@ public partial class Main
 		MiniRPG.Core.Conversation.ConversationDefLoader.EnsureLoaded();
 		ResAccess.Load();
 		_combatFxRegistry = CombatFxRegistry.Load();
-		PlayerAppearanceCatalog.LoadProjectCatalog();
 		FacePartCatalog.LoadProjectCatalog();
-		MapSpriteTemplateCatalog.LoadProjectCatalog();
 		_fogTracker = new FogOfWarTracker(GameConfig.PlayerVision);
 	}
 
@@ -225,6 +223,9 @@ public partial class Main
 		_consequenceRouter.Register(_actorMemories);
 		_consequenceRouter.Register(_rumorBus);
 		_consequenceRouter.Register(new MiniRPG.Core.Demographics.KinshipLossCapturer());
+		// 愿景仪式感第 3 条："其他队员 / 附近 NPC 在死亡的那一刻要各获得一条 thought"。
+		// 亲属走 KinshipLossCapturer；这里补非亲属的 witnessed_death / ally_died。
+		_consequenceRouter.Register(new MiniRPG.Core.Social.BystanderGriefCapturer());
 		_deathReportRecorder = new MiniRPG.Core.Combat.DeathReportRecorder();
 		_consequenceRouter.Register(_deathReportRecorder);
 		// Inject the same simulation-side modules into the AIDispatcher
@@ -297,13 +298,23 @@ public partial class Main
 		_toastOverlay = new ToastOverlay();
 		_overlayLayer.AddChild(_toastOverlay);
 
+		_deathSequenceOverlay = new DeathSequenceOverlay();
+		_overlayLayer.AddChild(_deathSequenceOverlay);
+
 		_playerDeathReportPanel = new MiniRPG.Module.Panel.PlayerDeathReportPanel(
 			onBackToMenu: ShowMainMenuWithCurrentContinue);
 		_overlayLayer.AddChild(_playerDeathReportPanel);
 		_playerDeathPresenter = new PlayerDeathPresenter(
 			getReport: (actorId, currentTurn) => _deathReportRecorder?.GetOrBuildReport(_state, actorId, currentTurn),
 			showReportPanel: (report, isPartyWipe) => _playerDeathReportPanel.ShowReport(report, isPartyWipe),
-			addLog: text => _log?.Add(text));
+			addLog: text => _log?.Add(text),
+			showHeadingToast: (text, durationSec) => _toastOverlay.ShowHeading(text, durationSec),
+			beginDeathOverlay: durationSec => _deathSequenceOverlay.Begin(durationSec),
+			beginCameraSweep: (fromX, fromY, fromZ, durationSec) =>
+			{
+				_runtimeCameraController?.BeginCinematicSweep(fromX, fromY, fromZ, durationSec);
+				FlushMap();
+			});
 
 		_richTooltips = new RichTooltipLayer();
 		_overlayLayer.AddChild(_richTooltips);
@@ -713,7 +724,8 @@ public partial class Main
 			() => _playerRestModeActive = false,
 			showInfoToast: text => _toastOverlay.Show(text),
 			showWarningToast: text => _toastOverlay.ShowWarning(text),
-			flushMap: FlushMap);
+			flushMap: FlushMap,
+			deathPresenter: _playerDeathPresenter);
 		_limbTargetCoordinator = new LimbTargetCoordinator(
 			_state,
 			_log,

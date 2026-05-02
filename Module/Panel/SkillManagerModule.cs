@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Godot;
 using MiniRPG.Core.Config;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
 
@@ -176,6 +177,21 @@ public class SkillManagerModule : ListPanelBase, ITooltipRegistrar
 	private void ApplyRowContent(Button row, int index)
 	{
 		var skill = _filtered[index];
+		var placeholderIcon = PlaceholderUiIconCatalog.TryLoadTexture(
+			PlaceholderUiIconCatalog.PathForInteraction(skill.Id));
+		if (placeholderIcon != null)
+		{
+			row.Icon = placeholderIcon;
+			row.AddThemeConstantOverride("icon_max_width", 24);
+			row.AddThemeConstantOverride("icon_max_height", 24);
+		}
+		else
+		{
+			row.Icon = null;
+			row.RemoveThemeConstantOverride("icon_max_width");
+			row.RemoveThemeConstantOverride("icon_max_height");
+		}
+
 		var icon = skill.Category switch
 		{
 			"combat" => "C",

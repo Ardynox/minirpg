@@ -8,7 +8,7 @@
       "env": {
         "QINGTIAN_SESSION": "1",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-2": {
@@ -19,7 +19,7 @@
       "env": {
         "QINGTIAN_SESSION": "2",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-3": {
@@ -30,7 +30,7 @@
       "env": {
         "QINGTIAN_SESSION": "3",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-4": {
@@ -41,7 +41,7 @@
       "env": {
         "QINGTIAN_SESSION": "4",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-5": {
@@ -52,7 +52,7 @@
       "env": {
         "QINGTIAN_SESSION": "5",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-6": {
@@ -63,7 +63,7 @@
       "env": {
         "QINGTIAN_SESSION": "6",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-7": {
@@ -74,7 +74,7 @@
       "env": {
         "QINGTIAN_SESSION": "7",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-8": {
@@ -85,7 +85,7 @@
       "env": {
         "QINGTIAN_SESSION": "8",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-9": {
@@ -96,7 +96,7 @@
       "env": {
         "QINGTIAN_SESSION": "9",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     },
     "qtwx-mcp-10": {
@@ -107,7 +107,7 @@
       "env": {
         "QINGTIAN_SESSION": "10",
         "QINGTIAN_QUEUE_ROOT": "c:/Users/12536/AppData/Roaming/Cursor/User/workspaceStorage/2e9393757cdbd5067f93436392d9661b/QingTian.qingtian-v2/runtime/messages",
-        "QINGTIAN_RUNTIME_STAMP": "1b02de1103ec"
+        "QINGTIAN_RUNTIME_STAMP": "bf30329ec5ca"
       }
     }
   }

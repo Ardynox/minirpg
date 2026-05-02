@@ -275,7 +275,7 @@ public class ColdSnapIncidentWorker : IIncidentWorker
 				actor,
 				"cold_snap_chill",
 				moodOffset: -4f,
-				durationTurns: 240,
+				durationTurns: 480, // 240 turn/day 校准；旧 120 turn/day 历法下为 240
 				state.Turn,
 				source: $"incident:{def.Id}",
 				events: events,
@@ -314,7 +314,7 @@ public class HeatWaveIncidentWorker : IIncidentWorker
 				actor,
 				"heat_wave_fatigue",
 				moodOffset: -4f,
-				durationTurns: 240,
+				durationTurns: 480, // 240 turn/day 校准；旧 120 turn/day 历法下为 240
 				state.Turn,
 				source: $"incident:{def.Id}",
 				events: events,
@@ -437,7 +437,7 @@ public class ResourceDropIncidentWorker : IIncidentWorker
 			if (spawn == null)
 				continue;
 
-			var item = PresetDB.CloneItem(itemId);
+			var item = PresetDB.CloneItem(itemId, state.Turn);
 			if (item == null)
 				continue;
 
@@ -461,7 +461,7 @@ public class ResourceDropIncidentWorker : IIncidentWorker
 				actor,
 				"supplies_arrived",
 				moodOffset: 2f,
-				durationTurns: 180,
+				durationTurns: 360, // 240 turn/day 校准；旧 120 turn/day 历法下为 180
 				state.Turn,
 				source: $"incident:{def.Id}",
 				events: events,

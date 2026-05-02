@@ -36,13 +36,31 @@ uniform float time_now = 0.0;
 // C# keeps at most 16 active and packs them in; inactive slots have w=0
 // and are skipped cheaply in the loop. Adding a ripple is a uniform push,
 // no GPU resource churn.
-uniform vec4 ripples[16];
+// Slot count was 16 originally (matches click ripples + a sparse trail).
+// Bumped to 64 so a continuously-moving emitter (e.g. a sailing boat) can
+// shed one ripple every ~0.05s for the full 1.5s lifetime without
+// evicting older slots — without this the trail reads as discrete
+// "pulses" instead of a continuous wake.
+uniform vec4 ripples[64];
 uniform float ripple_speed      : hint_range(0.5, 8.0)  = 2.8;   // front m/s
 uniform float ripple_width      : hint_range(0.3, 8.0)  = 2.0;   // envelope falloff
 uniform float ripple_wavenumber : hint_range(2.0, 40.0) = 14.0;  // rings per 2π m
 uniform float ripple_gate       : hint_range(0.02, 0.5) = 0.12;  // leading-edge softness
 uniform float ripple_damp       : hint_range(0.0, 2.0)  = 0.6;   // amp loss per meter
 uniform float ripple_lifetime   : hint_range(0.2, 4.0)  = 1.5;
+
+// Wake ripples (negative-amp slots — see SpawnWakeRipple) get their OWN
+// expansion speed and lifetime. The Kelvin wake of a sailing boat is a
+// physics phenomenon: the V-angle equals arcsin(c/v) where c is the
+// ripple front speed and v is the boat speed. With the default
+// ripple_speed=2.8 m/s and a 0.55 m/s boat, c >> v and there is no V at
+// all (each ripple races out as a full circle). For a visible Kelvin V
+// we need c < v. The defaults below give arcsin(0.30/0.55) ≈ 33° per
+// side. Lifetime is shortened to 0.7s so the wake doesn't spam the
+// 64-slot pool and so the trail naturally fades a few hull-lengths
+// behind the boat instead of lingering across the entire pool.
+uniform float ripple_wake_speed    : hint_range(0.05, 4.0) = 0.30;
+uniform float ripple_wake_lifetime : hint_range(0.1, 3.0)  = 0.70;
 // Impact-moment realism:
 //   crater_depth  -> multiplier over ripple amp for the initial downward bowl
 //   crater_radius -> Gaussian sigma (meters)
@@ -89,23 +107,39 @@ uniform float normal_strength : hint_range(0.1, 8.0) = 3.2;
 //   h(delta) = amp * exp(-|delta|*width) * cos(delta*wavenumber)
 //              * gate(delta) * life(age) * damping(travel)
 // where delta = |p - center| - travel.
+// Wake-ripple convention: callers may pass a NEGATIVE amplitude to mark a
+// ripple as a "wake" emitter (e.g. shed continuously by a sailing boat).
+// Wake ripples participate in the cosine packet (the expanding rings) but
+// SKIP the crater / residual / foam burst / crown footprint / caustic
+// boost — those are all "impact moment" effects whose per-slot pop is
+// what makes a high-cadence trail read as "一下一下点" pulses instead of a
+// continuous wake.
 vec3 ripple_field(vec2 p, float t) {
 	vec3 acc = vec3(0.0);
 	// Bulk flow drift: ripple centers advect downstream at a fraction of
-	// the flow. Computed once outside the loop so all 16 slots share it.
+	// the flow. Computed once outside the loop so all 64 slots share it.
 	vec2 drift_dir = flow_dir * speed * ripple_flow_coupling * 0.15;
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < 64; i++) {
 		vec4 r = ripples[i];
-		if (r.w < 0.0001) continue;
+		float amp = abs(r.w);
+		if (amp < 0.0001) continue;
+		bool is_wake = (r.w < 0.0);
+		// Wake ripples use a slower expansion speed and shorter lifetime
+		// so the V-shape Kelvin wake (arcsin(c/v) angle) is actually
+		// visible — without these overrides every wake ripple would race
+		// out of the pool in 0.5 frames and the trail would just be one
+		// big circle per spawn.
+		float eff_lifetime = is_wake ? ripple_wake_lifetime : ripple_lifetime;
+		float eff_speed    = is_wake ? ripple_wake_speed    : ripple_speed;
 		float age = t - r.z;
-		if (age < 0.0 || age > ripple_lifetime) continue;
+		if (age < 0.0 || age > eff_lifetime) continue;
 
 		// Advect the center downstream as the ripple ages.
 		vec2 center = r.xy + drift_dir * age;
 		vec2 d = p - center;
 		float dist = length(d) + 1e-4;
 
-		float travel = age * ripple_speed;
+		float travel = age * eff_speed;
 		float delta = dist - travel;
 
 		// Envelope (symmetric exp).
@@ -117,15 +151,18 @@ vec3 ripple_field(vec2 p, float t) {
 		// the expanding front (delta > 0) so it reads as "ripple
 		// caught up to here" not "ripple exists everywhere".
 		float gate = 1.0 - smoothstep(0.0, ripple_gate, delta);
-		// Temporal fade.
-		float life = 1.0 - smoothstep(0.0, ripple_lifetime, age);
+		// Temporal fade — wake ripples use the shorter wake lifetime.
+		float life = 1.0 - smoothstep(0.0, eff_lifetime, age);
 		// Distance damping — ripples lose energy as they spread.
 		float damp = 1.0 / (1.0 + travel * ripple_damp);
 		// Emit ramp — packet starts at 0 amplitude and grows as the
 		// crater collapses, so we don't pop in a full ring at t=0.
-		float emit = 1.0 - exp(-age / max(ripple_emit_ramp, 0.001));
+		// Wake ripples skip this (they have no crater to collapse from);
+		// without the skip the high-cadence stream of fresh ripples each
+		// fades up over ~0.08s and reads as a strobing brightness wobble.
+		float emit = is_wake ? 1.0 : (1.0 - exp(-age / max(ripple_emit_ramp, 0.001)));
 
-		float scale = r.w * life * damp * emit;
+		float scale = amp * life * damp * emit;
 		float h_pkt = scale * env * phase * gate;
 
 		// Analytic derivative of the packet wrt delta (skipping gate
@@ -135,19 +172,37 @@ vec3 ripple_field(vec2 p, float t) {
 		float dh_pkt_ddelta = scale * (d_env * phase + env * d_phase) * gate;
 		vec2 dh_pkt_dp = dh_pkt_ddelta * (d / dist);
 
-		// --- Crater (central depression) ---
-		// Gaussian bowl at the impact point, fading over ripple_crater_life.
-		// Negative height (water displaced outward -> surface dips).
-		//   h_c(p) = -amp * depth * exp(-age/life) * exp(-r²/σ²)
-		// Gradient: dh/dp = h_c * (-2·d/σ²)
-		float sigma2 = max(ripple_crater_radius * ripple_crater_radius, 1e-4);
-		float crater_time  = exp(-age / max(ripple_crater_life, 0.001));
-		float crater_space = exp(-dot(d, d) / sigma2);
-		float h_crater = -r.w * ripple_crater_depth * crater_time * crater_space;
-		vec2  dh_crater_dp = h_crater * (-2.0 * d / sigma2);
+		acc.z  += h_pkt;
+		acc.xy += dh_pkt_dp;
 
-		acc.z  += h_pkt + h_crater;
-		acc.xy += dh_pkt_dp + dh_crater_dp;
+		// --- Per-impact effects (NOT for wake ripples) ----------------
+		// Crater + residual are what make a single ripple read as "an
+		// object hit the water". Stacked at 20Hz they become the visible
+		// pulse train. Wake ripples carry only the packet rings.
+		if (!is_wake) {
+			// --- Crater (central depression) ---
+			// Gaussian bowl at the impact point, fading over ripple_crater_life.
+			// Negative height (water displaced outward -> surface dips).
+			//   h_c(p) = -amp * depth * exp(-age/life) * exp(-r²/σ²)
+			float sigma2 = max(ripple_crater_radius * ripple_crater_radius, 1e-4);
+			float crater_time  = exp(-age / max(ripple_crater_life, 0.001));
+			float crater_space = exp(-dot(d, d) / sigma2);
+			float h_crater = -amp * ripple_crater_depth * crater_time * crater_space;
+			vec2  dh_crater_dp = h_crater * (-2.0 * d / sigma2);
+
+			// --- Residual depression (long tail) ---
+			// Wider, shallower bowl that fades linearly over the full
+			// ripple_lifetime so the surface "remembers" the impact
+			// after the sharp crater is gone.
+			float sigma2_res = sigma2 * 4.0;
+			float residual_time  = 1.0 - smoothstep(0.0, ripple_lifetime, age);
+			float residual_space = exp(-dot(d, d) / sigma2_res);
+			float h_residual = -amp * 0.08 * residual_time * residual_space;
+			vec2  dh_residual_dp = h_residual * (-2.0 * d / sigma2_res);
+
+			acc.z  += h_crater + h_residual;
+			acc.xy += dh_crater_dp + dh_residual_dp;
+		}
 	}
 	return acc;
 }
@@ -158,8 +213,13 @@ vec3 ripple_field(vec2 p, float t) {
 float ripple_foam_mask(vec2 p, float t) {
 	float mask = 0.0;
 	vec2 drift_dir = flow_dir * speed * ripple_flow_coupling * 0.15;
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < 64; i++) {
 		vec4 r = ripples[i];
+		// Wake ripples (encoded with NEGATIVE amp by the boat) are
+		// intentionally filtered out here — the burst/crown/front-foam
+		// are pulse-style "impact moment" effects and would re-introduce
+		// the per-ripple flashes we're trying to avoid in a continuous
+		// trail.
 		if (r.w < 0.0001) continue;
 		float age = t - r.z;
 		if (age < 0.0 || age > ripple_lifetime) continue;
@@ -451,8 +511,10 @@ void fragment() {
 		// the floor). This couples the surface event to the depth feel —
 		// you SEE something hit the water in the underwater silhouette.
 		float ripple_boost = 0.0;
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < 64; i++) {
 			vec4 r = ripples[i];
+			// Same wake-filter trick as ripple_foam_mask: negative amp
+			// means "boat wake — no impact flash, no caustic boost".
 			if (r.w < 0.0001) continue;
 			float age = t - r.z;
 			if (age < 0.0 || age > 0.6) continue;

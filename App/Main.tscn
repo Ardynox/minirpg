@@ -19,6 +19,7 @@
 [ext_resource type="Theme" path="res://Assets/UI/Themes/UITheme.tres" id="15_theme"]
 [ext_resource type="PackedScene" path="res://Scene/SaveNameDialog.tscn" id="16_savenamedialog"]
 [ext_resource type="PackedScene" path="res://Scene/CharacterCreationDialog.tscn" id="17_charactercreation"]
+[ext_resource type="PackedScene" path="res://Scene/CharacterCustomizationPanel.tscn" id="17b_charactercustom"]
 [ext_resource type="PackedScene" path="res://Scene/WorldManager.tscn" id="18_worldmanager"]
 [ext_resource type="PackedScene" path="res://Scene/WorldSettingsDialog.tscn" id="19_worldsettings"]
 [ext_resource type="PackedScene" path="res://Scene/ConfirmDialog.tscn" id="20_confirmdialog"]
@@ -184,6 +185,8 @@ show_percentage = true
 [node name="SaveNameDialog" parent="OverlayLayer" instance=ExtResource("16_savenamedialog")]
 
 [node name="CharacterCreationDialog" parent="OverlayLayer" instance=ExtResource("17_charactercreation")]
+
+[node name="CharacterCustomizationPanel" parent="OverlayLayer" instance=ExtResource("17b_charactercustom")]
 
 [node name="WorldSettingsDialog" parent="OverlayLayer" instance=ExtResource("19_worldsettings")]
 

@@ -1,0 +1,27 @@
+{
+  "id": "recruit_hint",
+  "triggers": { "priority": 3 },
+  "entryNode": "pitch",
+  "nodes": [
+    {
+      "id": "pitch",
+      "speaker": "npc",
+      "lines": ["我这边缺人手，你要不要入队试试？"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "好，我考虑一下。",
+          "effects": [{ "type": "gold", "value": 5 }]
+        },
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "暂不需要。",
+          "effects": []
+        }
+      ]
+    }
+  ]
+}

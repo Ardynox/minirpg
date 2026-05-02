@@ -331,9 +331,38 @@ public sealed class SkillBarModule : IPanel, ITooltipRegistrar
 		{
 			var skill = _filtered[i];
 			var button = _skillButtons[i];
-			button.Text = BuildTileLabel(skill);
+			var iconTex = PlaceholderUiIconCatalog.TryLoadTexture(
+				PlaceholderUiIconCatalog.PathForInteraction(skill.Id));
+			if (iconTex != null)
+			{
+				button.Icon = iconTex;
+				button.ExpandIcon = true;
+				button.IconAlignment = HorizontalAlignment.Center;
+				button.VerticalIconAlignment = VerticalAlignment.Center;
+				button.Text = BuildTileStatusLine(skill);
+			}
+			else
+			{
+				button.Icon = null;
+				button.ExpandIcon = false;
+				button.Text = BuildTileLabel(skill);
+			}
 			// 不再写 button.TooltipText：RichTooltip factory 已包含完整名称 + 详情。
 		}
+	}
+
+	/// <summary>有占位图时格内只保留武装 / 冷却短标，名称交给 hover。</summary>
+	private string BuildTileStatusLine(InteractionDef skill)
+	{
+		var cooldownRemaining = _player?.GetSkillCooldown(skill.Id) ?? 0;
+		var armed = string.Equals(skill.Id, ArmedSkillId, StringComparison.Ordinal);
+		if (armed && cooldownRemaining > 0)
+			return $"*\nCD{cooldownRemaining}";
+		if (armed)
+			return "*";
+		if (cooldownRemaining > 0)
+			return $"CD{cooldownRemaining}";
+		return string.Empty;
 	}
 
 	private void UpdateCellVisuals()

@@ -1,0 +1,108 @@
+﻿resource_name,description,size_px
+火与设施_campfire_Fire_01_0,场景家具/设施贴图：营火（静态首帧）；同时 小火焰动画 序列含多帧（共4帧需风格与轮廓一致）,22×27
+场景FX_fire_small_Fire_01_1,小火焰动画 第1帧（共4帧需风格与轮廓一致）,20×28
+场景FX_fire_small_Fire_01_2,小火焰动画 第2帧（共4帧需风格与轮廓一致）,22×29
+场景FX_fire_small_Fire_01_3,小火焰动画 第3帧（共4帧需风格与轮廓一致）,22×27
+火与设施_fire_Fire_02_0,场景家具/设施贴图：火焰源（静态首帧）；同时 中火焰动画 序列含多帧（共4帧需风格与轮廓一致）,31×43
+场景FX_fire_medium_Fire_02_1,中火焰动画 第1帧（共4帧需风格与轮廓一致）,29×43
+场景FX_fire_medium_Fire_02_2,中火焰动画 第2帧（共4帧需风格与轮廓一致）,30×43
+场景FX_fire_medium_Fire_02_3,中火焰动画 第3帧（共4帧需风格与轮廓一致）,32×42
+场景FX_fire_large_Fire_03_0,大火焰动画 第0帧（共4帧需风格与轮廓一致）,41×56
+场景FX_fire_large_Fire_03_1,大火焰动画 第1帧（共4帧需风格与轮廓一致）,41×57
+场景FX_fire_large_Fire_03_2,大火焰动画 第2帧（共4帧需风格与轮廓一致）,41×55
+场景FX_fire_large_Fire_03_3,大火焰动画 第3帧（共4帧需风格与轮廓一致）,40×55
+场景家具_loom,场景家具/设施贴图：织布机,58×61
+场景家具_fire_brazier,场景家具/设施贴图：火盆,17×20
+场景家具_nest,场景家具/设施贴图：巢穴占位,43×36
+场景家具_ladder,场景家具/设施贴图：梯子,40×28
+场景家具_market_stall,场景家具/设施贴图：市场摊位/柜台,52×65
+场景家具_door,场景家具/设施贴图：门,27×90
+场景家具_stove,场景家具/设施贴图：炉灶,40×52
+场景家具_smithy,场景家具/设施贴图：锻造炉/铁匠台,41×52
+场景家具_stair_down,场景家具/设施贴图：向下楼梯（家具贴图）,64×74
+场景家具_stair_up,场景家具/设施贴图：向上楼梯,62×105
+地形顶面_sand,等距地形顶面贴图，用于：沙地顶面,63×32
+地形顶面_grass,等距地形顶面贴图，用于：草地顶面,63×32
+地形顶面_grass_block,等距地形顶面贴图，用于：草方块顶面,63×32
+地形顶面_tree,等距地形顶面贴图，用于：树木占据格顶面,63×32
+地形顶面_marsh,等距地形顶面贴图，用于：湿地/沼泽变体顶面,63×32
+地形顶面_dirt,等距地形顶面贴图，用于：泥土顶面,63×32
+地形顶面_wall_soil,等距地形顶面贴图，用于：土墙顶面,63×32
+地形顶面_ice,等距地形顶面贴图，用于：冰面顶面,63×32
+地形顶面_ore_iron_wall_iron,等距地形顶面贴图，用于：铁矿脉顶面；铁墙顶面,63×32
+地形顶面_water,等距地形顶面贴图，用于：水面顶面,63×32
+地形顶面_floor,等距地形顶面贴图，用于：室内/石板地面顶面,63×32
+地形顶面_snow,等距地形顶面贴图，用于：雪地顶面,63×32
+地形顶面_gravel,等距地形顶面贴图，用于：砂砾地面顶面,63×32
+地形顶面_mountain_stone_wall_stone,等距地形顶面贴图，用于：山体顶面；石头地表顶面；石墙顶面,63×32
+地形顶面_wall_granite,等距地形顶面贴图，用于：花岗岩墙顶面,63×32
+地形顶面_rubble,等距地形顶面贴图，用于：碎石地表顶面,63×26
+地形顶面_ore_copper,等距地形顶面贴图，用于：铜矿顶面,63×32
+地形顶面_wall_obsidian,等距地形顶面贴图，用于：黑曜石墙顶面,60×32
+地形顶面_ore_coal,等距地形顶面贴图，用于：煤矿顶面,63×32
+地形顶面_swamp,等距地形顶面贴图，用于：沼泽地表顶面,63×32
+场景家具_bed,场景家具/设施贴图：单人床,60×57
+场景家具_dormitory_bed,场景家具/设施贴图：集体床铺,61×79
+场景家具_shelf,场景家具/设施贴图：架子,50×102
+地图物品tile_container,地上容器默认外观（tile）,51×127
+场景家具_butcher_table,场景家具/设施贴图：屠宰/加工高桌,59×61
+场景家具_herbal_bench,场景家具/设施贴图：草药工作台,59×59
+地形顶面_crystal_vein_ore_crystal,等距地形顶面贴图，用于：水晶矿脉地表顶面；水晶矿顶面（与矿脉同图）,1376×768
+地形顶面_fungus,等距地形顶面贴图，用于：菌类覆盖顶面,1376×768
+地形顶面_lava,等距地形顶面贴图，用于：熔岩顶面,1376×768
+地形顶面_ore_gold,等距地形顶面贴图，用于：金矿脉顶面,1376×768
+场景家具_house,场景家具/设施贴图：房屋屋顶占位,64×64
+地图物品tile_drop,掉落物/杂物堆默认外观（tile）,53×29
+占位_blood_splatter_large,地面大血迹贴花,128×128
+占位_blood_splatter_small,地面小血迹贴花,64×64
+占位_corpse_stain_beast,野兽尸体压痕,128×128
+占位_corpse_stain_humanoid,人形尸体压痕,128×128
+占位_door_open,门开启状态示意,96×96
+占位_footprint_blood_n,血脚印朝北,96×96
+占位_footprint_blood_s,血脚印朝南,96×96
+占位_footprint_mud_e,泥脚印朝东,96×96
+占位_footprint_mud_n,泥脚印朝北,96×96
+占位_footprint_mud_s,泥脚印朝南,96×96
+占位_footprint_mud_w,泥脚印朝西,96×96
+占位_footprint_snow_e,雪脚印朝东,96×96
+占位_footprint_snow_n,雪脚印朝北,96×96
+占位_footprint_snow_s,雪脚印朝南,96×96
+占位_footprint_snow_w,雪脚印朝西,96×96
+占位_glow_campfire,营火光晕,128×128
+占位_glow_candle,烛光光晕,128×128
+占位_glow_lantern,提灯光晕,128×128
+占位_glow_torch,火把光晕,128×128
+占位_smoke_plume,烟柱,64×128
+占位_category_ammo,地上物品分类默认图·弹药,64×64
+占位_category_armor,地上物品分类默认图·护甲,64×64
+占位_category_clothing,地上物品分类默认图·衣物,64×64
+占位_category_consumable,地上物品分类默认图·消耗品,64×64
+占位_category_food,地上物品分类默认图·食物,64×64
+占位_category_material,地上物品分类默认图·材料,64×64
+占位_category_misc,地上物品分类默认图·杂项,64×64
+占位_category_tool,地上物品分类默认图·工具,64×64
+占位_category_weapon,地上物品分类默认图·武器,64×64
+占位_mat_bark_stack,地上材料堆·树皮,96×96
+占位_mat_bone_stack,地上材料堆·骨头,96×96
+占位_mat_chitin_stack,地上材料堆·甲壳,96×96
+占位_mat_cloth_stack,地上材料堆·布料,96×96
+占位_mat_crystal_stack,地上材料堆·水晶,96×96
+占位_mat_devilstrand_stack,地上材料堆·魔丝,96×96
+占位_mat_flesh_stack,地上材料堆·肉/组织,96×96
+占位_mat_gold_stack,地上材料堆·金,96×96
+占位_mat_granite_stack,地上材料堆·花岗岩,96×96
+占位_mat_horn_stack,地上材料堆·角,96×96
+占位_mat_iron_stack,地上材料堆·铁,96×96
+占位_mat_jade_stack,地上材料堆·玉,96×96
+占位_mat_leather_stack,地上材料堆·皮革,96×96
+占位_mat_obsidian_stack,地上材料堆·黑曜石,96×96
+占位_mat_plasteel_stack,地上材料堆·塑钢,96×96
+占位_mat_scale_stack,地上材料堆·鳞片,96×96
+占位_mat_silk_stack,地上材料堆·丝绸,96×96
+占位_mat_silver_stack,地上材料堆·银,96×96
+占位_mat_slime_stack,地上材料堆·黏液,96×96
+占位_mat_soil_stack,地上材料堆·土壤,96×96
+占位_mat_steel_stack,地上材料堆·钢,96×96
+占位_mat_stone_stack,地上材料堆·石块,96×96
+占位_mat_uranium_stack,地上材料堆·铀,96×96
+占位_mat_wood_stack,地上材料堆·木材,96×96

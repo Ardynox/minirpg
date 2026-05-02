@@ -4,7 +4,7 @@
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.0
-custom_minimum_size = Vector2(310, 0)
+custom_minimum_size = Vector2(540, 0)
 visible = false
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
@@ -43,25 +43,41 @@ fit_content = true
 scroll_active = false
 text = "ui.inventory.title"
 
-[node name="FilterBar" type="HBoxContainer" parent="MarginContainer/VBox"]
+[node name="GridArea" type="HBoxContainer" parent="MarginContainer/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="EquipmentColumn" type="VBoxContainer" parent="MarginContainer/VBox/GridArea"]
+layout_mode = 2
+custom_minimum_size = Vector2(280, 0)
 theme_override_constants/separation = 4
 
-[node name="Sep1" type="HSeparator" parent="MarginContainer/VBox"]
+[node name="EquipmentTitle" type="Label" parent="MarginContainer/VBox/GridArea/EquipmentColumn"]
 layout_mode = 2
+text = "ui.inventory.equipment_title"
 
-[node name="ItemScroll" type="ScrollContainer" parent="MarginContainer/VBox"]
+[node name="EquipmentList" type="Control" parent="MarginContainer/VBox/GridArea/EquipmentColumn"]
 layout_mode = 2
+custom_minimum_size = Vector2(264, 320)
+size_flags_vertical = 3
+
+[node name="GridScroll" type="ScrollContainer" parent="MarginContainer/VBox/GridArea"]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ItemList" type="VBoxContainer" parent="MarginContainer/VBox/ItemScroll"]
+[node name="GridStack" type="VBoxContainer" parent="MarginContainer/VBox/GridArea/GridScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 8
 
-[node name="Sep2" type="HSeparator" parent="MarginContainer/VBox"]
+[node name="UnplacedHint" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
+modulate = Color(1, 0.78, 0.4, 1)
+visible = false
 
 [node name="DetailBox" type="RichTextLabel" parent="MarginContainer/VBox"]
 layout_mode = 2
@@ -86,21 +102,27 @@ size_flags_horizontal = 3
 theme_type_variation = "ActionButton"
 text = "ui.inventory.use"
 
+[node name="RotateBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = "ActionButton"
+text = "ui.inventory.rotate"
+
 [node name="DropBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = "ActionButton"
 text = "ui.inventory.drop"
 
-[node name="SortBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
+[node name="AutoPackBtn" type="Button" parent="MarginContainer/VBox/ActionBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = "ActionButton"
-text = "ui.inventory.sort"
+text = "ui.inventory.autopack"
 
 [node name="HintBar" type="Label" parent="MarginContainer/VBox"]
 layout_mode = 2
 theme_type_variation = "HintLabel"
-text = "ui.inventory.hint"
+text = "ui.inventory.hint_grid"
 
 [node name="ContextMenu" type="PopupMenu" parent="."]

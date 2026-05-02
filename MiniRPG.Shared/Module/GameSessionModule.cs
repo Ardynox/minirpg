@@ -91,7 +91,7 @@ public class GameSessionModule : IDebugSessionActions
 		var resolvedOptions = options ?? PlayerCreationOptions.CreateDefault();
 		_state.Reset();
 		_state.WorldSeed = System.Environment.TickCount;
-		_state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
+		_state.PlayerFaceCustomization = resolvedOptions.ResolveFaceCustomization();
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
 		RegisterWorldGenerationSettings(WorldSettings.CreateDefault());
@@ -216,7 +216,7 @@ public class GameSessionModule : IDebugSessionActions
 		_state.Reset();
 		_state.WorldSeed = resolvedWorldSettings.Seed;
 		_state.GeneratorId = resolvedWorldSettings.GeneratorId;
-		_state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
+		_state.PlayerFaceCustomization = resolvedOptions.ResolveFaceCustomization();
 		_state.Weather.ResetForWorld(_state.WorldSeed);
 		_fogTracker.Clear();
 		RegisterWorldGenerationSettings(resolvedWorldSettings);

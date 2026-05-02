@@ -1,0 +1,10 @@
+[
+	{ "id": "small_neutral",  "displayName": "小中性",   "imagePath": "res://Assets/Faces/Mouth/small_neutral.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "wide_grin",      "displayName": "咧嘴笑",   "imagePath": "res://Assets/Faces/Mouth/wide_grin.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "smirk",          "displayName": "坏笑",     "imagePath": "res://Assets/Faces/Mouth/smirk.png",          "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "frown",          "displayName": "皱眉",     "imagePath": "res://Assets/Faces/Mouth/frown.png",          "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "crooked_sneer",  "displayName": "歪冷笑",   "imagePath": "res://Assets/Faces/Mouth/crooked_sneer.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "full_lips",      "displayName": "厚唇",     "imagePath": "res://Assets/Faces/Mouth/full_lips.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "thin_tight",     "displayName": "薄唇紧抿", "imagePath": "res://Assets/Faces/Mouth/thin_tight.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "fanged_toothy",  "displayName": "獠牙",     "imagePath": "res://Assets/Faces/Mouth/fanged_toothy.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

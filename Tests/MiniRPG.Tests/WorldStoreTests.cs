@@ -419,7 +419,7 @@ public sealed class WorldStoreTests
 			Directory.CreateDirectory(Path.GetDirectoryName(validPath)!);
 			File.WriteAllText(validPath, """
 			{
-			  "version": 5,
+			  "version": 8,
 			  "header": {
 			    "title": "Rook",
 			    "savedAtUtc": "2026-04-07T10:15:00+00:00",
@@ -481,7 +481,7 @@ public sealed class WorldStoreTests
 		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 		File.WriteAllText(path, $$"""
 		{
-		  "version": 5,
+		  "version": 8,
 		  "header": {
 		    "title": "{{characterName}}",
 		    "savedAtUtc": "2026-04-07T10:15:00+00:00",

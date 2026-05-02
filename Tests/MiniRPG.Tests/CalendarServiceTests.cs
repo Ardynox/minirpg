@@ -7,8 +7,8 @@ namespace MiniRPG.Tests;
 
 /// <summary>
 /// 验证 CalendarService 把 GameState.Turn 翻译成 (Year/Season/Day/Hour) 的纯函数边界，
-/// 以及"是不是新一天 / 新一季"的判定语义——这是 DailySummaryBuilder / Storyteller / Farm
-/// 等跨系统消费方的唯一事实源，任何错位都会让"每日总结 / 季节加权 incident / 农作物开花"
+/// 以及"是不是新一天 / 新一季"的判定语义——这是 Storyteller / Farm
+/// 等跨系统消费方的唯一事实源，任何错位都会让"季节加权 incident / 农作物开花"
 /// 这一类时间相关玩法整批跑偏。
 /// </summary>
 public class CalendarServiceTests
@@ -26,7 +26,7 @@ public class CalendarServiceTests
 	}
 
 	[Fact]
-	public void View_AdvancesDayEvery120Turns()
+	public void View_AdvancesDayEveryTurnsPerDay()
 	{
 		Assert.Equal(0, CalendarService.View(turn: DayNightCycle.TurnsPerDay - 1).DayIndex);
 		Assert.Equal(1, CalendarService.View(turn: DayNightCycle.TurnsPerDay).DayIndex);
@@ -37,7 +37,7 @@ public class CalendarServiceTests
 	[Fact]
 	public void View_HourOfDay_LinearWithinDay()
 	{
-		var perHour = DayNightCycle.TurnsPerDay / 24f; // 5 turns per hour at default
+		var perHour = DayNightCycle.TurnsPerDay / 24f; // 当前 240/24 = 10 turn/hour（旧历法 120/24 = 5）
 		Assert.Equal(0, CalendarService.View(0).HourOfDay);
 		Assert.Equal(0, CalendarService.View(1).HourOfDay);
 		Assert.Equal(1, CalendarService.View((int)perHour).HourOfDay);
@@ -106,7 +106,7 @@ public class CalendarServiceTests
 	[Fact]
 	public void View_LargeTurn_ProducesCorrectYearAndSeason()
 	{
-		// turn = 4000：100*40 = 40 季 = 10 年。
+		// TurnsPerSeason*40 = 40 季 = 10 年（4 季/年）。
 		var view = CalendarService.View(turn: DayNightCycle.TurnsPerSeason * 40);
 		Assert.Equal(10, view.Year);
 		Assert.Equal(Season.Spring, view.Season);

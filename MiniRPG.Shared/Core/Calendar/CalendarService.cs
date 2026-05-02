@@ -14,8 +14,8 @@ namespace MiniRPG.Core.Calendar;
 ///
 /// 关于数值：
 /// <list type="bullet">
-/// <item>"一天多少回合"沿用 <see cref="DayNightCycle.TurnsPerDay"/>（当前 120）。</item>
-/// <item>"一季多少回合"沿用 <see cref="DayNightCycle.TurnsPerSeason"/>（当前 100）。注意这个比一天还短——设计意图是"季节在同一天内也可能有过渡"；本服务尊重这一设置而不强行对齐。</item>
+/// <item>"一天多少回合"沿用 <see cref="DayNightCycle.TurnsPerDay"/>（当前 240，1 turn = 6 游戏内分钟）。</item>
+/// <item>"一季多少回合"沿用 <see cref="DayNightCycle.TurnsPerSeason"/>（当前 200，约 20 游戏内小时）。注意这个比一天还短——设计意图是"季节在同一天内也可能有过渡"；本服务尊重这一设置而不强行对齐。</item>
 /// <item>"一年多少季"固定 4（Spring / Summer / Autumn / Winter）。</item>
 /// </list>
 /// </remarks>

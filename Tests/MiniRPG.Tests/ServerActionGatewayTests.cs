@@ -458,7 +458,7 @@ public sealed class ServerActionGatewayTests
 	}
 
 	[Fact]
-	public void ModalAndDialogCommands_ManageReservations_InMultiplayer()
+	public void ModalCommands_ManageReservations_InMultiplayer()
 	{
 		var state = CreateState();
 		RoomRuntimeModule.GetOrCreatePlayer(state, "owner", "Owner");
@@ -481,15 +481,6 @@ public sealed class ServerActionGatewayTests
 		Assert.Equal("reservation_busy", busy.ErrorCode);
 		Assert.Equal("trade:trader", busy.ReservationKey);
 		Assert.Equal("owner", busy.BusyByPlayerSessionId);
-
-		var dialog = ServerActionGateway.Execute(state, new DialogChooseClientCommand
-		{
-			PlayerSessionId = "owner",
-			DialogId = "merchant",
-			OptionId = "ask_price",
-		});
-		Assert.Equal(ServerActionStatus.Accepted, dialog.Status);
-		Assert.Contains("dialog:merchant", state.Room.InteractionReservations.Keys);
 
 		var close = ServerActionGateway.Execute(state, new CloseModalClientCommand
 		{

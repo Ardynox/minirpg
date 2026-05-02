@@ -235,7 +235,7 @@ public partial class Main
 
 		GameLocalizer.ApplyPresetTranslations();
 		GameLocalizer.RelocalizeGameState(_state);
-		DialogPool.Load();
+		MiniRPG.Core.Conversation.ConversationDefLoader.EnsureLoaded();
 		_mapEditor.RefreshLocalizedBrushes();
 		RefreshLocalizedUi(clearLogs: _session.GameStarted);
 		RefreshStartupUi();
@@ -253,6 +253,7 @@ public partial class Main
 		_worldManager.RefreshTexts();
 		_worldSettingsDialog.RefreshTexts();
 		_characterCreation.RefreshTexts();
+		_characterCustomization.RefreshTexts();
 		_loadRecoveryDialog.RefreshTexts();
 		_mapEditorBar.RefreshTexts();
 		_runtimeWorldToolSession.RefreshBrushes();

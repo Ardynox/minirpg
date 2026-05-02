@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MiniRPG.Core.Conversation;
+using MiniRPG.Core.Data;
+using MiniRPG.Core.Multiplayer;
+using MiniRPG.Module.Handlers;
 
 namespace MiniRPG.Module;
 
@@ -108,13 +112,21 @@ public static class ServerActionGateway
 			PickupClientCommand pickup => ExecutePickup(state, pickup),
 			InventoryToggleEquipClientCommand toggleEquip => ExecuteInventoryToggleEquip(state, toggleEquip),
 			InventoryDropClientCommand drop => ExecuteInventoryDrop(state, drop),
+			InventoryMoveItemClientCommand move => ExecuteInventoryMoveItem(state, move),
+			InventoryRotateItemClientCommand rotate => ExecuteInventoryRotateItem(state, rotate),
+			InventoryAutoPackClientCommand autoPack => ExecuteInventoryAutoPack(state, autoPack),
 			GiveItemClientCommand giveItem => ExecuteGiveItem(state, giveItem),
 			ChestTakeClientCommand take => ExecuteChestTake(state, take, timestamp),
 			ChestTakeAllClientCommand takeAll => ExecuteChestTakeAll(state, takeAll, timestamp),
 			ChestPutClientCommand put => ExecuteChestPut(state, put, timestamp),
 			TradeBuyClientCommand buy => ExecuteTradeBuy(state, buy, timestamp),
 			TradeSellClientCommand sell => ExecuteTradeSell(state, sell, timestamp),
-			DialogChooseClientCommand dialogChoose => ExecuteDialogChoose(state, dialogChoose, timestamp),
+			ConversationChooseClientCommand convChoose => ConversationHandler.Choose(state, convChoose),
+			ConversationAdvanceLineClientCommand convAdv => ConversationHandler.AdvanceLine(state, convAdv),
+			ConversationLeaveClientCommand convLeave => ConversationHandler.Leave(state, convLeave),
+			ConversationRequestTakeoverClientCommand convReq => ConversationHandler.RequestTakeover(state, convReq),
+			ConversationApproveTakeoverClientCommand convAppr => ConversationHandler.ApproveTakeover(state, convAppr),
+			ApplyGeneModificationClientCommand applyGene => ExecuteApplyGeneModification(state, applyGene),
 			OpenModalClientCommand openModal => ExecuteOpenModal(state, openModal, timestamp),
 			CloseModalClientCommand closeModal => ExecuteCloseModal(state, closeModal),
 			DelegateActorClientCommand delegateActor => ExecuteDelegateActor(state, delegateActor),
@@ -154,11 +166,26 @@ public static class ServerActionGateway
 		if (interaction == null)
 			return ServerActionResult.Reject(LocalizationService.T("ui.interaction.none_nearby"), ErrorCode.InvalidInteraction.ToWireCode());
 
+		var isTalk = string.Equals(interaction.EffectType, "talk", StringComparison.OrdinalIgnoreCase);
+		if (isTalk && state.ActiveConversations.ContainsKey(target.Id))
+		{
+			var evs = InteractionModule.Execute(state, actor, target, interaction);
+			evs.AddRange(ConversationModule.TryAddObserver(state, target.Id, command.PlayerSessionId, actor));
+			return ServerActionResult.Accept(events: evs);
+		}
+
 		var reservationResult = ReservationService.TryReserveInteractionTarget(state, command.PlayerSessionId, target.Id, interaction.EffectType, now);
 		if (reservationResult != null)
 			return reservationResult;
 
-		return ServerActionResult.Accept(events: InteractionModule.Execute(state, actor, target, interaction));
+		var events = InteractionModule.Execute(state, actor, target, interaction);
+		if (isTalk)
+		{
+			var rng = new Random(state.WorldSeed ^ state.Turn ^ target.Id.GetHashCode(StringComparison.Ordinal));
+			events.AddRange(ConversationModule.TryOpen(state, actor, target, command.PlayerSessionId, rng));
+		}
+
+		return ServerActionResult.Accept(events: events);
 	}
 
 	private static ServerActionResult ExecutePickup(GameState state, PickupClientCommand command)
@@ -180,7 +207,11 @@ public static class ServerActionGateway
 		if (actor == null)
 			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidActor.ToWireCode());
 
-		var result = InventoryModule.ToggleEquip(actor, command.InventoryIndex, state);
+		var index = ResolveInventoryIndex(actor, command.ItemInstanceId, command.InventoryIndex);
+		if (index < 0)
+			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
+
+		var result = InventoryModule.ToggleEquip(actor, index, state);
 		return result.Ok
 			? ServerActionResult.Accept(logs: [result.Message])
 			: ServerActionResult.Reject(result.Message, ErrorCode.InventoryToggleRejected.ToWireCode());
@@ -191,12 +222,108 @@ public static class ServerActionGateway
 		var actor = ResolveActor(state, command.ActorId);
 		if (actor == null)
 			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidActor.ToWireCode());
-		if (command.InventoryIndex < 0 || command.InventoryIndex >= actor.Inventory.Count)
+
+		var index = ResolveInventoryIndex(actor, command.ItemInstanceId, command.InventoryIndex);
+		if (index < 0)
 			return ServerActionResult.Reject(LocalizationService.T("inventory.invalid_index"), ErrorCode.InvalidInventoryIndex.ToWireCode());
 
-		var events = InteractionModule.DropItem(state, actor, command.InventoryIndex);
+		var events = InteractionModule.DropItem(state, actor, index);
 		return ServerActionResult.Accept(events: events);
 	}
+
+	private static ServerActionResult ExecuteInventoryMoveItem(GameState state, InventoryMoveItemClientCommand command)
+	{
+		var actor = ResolveActor(state, command.ActorId);
+		if (actor == null)
+			return ServerActionResult.Reject(
+				LocalizationService.T("inventory.invalid_index"),
+				ErrorCode.InvalidActor.ToWireCode());
+
+		var result = InventoryModule.TryMoveTo(
+			actor, command.ItemInstanceId, command.TargetGridId, command.X, command.Y, command.Rotated);
+		if (result.Ok)
+		{
+			return ServerActionResult.Accept(logs:
+			[
+				LocalizationService.TOrFallback(
+					"log.inventory.grid_moved",
+					"Moved item to ({x},{y}).",
+					("x", command.X),
+					("y", command.Y)),
+			]);
+		}
+
+		return ServerActionResult.Reject(
+			LocalizationService.TOrFallback(
+				$"log.inventory.grid_error.{result.ErrorCode}",
+				result.Message),
+			ResolveGridErrorCode(result.ErrorCode).ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteInventoryRotateItem(GameState state, InventoryRotateItemClientCommand command)
+	{
+		var actor = ResolveActor(state, command.ActorId);
+		if (actor == null)
+			return ServerActionResult.Reject(
+				LocalizationService.T("inventory.invalid_index"),
+				ErrorCode.InvalidActor.ToWireCode());
+
+		var result = InventoryModule.TryRotate(actor, command.ItemInstanceId);
+		if (result.Ok)
+			return ServerActionResult.Accept();
+
+		return ServerActionResult.Reject(
+			LocalizationService.TOrFallback(
+				$"log.inventory.grid_error.{result.ErrorCode}",
+				result.Message),
+			ResolveGridErrorCode(result.ErrorCode).ToWireCode());
+	}
+
+	private static ServerActionResult ExecuteInventoryAutoPack(GameState state, InventoryAutoPackClientCommand command)
+	{
+		var actor = ResolveActor(state, command.ActorId);
+		if (actor == null)
+			return ServerActionResult.Reject(
+				LocalizationService.T("inventory.invalid_index"),
+				ErrorCode.InvalidActor.ToWireCode());
+
+		var placed = InventoryModule.AutoPackAll(actor);
+		return ServerActionResult.Accept(logs:
+		[
+			LocalizationService.TOrFallback(
+				"log.inventory.grid_autopack",
+				"Auto-packed {count} items.",
+				("count", placed)),
+		]);
+	}
+
+	private static int ResolveInventoryIndex(Actor actor, string? itemInstanceId, int legacyIndex)
+	{
+		if (!string.IsNullOrEmpty(itemInstanceId))
+		{
+			var byInstance = actor.Inventory.FindIndex(item =>
+				string.Equals(item.InstanceId, itemInstanceId, StringComparison.Ordinal));
+			if (byInstance >= 0)
+				return byInstance;
+			return -1;
+		}
+
+		if (legacyIndex >= 0 && legacyIndex < actor.Inventory.Count)
+			return legacyIndex;
+		return -1;
+	}
+
+	private static ErrorCode ResolveGridErrorCode(string? code) => code switch
+	{
+		GridErrorCodes.GridNotFound => ErrorCode.GridNotFound,
+		GridErrorCodes.GridFull => ErrorCode.GridFull,
+		GridErrorCodes.OverlapsExisting => ErrorCode.GridOverlapsExisting,
+		GridErrorCodes.OutOfBounds => ErrorCode.GridOutOfBounds,
+		GridErrorCodes.RotationDisallowed => ErrorCode.GridRotationDisallowed,
+		GridErrorCodes.ItemNotFound => ErrorCode.ItemNotFound,
+		GridErrorCodes.InvalidActor => ErrorCode.InvalidActor,
+		_ => ErrorCode.InventoryToggleRejected,
+	};
 
 	// Funnel through SocialModule.TryGiveItem so the inventory transfer +
 	// gift_given event live in one place; the social subsystems
@@ -359,21 +486,44 @@ public static class ServerActionGateway
 			: ServerActionResult.Reject(result.Message, ErrorCode.TradeSellRejected.ToWireCode());
 	}
 
-	private static ServerActionResult ExecuteDialogChoose(GameState state, DialogChooseClientCommand command, DateTimeOffset now)
+	// Conversation 类命令外提到 MiniRPG.Module.Handlers.ConversationHandler（路线图批次 3 第一步）。
+
+	private static ServerActionResult ExecuteApplyGeneModification(GameState state, ApplyGeneModificationClientCommand command)
 	{
-		if (string.IsNullOrWhiteSpace(command.DialogId) || string.IsNullOrWhiteSpace(command.OptionId))
-		{
+		if (string.IsNullOrWhiteSpace(command.TargetActorId))
 			return ServerActionResult.Reject(
-				LocalizationService.TOrFallback("log.server_action.invalid_dialog", "Dialog choice is invalid."),
-				ErrorCode.InvalidDialog.ToWireCode());
+				LocalizationService.TOrFallback("log.gene_mod.invalid_target", "Cannot apply gene to that target."),
+				ErrorCode.InvalidTarget.ToWireCode());
+		if (string.IsNullOrWhiteSpace(command.GeneId))
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback("log.gene_mod.unknown_gene", "Unknown gene."),
+				ErrorCode.InvalidTarget.ToWireCode());
+
+		var target = ResolveActor(state, command.TargetActorId);
+		var rng = new Random(unchecked(state.Turn ^ command.GeneId.GetHashCode()));
+		var result = MiniRPG.Core.Genetics.GeneModificationService.TryApplyGene(
+			state, target, command.GeneId, command.ForceDominantAllele, rng);
+
+		if (!result.Success)
+		{
+			var key = result.FailureReasonKey switch
+			{
+				MiniRPG.Core.Genetics.GeneModificationService.FailureUnknownGene => "log.gene_mod.unknown_gene",
+				MiniRPG.Core.Genetics.GeneModificationService.FailureNoTarget => "log.gene_mod.invalid_target",
+				_ => "log.gene_mod.failed",
+			};
+			return ServerActionResult.Reject(
+				LocalizationService.TOrFallback(key, "Gene modification failed."),
+				ErrorCode.InvalidTarget.ToWireCode());
 		}
 
-		var reservationResult = ReservationService.TryReserveIfNeeded(
-			state,
-			command.PlayerSessionId,
-			ReservationService.BuildPrefixedReservationKey("dialog", command.DialogId),
-			now);
-		return reservationResult ?? ServerActionResult.Accept();
+		return ServerActionResult.Accept(
+			events: result.Events,
+			logs: [LocalizationService.TOrFallback(
+				"log.gene_mod.applied",
+				"{actor} was genetically modified ({gene}).",
+				("actor", target?.DisplayName ?? command.TargetActorId),
+				("gene", command.GeneId))]);
 	}
 
 	private static ServerActionResult ExecuteOpenModal(GameState state, OpenModalClientCommand command, DateTimeOffset now)

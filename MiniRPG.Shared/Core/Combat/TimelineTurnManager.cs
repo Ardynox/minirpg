@@ -1003,6 +1003,11 @@ public static class TimelineTurnManager
 			string.Equals(b.Id, RevivalRitualBuffId, System.StringComparison.Ordinal));
 		var channelTurns = Math.Max(1, method.ChannelTurns);
 
+		// 从尸体元数据找回原角色，让 LogModule / GameEventPresentationRouter 能用 {target} 渲染"为 XX 复活"——
+		// 兑现愿景"复活施法需要时间 + 仪式感"里"玩家能看到在为谁复活"的要求。
+		var sourceActorId = corpse.Corpse?.SourceActorId;
+		var sourceActor = string.IsNullOrEmpty(sourceActorId) ? null : ActorModule.GetById(state, sourceActorId!);
+
 		if (ritualBuff == null)
 		{
 			ritualBuff = new Buff
@@ -1021,6 +1026,8 @@ public static class TimelineTurnManager
 				Damage = channelTurns,
 			};
 			IdentificationModule.PopulateInitiatorIdentity(startedEvent, state, player);
+			if (sourceActor != null)
+				IdentificationModule.PopulateTargetIdentity(startedEvent, state, sourceActor);
 			events.Add(startedEvent);
 		}
 
@@ -1035,6 +1042,8 @@ public static class TimelineTurnManager
 				Damage = ritualBuff.RemainingTurns,
 			};
 			IdentificationModule.PopulateInitiatorIdentity(progressEvent, state, player);
+			if (sourceActor != null)
+				IdentificationModule.PopulateTargetIdentity(progressEvent, state, sourceActor);
 			events.Add(progressEvent);
 			return PlayerActionOutcome.ConsumedTurn;
 		}

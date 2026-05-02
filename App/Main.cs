@@ -3,8 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MiniRPG.Core.Facility;
+using MiniRPG.Module;
 using MiniRPG.Module.Editor;
 using MiniRPG.Module.Network;
+using MiniRPG.Module.Panel;
 using MiniRPG.Module.WorldTool;
 
 namespace MiniRPG;
@@ -15,7 +17,7 @@ namespace MiniRPG;
 /// 菜单 UI → MenuModule，会话生命周期 → GameSessionModule，
 /// 事件日志翻译 → LogModule，战斗/交易 UI → CombatUIModule/TradeUIModule。
 /// </summary>
-public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
+public partial class Main : Node, IGameUI, IInventoryPanelHost,
 	GroundPanelModule.IHost, ChestPanelModule.IHost
 {
 	private const int ViewW = 27;
@@ -30,7 +32,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private const string StatusPanelScenePath = "res://Scene/StatusPanel.tscn";
 	private const string ActorInspectPanelScenePath = "res://Scene/ActorInspectPanel.tscn";
 	private static readonly string[] LayoutEditablePanelIds =
-		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "dialog", "trade", "quest", "debug", "actor_inspect", "limb_target"];
+		["status", "skill_bar", "skill_mgr", "inventory", "ground", "log", "chest", "conversation", "trade", "quest", "debug", "actor_inspect", "limb_target"];
 
 	private readonly GameState _state = new();
 	private MainRuntimeComposition? _runtime;
@@ -54,6 +56,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MapEditorCoordinator _mapEditorCoordinator = null!;
 	private SaveNameDialogModule _saveNameDialog = null!;
 	private CharacterCreationModule _characterCreation = null!;
+	private MiniRPG.Module.Panel.CharacterCustomizationPanelModule _characterCustomization = null!;
 	private ConfirmDialogModule _confirmDialog = null!;
 	private LoadRecoveryDialogModule _loadRecoveryDialog = null!;
 	private FantasyCharacterAnimatable _playerCharacterVisual = null!;
@@ -77,6 +80,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private MiniRPG.Core.Social.RelationshipModule _relationships = null!;
 	private MiniRPG.Core.Social.ActorMemoryModule _actorMemories = null!;
 	private MiniRPG.Core.Social.RumorBus _rumorBus = null!;
+	private MiniRPG.Core.Combat.DeathReportRecorder _deathReportRecorder = null!;
 
 	private FogOfWarTracker _fogTracker = null!;
 
@@ -111,7 +115,7 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private RuntimeStatusPanelController _statusPanelController = null!;
 	private SkillBarModule _skillBar = null!;
 	private SkillManagerModule _skillMgr = null!;
-	private InventoryPanelModule _inventoryPanel = null!;
+	private InventoryGridPanelModule _inventoryPanel = null!;
 	private GroundPanelModule _groundPanel = null!;
 	private TurnPanelModule _turnPanelModule = null!;
 	private PlayerTargetingCoordinator _playerTargetingCoordinator = null!;
@@ -122,12 +126,15 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	private PartyHudModule _partyHud = null!;
 	private IncidentAlertModule _incidentAlerts = null!;
 	private ToastOverlay _toastOverlay = null!;
+	private MiniRPG.Module.Panel.PlayerDeathReportPanel _playerDeathReportPanel = null!;
+	private PlayerDeathPresenter _playerDeathPresenter = null!;
+	private DeathSequenceOverlay _deathSequenceOverlay = null!;
 	private RichTooltipLayer _richTooltips = null!;
 	private bool _timelineStatusLogPrimed;
 	private TimelineInputLockReason _lastTimelineLockReason;
 
 	private ChestPanelModule? _chestPanel;
-	private DialogPanelModule? _dialogPanel;
+	private ConversationPanelModule? _conversationPanel;
 	private TradePanelModule? _tradePanel;
 	private QuestPanelModule? _questPanel;
 	private ActorInspectPanelModule? _actorInspectPanel;
@@ -170,12 +177,13 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 	private CombatUIModule _combatUI = null!;
 	private TradeUIModule? _tradeUI;
-	private DialogUIModule? _dialogUI;
+	private ConversationUIModule? _conversationUI;
 
 	private bool IsWorldManagerOpen => _worldManager != null && _worldManager.Visible;
 	private bool IsWorldSettingsDialogOpen => _worldSettingsDialog != null && _worldSettingsDialog.Visible;
 	private bool IsSaveNameDialogOpen => _saveNameDialog != null && _saveNameDialog.Visible;
 	private bool IsCharacterCreationOpen => _characterCreation != null && _characterCreation.Visible;
+	private bool IsCharacterCustomizationOpen => _characterCustomization != null && _characterCustomization.Visible;
 	private bool IsConfirmDialogOpen => _confirmDialog != null && _confirmDialog.Visible;
 	private bool IsLoadRecoveryDialogOpen => _loadRecoveryDialog != null && _loadRecoveryDialog.Visible;
 	private bool IsMultiplayerRoomPanelOpen => _multiplayerRoomPanel != null && _multiplayerRoomPanel.Visible;
@@ -213,19 +221,19 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 	bool IGameUI.TrySubmitClientCommand(ClientCommand command) => TrySubmitClientCommand(command);
 	bool IGameUI.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
-	void InventoryPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
-	void InventoryPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
-	void InventoryPanelModule.IHost.SubmitPlayerAction(TimelinePlayerAction action) => SubmitPlayerAction(action);
-	void InventoryPanelModule.IHost.FlushMap() => FlushMap();
-	GameState InventoryPanelModule.IHost.State => _state;
-	bool InventoryPanelModule.IHost.HasFocus => InventoryOpen;
-	bool InventoryPanelModule.IHost.TrySubmitClientCommand(ClientCommand command) => TrySubmitClientCommand(command);
-	void InventoryPanelModule.IHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(
+	void IInventoryPanelHost.AddLog(string msg) => _log.Add(msg);
+	void IInventoryPanelHost.Dispatch(List<GameEvent> events) => Dispatch(events);
+	void IInventoryPanelHost.SubmitPlayerAction(TimelinePlayerAction action) => SubmitPlayerAction(action);
+	void IInventoryPanelHost.FlushMap() => FlushMap();
+	GameState IInventoryPanelHost.State => _state;
+	bool IInventoryPanelHost.HasFocus => InventoryOpen;
+	bool IInventoryPanelHost.TrySubmitClientCommand(ClientCommand command) => TrySubmitClientCommand(command);
+	void IInventoryPanelHost.OpenChestFromInventory(Item chestItem) => OpenChestPanel(
 		chestItem,
 		ContainerSourceKind.Inventory,
 		ActorModule.GetPlayer(_state)?.Id);
-	void InventoryPanelModule.IHost.CloseInventory() => CloseInventoryPanel();
-	bool InventoryPanelModule.IHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
+	void IInventoryPanelHost.CloseInventory() => CloseInventoryPanel();
+	bool IInventoryPanelHost.TryHandleItemRightClick(Item item) => TryHandleIdentifyItemTarget(item);
 
 	void GroundPanelModule.IHost.AddLog(string msg) => _log.Add(msg);
 	void GroundPanelModule.IHost.Dispatch(List<GameEvent> events) => Dispatch(events);
@@ -328,7 +336,11 @@ public partial class Main : Node, IGameUI, InventoryPanelModule.IHost,
 
 		ProcessDirtyPanels();
 		_mapRender?.AdvanceAnimations(delta);
-		if (_session.GameStarted && !_menu.InMenu && _mapRender?.HasAnyActorMotion == true)
+		// 仪式感第 1 条：死亡演出期间 FlushMap 每帧驱动镜头缓动 / desat 叠加层。
+		// 缓动结束后 RuntimeCameraController 自动复位回纯 FollowActor。
+		_runtimeCameraController?.TickCinematicSweep(delta);
+		if (_session.GameStarted && !_menu.InMenu
+			&& (_mapRender?.HasAnyActorMotion == true || _runtimeCameraController?.IsCinematicSweepActive == true))
 			FlushMap();
 		if (MapEditorActive) _mapEditorCoordinator.Tick((float)delta);
 		EmitPredictionMetricsIfDue();

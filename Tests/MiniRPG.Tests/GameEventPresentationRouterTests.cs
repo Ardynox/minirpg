@@ -73,7 +73,15 @@ public sealed class GameEventPresentationRouterTests
 			LocalizationService.T("dialog.fallback.line", ("target", "Missing NPC")),
 			harness.Log.LastLine);
 		Assert.Equal(0, harness.CloseTradeCalls);
-		Assert.False(harness.EnsureDialogUiCalled);
+		Assert.Equal(0, harness.OpenConversationCalls);
+	}
+
+	[Fact]
+	public void Dispatch_ConversationOpened_InvokesOpenCallback()
+	{
+		using var harness = new Harness();
+		harness.Router.Dispatch([new GameEvent("conversation_opened") { TargetId = "npc1" }]);
+		Assert.Equal(1, harness.OpenConversationCalls);
 	}
 
 	[Fact]
@@ -95,7 +103,7 @@ public sealed class GameEventPresentationRouterTests
 			LocalizationService.T("log.interaction.default", ("name", "Wave"), ("target", "Villager")),
 			harness.Log.LastLine);
 		Assert.False(harness.EnsureTradeUiCalled);
-		Assert.False(harness.EnsureDialogUiCalled);
+		Assert.Equal(0, harness.OpenConversationCalls);
 	}
 
 	[Theory]
@@ -166,18 +174,15 @@ public sealed class GameEventPresentationRouterTests
 				presentActorMotion: e => MotionEvents.Add(e),
 				handlePlayerDeath: reason => DeathReasons.Add(reason),
 				setCurrentTarget: (actor, _) => CurrentTargets.Add(actor),
-				closeDialogPanel: () => CloseDialogCalls++,
+				closeConversationPanel: () => CloseConversationCalls++,
 				closeTradePanel: () => CloseTradeCalls++,
 				ensureTradeUi: () =>
 				{
 					EnsureTradeUiCalled = true;
 					throw new InvalidOperationException("Trade UI should not be opened in this test.");
 				},
-				ensureDialogUi: () =>
-				{
-					EnsureDialogUiCalled = true;
-					throw new InvalidOperationException("Dialog UI should not be opened in this test.");
-				},
+				openConversationForNpc: _ => OpenConversationCalls++,
+				refreshConversation: () => RefreshConversationCalls++,
 				onPlayerRestCompleted: () => RestCompletedCalls++,
 				showInfoToast: text => InfoToasts.Add(text),
 				showWarningToast: text => WarningToasts.Add(text),
@@ -199,8 +204,9 @@ public sealed class GameEventPresentationRouterTests
 		public List<string> WarningToasts { get; } = [];
 		public int FlushMapCalls { get; private set; }
 		public bool EnsureTradeUiCalled { get; private set; }
-		public bool EnsureDialogUiCalled { get; private set; }
-		public int CloseDialogCalls { get; private set; }
+		public int OpenConversationCalls { get; private set; }
+		public int RefreshConversationCalls { get; private set; }
+		public int CloseConversationCalls { get; private set; }
 		public int CloseTradeCalls { get; private set; }
 		public int RestCompletedCalls { get; private set; }
 

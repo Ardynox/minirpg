@@ -3,7 +3,6 @@ global using MiniRPG.Core.Combat;
 global using MiniRPG.Core.Config;
 global using MiniRPG.Core.Data;
 global using MiniRPG.Core.Debug;
-global using MiniRPG.Core.Dialog;
 global using MiniRPG.Core.Health;
 global using MiniRPG.Core.Map;
 global using MiniRPG.Core.Multiplayer;

@@ -23,9 +23,18 @@ public class Item : ITagSource
 	public string TechTier { get; set; } = "";
 	public int MaxStack { get; set; } = 1;
 	public int StackCount { get; set; } = 1;
+	/// <summary>
+	/// 物品被生成的 turn（食物用来算保质期）。-1 表示不追踪（永不过期 / 非可腐物品）。
+	/// 默认 -1，由 spawn 点显式赋值（PresetDB.SpawnItem / Farm 收获 / loot 等）。
+	/// </summary>
+	public int SpawnedAtTurn { get; set; } = -1;
 	public string AmmoType { get; set; } = "";
 	public int MagazineSize { get; set; }
 	public int LoadedAmmo { get; set; }
+	/// <summary>
+	/// 物品单位重量。度量衡口径：<b>1 weight = 1 kg</b>（详见 <c>Docs/开发约定.md</c>「度量衡口径」节）。
+	/// 与 <see cref="Actor.MaxCarryWeight"/>（= Manipulation × 40）配合 → 满状态人最多扛 ~40 kg。
+	/// </summary>
 	public float Weight { get; set; }
 	public string BodyPart { get; set; } = "";
 	public EquipLayer Layer { get; set; }
@@ -181,8 +190,18 @@ public class Item : ITagSource
 			&& Durability == other.Durability
 			&& MaxStack == other.MaxStack
 			&& MagazineSize == other.MagazineSize
-			&& LoadedAmmo == other.LoadedAmmo;
+			&& LoadedAmmo == other.LoadedAmmo
+			&& FreshnessSamePhaseHook(this, other);
 	}
+
+	/// <summary>
+	/// 食物保质期：判定两份物品是否处在同一新鲜阶段（fresh / stale / spoiled / rotten）。
+	/// 默认实现按 SpawnedAtTurn 严格相等（等同于"同时刻同批次"）；
+	/// FoodFreshnessEvaluator 加载后会把这个 hook 替换成"按 freshness_turns 阶段聚合"，
+	/// 让背包里"今天采的鲜肉"可以合堆。两侧 SpawnedAtTurn 都是 -1（不追踪）时永远视为同阶段。
+	/// </summary>
+	internal static Func<Item, Item, bool> FreshnessSamePhaseHook { get; set; } =
+		static (a, b) => a.SpawnedAtTurn == b.SpawnedAtTurn;
 
 	public int MergeFrom(Item other)
 	{

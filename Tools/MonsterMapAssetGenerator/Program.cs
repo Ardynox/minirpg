@@ -12,6 +12,12 @@ switch (command)
         Console.WriteLine("Generated base and anomaly monster map assets.");
         break;
 
+    case "generate-humans":
+        var humanOutputs = BaseHumanSpriteGenerator.GenerateAll(root);
+        foreach (var path in humanOutputs)
+            Console.WriteLine($"Generated human sprite: {path}");
+        break;
+
     case "generate-voxel-tiles":
         var exportDirectory = MonsterMapAssetGenerator.GenerateProceduralVoxelTiles(root);
         Console.WriteLine($"Generated procedural voxel tile textures in: {exportDirectory}");
@@ -23,7 +29,7 @@ switch (command)
         break;
 
     default:
-        Console.Error.WriteLine("Unknown command. Use one of: generate, generate-voxel-tiles, validate-iso8");
+        Console.Error.WriteLine("Unknown command. Use one of: generate, generate-humans, generate-voxel-tiles, validate-iso8");
         Environment.ExitCode = 1;
         break;
 }

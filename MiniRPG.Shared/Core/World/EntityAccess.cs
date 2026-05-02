@@ -249,6 +249,21 @@ public class EntityAccess
 		return entity.EntityId;
 	}
 
+	/// <summary>地图渲染：从 Meta 取物品模板 id 与 <see cref="Item.Category"/>（用于 <c>item_world_render.json</c> 解析）。</summary>
+	public static bool TryGetGroundItemRenderKeys(CellEntity entity, out string templateId, out string category)
+	{
+		templateId = "";
+		category = ItemCategories.Misc;
+		if (entity.Type != CellEntityType.Item || entity.Meta == null)
+			return false;
+		if (!entity.Meta.TryGetValue(ItemTemplateIdMetaKey, out var tid) || string.IsNullOrWhiteSpace(tid))
+			return false;
+		templateId = tid;
+		if (entity.Meta.TryGetValue(ItemCategoryMetaKey, out var cat) && !string.IsNullOrWhiteSpace(cat))
+			category = cat;
+		return true;
+	}
+
 	// ── 内部工具 ──
 
 	internal static Item RestoreItemFromEntity(CellEntity entity)

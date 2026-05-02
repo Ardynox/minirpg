@@ -57,11 +57,28 @@ public class Actor
 
 	public int Gold { get; set; }
 
-	/// <summary>背包：玩家持有的物品列表。</summary>
+	/// <summary>背包：玩家持有的物品列表（事实源；网格占位由 <see cref="GridInventories"/> 索引）。</summary>
 	public List<Item> Inventory { get; set; } = [];
+
+	/// <summary>
+	/// 网格背包：每个键是一个容器 id（"pockets" 或 <see cref="GridInventory.MakeEquippedId"/>
+	/// 之类的前缀化 id），值是该容器内物品占格情况。
+	/// 由 <c>InventoryModule</c> 在 Add/Remove/Equip/Unequip 时同步；<see cref="Inventory"/>
+	/// 是 truth，本字典只是空间索引，UI / 协议层用其驱动拖拽与占位渲染。
+	/// </summary>
+	public Dictionary<string, GridInventory> GridInventories { get; set; } = new(StringComparer.Ordinal);
 
 	/// <summary>商人货架：非商人此列表为空。</summary>
 	public List<ShopSlot> ShopSlots { get; set; } = [];
+
+	/// <summary>
+	/// 捏脸数据（外观）。可空：null 时按 <see cref="FaceCustomizationData.CreateDefault"/> 渲染。
+	/// 写入路径：① CharacterCreation 确认时由 <c>PlayerCreationOptions.FaceCustomization</c> 透传给玩家 actor；
+	/// ② NPC 在 <c>PresetDB.SpawnActor</c> 末尾按 instanceId hash 调
+	///    <see cref="FaceCustomizationData.CreateRandom"/> 派生稳定随机外观；
+	/// ③ <c>SaveModule</c> 双向 round-trip。
+	/// </summary>
+	public FaceCustomizationData? FaceCustomization { get; set; }
 
 	// ── tag 来源 ─────────────────────────────────────────
 
@@ -346,12 +363,14 @@ public class Actor
 	}
 
 	// ── 负重 ────────────────────────────────────────────
+	// 度量衡口径：1 weight = 1 kg；MaxCarryWeight = manipulation × 40 → 满 manipulation 最多扛 ~40 kg。
+	// 详见 Docs/开发约定.md「度量衡口径」节。
 
-	/// <summary>当前携带总重量。</summary>
+	/// <summary>当前携带总重量（kg）。</summary>
 	[JsonIgnore]
 	public float CarryWeight => Inventory.Sum(i => i.EffectiveWeight);
 
-	/// <summary>最大负重 = manipulation × 40。</summary>
+	/// <summary>最大负重（kg）= manipulation × 40。满 manipulation 即 ~40 kg 现实搬运极限。</summary>
 	[JsonIgnore]
 	public float MaxCarryWeight => GetCapacity(Caps.Manipulation) * 40f;
 

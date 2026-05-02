@@ -38,11 +38,22 @@ public partial class WaterPainterlyBlockPreview : Node3D
 
 	// --- Ripple demo state ---
 	private struct Ripple { public Vector2 WorldXZ; public float TStart; public float Amp; }
-	private const int MaxRipples = 16;
+	// Was 16 originally. Bumped to 64 so a continuously-moving emitter
+	// (sailing boat) can shed a fresh ripple every ~0.05s for the full
+	// 1.5s lifetime without evicting older slots — otherwise the wake
+	// reads as discrete pulses ("一下一下点过") instead of a continuous
+	// trail. Must stay in sync with `ripples[64]` in painterly_water_block.gdshader.
+	private const int MaxRipples = 64;
 	private readonly List<Ripple> _ripples = new();
 	private readonly Vector4[] _packedRipples = new Vector4[MaxRipples];
 	private float _rippleAmp = 0.18f;
 	private float _rippleLifetime = 1.5f;
+	// Wake ripples (boat trail) live shorter and expand slower than click
+	// ripples — this is what makes the Kelvin V-wake visible (V-angle =
+	// arcsin(wake_speed / boat_speed)). Both values must match the shader
+	// uniforms `ripple_wake_lifetime` and `ripple_wake_speed`.
+	private float _wakeRippleLifetime = 0.70f;
+	private float _wakeRippleSpeed    = 0.30f;
 	private Label _rippleCountLbl = null!;
 	// Visualized "object entering water" node — removed after splash.
 	private MeshInstance3D? _dropObject;
@@ -82,9 +93,25 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		// population doesn't oscillate in unison.
 		public Vector2 WobbleDir;
 		public float WobblePhase;
+		// Capillary breakup "tail" companion droplet that follows behind a
+		// fast-moving primary. Tails skip secondary effects (no bead-impact
+		// crown, no further tails) so they can't cascade-spawn forever.
+		public bool IsTail;
 	}
 	private readonly List<Droplet> _droplets = new();
 	private static readonly Random _rng = new();
+
+	// --- Pending spawn queue ---
+	// Real splashes happen in PHASES (impact → crown rise → crater collapse
+	// → jet emerges → bead chain pinches off), not all at once. Items
+	// scheduled here wait their delay then fire their action. Cleaner than
+	// scattering N timers across _Process.
+	private struct PendingSpawn
+	{
+		public float Delay;
+		public Action Action;
+	}
+	private readonly List<PendingSpawn> _pendingSpawns = new();
 	// Shared low-poly sphere — every droplet is a true 3D ellipsoid in the
 	// scene, scaled non-uniformly by the velocity-aligned basis to fake
 	// motion stretch. ~100 triangles per droplet at this resolution; with
@@ -173,6 +200,35 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		?? throw new InvalidOperationException(
 			"painterly_splash_sheet.gdshader missing — open project in editor once to import.");
 
+	// --- Sailing boat ---
+	// A small wooden boat that wanders back and forth across the pool.
+	// Two-layer node: _boatYaw owns position + heading (yaw 0/180), and
+	// _boatBob owns wave-following bob/pitch/roll. Splitting them keeps the
+	// heading reversal at the edge from also flipping the per-frame wobble.
+	//
+	// The boat's "wake" reuses the existing ripple system: a tiny ripple
+	// (no droplets) is dropped just behind the stern at a high cadence
+	// (~0.05s). One ripple per tick — each one self-expands into a small
+	// ring while the boat keeps laying down new ones, which composites
+	// into a continuous trail rather than discrete "pulses". The MaxRipples
+	// pool was bumped to 64 specifically so this densely-packed wake
+	// doesn't evict every older click ripple.
+	private Node3D? _boatYaw;
+	private Node3D? _boatBob;
+	private bool _boatEnabled = true;
+	private float _boatSpeed = 0.55f;
+	private float _boatDirection = 1f;       // +1 sails toward +X, -1 toward -X
+	private float _boatPauseTimer;            // small pause when reversing
+	private float _boatTrailInterval = 0.08f; // seconds between wake pulses (each pulse = 2N hull ripples + maybe 1 stern)
+	private float _boatHullAmp = 0.014f;      // amp for each hull-line sample (per port/starboard slot)
+	private float _boatSternAmp = 0.018f;     // amp for central stern ripple (every 2nd tick, fills the V apex)
+	private float _boatHullSpread = 0.20f;    // ±Z offset of the hull-line samples (boat half-beam = 0.16)
+	private int _boatHullSamples = 3;          // hull-line samples per side (bow + amidships + stern by default)
+	private bool _boatTrailToggle;            // halves the stern shed rate (avoid blowing the 64-slot budget)
+	private float _boatTrailTimer;
+	private float _boatBobPhase;
+	private static ArrayMesh? _boatHullMeshCache;
+
 	public override void _Ready()
 	{
 		AddChild(CreateEnvironment());
@@ -184,6 +240,7 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		AddChild(CreateGround());
 		AddChild(CreateWaterGrid());
 		SetupFluidLayer();
+		CreateBoat();
 		AddChild(BuildTuningPanel());
 		PushTimeNow();
 	}
@@ -279,8 +336,10 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			_timeNow += (float)delta;
 			PushTimeNow();
 			StepDropObject((float)delta);
+			StepPendingSpawns((float)delta);
 			StepDroplets((float)delta);
 			StepSheets((float)delta);
+			StepBoat((float)delta);
 		}
 
 		PushRipples();
@@ -314,24 +373,43 @@ public partial class WaterPainterlyBlockPreview : Node3D
 	}
 
 	// --- Droplet splashes ---
-	// Three co-ordinated populations fired per splash:
-	//   1) Worthington jet (2-5 beads) — vertical bead chain, top pinches off
-	//   2) Crown ring    (~4-10 drops) — low, outward, ground-skimming band
-	//   3) Main spray    (~6-16 drops) — cosine-weighted upper hemisphere
+	// PHASE-STAGED splash. Real impact-event sequence (milk-drop / SPH refs):
+	//   t=0       ─ aerosol mist + crown rim emerge instantly
+	//   t≈0.04s   ─ main spray bursts outward (≈1-frame after impact)
+	//   t≈0.06s   ─ crown rim teeth tear, ring drops shed horizontally
+	//   t≈0.18s   ─ crater bottoms out, Worthington jet column rises
+	//   t≈0.22s   ─ jet tip pinches off into airborne bead chain
 	//
-	// amp scales both count and velocity so tuning ripple_amp also visually
-	// scales the splash (panel stays meaningful).
+	// Old version spawned EVERYTHING at t=0, so the jet & beads appeared
+	// before the crater finished collapsing — read backwards. The schedule
+	// below puts each phase where high-speed footage actually shows it.
+	//
+	// amp scales count and velocity so the panel's ripple_amp slider still
+	// drives total splash intensity.
 	private void SpawnDroplets(Vector2 worldXZ, float amp, int _unused)
 	{
-		// --- Continuous-membrane sheets (the "splash itself") ---
-		// These are the connected geometric forms that exist for the brief
-		// impact moment. Without them the airborne particles below have
-		// nothing to emerge FROM and the whole thing reads as "raining
-		// pellets" instead of "water splashing".
+		// Phase 0 (t=0): aerosol + crown rim — present from the very first frame.
+		SpawnAerosolSheet(worldXZ, amp);
+		SpawnCrownSheet(worldXZ, amp);
 
-		// (S0) Crown sheet — flared expanding wreath rising from the rim
-		// of the impact crater. Tooth-edged top fades into the airborne
-		// crown particles spawned later in this function.
+		// Phase 1 (t≈0.04s): spray bursts outward (sub-frame delay so it
+		// doesn't visually merge into the impact instant).
+		Schedule(0.04f, () => SpawnSprayDroplets(worldXZ, amp));
+
+		// Phase 2 (t≈0.06s): crown rim has had ~60ms to grow; rim teeth shed.
+		Schedule(0.06f, () => SpawnCrownRingDroplets(worldXZ, amp));
+
+		// Phase 3 (t≈0.18+amp·0.06s): jet emerges from collapsing crater.
+		float jetDelay = 0.18f + amp * 0.06f;
+		Schedule(jetDelay, () => SpawnJetSheet(worldXZ, amp));
+
+		// Phase 4 (t≈0.22+amp·0.06s): bead chain pinches off the jet tip.
+		Schedule(jetDelay + 0.04f, () => SpawnWorthingtonBeads(worldXZ, amp));
+	}
+
+	// (S0) Crown sheet — flared expanding wreath rising from the rim of the
+	// impact crater. Tooth-edged top later sheds the crown-ring drops.
+	private void SpawnCrownSheet(Vector2 worldXZ, float amp) =>
 		SpawnSheet(
 			mode: 0,
 			origin: new Vector3(worldXZ.X, 0.005f, worldXZ.Y),
@@ -341,10 +419,9 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			maxLife: 0.32f + amp * 0.25f,
 			tint: new Color(0.93f, 0.97f, 1.0f, 0.78f));
 
-		// (S1) Jet column — continuous central pillar that the airborne
-		// bead chain visually "pinches off" from. Slight delay isn't
-		// modeled (pure age-driven envelope); the sin^0.6 envelope rises
-		// fast and falls slow which approximates the real timing.
+	// (S1) Jet column — continuous central pillar; the airborne bead chain
+	// pinches off from its tip 40ms later.
+	private void SpawnJetSheet(Vector2 worldXZ, float amp) =>
 		SpawnSheet(
 			mode: 1,
 			origin: new Vector3(worldXZ.X, 0.005f, worldXZ.Y),
@@ -354,9 +431,8 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			maxLife: 0.55f + amp * 0.45f,
 			tint: new Color(0.95f, 0.97f, 1.0f, 0.85f));
 
-		// (S2) Aerosol mist — low-altitude white-blue puff dispersed at
-		// impact instant. Very short life, lumpy alpha, no height — reads
-		// as "spray going everywhere" without any visible droplets.
+	// (S2) Aerosol mist — low-altitude white-blue puff dispersed at impact.
+	private void SpawnAerosolSheet(Vector2 worldXZ, float amp) =>
 		SpawnSheet(
 			mode: 2,
 			origin: new Vector3(worldXZ.X, 0.01f, worldXZ.Y),
@@ -366,17 +442,16 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			maxLife: 0.22f + amp * 0.10f,
 			tint: new Color(0.94f, 0.96f, 0.98f, 0.32f));
 
-		// (1) Worthington jet — vertical bead chain. Beads are pre-stacked
-		// in Y at t=0 with monotonically decreasing initial velocity going
-		// up the column, so gravity naturally pulls the topmost bead away
-		// first (the iconic "drop pinching off the jet" silhouette from
-		// milk-drop photography). Bigger ripples spawn more beads.
+	// (1) Worthington bead chain — beads pre-stacked along Y, monotonically
+	// decreasing initial velocity going up so the topmost bead pinches off
+	// first (milk-drop silhouette).
+	private void SpawnWorthingtonBeads(Vector2 worldXZ, float amp)
+	{
 		int beadCount = Mathf.Clamp((int)(amp / 0.05f) + 2, 2, 5);
 		float jetBaseSpeed = 4.5f + amp * 22.0f;
 		float jetBaseRadius = 0.038f + amp * 0.13f;
 		for (int i = 0; i < beadCount; i++)
 		{
-			// 0 = base bead (biggest, fastest), 1 = topmost (smallest, slowest).
 			float ti = beadCount > 1 ? (float)i / (beadCount - 1) : 0f;
 			SpawnDropletNode(
 				origin: new Vector3(worldXZ.X, 0.04f + ti * 0.32f, worldXZ.Y),
@@ -387,9 +462,12 @@ public partial class WaterPainterlyBlockPreview : Node3D
 				drag: 0.0f,
 				stretchGain: 0.16f + ti * 0.06f);
 		}
+	}
 
-		// (2) Crown ring — 4..10 drops in a near-regular ring tangent to the
-		// impact point. Mostly horizontal, slight up-bias; very short life.
+	// (2) Crown ring — drops shed when the rim teeth tear. Mostly horizontal,
+	// slight up-bias, very short life.
+	private void SpawnCrownRingDroplets(Vector2 worldXZ, float amp)
+	{
 		int crownN = Mathf.Clamp((int)(amp / 0.03f) + 4, 4, 10);
 		float crownR = 0.08f + amp * 0.18f;
 		for (int i = 0; i < crownN; i++)
@@ -410,17 +488,18 @@ public partial class WaterPainterlyBlockPreview : Node3D
 				drag: 1.4f,
 				stretchGain: 0.22f);
 		}
+	}
 
-		// (3) Main spray — cosine-weighted upper hemisphere. Bigger, slower,
-		// more translucent; these are the "big arcing droplets" you see in
-		// slow-mo splash footage.
+	// (3) Main spray — cosine-weighted upper hemisphere; the big arcing
+	// droplets visible in slow-mo footage.
+	private void SpawnSprayDroplets(Vector2 worldXZ, float amp)
+	{
 		int sprayN = Mathf.Clamp((int)(amp / 0.04f) + 4, 6, 16);
 		for (int i = 0; i < sprayN; i++)
 		{
 			float az = (float)(_rng.NextDouble() * Mathf.Tau);
-			// Cosine bias toward straight up: phi=0 is up, phi=π/2 is flat.
-			// Square-root mapping keeps distribution weighted toward up but
-			// still lets a few fire near horizontal.
+			// Square-root cosine bias toward straight up: most drops near
+			// vertical, a few near horizontal.
 			float phi = Mathf.Sqrt((float)_rng.NextDouble()) * Mathf.Pi * 0.42f;
 			float up = Mathf.Cos(phi);
 			float outR = Mathf.Sin(phi);
@@ -439,8 +518,48 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		}
 	}
 
+	// Small crown sheet spawned when an airborne bead falls back to the
+	// surface. Real splashes always cascade — every bead landing kicks a
+	// secondary mini-splash. We keep parameters small and feed-forward
+	// (no further droplets, no further mini-crowns) so cascades terminate.
+	private void SpawnMicroCrown(Vector2 worldXZ, float amp) =>
+		SpawnSheet(
+			mode: 0,
+			origin: new Vector3(worldXZ.X, 0.005f, worldXZ.Y),
+			radiusBase: 0.025f + amp * 0.30f,
+			radiusGrowth: 0.6f + amp * 1.20f,
+			heightMax: 0.05f + amp * 0.30f,
+			maxLife: 0.18f + amp * 0.15f,
+			tint: new Color(0.95f, 0.97f, 1.0f, 0.70f));
+
+	// Schedule a delayed action. delay≤0 fires immediately so callers don't
+	// have to special-case the t=0 phase.
+	private void Schedule(float delay, Action action)
+	{
+		if (delay <= 0f) { action(); return; }
+		_pendingSpawns.Add(new PendingSpawn { Delay = delay, Action = action });
+	}
+
+	private void StepPendingSpawns(float delta)
+	{
+		for (int i = _pendingSpawns.Count - 1; i >= 0; i--)
+		{
+			var ps = _pendingSpawns[i];
+			ps.Delay -= delta;
+			if (ps.Delay <= 0f)
+			{
+				ps.Action();
+				_pendingSpawns.RemoveAt(i);
+			}
+			else
+			{
+				_pendingSpawns[i] = ps;
+			}
+		}
+	}
+
 	private void SpawnDropletNode(Vector3 origin, Vector3 velocity, float baseRadius,
-		Color baseColor, float maxLife, float drag, float stretchGain)
+		Color baseColor, float maxLife, float drag, float stretchGain, bool isTail = false)
 	{
 		// --- Per-droplet jitter (only size + sway now) ---
 		// Color/alpha jitter is gone — every droplet contributes the same
@@ -475,8 +594,31 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			DragPerSec = drag,
 			StretchGain = stretchGain,
 			WobbleDir = new Vector2(Mathf.Cos(swayAngle), Mathf.Sin(swayAngle)),
-			WobblePhase = (float)(_rng.NextDouble() * Mathf.Tau)
+			WobblePhase = (float)(_rng.NextDouble() * Mathf.Tau),
+			IsTail = isTail
 		});
+
+		// --- Capillary breakup tail ---
+		// Real fast-moving droplets aren't isolated spheres — surface
+		// tension breaks them up into a head + a faint trailing thread of
+		// micro-droplets (Plateau-Rayleigh instability). One companion
+		// blob 40ms behind the primary, smaller and shorter-lived, is
+		// enough for the metaball composite to merge them into a streak
+		// silhouette. IsTail=true so it can't recursively spawn its own
+		// tail or trigger bead-impact mini-crowns.
+		if (!isTail && velocity.Length() > 5.0f)
+		{
+			Vector3 tailOrigin = origin - velocity * 0.04f;
+			SpawnDropletNode(
+				origin: tailOrigin,
+				velocity: velocity * 0.85f,
+				baseRadius: jitterRadius * 0.45f,
+				baseColor: baseColor,
+				maxLife: 0.10f,
+				drag: drag,
+				stretchGain: stretchGain * 0.5f,
+				isTail: true);
+		}
 	}
 
 	private void StepDroplets(float delta)
@@ -514,11 +656,21 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			// Hit water plane going down, or expired.
 			if ((p.Y <= 0.0f && d.Velocity.Y < 0f) || d.Life > d.MaxLife)
 			{
-				// Fast-enough impact → micro-ripple (cap probability so we
-				// don't fill the 16-slot ripple buffer with droplet noise).
-				if (p.Y <= 0.0f && d.Velocity.Y < -2.5f && _rng.NextDouble() < 0.20)
+				// Bead landings cascade into mini-splashes — every airborne
+				// droplet that hits the water at impactful speed kicks a
+				// secondary ripple AND a micro crown sheet, the same way
+				// real splash-on-splash photography shows. Tails are skipped
+				// (they're cosmetic streak fragments, not real beads) so we
+				// don't get cascading explosions.
+				if (!d.IsTail && p.Y <= 0.0f && d.Velocity.Y < -2.5f)
 				{
-					SpawnSmallRipple(new Vector2(p.X, p.Z), 0.025f);
+					// Energy proxy = downward speed. Clamped so a single
+					// stray bead can't dominate the splash budget.
+					float impactAmp = Mathf.Clamp(-d.Velocity.Y * 0.011f, 0.012f, 0.04f);
+					if (_rng.NextDouble() < 0.55)
+						SpawnSmallRipple(new Vector2(p.X, p.Z), impactAmp);
+					if (impactAmp > 0.020f && _rng.NextDouble() < 0.65)
+						SpawnMicroCrown(new Vector2(p.X, p.Z), impactAmp);
 				}
 				d.Node.QueueFree();
 				// _sharedDensityMaterial is reused across all droplets —
@@ -564,10 +716,20 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			float lifeRatio = d.Life / d.MaxLife;
 			float fade = 1.0f - Mathf.Clamp((lifeRatio - 0.7f) / 0.3f, 0f, 1f);
 
+			// --- Capillary surface-tension oscillation ---
+			// Real water beads in flight pulse between prolate and oblate
+			// at ~10-30 Hz (Rayleigh capillary mode). Subtle but it's what
+			// keeps a rendered droplet from reading as a fixed glass blob.
+			// Width and length modulate inversely so volume stays roughly
+			// constant; ±10% magnitude so even tail fragments breathe a bit
+			// without overwhelming the primary stretch envelope.
+			float capW = 1.0f + 0.10f * Mathf.Sin(_timeNow * 22.0f + d.WobblePhase);
+			float capL = 1.0f / Mathf.Max(0.5f, capW);
+
 			// SphereMesh is unit-diameter (Radius=0.5, Height=1.0). Scale to
 			// the world-space ellipsoid axes we want, modulated by fade.
-			float width = d.BaseRadius * 2.0f * fade;
-			float length = d.BaseRadius * 2.0f * stretch * fade;
+			float width = d.BaseRadius * 2.0f * fade * capW;
+			float length = d.BaseRadius * 2.0f * stretch * fade * capL;
 			var basis = new Basis(xAxis * width, yAxis * length, zAxis * width);
 			d.Node.Transform = new Transform3D(basis, p);
 		}
@@ -634,9 +796,313 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		_ripples.Add(new Ripple { WorldXZ = worldXZ, TStart = _timeNow, Amp = amp });
 	}
 
+	// Continuous-wake ripple — for emitters that drop one ripple per tick
+	// (the sailing boat's stern). Encoded with a NEGATIVE amplitude so
+	// `painterly_water_block.gdshader` knows to skip the per-impact
+	// crater / residual / foam burst / crown / caustic flash for this
+	// slot. Without that filtering the surface "remembers" each tick as
+	// a tiny pulse and the trail reads as 一下一下点 (see issue history).
+	// Magnitude (`amp`) still controls the ring brightness exactly the
+	// same way as a click ripple.
+	private void SpawnWakeRipple(Vector2 worldXZ, float amp)
+	{
+		if (_ripples.Count >= MaxRipples) _ripples.RemoveAt(0);
+		_ripples.Add(new Ripple { WorldXZ = worldXZ, TStart = _timeNow, Amp = -Mathf.Abs(amp) });
+	}
+
+	// --- Boat ----------------------------------------------------------------
+	// Spawns the persistent sailing boat at the left edge of the pool and
+	// adds it to the scene. The visual is a procedurally-built hull mesh
+	// (SurfaceTool) plus a cylinder mast and a thin box sail — cheap, no
+	// asset dependencies, reads as a small wooden boat from the preview's
+	// orthographic top-down camera.
+	private void CreateBoat()
+	{
+		_boatYaw = new Node3D { Name = "Boat" };
+		_boatBob = new Node3D { Name = "BoatBob" };
+		_boatBob.AddChild(BuildBoatVisual());
+		_boatYaw.AddChild(_boatBob);
+		// Start near the left edge, sailing toward +X.
+		float startX = -BlockSize * GridX * 0.5f + 0.55f;
+		_boatYaw.Position = new Vector3(startX, 0f, 0f);
+		AddChild(_boatYaw);
+	}
+
+	private static Node3D BuildBoatVisual()
+	{
+		var root = new Node3D { Name = "Visual" };
+
+		var hullMat = new StandardMaterial3D
+		{
+			AlbedoColor = new Color(0.46f, 0.30f, 0.18f),
+			Roughness = 0.85f
+		};
+		var mastMat = new StandardMaterial3D
+		{
+			AlbedoColor = new Color(0.30f, 0.20f, 0.12f),
+			Roughness = 0.7f
+		};
+		var sailMat = new StandardMaterial3D
+		{
+			AlbedoColor = new Color(0.92f, 0.88f, 0.78f),
+			Roughness = 0.6f,
+			CullMode = BaseMaterial3D.CullModeEnum.Disabled
+		};
+
+		// Hull — custom mesh (water-line at y=0, draught ~4cm under bob=0).
+		root.AddChild(new MeshInstance3D
+		{
+			Name = "Hull",
+			Mesh = BuildHullMesh(),
+			MaterialOverride = hullMat,
+			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+		});
+
+		// Mast — slender vertical pole rising from the deck centre.
+		root.AddChild(new MeshInstance3D
+		{
+			Name = "Mast",
+			Mesh = new CylinderMesh
+			{
+				TopRadius = 0.012f,
+				BottomRadius = 0.015f,
+				Height = 0.55f,
+				RadialSegments = 8
+			},
+			Position = new Vector3(0f, 0.345f, 0f),
+			MaterialOverride = mastMat,
+			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+		});
+
+		// Sail — thin box centred on the mast, slightly aft (looks billowed
+		// in the wind even though it's just an extruded rectangle).
+		root.AddChild(new MeshInstance3D
+		{
+			Name = "Sail",
+			Mesh = new BoxMesh { Size = new Vector3(0.42f, 0.40f, 0.006f) },
+			Position = new Vector3(-0.04f, 0.34f, 0f),
+			MaterialOverride = sailMat,
+			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+		});
+
+		// Tiny pennant at the masthead — a splash of colour so the boat
+		// reads as more than just brown geometry from a distance.
+		var pennantMat = new StandardMaterial3D
+		{
+			AlbedoColor = new Color(0.85f, 0.30f, 0.25f),
+			Roughness = 0.5f,
+			CullMode = BaseMaterial3D.CullModeEnum.Disabled
+		};
+		root.AddChild(new MeshInstance3D
+		{
+			Name = "Pennant",
+			Mesh = new BoxMesh { Size = new Vector3(0.10f, 0.04f, 0.004f) },
+			Position = new Vector3(-0.05f, 0.59f, 0f),
+			MaterialOverride = pennantMat,
+			CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+		});
+
+		return root;
+	}
+
+	// Procedural hull mesh — a simple convex 11-vertex shape that reads as
+	// a small rowboat / dinghy from above (pointed bow at +X, flat stern at
+	// -X) and as a shallow V-keel from the side. Cached so multiple boats
+	// (if added later) share one geometry resource.
+	//
+	// Vertex layout (deck plane at y = +0.07, keel line at y = -0.07):
+	//   v0  bow tip   ( +0.45, +0.07,  0.00 )
+	//   v1  fore-stbd ( +0.20, +0.07, +0.16 )
+	//   v2  aft-stbd  ( -0.30, +0.07, +0.16 )
+	//   v3  stern-stbd( -0.40, +0.07, +0.10 )
+	//   v4  stern-port( -0.40, +0.07, -0.10 )
+	//   v5  aft-port  ( -0.30, +0.07, -0.16 )
+	//   v6  fore-port ( +0.20, +0.07, -0.16 )
+	//   k0  keel-fore ( +0.40, -0.07,  0.00 )
+	//   k1  keel-aft  ( -0.35, -0.07,  0.00 )
+	private static ArrayMesh BuildHullMesh()
+	{
+		if (_boatHullMeshCache != null) return _boatHullMeshCache;
+
+		var v0 = new Vector3( 0.45f,  0.07f,  0.00f);
+		var v1 = new Vector3( 0.20f,  0.07f,  0.16f);
+		var v2 = new Vector3(-0.30f,  0.07f,  0.16f);
+		var v3 = new Vector3(-0.40f,  0.07f,  0.10f);
+		var v4 = new Vector3(-0.40f,  0.07f, -0.10f);
+		var v5 = new Vector3(-0.30f,  0.07f, -0.16f);
+		var v6 = new Vector3( 0.20f,  0.07f, -0.16f);
+		var k0 = new Vector3( 0.40f, -0.07f,  0.00f);
+		var k1 = new Vector3(-0.35f, -0.07f,  0.00f);
+
+		var st = new SurfaceTool();
+		st.Begin(Mesh.PrimitiveType.Triangles);
+
+		// Deck (top, normal +Y) — fan from the bow.
+		AddTri(st, v0, v6, v5);
+		AddTri(st, v0, v5, v4);
+		AddTri(st, v0, v4, v3);
+		AddTri(st, v0, v3, v2);
+		AddTri(st, v0, v2, v1);
+
+		// Starboard hull (normal +Z).
+		AddTri(st, v0, v1, k0);
+		AddTri(st, v1, v2, k0);
+		AddTri(st, v2, k1, k0);
+		AddTri(st, v2, v3, k1);
+
+		// Port hull (normal -Z, mirrored winding).
+		AddTri(st, v0, k0, v6);
+		AddTri(st, v6, k0, v5);
+		AddTri(st, v5, k0, k1);
+		AddTri(st, v5, k1, v4);
+
+		// Stern transom (normal -X).
+		AddTri(st, v3, v4, k1);
+
+		st.GenerateNormals();
+		_boatHullMeshCache = st.Commit();
+		return _boatHullMeshCache!;
+	}
+
+	private static void AddTri(SurfaceTool st, Vector3 a, Vector3 b, Vector3 c)
+	{
+		st.AddVertex(a);
+		st.AddVertex(b);
+		st.AddVertex(c);
+	}
+
+	private void StepBoat(float delta)
+	{
+		if (_boatYaw == null || !IsInstanceValid(_boatYaw)) return;
+		_boatYaw.Visible = _boatEnabled;
+		if (!_boatEnabled) return;
+
+		// Forward integration. While paused (just after a reversal), the
+		// boat sits in place but still bobs and steers — feels like it's
+		// settling into a turn rather than abruptly snapping around.
+		if (_boatPauseTimer > 0f) _boatPauseTimer -= delta;
+
+		var pos = _boatYaw.Position;
+		if (_boatPauseTimer <= 0f)
+			pos.X += _boatDirection * _boatSpeed * delta;
+
+		// Reflect at the pool walls with a short pause so the heading
+		// transition reads as a deliberate turn instead of a teleport.
+		float extent = BlockSize * GridX * 0.5f - 0.45f;
+		if (pos.X > extent && _boatDirection > 0f)
+		{
+			pos.X = extent; _boatDirection = -1f; _boatPauseTimer = 0.5f;
+		}
+		else if (pos.X < -extent && _boatDirection < 0f)
+		{
+			pos.X = -extent; _boatDirection = 1f; _boatPauseTimer = 0.5f;
+		}
+		_boatYaw.Position = pos;
+
+		// Smooth yaw toward the current heading. LerpAngle keeps the turn
+		// going the short way around even if we ever set strange targets.
+		float targetYawRad = _boatDirection > 0f ? 0f : Mathf.Pi;
+		float currentYawRad = _boatYaw.Rotation.Y;
+		float newYaw = Mathf.LerpAngle(currentYawRad, targetYawRad, Mathf.Min(1f, delta * 4.0f));
+		var rot = _boatYaw.Rotation;
+		rot.Y = newYaw;
+		_boatYaw.Rotation = rot;
+
+		// Wave-following bob + gentle pitch/roll. Three different sin
+		// frequencies so the motion never repeats on a tight loop and
+		// the boat feels alive even when the camera is static.
+		_boatBobPhase += delta;
+		float bobY  = Mathf.Sin(_boatBobPhase * 1.6f)            * 0.030f;
+		float pitch = Mathf.Sin(_boatBobPhase * 1.3f + 0.5f)     * Mathf.DegToRad(3.0f);
+		float roll  = Mathf.Sin(_boatBobPhase * 1.8f + 1.1f)     * Mathf.DegToRad(4.0f);
+		// Push the hull DOWN ~2 cm below its mesh origin so the keel is
+		// well underwater (draught ≈ 9 cm; hull half-depth is 7 cm so
+		// the deck just barely clears the surface). Previously this was
+		// +3 cm, which left the boat sitting on top of the water like a
+		// model and the wake ripples appeared to come from below it
+		// instead of being broken by the hull. Bob amplitude is small
+		// enough (±3 cm) that even at the crest the keel stays wet.
+		_boatBob!.Position = new Vector3(0f, -0.020f + bobY, 0f);
+		_boatBob.Rotation = new Vector3(pitch, 0f, roll);
+
+		// Wake — hull lines + stern centre + Kelvin V.
+		//
+		// Each tick samples N points along the boat's keel from bow to
+		// stern, shedding ONE wake ripple on each side (port + starboard)
+		// at every sample. As the boat keeps moving forward, the youngest
+		// row — sampled at the current bow — drops back into the position
+		// of the next-older row, and so on. The result is TWO continuous
+		// "rails" of densely-overlapping ripple rings tracking each side
+		// of the hull, exactly the "两条船身线" shape requested.
+		//
+		// The Kelvin V-wake behind the stern then forms automatically
+		// because each wake ripple expands at ripple_wake_speed (0.30
+		// m/s default — see shader) which is SLOWER than the boat's
+		// 0.55 m/s. The expanding rings' tangent envelope is a V whose
+		// half-angle is arcsin(wake_speed / boat_speed) ≈ 33°. The two
+		// rails meet at this V. (Previously wake_speed reused the click
+		// ripple's 2.8 m/s, which is faster than the boat — so each
+		// ripple raced out as a full circle and there was no V at all.
+		// That's why the wake "didn't merge".)
+		//
+		// A softer central ripple is dropped behind the stern every
+		// 2nd tick to fill the V's apex so the wake doesn't read as
+		// two disconnected rails.
+		//
+		// Capacity budget (64-slot pool, wake_lifetime 0.7s):
+		//   hull = 2N / interval × wake_lifetime
+		//        = 6 / 0.08 × 0.7 = 52 slots @ default
+		//   stern = 0.5 / 0.08 × 0.7 = 4 slots
+		//   total ≈ 56 ⇒ 8 slots free for click ripples.
+		//
+		// Frame-rate independent: catch up multiple ripples if delta
+		// happened to be larger than the interval (e.g. dropped frame).
+		if (_boatPauseTimer > 0f) return;
+		_boatTrailTimer -= delta;
+		// Hard guard against runaway loop if interval is tweaked to ~0
+		// in the panel: cap at a few catch-up steps per frame.
+		int safety = 0;
+		while (_boatTrailTimer <= 0f && safety++ < 8)
+		{
+			float interval = Mathf.Max(_boatTrailInterval, 0.005f);
+			_boatTrailTimer += interval;
+
+			int n = Mathf.Max(_boatHullSamples, 1);
+			for (int i = 0; i < n; i++)
+			{
+				// Even spread along boat-local X from bow (+0.38) to stern (-0.38).
+				float t = (n == 1) ? 0.5f : (float)i / (n - 1);
+				float xLocal = Mathf.Lerp(+0.38f, -0.38f, t);
+				// Hull tapers — narrower at the very ends, widest amidships.
+				float zSpread = _boatHullSpread * (0.85f + 0.15f * Mathf.Sin(t * Mathf.Pi));
+				// Bow breaks more water than the stern.
+				float ampMul = Mathf.Lerp(1.10f, 0.65f, t);
+				float worldX = pos.X + xLocal * _boatDirection;
+				SpawnWakeRipple(new Vector2(worldX, pos.Z + zSpread), _boatHullAmp * ampMul);
+				SpawnWakeRipple(new Vector2(worldX, pos.Z - zSpread), _boatHullAmp * ampMul);
+			}
+
+			_boatTrailToggle = !_boatTrailToggle;
+			if (_boatTrailToggle && _boatSternAmp > 0.0001f)
+			{
+				float sternX = pos.X - 0.42f * _boatDirection;
+				SpawnWakeRipple(new Vector2(sternX, pos.Z), _boatSternAmp);
+			}
+		}
+	}
+
 	private void PushRipples()
 	{
-		_ripples.RemoveAll(r => _timeNow - r.TStart > _rippleLifetime);
+		// Cleanup uses the per-ripple effective lifetime: wake ripples
+		// (negative amp) live for `_wakeRippleLifetime`, click ripples for
+		// the global `_rippleLifetime`. If we used a single global
+		// lifetime the wake pool would fill up with stale slots that the
+		// shader had already faded out.
+		_ripples.RemoveAll(r =>
+		{
+			float life = r.Amp < 0f ? _wakeRippleLifetime : _rippleLifetime;
+			return _timeNow - r.TStart > life;
+		});
 
 		for (int i = 0; i < MaxRipples; i++)
 		{
@@ -923,6 +1389,9 @@ public partial class WaterPainterlyBlockPreview : Node3D
 		mat.SetShaderParameter("ripple_emit_ramp", 0.08f);
 		mat.SetShaderParameter("ripple_flow_coupling", 1.0f);
 		mat.SetShaderParameter("ripple_foam_burst", 1.2f);
+		// Boat-wake (Kelvin) parameters — see _wakeRippleSpeed/Lifetime.
+		mat.SetShaderParameter("ripple_wake_speed", 0.30f);
+		mat.SetShaderParameter("ripple_wake_lifetime", 0.70f);
 		return mat;
 	}
 
@@ -953,6 +1422,7 @@ public partial class WaterPainterlyBlockPreview : Node3D
 
 		AddDebugSection(vbox);
 		AddRippleSection(vbox);
+		AddBoatSection(vbox);
 
 		AddSectionHeader(vbox, "流体");
 		AddFloatRow(vbox, "流速",         "speed",              0.0f,  4.0f,   1.0f);
@@ -1178,6 +1648,86 @@ public partial class WaterPainterlyBlockPreview : Node3D
 			_topMaterial.SetShaderParameter("ripple_lifetime", _rippleLifetime);
 			_sideMaterial.SetShaderParameter("ripple_lifetime", _rippleLifetime);
 		};
+		parent.AddChild(row);
+	}
+
+	private void AddBoatSection(VBoxContainer parent)
+	{
+		AddSectionHeader(parent, "小船");
+
+		var enableCb = new CheckBox { Text = "显示小船  (boat)", ButtonPressed = _boatEnabled };
+		enableCb.Toggled += v => _boatEnabled = v;
+		parent.AddChild(enableCb);
+
+		AddBoatFloatRow(parent, "航速  (boat_speed)",         0.0f,  2.0f,  _boatSpeed,         v => _boatSpeed = v);
+		AddBoatFloatRow(parent, "尾迹间隔  (trail_int)",      0.04f, 0.2f,  _boatTrailInterval, v => _boatTrailInterval = v);
+		AddBoatFloatRow(parent, "船身波幅  (hull_amp)",       0.0f,  0.04f, _boatHullAmp,       v => _boatHullAmp = v);
+		AddBoatFloatRow(parent, "船尾波幅  (stern_amp)",      0.0f,  0.04f, _boatSternAmp,      v => _boatSternAmp = v);
+		AddBoatFloatRow(parent, "船身波宽  (hull_spread)",    0.10f, 0.35f, _boatHullSpread,    v => _boatHullSpread = v);
+		// Kelvin V parameters — these are shader uniforms, not C#-side
+		// timing. The V half-angle is arcsin(wake_speed / boat_speed).
+		AddBoatFloatRow(parent, "尾波速度  (wake_speed)",     0.10f, 1.50f, _wakeRippleSpeed, v =>
+		{
+			_wakeRippleSpeed = v;
+			_topMaterial.SetShaderParameter("ripple_wake_speed", v);
+			_sideMaterial.SetShaderParameter("ripple_wake_speed", v);
+		});
+		AddBoatFloatRow(parent, "尾波寿命  (wake_lifetime)",  0.20f, 2.00f, _wakeRippleLifetime, v =>
+		{
+			_wakeRippleLifetime = v;
+			_topMaterial.SetShaderParameter("ripple_wake_lifetime", v);
+			_sideMaterial.SetShaderParameter("ripple_wake_lifetime", v);
+		});
+
+		var resetBtn = new Button { Text = "把船送回起点" };
+		resetBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+		resetBtn.Pressed += () =>
+		{
+			if (_boatYaw == null) return;
+			float startX = -BlockSize * GridX * 0.5f + 0.55f;
+			_boatYaw.Position = new Vector3(startX, 0f, 0f);
+			_boatDirection = 1f;
+			_boatPauseTimer = 0f;
+			_boatTrailTimer = 0f;
+			_boatTrailToggle = false;
+			_boatBobPhase = 0f;
+			_boatYaw.Rotation = Vector3.Zero;
+		};
+		parent.AddChild(resetBtn);
+	}
+
+	// Slim float-row builder for the boat section. Differs from the
+	// shader-uniform-driven AddFloatRow above in that the value is fed back
+	// through a C# setter instead of pushed into both water materials.
+	private void AddBoatFloatRow(VBoxContainer parent, string label, float min, float max, float def, Action<float> setter)
+	{
+		var row = new HBoxContainer();
+		row.AddThemeConstantOverride("separation", 6);
+
+		var nameLbl = new Label { Text = label, CustomMinimumSize = new Vector2(210, 0) };
+		nameLbl.AddThemeFontSizeOverride("font_size", 11);
+		row.AddChild(nameLbl);
+
+		var slider = new HSlider
+		{
+			MinValue = min, MaxValue = max,
+			Step = (max - min) / 200.0,
+			Value = def,
+			CustomMinimumSize = new Vector2(150, 18),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		row.AddChild(slider);
+
+		var valLbl = new Label { Text = def.ToString("F2"), CustomMinimumSize = new Vector2(48, 0) };
+		valLbl.AddThemeFontSizeOverride("font_size", 11);
+		row.AddChild(valLbl);
+
+		slider.ValueChanged += v =>
+		{
+			valLbl.Text = v.ToString("F2");
+			setter((float)v);
+		};
+
 		parent.AddChild(row);
 	}
 

@@ -77,7 +77,7 @@ public static class MapGenModule
 		player.Faction = Factions.Player;
 		player.PrimaryDomainId = DomainIds.Player;
 		ApplyPlayerCreationOptions(state, player, options);
-		GiveStarterKit(player);
+		GiveStarterKit(player, state.Turn, options);
 		player.X = state.PlayerX;
 		player.Y = state.PlayerY;
 		player.Z = state.PlayerZ;
@@ -228,25 +228,24 @@ public static class MapGenModule
 			};
 		}
 
-		state.PlayerAppearanceId = resolvedOptions.ResolveAppearanceId();
+		var resolvedFace = resolvedOptions.ResolveFaceCustomization();
+		state.PlayerFaceCustomization = resolvedFace;
+		player.FaceCustomization = resolvedFace.Clone();
 		NeedSystem.EnsureInitialized(player, state.Turn);
 	}
 
-	private static void GiveStarterKit(Actor player)
+	private static void GiveStarterKit(Actor player, int currentTurn, PlayerCreationOptions? options)
 	{
-		// Starter kit 的目标是让玩家开局就能走完"吃一口 / 喝一口 / 睡一觉 / 做一次饭"的完整生存循环：
-		// meal_simple × 2：前期温饱兜底；water_flask × 2：对称 Thirst 需求；bedroll：Rest 需求；
-		// raw_meat + berries × 2：一份 cook_simple_meal 所需原料（见 Data/recipes.json）。
-		// B9 完整落地（默认摆灶台 + 默认 bill）等下一批 Sprint 做。
+		// Starter kit 的目标是让玩家开局就能走完"吃一口 / 喝一口 / 睡一觉 / 做一次饭"的完整生存循环。
+		// 默认 fallback 为 meal_simple×2 + water_flask×2 + bedroll + raw_meat×2 + berries×2 共 9 件，
+		// 由 StarterKitResolver 从职业默认包 / 玩家自选清单 / 通用 fallback 三档解析得出。
+		// 食物类传入 currentTurn 让 PresetDB 写 SpawnedAtTurn，保质期评估用得到。
 		player.Inventory.Clear();
-		player.Inventory.Add(PresetDB.CloneItem("meal_simple"));
-		player.Inventory.Add(PresetDB.CloneItem("meal_simple"));
-		player.Inventory.Add(PresetDB.CloneItem("water_flask"));
-		player.Inventory.Add(PresetDB.CloneItem("water_flask"));
-		player.Inventory.Add(PresetDB.CloneItem("bedroll"));
-		player.Inventory.Add(PresetDB.CloneItem("raw_meat"));
-		player.Inventory.Add(PresetDB.CloneItem("raw_meat"));
-		player.Inventory.Add(PresetDB.CloneItem("berries"));
-		player.Inventory.Add(PresetDB.CloneItem("berries"));
+		var entries = StarterKitResolver.Resolve(options ?? PlayerCreationOptions.CreateDefault());
+		foreach (var entry in entries)
+		{
+			for (int i = 0; i < entry.Count; i++)
+				player.Inventory.Add(PresetDB.CloneItem(entry.ItemId, currentTurn));
+		}
 	}
 }

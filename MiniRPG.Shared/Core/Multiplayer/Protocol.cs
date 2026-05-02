@@ -22,12 +22,14 @@ public enum ClientCommandKind
 	Pickup,
 	InventoryToggleEquip,
 	InventoryDrop,
+	InventoryMoveItem,
+	InventoryRotateItem,
+	InventoryAutoPack,
 	ChestTake,
 	ChestTakeAll,
 	ChestPut,
 	TradeBuy,
 	TradeSell,
-	DialogChoose,
 	OpenModal,
 	CloseModal,
 	DelegateActor,
@@ -40,6 +42,12 @@ public enum ClientCommandKind
 	EndCombat,
 	Climb,
 	GiveItem,
+	ApplyGeneModification,
+	ConversationChoose,
+	ConversationAdvanceLine,
+	ConversationLeave,
+	ConversationRequestTakeover,
+	ConversationApproveTakeover,
 }
 
 public enum ServerMessageKind
@@ -110,6 +118,11 @@ public enum ErrorCode
 	PvpDisabled,
 	FriendlyFireDisabled,
 	GiftRejected,
+	GridNotFound,
+	GridFull,
+	GridOverlapsExisting,
+	GridOutOfBounds,
+	GridRotationDisallowed,
 }
 
 public static class ProtocolDefaults
@@ -234,13 +247,33 @@ public sealed record PickupClientCommand() : ClientCommand(ClientCommandKind.Pic
 
 public sealed record InventoryToggleEquipClientCommand() : ClientCommand(ClientCommandKind.InventoryToggleEquip)
 {
-	public int InventoryIndex { get; init; }
+	public int InventoryIndex { get; init; } = -1;
+	/// <summary>新走 InstanceId（网格背包后稳定 id）；老 InventoryIndex 仅作回退。</summary>
+	public string? ItemInstanceId { get; init; }
 }
 
 public sealed record InventoryDropClientCommand() : ClientCommand(ClientCommandKind.InventoryDrop)
 {
-	public int InventoryIndex { get; init; }
+	public int InventoryIndex { get; init; } = -1;
+	/// <summary>新走 InstanceId；老 InventoryIndex 仅作回退。</summary>
+	public string? ItemInstanceId { get; init; }
 }
+
+public sealed record InventoryMoveItemClientCommand() : ClientCommand(ClientCommandKind.InventoryMoveItem)
+{
+	public string ItemInstanceId { get; init; } = string.Empty;
+	public string TargetGridId { get; init; } = string.Empty;
+	public int X { get; init; }
+	public int Y { get; init; }
+	public bool Rotated { get; init; }
+}
+
+public sealed record InventoryRotateItemClientCommand() : ClientCommand(ClientCommandKind.InventoryRotateItem)
+{
+	public string ItemInstanceId { get; init; } = string.Empty;
+}
+
+public sealed record InventoryAutoPackClientCommand() : ClientCommand(ClientCommandKind.InventoryAutoPack);
 
 public sealed record ChestTakeClientCommand() : ClientCommand(ClientCommandKind.ChestTake)
 {
@@ -285,12 +318,6 @@ public sealed record TradeSellClientCommand() : ClientCommand(ClientCommandKind.
 {
 	public string TraderActorId { get; init; } = string.Empty;
 	public int InventoryIndex { get; init; }
-}
-
-public sealed record DialogChooseClientCommand() : ClientCommand(ClientCommandKind.DialogChoose)
-{
-	public string DialogId { get; init; } = string.Empty;
-	public string OptionId { get; init; } = string.Empty;
 }
 
 public sealed record OpenModalClientCommand() : ClientCommand(ClientCommandKind.OpenModal)
@@ -352,6 +379,40 @@ public sealed record GiveItemClientCommand() : ClientCommand(ClientCommandKind.G
 {
 	public string TargetActorId { get; init; } = string.Empty;
 	public string ItemInstanceId { get; init; } = string.Empty;
+}
+
+public sealed record ApplyGeneModificationClientCommand() : ClientCommand(ClientCommandKind.ApplyGeneModification)
+{
+	public string TargetActorId { get; init; } = string.Empty;
+	public string GeneId { get; init; } = string.Empty;
+	public bool ForceDominantAllele { get; init; }
+}
+
+public sealed record ConversationChooseClientCommand() : ClientCommand(ClientCommandKind.ConversationChoose)
+{
+	public string NpcActorId { get; init; } = string.Empty;
+	public int BranchIndex { get; init; }
+}
+
+public sealed record ConversationAdvanceLineClientCommand() : ClientCommand(ClientCommandKind.ConversationAdvanceLine)
+{
+	public string NpcActorId { get; init; } = string.Empty;
+}
+
+public sealed record ConversationLeaveClientCommand() : ClientCommand(ClientCommandKind.ConversationLeave)
+{
+	public string NpcActorId { get; init; } = string.Empty;
+}
+
+public sealed record ConversationRequestTakeoverClientCommand() : ClientCommand(ClientCommandKind.ConversationRequestTakeover)
+{
+	public string NpcActorId { get; init; } = string.Empty;
+}
+
+public sealed record ConversationApproveTakeoverClientCommand() : ClientCommand(ClientCommandKind.ConversationApproveTakeover)
+{
+	public string NpcActorId { get; init; } = string.Empty;
+	public bool Approve { get; init; }
 }
 
 public abstract record ServerMessage(ServerMessageKind Kind)

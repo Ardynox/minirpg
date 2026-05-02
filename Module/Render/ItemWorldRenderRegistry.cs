@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Render;
@@ -44,6 +45,14 @@ public static class GroundItemStackLayout
 
 public sealed class ItemWorldRenderRegistry
 {
+	private const string DataPath = "item_world_render.json";
+
+	private static readonly JsonSerializerOptions JsonReadOptions = new()
+	{
+		PropertyNameCaseInsensitive = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+	};
+
 	private static readonly Lazy<Dictionary<string, string>> CatalogTexturePaths = new(BuildCatalogTexturePaths);
 
 	public static readonly ItemWorldRenderRegistry Empty = new(
@@ -65,12 +74,20 @@ public sealed class ItemWorldRenderRegistry
 		_defaultSpec = defaultSpec;
 	}
 
+	public static ItemWorldRenderRegistry Load()
+	{
+		if (!GameDataLocator.TryReadText(DataPath, out var json, out _))
+			return Empty;
+
+		return FromJson(json);
+	}
+
 	public static ItemWorldRenderRegistry FromJson(string json)
 	{
 		if (string.IsNullOrWhiteSpace(json))
 			return Empty;
 
-		var root = JsonSerializer.Deserialize<ItemWorldRenderConfig>(json);
+		var root = JsonSerializer.Deserialize<ItemWorldRenderConfig>(json, JsonReadOptions);
 		if (root == null)
 			return Empty;
 

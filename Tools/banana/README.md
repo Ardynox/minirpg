@@ -175,8 +175,33 @@ python Tools/banana/banana_gen.py `
 | `python Tools/banana/b7_ui_icons_fill_local.py` | `Assets/Art/Placeholders/ui_icons/surgery_*、room_*、capacity_*、limb_*` |
 | `python Tools/banana/b4_faces_fill_local.py` | `Assets/Faces/...`（与 `Data/FaceParts/*.json` 中非空 `imagePath` 一一对应，当前 **62** 张） |
 | `python Tools/banana/b11_facility_blueprint_fill_local.py` | `Assets/Art/Generated/facilities_blueprint/facility_<id>_blueprint.png`（与 `entity_render.json` 每条 `facility_*` 对应，当前 **10** 张；蓝图阶段渲染优先走该图，见 `IsometricVoxelRenderer`） |
+| `python Tools/banana/b11_facility_blueprint_driver.py` | 同上路径，**Banana 真图**：`banana_gen` 1:4 竖条 → `rembg` → resize **256×1024**；`--skip-existing`、`--only bed,smithy`、`--size 1K` 或 `2K`；日志 `Tools/banana/.cache/b11_blueprint_driver.log` |
+
+**Banana 批跑（计费 API）**
+
+| 脚本 | 说明 |
+|------|------|
+| `python Tools/banana/b4_faces_driver.py` | **B4**：`FaceParts` 非空 `imagePath`（当前 **62**）→ `banana_gen` 1:1 → rembg → `crop_square_resize` **256**；`--category hair,eyes`、`--only`、`--limit`；`.cache/b4_faces_driver.log` |
+| `python Tools/banana/b10_generated_driver.py` | **B10 换血**：默认 **34** 条；**`--facility-files`** 筛 `facilities/`；**`--fixture-files`** 筛 `fixtures/`（勿混用）；`--monster-files` / `--anomaly-files` |
+| `python Tools/banana/b9_equipment_overlay_driver.py` | **B9**：**88** 张 `equipment_overlays/equip_{weapon,cloak,helmet}_*` → 1:1 → rembg → **256**；`--only-weapon` / `--only-cloak` / `--only-helmet`；`.cache/b9_overlay_driver.log` |
+| `python Tools/banana/b12_detail_mp_driver.py` | **B12**：`Placeholders/detail/*.png` **20** + `mp/player_slot_*.png` **8**；`--only-detail` / `--only-mp` / `--skip-detail`；`.cache/b12_detail_mp_driver.log` |
+
+**占位与正式图**：凡 `*_fill_local.py` 落盘的土色占位，正式美术应 **Banana 出图后覆盖同一路径**（`entity_render` / `FaceParts` 等数据不用改）。未列在本表的批次见下节 **2.7** 与 `Artifacts/style_locks_registry.md`。
 
 替换 Banana 真图后无需删兜底脚本；合并前跑 `python Tools/validate_art_res_paths.py --catalog --combat-audit`。
+
+### 2.7 已有 Banana 驱动一览（与占位目录对应）
+
+| 区域 | 驱动（任选其一批跑换血） |
+|------|-------------------------|
+| B1 特效/天气/品牌 | `b1_placeholders_driver.py` |
+| B2 地面物品分类图 | `b2_item_world_driver.py` |
+| B4 人脸 | `b4_faces_driver.py` |
+| B5…B8 UI/作物/材料 | `b5`…`b8_*_driver.py` |
+| B9 装备 overlay | `b9_equipment_overlay_driver.py`（新） |
+| B10 Generated | `b10_generated_driver.py` |
+| B11 设施蓝图 | `b11_facility_blueprint_driver.py` |
+| B12 脚印/光晕/mp | `b12_detail_mp_driver.py`（新） |
 
 ---
 
@@ -188,7 +213,7 @@ python Tools/banana/banana_gen.py `
 - 改 prompt 内容 → 编辑总表
 - 加调用方式 / 改默认模型 / 改成本估算 → 编辑本目录
 
-总表里 §F01 / §H01 那种带「res 路径 + prompt」的条目可以直接做成本 CLI 的批跑驱动文件，但**那是后续工作**，不在本批范围。
+总表里 §F01 / §H01 那种带「res 路径 + prompt」的条目已部分落在 `b4_faces_driver.py`、`b10_generated_driver.py`、`b11_facility_blueprint_driver.py` 等驱动内；改具体 prompt 时请同步脚本或抽成总表引用。
 
 ---
 

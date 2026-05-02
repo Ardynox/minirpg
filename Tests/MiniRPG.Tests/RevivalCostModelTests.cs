@@ -21,7 +21,8 @@ public class RevivalCostModelTests
 		var (mood, duration) = RevivalCostModel.ComputeRevivalScar(priorRevivalCount: 0);
 
 		Assert.Equal(-4f, mood);
-		Assert.Equal(360, duration);
+		// 240 turn/day 历法下 BaseDurationTurns = 720（旧 120 turn/day 历法下为 360）。
+		Assert.Equal(720, duration);
 	}
 
 	[Fact]
@@ -36,13 +37,14 @@ public class RevivalCostModelTests
 		// 4 次累加之后到达 -20 上限，第 5 次仍然 -20。
 		Assert.Equal(-20f, RevivalCostModel.ComputeRevivalScar(5).MoodOffset);
 
-		Assert.Equal(720, RevivalCostModel.ComputeRevivalScar(1).DurationTurns);
-		Assert.Equal(1080, RevivalCostModel.ComputeRevivalScar(2).DurationTurns);
-		Assert.Equal(1440, RevivalCostModel.ComputeRevivalScar(3).DurationTurns);
-		Assert.Equal(1800, RevivalCostModel.ComputeRevivalScar(4).DurationTurns);
-		// duration 在 1800 处饱和。
-		Assert.Equal(1800, RevivalCostModel.ComputeRevivalScar(5).DurationTurns);
-		Assert.Equal(1800, RevivalCostModel.ComputeRevivalScar(20).DurationTurns);
+		// 240 turn/day 历法下 Base/PerAttempt/MaxDurationTurns 分别为 720 / 720 / 3600（旧历法下 360 / 360 / 1800）。
+		Assert.Equal(1440, RevivalCostModel.ComputeRevivalScar(1).DurationTurns);
+		Assert.Equal(2160, RevivalCostModel.ComputeRevivalScar(2).DurationTurns);
+		Assert.Equal(2880, RevivalCostModel.ComputeRevivalScar(3).DurationTurns);
+		Assert.Equal(3600, RevivalCostModel.ComputeRevivalScar(4).DurationTurns);
+		// duration 在 MaxDurationTurns 处饱和。
+		Assert.Equal(3600, RevivalCostModel.ComputeRevivalScar(5).DurationTurns);
+		Assert.Equal(3600, RevivalCostModel.ComputeRevivalScar(20).DurationTurns);
 	}
 
 	[Fact]

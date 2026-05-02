@@ -21,12 +21,13 @@ public sealed class ServerSideConsequenceDispatcherTests
 	{
 		var dispatcher = new ServerSideConsequenceDispatcher();
 
-		Assert.Equal(5, dispatcher.HandlerCount);
+		Assert.Equal(6, dispatcher.HandlerCount);
 		Assert.NotNull(dispatcher.Statistics);
 		Assert.NotNull(dispatcher.Relationships);
 		Assert.NotNull(dispatcher.Memories);
 		Assert.NotNull(dispatcher.Rumors);
 		Assert.NotNull(dispatcher.KinshipLoss);
+		Assert.NotNull(dispatcher.BystanderGrief);
 	}
 
 	[Fact]
@@ -94,7 +95,7 @@ public sealed class RoomRuntimeHostConsequencePipelineTests
 		var roomHost = host.RegisterRoom(new GameState(), lobby.GetRoomState(owner.RoomId));
 
 		Assert.NotNull(roomHost.Consequences);
-		Assert.Equal(5, roomHost.Consequences.HandlerCount);
+		Assert.Equal(6, roomHost.Consequences.HandlerCount);
 	}
 
 	[Fact]

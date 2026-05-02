@@ -187,6 +187,16 @@
     "shopSlots": []
   },
   {
+    "id": "human_infant",
+    "glyph": "i",
+    "displayName": "婴儿",
+    "faction": "friendly",
+    "gold": 0,
+    "raceId": "human",
+    "professionId": null,
+    "shopSlots": []
+  },
+  {
     "id": "blacksmith_npc",
     "glyph": "B",
     "displayName": "铁匠",

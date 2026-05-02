@@ -152,8 +152,8 @@ public sealed class ActorMemoryModule : IGameEventConsequenceHandler
 		_byActor.Clear();
 	}
 
-	/// <summary>Fraction of remembered strength lost per turn.</summary>
-	public const float DefaultDecayPerTurn = 0.01f;
+	/// <summary>Fraction of remembered strength lost per turn.（按 240 turn/day 校准；旧 120 turn/day 历法下为 0.01）</summary>
+	public const float DefaultDecayPerTurn = 0.005f;
 
 	/// <summary>Entries whose strength falls below this are forgotten outright.</summary>
 	public const float ForgetThreshold = 0.02f;

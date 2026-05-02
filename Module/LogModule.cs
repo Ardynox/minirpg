@@ -166,8 +166,89 @@ public class LogModule
 				=> [C(UIColors.HexSuccess, LocalizationService.T(
 					"log.party.revived",
 					("member", e.TargetActorName ?? "?")))],
+			"revival_failed"
+				=> [C(UIColors.HexWarning, FormatRevivalFailed(e))],
+			"revival_ritual_started"
+				=> [C(UIColors.HexEquipped, LocalizationService.TOrFallback(
+					"log.revival.ritual_started",
+					Localize("{initiator} 开始为 {target} 进行复活仪式（{turns} 回合）。",
+						"{initiator} begins reviving {target} ({turns} turns)."),
+					("initiator", e.InitiatorActorName ?? e.InitiatorId ?? "?"),
+					("target", e.TargetActorName ?? e.TargetId ?? Localize("尸体", "the fallen")),
+					("turns", e.Damage)))],
+			"revival_ritual_progress"
+				=> [C(UIColors.HexDim, LocalizationService.TOrFallback(
+					"log.revival.ritual_progress",
+					Localize("复活仪式进行中（剩余 {turns} 回合）。",
+						"Revival ritual continues ({turns} turns left)."),
+					("turns", e.Damage)))],
+			"revival_soul_fragment_dropped"
+				=> [C(UIColors.HexWarning, LocalizationService.TOrFallback(
+					"log.revival.soul_fragment_dropped",
+					Localize("仪式的残响凝成了一块{item}，掉在{initiator}脚下。",
+						"A {item} crystallizes from the failed ritual at {initiator}'s feet."),
+					("initiator", e.InitiatorActorName ?? e.InitiatorId ?? Localize("施法者", "the caster")),
+					("item", e.ItemName ?? Localize("灵魂碎片", "soul fragment"))))],
+			"conversation_opened"
+				=> [C(UIColors.HexUtility, LocalizationService.TOrFallback(
+					"log.conversation.opened",
+					Localize("与{target}开始了对话。", "Started a conversation with {target}."),
+					("target", e.TargetActorName ?? e.TargetId ?? "?")))],
+			"conversation_closed"
+				=> [C(UIColors.HexDim, LocalizationService.TOrFallback(
+					"log.conversation.closed",
+					Localize("与{target}的对话结束。", "Ended the conversation with {target}."),
+					("target", e.TargetActorName ?? e.TargetId ?? "?")))],
+			"conversation_observer_joined"
+				=> [C(UIColors.HexDim, LocalizationService.TOrFallback(
+					"log.conversation.observer_joined",
+					Localize("{observer}加入了{target}的对话（旁观）。", "{observer} joined the conversation with {target} as observer."),
+					("observer", e.InitiatorActorName ?? e.InitiatorId ?? "?"),
+					("target", e.TargetActorName ?? e.TargetId ?? "?")))],
+			"conversation_takeover_requested"
+				=> [C(UIColors.HexUtility, LocalizationService.TOrFallback(
+					"log.conversation.takeover_requested",
+					Localize("{observer}申请接管与{target}的对话。", "{observer} requested to take over the conversation with {target}."),
+					("observer", e.InitiatorActorName ?? e.InitiatorId ?? "?"),
+					("target", e.TargetActorName ?? e.TargetId ?? "?")))],
+			"conversation_takeover_approved"
+				=> [C(UIColors.HexSuccess, LocalizationService.TOrFallback(
+					"log.conversation.takeover_approved",
+					Localize("对话控制权交给了{observer}。", "Conversation control was handed over to {observer}."),
+					("observer", e.InitiatorActorName ?? e.InitiatorId ?? "?")))],
+			"conversation_takeover_denied"
+				=> [C(UIColors.HexDim, LocalizationService.TOrFallback(
+					"log.conversation.takeover_denied",
+					Localize("对话接管请求被拒绝。", "Conversation takeover was denied."))),
+				],
 			_ => null,
 		};
+	}
+
+	private static string FormatRevivalFailed(GameEvent e)
+	{
+		// reason 存在 ActionName：对应 ReviveService.FailureReasons（not_a_corpse / source_actor_missing /
+		// permanently_lost / unknown_method / insufficient_materials / caster_skill_too_low / spell_misfire）
+		var reason = string.IsNullOrWhiteSpace(e.ActionName) ? "unknown" : e.ActionName!;
+		var key = $"log.revival.failed.{reason}";
+		var fallback = reason switch
+		{
+			"not_a_corpse" => Localize("复活失败：目标不是尸体。", "Revival failed: target is not a corpse."),
+			"source_actor_missing" => Localize("复活失败：原角色已被彻底抹除。", "Revival failed: the original actor is gone."),
+			"permanently_lost" => Localize("{target}已经永远离开，无法再复活。", "{target} is permanently lost and cannot be revived."),
+			"unknown_method" => Localize("复活失败：未知的复活方式。", "Revival failed: unknown method."),
+			"insufficient_materials" => Localize("复活失败：材料不足。", "Revival failed: not enough materials."),
+			"caster_skill_too_low" => Localize("复活失败：施法者技能不足。", "Revival failed: caster skill too low."),
+			"spell_misfire" => Localize("复活仪式哑火，材料折损一半。", "The revival ritual misfired; half of the materials were lost."),
+			_ => Localize("复活失败：{reason}。", "Revival failed: {reason}."),
+		};
+		return LocalizationService.TOrFallback(
+			key,
+			fallback,
+			("caster", e.InitiatorActorName ?? e.InitiatorId ?? "?"),
+			("target", e.TargetActorName ?? e.TargetId ?? "?"),
+			("method", e.EffectType ?? "?"),
+			("reason", reason));
 	}
 
 	private static string FormatReloadComplete(GameEvent e) =>

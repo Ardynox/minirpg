@@ -47,11 +47,11 @@ internal sealed class RuntimeUiRefs
 	public StatusPanelModule? StatusPanel { get; init; }
 	public required SkillBarModule SkillBar { get; init; }
 	public required SkillManagerModule SkillManager { get; init; }
-	public InventoryPanelModule? Inventory { get; init; }
+	public InventoryGridPanelModule? Inventory { get; init; }
 	public required GroundPanelModule Ground { get; init; }
 	public required TurnPanelModule TurnPanel { get; init; }
 	public ChestPanelModule? ChestPanel { get; init; }
-	public DialogPanelModule? DialogPanel { get; init; }
+	public ConversationPanelModule? ConversationPanel { get; init; }
 	public TradePanelModule? TradePanel { get; init; }
 	public QuestPanelModule? QuestPanel { get; init; }
 	public ActorInspectPanelModule? ActorInspectPanel { get; init; }

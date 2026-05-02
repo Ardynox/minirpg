@@ -139,7 +139,6 @@ public sealed class PresetScenarioTests
 			PlayerY = 1,
 			PlayerZ = 0,
 			PlayerId = "player",
-			PlayerAppearanceId = null,
 			KillCount = 0,
 			GeneratorId = "blank_floor",
 			ViewModeId = "single_layer",

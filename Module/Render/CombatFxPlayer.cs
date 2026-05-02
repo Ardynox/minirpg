@@ -26,10 +26,29 @@ public sealed class CombatFxPlayer
 		_mapRender = mapRender;
 		_worldRoot = worldRoot;
 		_textRoot = textRoot;
-		_catalogEntries = ResourceCatalogStore.Load()
-			.Entries
-			.GroupBy(entry => entry.Id, StringComparer.OrdinalIgnoreCase)
-			.ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
+		_catalogEntries = BuildCatalogEntries(ResourceCatalogStore.Load().Entries);
+	}
+
+	// ResourceCatalogStore 偶尔会因数据表重复 Id 抛多条 entry；旧实现直接 group.Last() 静默吞掉冲突，
+	// 导致写错数据后先写的条目消失且毫无提示。这里保留"后写覆盖"行为（与历史一致），但显式 PushWarning
+	// 让冲突在启动时可见，便于定位数据表中的重复 Id。
+	private static Dictionary<string, ResourceCatalogEntry> BuildCatalogEntries(IReadOnlyList<ResourceCatalogEntry> entries)
+	{
+		var result = new Dictionary<string, ResourceCatalogEntry>(StringComparer.OrdinalIgnoreCase);
+		var duplicates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var entry in entries)
+		{
+			if (string.IsNullOrWhiteSpace(entry.Id))
+				continue;
+			if (result.ContainsKey(entry.Id) && duplicates.Add(entry.Id))
+			{
+				GD.PushWarning(
+					$"CombatFxPlayer: duplicate resource catalog id '{entry.Id}'; later entry overrides earlier one.");
+			}
+			result[entry.Id] = entry;
+		}
+
+		return result;
 	}
 
 	public void Play(IReadOnlyList<CombatFxCommand> commands, int worldZ)

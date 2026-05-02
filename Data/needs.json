@@ -32,6 +32,17 @@
     ]
   },
   {
+    "id": "baby_food",
+    "labelKey": "ui.needs.baby_food",
+    "displayName": "Nursing",
+    "warningThreshold": 40,
+    "stages": [
+      { "id": "content", "maxValue": 70 },
+      { "id": "hungry", "maxValue": 35, "capacityMultipliers": { "consciousness": 0.95 } },
+      { "id": "starving", "maxValue": 10, "capacityMultipliers": { "consciousness": 0.85, "moving": 0.9 } }
+    ]
+  },
+  {
     "id": "mood",
     "labelKey": "ui.needs.mood",
     "displayName": "Mood",

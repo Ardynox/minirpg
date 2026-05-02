@@ -265,23 +265,7 @@ internal static class ActorStatusTextBuilder
 		}
 
 		foreach (var limb in actor.Limbs)
-		{
-			var ratio = limb.MaxDurability > 0
-				? (float)limb.Durability / limb.MaxDurability
-				: 0f;
-			var vital = CombatModule.IsVitalLimb(limb) ? " *" : string.Empty;
-			var capParts = new List<string>();
-			foreach (var (capId, weight) in limb.Capacities)
-			{
-				var def = PresetDB.GetCapacity(capId);
-				var name = GameLocalizer.LocalizeCapacityName(capId, def?.Name ?? capId);
-				var pct = (int)(weight * ratio * 100);
-				capParts.Add(LocalizationService.T("ui.status.limb.capacity_value", ("name", name), ("value", pct)));
-			}
-
-			var caps = capParts.Count > 0 ? $"  {string.Join(" ", capParts)}" : string.Empty;
-			lines.Add($"{limb.Name}{vital}  {limb.Durability}/{limb.MaxDurability}{caps}");
-		}
+			lines.Add(BuildLimbRowText(limb));
 	}
 
 	private static void BuildCapacityLines(List<string> lines, Actor actor)
@@ -294,19 +278,41 @@ internal static class ActorStatusTextBuilder
 		}
 
 		foreach (var (capId, value) in caps)
+			lines.Add(BuildCapacityRowText(capId, value));
+	}
+
+	internal static string BuildLimbRowText(Limb limb)
+	{
+		var ratio = limb.MaxDurability > 0
+			? (float)limb.Durability / limb.MaxDurability
+			: 0f;
+		var vital = CombatModule.IsVitalLimb(limb) ? " *" : string.Empty;
+		var capParts = new List<string>();
+		foreach (var (capId, weight) in limb.Capacities)
 		{
 			var def = PresetDB.GetCapacity(capId);
 			var name = GameLocalizer.LocalizeCapacityName(capId, def?.Name ?? capId);
-			var pct = (int)(value * 100);
-			var effect = def?.VitalEffect switch
-			{
-				"death_instant" => $" [{LocalizationService.T("ui.status.capacity.effect.death_instant")}]",
-				"incapacitate" => $" [{LocalizationService.T("ui.status.capacity.effect.incapacitate")}]",
-				"death_slow" => $" [{LocalizationService.T("ui.status.capacity.effect.death_slow")}]",
-				_ => string.Empty,
-			};
-			lines.Add($"{name}: {pct}%{effect}");
+			var pct = (int)(weight * ratio * 100);
+			capParts.Add(LocalizationService.T("ui.status.limb.capacity_value", ("name", name), ("value", pct)));
 		}
+
+		var caps = capParts.Count > 0 ? $"  {string.Join(" ", capParts)}" : string.Empty;
+		return $"{limb.Name}{vital}  {limb.Durability}/{limb.MaxDurability}{caps}";
+	}
+
+	internal static string BuildCapacityRowText(string capId, float value)
+	{
+		var def = PresetDB.GetCapacity(capId);
+		var name = GameLocalizer.LocalizeCapacityName(capId, def?.Name ?? capId);
+		var pct = (int)(value * 100);
+		var effect = def?.VitalEffect switch
+		{
+			"death_instant" => $" [{LocalizationService.T("ui.status.capacity.effect.death_instant")}]",
+			"incapacitate" => $" [{LocalizationService.T("ui.status.capacity.effect.incapacitate")}]",
+			"death_slow" => $" [{LocalizationService.T("ui.status.capacity.effect.death_slow")}]",
+			_ => string.Empty,
+		};
+		return $"{name}: {pct}%{effect}";
 	}
 
 	private static void BuildTagLines(List<string> lines, Actor actor)
@@ -524,7 +530,7 @@ internal static class ActorStatusTextBuilder
 		return def.BleedPerSeverity * condition.Severity * tendedFactor;
 	}
 
-	private static string BuildNeedLine(Actor actor, string needId)
+	internal static string BuildNeedLine(Actor actor, string needId)
 	{
 		if (actor.Needs == null || !actor.Needs.ContainsKey(needId))
 			return $"{NeedCatalog.GetNeedDisplayName(needId)}: --";
@@ -537,7 +543,7 @@ internal static class ActorStatusTextBuilder
 		return $"{NeedCatalog.GetNeedDisplayName(needId)}: {value:0}{stageLabel}";
 	}
 
-	private static string BuildMoodLine(Actor actor)
+	internal static string BuildMoodLine(Actor actor)
 	{
 		var profile = NeedCatalog.GetProfileForActor(actor);
 		return profile.AllowMood

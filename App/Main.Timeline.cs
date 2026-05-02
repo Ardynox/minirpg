@@ -521,15 +521,17 @@ public partial class Main
 		_watchTimer = 0;
 		ResetTimelineStatusLog();
 
+		// Heading（"你死了" / "你失去了意识" / "全队覆灭"）和死因摘要由 Presenter 统一兜底，
+		// 避免 Main 与 Presenter 双写 heading、且 party_wiped 分支落回 "death.killed" fallback（Δ-8 修复）。
+		// 全队灭显示焦点角色身上的金币（焦点 ActiveId 在 Handler 里被清空时回退到 PlayerId 队长，符合"队长身家"的玩家直觉）。
+		var fallenActive = ActiveActorAccess.GetActive(_state);
+		var fallenActorId = fallenActive?.Id ?? _state.PlayerId;
+
 		_log.Add("");
-		_log.Add(reason == "incapacitated"
-			? LocalizationService.T("death.incapacitated")
-			: LocalizationService.T("death.killed"));
+		_playerDeathPresenter?.Present(reason, fallenActorId, _state.Turn);
 		_log.Add(LocalizationService.T("death.turn", ("turn", _state.Turn)));
 		_log.Add(LocalizationService.T("death.floor", ("floor", _state.PlayerZ)));
 		_log.Add(LocalizationService.T("death.kills", ("kills", _state.KillCount)));
-		// 全队灭显示焦点角色身上的金币（焦点 ActiveId 在 Handler 里被清空时回退到 PlayerId 队长，符合"队长身家"的玩家直觉）。
-		var fallenActive = ActiveActorAccess.GetActive(_state);
 		if (fallenActive != null)
 			_log.Add(LocalizationService.T("death.gold", ("gold", fallenActive.Gold)));
 		_log.Add(LocalizationService.T("death.separator"));

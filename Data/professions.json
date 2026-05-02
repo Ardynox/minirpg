@@ -2,7 +2,12 @@
   {
     "id": "merchant",
     "name": "商人",
-    "tags": { "交易": 3 }
+    "tags": { "交易": 3 },
+    "starterKit": {
+      "meal_simple": 3,
+      "water_flask": 2,
+      "bedroll": 1
+    }
   },
   {
     "id": "elder",
@@ -12,7 +17,14 @@
   {
     "id": "miner",
     "name": "矿工",
-    "tags": { "挖掘": 2, "采矿": 3 }
+    "tags": { "挖掘": 2, "采矿": 3 },
+    "starterKit": {
+      "meal_simple": 2,
+      "water_flask": 2,
+      "bedroll": 1,
+      "torch": 2,
+      "rope": 1
+    }
   },
   {
     "id": "lumberjack",
@@ -22,7 +34,13 @@
   {
     "id": "hunter",
     "name": "猎人",
-    "tags": { "射击": 3, "驯服": 1 }
+    "tags": { "射击": 3, "驯服": 1 },
+    "starterKit": {
+      "raw_meat": 3,
+      "berries": 2,
+      "water_flask": 2,
+      "bedroll": 1
+    }
   },
   {
     "id": "blacksmith",
@@ -37,17 +55,39 @@
   {
     "id": "cook",
     "name": "厨师",
-    "tags": { "烹饪": 3, "屠宰": 1 }
+    "tags": { "烹饪": 3, "屠宰": 1 },
+    "starterKit": {
+      "meal_simple": 1,
+      "bread": 1,
+      "raw_meat": 2,
+      "berries": 1,
+      "water_flask": 2,
+      "bedroll": 1
+    }
   },
   {
     "id": "soldier",
     "name": "士兵",
-    "tags": { "格挡": 2, "防御": 1 }
+    "tags": { "格挡": 2, "防御": 1 },
+    "starterKit": {
+      "meal_simple": 2,
+      "water_flask": 2,
+      "bedroll": 1,
+      "torch": 1
+    }
   },
   {
     "id": "scout",
     "name": "斥候",
-    "tags": { "射击": 1, "伐木": 1, "照明": 1 }
+    "tags": { "射击": 1, "伐木": 1, "照明": 1 },
+    "starterKit": {
+      "meal_simple": 1,
+      "water_flask": 2,
+      "bedroll": 1,
+      "torch": 1,
+      "raw_meat": 1,
+      "berries": 1
+    }
   },
   {
     "id": "tailor",
@@ -62,7 +102,13 @@
   {
     "id": "guard",
     "name": "守卫",
-    "tags": { "格挡": 3, "防御": 2 }
+    "tags": { "格挡": 3, "防御": 2 },
+    "starterKit": {
+      "meal_simple": 2,
+      "water_flask": 2,
+      "bedroll": 1,
+      "torch": 1
+    }
   },
   {
     "id": "shaman",

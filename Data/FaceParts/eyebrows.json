@@ -1,0 +1,10 @@
+[
+	{ "id": "thin_arched",       "displayName": "细弯",       "imagePath": "res://Assets/Faces/Eyebrows/thin_arched.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "thick_straight",    "displayName": "粗直",       "imagePath": "res://Assets/Faces/Eyebrows/thick_straight.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "bushy_wild",        "displayName": "浓密狂野",   "imagePath": "res://Assets/Faces/Eyebrows/bushy_wild.png",        "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "short_stubby",      "displayName": "短粗",       "imagePath": "res://Assets/Faces/Eyebrows/short_stubby.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "scarred_broken",    "displayName": "疤痕断眉",   "imagePath": "res://Assets/Faces/Eyebrows/scarred_broken.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "pointed_evil",      "displayName": "尖锐邪气",   "imagePath": "res://Assets/Faces/Eyebrows/pointed_evil.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "soft_feminine",     "displayName": "柔和女性",   "imagePath": "res://Assets/Faces/Eyebrows/soft_feminine.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "raised_expressive", "displayName": "上挑",       "imagePath": "res://Assets/Faces/Eyebrows/raised_expressive.png", "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

@@ -8,7 +8,6 @@ global using MiniRPG.Core.Health;
 global using MiniRPG.Core.Trade;
 global using MiniRPG.Core.Weather;
 global using MiniRPG.Core.Debug;
-global using MiniRPG.Core.Dialog;
 global using MiniRPG.Core.Multiplayer;
 global using MiniRPG.Module.Session;
 global using MiniRPG.Module;

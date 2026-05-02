@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 
 namespace MiniRPG.Core.Config;
 
@@ -237,7 +238,7 @@ public static class GameDataLocator
 		{
 			if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
 			{
-				text = File.ReadAllText(path);
+				text = File.ReadAllText(path, Encoding.UTF8);
 				return true;
 			}
 		}

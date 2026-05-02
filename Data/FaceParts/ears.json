@@ -1,0 +1,10 @@
+[
+	{ "id": "human_round",     "displayName": "人类圆耳",   "imagePath": "res://Assets/Faces/Ears/human_round.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "pointed_elf",     "displayName": "短精灵",     "imagePath": "res://Assets/Faces/Ears/pointed_elf.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "long_elf",        "displayName": "长精灵",     "imagePath": "res://Assets/Faces/Ears/long_elf.png",        "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "gnome_large",     "displayName": "侏儒大耳",   "imagePath": "res://Assets/Faces/Ears/gnome_large.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "beast_furred",    "displayName": "兽人毛耳",   "imagePath": "res://Assets/Faces/Ears/beast_furred.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "orc_tusked",      "displayName": "兽人獠侧",   "imagePath": "res://Assets/Faces/Ears/orc_tusked.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "torn_half_orc",   "displayName": "半兽撕裂",   "imagePath": "res://Assets/Faces/Ears/torn_half_orc.png",   "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "horned_tiefling", "displayName": "提夫林角",   "imagePath": "res://Assets/Faces/Ears/horned_tiefling.png", "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

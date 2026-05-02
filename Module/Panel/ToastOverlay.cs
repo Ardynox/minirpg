@@ -10,6 +10,11 @@ public enum ToastKind
 	Success,
 	Warning,
 	Error,
+	/// <summary>
+	/// "大字头条"——用于死亡仪式感 / 全队覆灭等需要瞬间抓住玩家眼球的事件。
+	/// 字号 ~2.6×、白色描边、停留时间默认 3 秒（仍走相同的 fade in/out 队列）。
+	/// </summary>
+	Heading,
 }
 
 /// <summary>
@@ -29,8 +34,11 @@ public sealed partial class ToastOverlay : Control
 	private const float ToastSpacing = 8f;
 	private const int MaxVisible = 3;
 	private const double DefaultDurationSec = 4.0;
+	private const double DefaultHeadingDurationSec = 3.0;
 	private const double FadeInSec = 0.18;
 	private const double FadeOutSec = 0.32;
+	private const int HeadingFontSize = 44;
+	private const float HeadingMinWidth = 720f;
 
 	private readonly Queue<PendingToast> _pending = new();
 	private readonly List<ActiveToast> _active = [];
@@ -77,6 +85,13 @@ public sealed partial class ToastOverlay : Control
 	public void ShowError(string text, double durationSec = DefaultDurationSec) =>
 		Show(text, ToastKind.Error, durationSec);
 
+	/// <summary>
+	/// 弹一条"大字头条"。专为死亡仪式感 / 全队覆灭等高优先级演出准备：字号比普通 toast 大 ~2.6×、
+	/// 白底高对比，默认 3 秒停留。仍排在普通 toast 队列里，超过 <see cref="MaxVisible"/> 会按入队顺序排队。
+	/// </summary>
+	public void ShowHeading(string text, double durationSec = DefaultHeadingDurationSec) =>
+		Show(text, ToastKind.Heading, durationSec);
+
 	public void Clear()
 	{
 		_pending.Clear();
@@ -99,6 +114,7 @@ public sealed partial class ToastOverlay : Control
 	{
 		if (_column == null) return;
 
+		var isHeading = item.Kind == ToastKind.Heading;
 		var panel = new PanelContainer
 		{
 			MouseFilter = MouseFilterEnum.Ignore,
@@ -112,10 +128,16 @@ public sealed partial class ToastOverlay : Control
 			Text = item.Text,
 			MouseFilter = MouseFilterEnum.Ignore,
 			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-			CustomMinimumSize = new Vector2(320f, 0f),
+			CustomMinimumSize = new Vector2(isHeading ? HeadingMinWidth : 320f, 0f),
 			HorizontalAlignment = HorizontalAlignment.Center,
 		};
 		label.AddThemeColorOverride("font_color", ColorForKind(item.Kind));
+		if (isHeading)
+		{
+			label.AddThemeFontSizeOverride("font_size", HeadingFontSize);
+			label.AddThemeConstantOverride("outline_size", 6);
+			label.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.85f));
+		}
 		panel.AddChild(label);
 		_column.AddChild(panel);
 
@@ -166,6 +188,7 @@ public sealed partial class ToastOverlay : Control
 		ToastKind.Success => UIColors.TextSuccess,
 		ToastKind.Warning => UIColors.TextWarning,
 		ToastKind.Error => UIColors.TextCombat,
+		ToastKind.Heading => Colors.White,
 		_ => UIColors.TextNormal,
 	};
 

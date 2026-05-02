@@ -238,11 +238,11 @@ public sealed class AutoTestRuntimeSnapshot
 	[JsonPropertyName("chest_open")]
 	public bool ChestOpen { get; init; }
 
-	[JsonPropertyName("dialog_open")]
-	public bool DialogOpen { get; init; }
+	[JsonPropertyName("conversation_open")]
+	public bool ConversationOpen { get; init; }
 
-	[JsonPropertyName("dialog_option_count")]
-	public int DialogOptionCount { get; init; }
+	[JsonPropertyName("conversation_option_count")]
+	public int ConversationOptionCount { get; init; }
 
 	[JsonPropertyName("trade_open")]
 	public bool TradeOpen { get; init; }

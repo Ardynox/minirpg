@@ -291,6 +291,38 @@ public static class DebugModule
 	/// </summary>
 	public static int GrassVariantOverride { get; set; } = -1;
 
+	// ── 草地渲染模式 / Shader3D 调参（真·3D shader 草，Phase 1） ──
+	// 默认走 Shader3D：MultiMeshInstance2D 程序化 blade（顶点风摆 + 片段草色渐变 + 日夜着色）。
+	// Legacy 走旧 atlas CPU overlay；Off 完全不画。切换仅改 DebugModule 状态，Preview / Renderer 自行分叉。
+
+	/// <summary>
+	/// 草地渲染模式（进程级 flag）。默认 Shader3D；低端机或验证回归可切 Legacy / Off。
+	/// </summary>
+	public static GrassRenderMode GrassRenderMode { get; set; } = GrassRenderMode.Shader3D;
+
+	/// <summary>
+	/// Shader3D 模式下，每个 tile 最多生成的 blade 数。实际数按 cover/255 线性缩放。
+	/// 默认 256；预览场允许 0..1024（批量 Buffer 上传后 CPU 不是瓶颈）；
+	/// 主渲染器自己 clamp 到 128 做性能闸门（见 IsometricVoxelRenderer）。
+	/// </summary>
+	public static int GrassBladesPerTile { get; set; } = 256;
+
+	/// <summary>
+	/// Shader3D 风速（Hz）。0 = 静止，默认 1.8。
+	/// </summary>
+	public static float GrassWindSpeed { get; set; } = 1.8f;
+
+	/// <summary>
+	/// Shader3D 风振幅（屏幕像素）。顶端最大横向偏移量。默认 2.2 px。
+	/// </summary>
+	public static float GrassWindAmplitude { get; set; } = 2.2f;
+
+	/// <summary>
+	/// Shader3D 根部 AO decal 开关：每根 blade 在 base 位置下方画一个椭圆软阴影，
+	/// 让草"坐"在 dirt 上而不是悬浮。默认 true；关掉可用于对比立体感差别。
+	/// </summary>
+	public static bool GrassBladeAo { get; set; } = true;
+
 	public static Result MoveDownFloor(GameState state, IDebugSessionActions session)
 	{
 		if (ActorModule.GetPlayer(state) == null)

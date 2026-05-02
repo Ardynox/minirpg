@@ -163,7 +163,7 @@ public static class JobExecutor
 			return new ActionExecutionResult();
 		}
 
-		ProduceRecipeOutputs(facility, recipe);
+		ProduceRecipeOutputs(facility, recipe, state.Turn);
 		JobScheduler.CompleteTicket(state, ticket.Id);
 		return new ActionExecutionResult { Consumed = true };
 	}
@@ -392,17 +392,18 @@ public static class JobExecutor
 		return true;
 	}
 
-	private static void ProduceRecipeOutputs(FacilityInstance facility, RecipeDef recipe)
+	private static void ProduceRecipeOutputs(FacilityInstance facility, RecipeDef recipe, int currentTurn)
 	{
 		foreach (var output in recipe.Outputs)
 		{
 			for (var i = 0; i < output.Count; i++)
 			{
-				if (!PresetDB.Items.TryGetValue(output.ItemId, out var preset))
+				if (!PresetDB.Items.ContainsKey(output.ItemId))
 					continue;
 
-				var item = ItemSnapshotMapper.CreateItem(ItemSnapshotMapper.BuildSnapshot(
-					new Item { Id = preset.Id, Name = preset.Name }));
+				// 走 PresetDB.CloneItem 拿全部 preset 字段（Tags / Weight / ...）；传 currentTurn
+				// 让烹饪/工艺产出的食物自动登记 SpawnedAtTurn。
+				var item = PresetDB.CloneItem(output.ItemId, currentTurn);
 				facility.OutputBuffer.Add(item);
 			}
 		}

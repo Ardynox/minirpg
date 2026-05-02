@@ -131,7 +131,7 @@ public sealed class DemographicsBabyFoodTests
 		var actor = new Actor { Id = "a" };
 		state.Actors["a"] = actor;
 
-		var result = new TendInfantExecutor().Execute(state, actor, BuildPerception(actor), default);
+		var result = new TendInfantExecutor().Execute(state, actor, BuildPerception(actor), default!);
 		Assert.False(result.Consumed);
 	}
 
@@ -142,7 +142,7 @@ public sealed class DemographicsBabyFoodTests
 		var mom = new Actor { Id = "mom", CarriedInfantId = "ghost_baby" };
 		state.Actors["mom"] = mom;
 
-		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default);
+		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default!);
 		Assert.False(result.Consumed);
 	}
 
@@ -174,7 +174,7 @@ public sealed class DemographicsBabyFoodTests
 		state.Actors["mom"] = mom;
 		state.Actors["baby"] = baby;
 
-		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default);
+		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default!);
 
 		Assert.True(result.Consumed);
 		Assert.Empty(mom.Inventory); // 食物被消耗
@@ -202,7 +202,7 @@ public sealed class DemographicsBabyFoodTests
 		state.Actors["mom"] = mom;
 		state.Actors["baby"] = baby;
 
-		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default);
+		var result = new TendInfantExecutor().Execute(state, mom, BuildPerception(mom), default!);
 
 		Assert.True(result.Consumed);
 		Assert.DoesNotContain(result.Events, e => e.Type == "infant_nursed");

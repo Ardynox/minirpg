@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scene/WaterPainterlyBlockSubview.cs" id="1_script"]
+[ext_resource type="Shader" path="res://Assets/Shaders/painterly_water_block.gdshader" id="2_shader"]
+
+[node name="WaterPainterlyBlockSubview" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("1_script")

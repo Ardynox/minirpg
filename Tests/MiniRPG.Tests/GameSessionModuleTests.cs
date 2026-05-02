@@ -842,7 +842,6 @@ public sealed class GameSessionModuleTests
 			DisplayName = name,
 			RaceId = defaults.RaceId,
 			ProfessionId = defaults.ProfessionId,
-			AppearanceId = defaults.AppearanceId,
 		};
 	}
 
@@ -907,7 +906,6 @@ public sealed class GameSessionModuleTests
 			PlayerY = 1,
 			PlayerZ = 0,
 			PlayerId = "player",
-			PlayerAppearanceId = null,
 			KillCount = 0,
 			GeneratorId = "blank_floor",
 			ViewModeId = "single_layer",
@@ -947,7 +945,7 @@ public sealed class GameSessionModuleTests
 		Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 		File.WriteAllText(path, $$"""
 		{
-		  "version": 5,
+		  "version": 8,
 		  "header": {
 		    "title": "{{characterName}}",
 		    "savedAtUtc": "2026-04-07T10:15:00+00:00",

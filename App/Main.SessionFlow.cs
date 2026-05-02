@@ -20,6 +20,7 @@ public partial class Main
 		_relationships?.Reset();
 		_actorMemories?.Reset();
 		_rumorBus?.Reset();
+		_deathReportRecorder?.Reset();
 		_mapRender?.ResetActorMotionState();
 		_mapRender?.ResetOverlays();
 		if (openSkillBar)
@@ -29,7 +30,7 @@ public partial class Main
 		_skillMgr.Close();
 		_inventoryPanel.Visible = false;
 		if (_chestPanel != null) _chestPanel.Visible = false;
-		if (_dialogPanel != null) _dialogPanel.Close();
+		if (_conversationPanel != null) _conversationPanel.Close();
 		if (_tradePanel != null) _tradePanel.Close();
 		if (_questPanel != null) _questPanel.Close();
 		_debugPanelController.Close();

@@ -1,7 +1,7 @@
 {
   "default": {
-    "kind": "catalog_texture",
-    "value": "stashes_01__stashes_01_17",
+    "kind": "texture",
+    "value": "res://Assets/Art/Placeholders/item_world/category_misc.png",
     "scale": [
       0.55,
       0.55
@@ -9,72 +9,72 @@
   },
   "categories": {
     "ammo": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_0",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_ammo.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "armor": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_16",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_armor.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "clothing": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_1",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_clothing.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "consumable": {
-      "kind": "catalog_texture",
-      "value": "food_02__food_02_101",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_consumable.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "food": {
-      "kind": "catalog_texture",
-      "value": "food_01__food_01_0",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_food.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "material": {
-      "kind": "catalog_texture",
-      "value": "carpentry_01__carpentry_01_10",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_material.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "misc": {
-      "kind": "catalog_texture",
-      "value": "stashes_01__stashes_01_17",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_misc.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "tool": {
-      "kind": "catalog_texture",
-      "value": "constructedobjects_01__constructedobjects_01_0",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_tool.png",
       "scale": [
         0.55,
         0.55
       ]
     },
     "weapon": {
-      "kind": "catalog_texture",
-      "value": "weapons_01__weapons_01_1",
+      "kind": "texture",
+      "value": "res://Assets/Art/Placeholders/item_world/category_weapon.png",
       "scale": [
         0.55,
         0.55
@@ -1136,6 +1136,14 @@
       "scale": [
         0.55,
         0.55
+      ]
+    },
+    "soul_fragment": {
+      "kind": "catalog_texture",
+      "value": "stashes_01__stashes_01_16",
+      "scale": [
+        0.45,
+        0.45
       ]
     }
   }

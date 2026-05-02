@@ -16,6 +16,8 @@ public static class HealthConditionIds
 	public const string OnFire = "on_fire";
 	public const string Scar = "scar";
 	public const string MissingLimb = "missing_limb";
+	/// <summary>食物中毒（吃了 Spoiled 阶段食物后挂上）。systemic 类，按 infection 模板配，自然衰减。</summary>
+	public const string FoodPoisoning = "food_poisoning";
 }
 
 public static class HealthThoughtSources
@@ -95,14 +97,15 @@ public sealed class HealthProfileDef
 	[JsonPropertyName("untendedHealingFactor")]
 	public float UntendedHealingFactor { get; set; } = 0.35f;
 
+	// 以下三项为 PerTurn 速率，按 240 turn/day 校准；旧 120 turn/day 默认值见行尾注释。
 	[JsonPropertyName("bloodRecoveryPerTurn")]
-	public float BloodRecoveryPerTurn { get; set; } = 0.08f;
+	public float BloodRecoveryPerTurn { get; set; } = 0.04f; // 旧 0.08
 
 	[JsonPropertyName("wetnessDryingPerTurn")]
-	public float WetnessDryingPerTurn { get; set; } = 2f;
+	public float WetnessDryingPerTurn { get; set; } = 1f; // 旧 2
 
 	[JsonPropertyName("restDryingBonusPerTurn")]
-	public float RestDryingBonusPerTurn { get; set; } = 6f;
+	public float RestDryingBonusPerTurn { get; set; } = 3f; // 旧 6
 
 	[JsonPropertyName("infectionGrowthFactor")]
 	public float InfectionGrowthFactor { get; set; } = 1f;

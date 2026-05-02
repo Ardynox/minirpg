@@ -1,0 +1,21 @@
+{
+  "id": "merchant_hi",
+  "triggers": { "professionId": "merchant", "priority": 10 },
+  "entryNode": "open",
+  "nodes": [
+    {
+      "id": "open",
+      "speaker": "npc",
+      "lines": ["欢迎！看看货吧，都是好价钱。"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "我看看。",
+          "effects": [{ "type": "affinity", "value": 2 }]
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Godot;
 using MiniRPG.Core.Data;
+using MiniRPG.Core.Needs;
 
 namespace MiniRPG.Module.Panel;
 
@@ -258,7 +259,7 @@ public class StatusPanelModule : IPanel, ITooltipRegistrar
 	{
 		// Buff / 装备 / 标签 三 Tab 走逐项 Control 模式以支持 per-item hover tooltip。
 		// 其他 Tab（含尸体内容）保持原 RichTextLabel 整段渲染。
-		if (_contentMode == StatusContentMode.Actor && IsPerItemTab(_currentTab))
+		if (_contentMode == StatusContentMode.Actor && IsPerItemTab(_currentTab, _contentMode))
 		{
 			_contentText.Visible = false;
 			_perItemContainer.Visible = true;
@@ -289,8 +290,10 @@ public class StatusPanelModule : IPanel, ITooltipRegistrar
 		_contentText.AppendText(sb.ToString());
 	}
 
-	private static bool IsPerItemTab(StatusTab tab) =>
-		tab == StatusTab.Buff || tab == StatusTab.Equip || tab == StatusTab.Tag;
+	private static bool IsPerItemTab(StatusTab tab, StatusContentMode mode) =>
+		mode == StatusContentMode.Actor
+		&& (tab == StatusTab.Buff || tab == StatusTab.Equip || tab == StatusTab.Tag || tab == StatusTab.Needs
+			|| tab == StatusTab.Limb || tab == StatusTab.Capacity);
 
 	private void ClearPerItemRows()
 	{
@@ -315,7 +318,130 @@ public class StatusPanelModule : IPanel, ITooltipRegistrar
 			case StatusTab.Tag:
 				RebuildTagRows(_cachedActor);
 				break;
+			case StatusTab.Needs:
+				RebuildNeedsRows(_cachedActor);
+				break;
+			case StatusTab.Limb:
+				RebuildLimbRows(_cachedActor);
+				break;
+			case StatusTab.Capacity:
+				RebuildCapacityRows(_cachedActor);
+				break;
 		}
+	}
+
+	private void RebuildLimbRows(Actor actor)
+	{
+		if (actor.Limbs.Count == 0)
+		{
+			AddRowIconLabel(null, LocalizationService.T("ui.status.empty.limbs"), tooltipFactory: null);
+			return;
+		}
+
+		foreach (var limb in actor.Limbs)
+		{
+			AddRowIconLabel(
+				PlaceholderUiIconCatalog.ResolveLimbRowIcon(limb),
+				ActorStatusTextBuilder.BuildLimbRowText(limb),
+				tooltipFactory: null);
+		}
+	}
+
+	private void RebuildCapacityRows(Actor actor)
+	{
+		var caps = actor.ComputeCapacities();
+		if (caps.Count == 0)
+		{
+			AddRowIconLabel(null, LocalizationService.T("ui.common.none"), tooltipFactory: null);
+			return;
+		}
+
+		foreach (var (capId, value) in caps)
+		{
+			var tex = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForCapacity(capId));
+			AddRowIconLabel(tex, ActorStatusTextBuilder.BuildCapacityRowText(capId, value), tooltipFactory: null);
+		}
+	}
+
+	private void RebuildNeedsRows(Actor actor)
+	{
+		var hunger = NeedSystem.GetNeedValueSnapshot(actor, NeedIds.Hunger);
+		AddRowIconLabel(
+			PlaceholderUiIconCatalog.ResolveNeedRowIcon(NeedIds.Hunger, hunger),
+			ActorStatusTextBuilder.BuildNeedLine(actor, NeedIds.Hunger),
+			tooltipFactory: null);
+
+		var rest = NeedSystem.GetNeedValueSnapshot(actor, NeedIds.Rest);
+		AddRowIconLabel(
+			PlaceholderUiIconCatalog.ResolveNeedRowIcon(NeedIds.Rest, rest),
+			ActorStatusTextBuilder.BuildNeedLine(actor, NeedIds.Rest),
+			tooltipFactory: null);
+
+		var moodAllowed = NeedCatalog.GetProfileForActor(actor).AllowMood;
+		AddRowIconLabel(
+			PlaceholderUiIconCatalog.ResolveMoodRowIcon(moodAllowed),
+			ActorStatusTextBuilder.BuildMoodLine(actor),
+			tooltipFactory: null);
+
+		var thoughts = NeedSystem.GetTopThoughtsSnapshot(actor, actor.NeedsLastUpdatedTurn, 3);
+		if (thoughts.Count == 0)
+		{
+			AddRowIconLabel(null, LocalizationService.T("ui.needs.thoughts.none"), tooltipFactory: null);
+			return;
+		}
+
+		foreach (var thought in thoughts)
+		{
+			var sign = thought.MoodOffset >= 0 ? "+" : string.Empty;
+			var line =
+				$"{NeedCatalog.GetThoughtDisplayName(thought.Id)} ({sign}{thought.MoodOffset:0.#})";
+			var tex = PlaceholderUiIconCatalog.TryLoadTexture(PlaceholderUiIconCatalog.PathForThought(thought.Id));
+			AddRowIconLabel(tex, line, tooltipFactory: null);
+		}
+	}
+
+	private void AddRowIconLabel(Texture2D? icon, string text, Func<string>? tooltipFactory, bool isHeader = false)
+	{
+		var row = new HBoxContainer
+		{
+			MouseFilter = tooltipFactory != null
+				? Control.MouseFilterEnum.Stop
+				: Control.MouseFilterEnum.Ignore,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+		};
+		row.AddThemeConstantOverride("separation", 6);
+
+		var iconRect = new TextureRect
+		{
+			CustomMinimumSize = new Vector2(22, 22),
+			StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		if (icon != null)
+		{
+			iconRect.Texture = icon;
+			iconRect.Visible = true;
+		}
+		else
+			iconRect.Visible = false;
+
+		row.AddChild(iconRect);
+
+		var label = new Label
+		{
+			Text = text,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+		};
+		if (isHeader)
+			label.AddThemeColorOverride("font_color", UIColors.TextHeader);
+
+		row.AddChild(label);
+		_perItemContainer.AddChild(row);
+
+		if (tooltipFactory != null && _tooltipLayer != null)
+			_tooltipLayer.Attach(row, tooltipFactory);
 	}
 
 	private void RebuildBuffRows(Actor actor)

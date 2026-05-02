@@ -90,7 +90,10 @@ public sealed class HealthSystemTests
 		state.World!.SetTerrain(1, 1, 0, Terrains.Water);
 		var actor = CreateActor("sleeper", "human", faction: Factions.Player);
 		actor.Inventory.Add(PresetDB.CloneItem("bedroll"));
-		NeedSystem.SetNeedValue(actor, NeedIds.Rest, 70f);
+		// 初始 rest 设到 80（紧贴 SatisfiedThreshold=85 之下），保证一次 TryRest 即可跨阈值。
+		// 240 turn/day 历法下 RestGainPerTurn 默认 9（每 turn 模拟 6 分钟睡眠），不再像旧 120 turn/day 历法
+		// 那样一次能恢复 18，所以测试的 "睡完一觉触发完成 thought" 语义需要把起点降到更接近阈值。
+		NeedSystem.SetNeedValue(actor, NeedIds.Rest, 80f);
 		ActorModule.Add(state, actor);
 
 		var result = NeedActionModule.TryRest(state, actor, RestContext.ForPlayerBedroll(NeedActionModule.GetBedrollQuality(actor)));

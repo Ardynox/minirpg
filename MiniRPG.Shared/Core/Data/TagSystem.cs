@@ -114,15 +114,3 @@ public class Experience : ITagSource
 	public Dictionary<string, int> GetTags() => Tags;
 }
 
-// ── JSON 多态支持 ─────────────────────────────────────
-
-/// <summary>
-/// System.Text.Json 需要知道 ITagSource 的具体类型才能正确反序列化。
-/// 用 JsonDerivedType 标注所有已知实现。
-/// </summary>
-[JsonDerivedType(typeof(Limb), "limb")]
-[JsonDerivedType(typeof(Race), "race")]
-[JsonDerivedType(typeof(Profession), "profession")]
-[JsonDerivedType(typeof(Buff), "buff")]
-[JsonDerivedType(typeof(Experience), "experience")]
-public interface ITagSourcePolymorphic : ITagSource;

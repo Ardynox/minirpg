@@ -52,8 +52,9 @@ public sealed class ConceptionCatalogRoot
 	[JsonPropertyName("conception_chance_per_day")]
 	public float ConceptionChancePerDay { get; set; } = 0.04f;
 
+	/// <summary>怀孕周期回合数。240 turn/day × 18 ≈ 4320 turn = 18 游戏内天。（旧 120 turn/day 历法下默认 2160）</summary>
 	[JsonPropertyName("gestation_turns")]
-	public int GestationTurns { get; set; } = 2160;
+	public int GestationTurns { get; set; } = 4320;
 
 	[JsonPropertyName("twin_chance")]
 	public float TwinChance { get; set; } = 0.02f;

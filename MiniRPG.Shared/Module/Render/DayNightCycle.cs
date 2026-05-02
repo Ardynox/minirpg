@@ -6,12 +6,28 @@ namespace MiniRPG.Module.Render;
 /// Converts game turn into lighting parameters for the day/night cycle.
 /// A full day spans <see cref="TurnsPerDay"/> turns, cycling through
 /// Night → Dawn → Day → Dusk → Night phases.
-/// Season is derived from turn (100 turns per season, matching FarmModule).
+/// Season is derived from turn (<see cref="TurnsPerSeason"/> turns per season, matching FarmModule).
+///
+/// 度量衡口径（详见 <c>Docs/开发约定.md</c>「度量衡口径」节）：
+///   1 turn   = 6 游戏内分钟 → 240 turn = 24 小时 = 1 day
+///   1 day    = 240 turn
+///   1 season = 200 turn ≈ 20 游戏内小时（**有意比一天短**：让季节在同一天内也可能过渡，
+///              不强行对齐——见 <see cref="MiniRPG.Core.Calendar.CalendarService"/> 注释）
+/// 任何「每 N turn 发生一次」的速率/时长，都应与该口径一致：
+///   速率（PerTurn）= 期望「每天发生量」 ÷ TurnsPerDay
+///   时长（DurationTurns / CooldownTurns）= 期望「现实分钟」 ÷ 6
 /// </summary>
 public static class DayNightCycle
 {
-	public const int TurnsPerDay = 120;
-	public const int TurnsPerSeason = 100;
+	/// <summary>一个游戏日的回合数。1 turn = 6 游戏内分钟 → 240 turn = 24 h。</summary>
+	public const int TurnsPerDay = 240;
+
+	/// <summary>
+	/// 一个季节的回合数。≈ 20 游戏内小时（200 × 6 min），有意比一天短。
+	/// 历史值 100（在 120 turn/day 历法下）；改成 240 turn/day 后等比例 ×2 → 200，
+	/// 以保持季节切换的「现实分钟感」不变。
+	/// </summary>
+	public const int TurnsPerSeason = 200;
 
 	// Phase boundaries (fraction of day)
 	private const float NightEnd = 0.20f;

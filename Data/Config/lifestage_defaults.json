@@ -1,0 +1,18 @@
+{
+  "races": {
+    "default": {
+      "infant_to_years": 3,
+      "child_to_years": 13,
+      "adolescent_to_years": 18,
+      "adult_to_years": 60,
+      "max_lifespan_years": 90
+    },
+    "human": {
+      "infant_to_years": 3,
+      "child_to_years": 13,
+      "adolescent_to_years": 18,
+      "adult_to_years": 60,
+      "max_lifespan_years": 90
+    }
+  }
+}

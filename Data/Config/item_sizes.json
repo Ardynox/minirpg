@@ -1,0 +1,57 @@
+{
+  "defaults": {
+    "weapon": { "width": 2, "height": 3 },
+    "armor": { "width": 3, "height": 3 },
+    "clothing": { "width": 2, "height": 2 },
+    "consumable": { "width": 1, "height": 1 },
+    "tool": { "width": 1, "height": 2 },
+    "material": { "width": 1, "height": 1 },
+    "food": { "width": 1, "height": 1 },
+    "ammo": { "width": 1, "height": 1 },
+    "misc": { "width": 1, "height": 1 }
+  },
+  "items": [
+    {
+      "id": "leather_backpack",
+      "width": 2,
+      "height": 3,
+      "carryWeightBonus": 20,
+      "providesGrid": { "kind": "backpack", "width": 6, "height": 6 }
+    },
+    {
+      "id": "tactical_vest",
+      "width": 3,
+      "height": 4,
+      "carryWeightBonus": 10,
+      "providesGrid": { "kind": "vest", "width": 4, "height": 3 }
+    },
+    {
+      "id": "utility_belt",
+      "width": 3,
+      "height": 1,
+      "carryWeightBonus": 5,
+      "providesGrid": { "kind": "belt", "width": 6, "height": 1 }
+    },
+    {
+      "id": "longsword",
+      "width": 1,
+      "height": 4,
+      "allowRotation": true
+    },
+    {
+      "id": "shortsword",
+      "width": 1,
+      "height": 3
+    },
+    {
+      "id": "shortbow",
+      "width": 2,
+      "height": 4
+    },
+    {
+      "id": "round_shield",
+      "width": 3,
+      "height": 3
+    }
+  ]
+}

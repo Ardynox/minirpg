@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://m8rtgurwheyd"
+
+[deps]
+
+files=["res://Artifacts/scene_assets_name_desc_size.description.translation", "res://Artifacts/scene_assets_name_desc_size.size.translation"]
+
+source_file="res://Artifacts/scene_assets_name_desc_size.csv"
+dest_files=["res://Artifacts/scene_assets_name_desc_size.description.translation", "res://Artifacts/scene_assets_name_desc_size.size.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

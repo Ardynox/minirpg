@@ -99,6 +99,8 @@ public class FarmModuleTests
 			if (i == 9)
 			{
 				Assert.Contains(events, e => e.Type == "crop_mature");
+				var mature = Assert.Single(events, e => e.Type == "crop_mature");
+				Assert.Equal("wheat", mature.ItemTypeId);
 			}
 		}
 
@@ -233,6 +235,8 @@ public class FarmModuleTests
 
 		var events = FarmModule.TickGrowth(state);
 		Assert.Contains(events, e => e.Type == "crop_withered");
+		var withered = Assert.Single(events, e => e.Type == "crop_withered");
+		Assert.Equal("summer_berry", withered.ItemTypeId);
 
 		var crop = FarmModule.GetCropAt(state, 3, 3, 0)!;
 		Assert.True(crop.Withered);

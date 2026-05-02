@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Config;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Needs;
@@ -55,6 +56,12 @@ public static class ReviveService
 		public const string SpellMisfire = "spell_misfire";
 	}
 
+	/// <summary>
+	/// 当 <see cref="FailureReasons.PermanentlyLost"/> / <see cref="FailureReasons.SpellMisfire"/> 触发时
+	/// 在施法者脚下产出的"残魂"物品 id（见 <c>Data/items.json</c>）。愿景死亡-复活段第 4 条指定。
+	/// </summary>
+	public const string SoulFragmentItemId = "soul_fragment";
+
 	/// <summary>附近"旁观者"半径（同 Z 层切比雪夫距离）。沿用 ActorMemoryModule.CasualtyWitnessRadius 8。</summary>
 	public const int BystanderRadius = 8;
 
@@ -103,8 +110,9 @@ public static class ReviveService
 			return Failure(state, reviver, methodId, FailureReasons.SourceMissing);
 
 		// 1. 永久死亡守门：先于任何资源/掷骰检查。让"第 N 次"按确定 fail。
+		// PermanentlyLost 时掉一块"残魂"物品——愿景第 4 条要求"可能的产出（如'残魂'物品、永久损坏的灵魂石）"。
 		if (RevivalCostModel.IsPermanentlyLost(source.RevivalCount))
-			return Failure(state, reviver, methodId, FailureReasons.PermanentlyLost, sourceActor: source);
+			return Failure(state, reviver, methodId, FailureReasons.PermanentlyLost, sourceActor: source, dropSoulFragment: true);
 
 		// 2. method 配置存在性。
 		var method = RevivalCostModel.GetMethod(methodId);
@@ -123,7 +131,8 @@ public static class ReviveService
 		{
 			// "失败"消耗一半材料（向上取整）——这是仪式感的一部分：失败也付代价。
 			ConsumeMaterials(reviver, costs, scaleFactor: 0.5f);
-			return Failure(state, reviver, methodId, FailureReasons.SpellMisfire, sourceActor: source);
+			// 炸法时也掉一块"残魂"——愿景第 4 条：失败必须给玩家具体产出。
+			return Failure(state, reviver, methodId, FailureReasons.SpellMisfire, sourceActor: source, dropSoulFragment: true);
 		}
 
 		// 5. 成功路径：扣全额材料 → 重置 actor → 挂 thought → 发 event → 计数 +1。
@@ -146,7 +155,7 @@ public static class ReviveService
 			reviver,
 			"revived_ally",
 			moodOffset: 8f,
-			durationTurns: 60,
+			durationTurns: 120, // 240 turn/day 校准；旧 120 turn/day 历法下为 60
 			currentTurn,
 			source: $"revival:{methodId}",
 			events: null,
@@ -180,7 +189,8 @@ public static class ReviveService
 		Actor reviver,
 		string methodId,
 		string reason,
-		Actor? sourceActor = null)
+		Actor? sourceActor = null,
+		bool dropSoulFragment = false)
 	{
 		var failedEvent = new GameEvent("revival_failed")
 		{
@@ -191,12 +201,36 @@ public static class ReviveService
 		if (sourceActor != null)
 			IdentificationModule.PopulateTargetIdentity(failedEvent, state, sourceActor);
 
+		var events = new List<GameEvent> { failedEvent };
+
+		// 愿景死亡-复活段第 4 条："失败时…必须给玩家看到具体失败文本 + 可能的产出
+		// （如'残魂'物品、永久损坏的灵魂石）"。在 PermanentlyLost / SpellMisfire 时
+		// 在施法者脚下物化一块 soul_fragment，让失败不再是沉默的 false。
+		if (dropSoulFragment && state.World != null && PresetDB.Items.ContainsKey(SoulFragmentItemId))
+		{
+			var shard = PresetDB.CloneItem(SoulFragmentItemId, state.Turn);
+			state.World.PlaceItem(reviver.X, reviver.Y, reviver.Z, shard);
+			var shardEvent = new GameEvent("revival_soul_fragment_dropped")
+			{
+				EffectType = methodId,
+				ActionName = reason,
+				ItemName = GameLocalizer.LocalizeItemName(shard.Id, shard.Name),
+				TargetX = reviver.X,
+				TargetY = reviver.Y,
+				TargetZ = reviver.Z,
+			};
+			IdentificationModule.PopulateInitiatorIdentity(shardEvent, state, reviver);
+			if (sourceActor != null)
+				IdentificationModule.PopulateTargetIdentity(shardEvent, state, sourceActor);
+			events.Add(shardEvent);
+		}
+
 		return new ReviveOutcome
 		{
 			Success = false,
 			FailureReason = reason,
 			RevivedActor = sourceActor,
-			Events = [failedEvent],
+			Events = events,
 		};
 	}
 
@@ -347,7 +381,7 @@ public static class ReviveService
 				actor,
 				"revived_ally",
 				moodOffset: 8f,
-				durationTurns: 60,
+				durationTurns: 120, // 240 turn/day 校准；旧 120 turn/day 历法下为 60
 				currentTurn,
 				source: $"revival:{methodId}:bystander",
 				events: null,

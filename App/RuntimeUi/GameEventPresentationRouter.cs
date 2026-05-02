@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MiniRPG.Core.Combat;
+using MiniRPG.Module;
 
 namespace MiniRPG;
 
@@ -16,14 +17,16 @@ internal sealed class GameEventPresentationRouter
 	private readonly Action<GameEvent> _presentActorMotion;
 	private readonly Action<string> _handlePlayerDeath;
 	private readonly Action<Actor, PlayerTargetSource> _setCurrentTarget;
-	private readonly Action _closeDialogPanel;
+	private readonly Action _closeConversationPanel;
 	private readonly Action _closeTradePanel;
 	private readonly Func<TradeUIModule> _ensureTradeUi;
-	private readonly Func<DialogUIModule> _ensureDialogUi;
+	private readonly Action<string> _openConversationForNpc;
+	private readonly Action _refreshConversation;
 	private readonly Action _onPlayerRestCompleted;
 	private readonly Action<string> _showInfoToast;
 	private readonly Action<string> _showWarningToast;
 	private readonly Action _flushMap;
+	private readonly PlayerDeathPresenter? _deathPresenter;
 
 	public GameEventPresentationRouter(
 		GameState state,
@@ -36,14 +39,16 @@ internal sealed class GameEventPresentationRouter
 		Action<GameEvent> presentActorMotion,
 		Action<string> handlePlayerDeath,
 		Action<Actor, PlayerTargetSource> setCurrentTarget,
-		Action closeDialogPanel,
+		Action closeConversationPanel,
 		Action closeTradePanel,
 		Func<TradeUIModule> ensureTradeUi,
-		Func<DialogUIModule> ensureDialogUi,
+		Action<string> openConversationForNpc,
+		Action refreshConversation,
 		Action onPlayerRestCompleted,
 		Action<string> showInfoToast,
 		Action<string> showWarningToast,
-		Action flushMap)
+		Action flushMap,
+		PlayerDeathPresenter? deathPresenter = null)
 	{
 		_state = state;
 		_log = log;
@@ -55,14 +60,16 @@ internal sealed class GameEventPresentationRouter
 		_presentActorMotion = presentActorMotion;
 		_handlePlayerDeath = handlePlayerDeath;
 		_setCurrentTarget = setCurrentTarget;
-		_closeDialogPanel = closeDialogPanel;
+		_closeConversationPanel = closeConversationPanel;
 		_closeTradePanel = closeTradePanel;
 		_ensureTradeUi = ensureTradeUi;
-		_ensureDialogUi = ensureDialogUi;
+		_openConversationForNpc = openConversationForNpc;
+		_refreshConversation = refreshConversation;
 		_onPlayerRestCompleted = onPlayerRestCompleted;
 		_showInfoToast = showInfoToast;
 		_showWarningToast = showWarningToast;
 		_flushMap = flushMap;
+		_deathPresenter = deathPresenter;
 	}
 
 	public void Dispatch(List<GameEvent> events)
@@ -134,23 +141,41 @@ internal sealed class GameEventPresentationRouter
 			case "party_wiped":
 				// 由 ActiveActorDeathHandler 在全队都死后派出；走"回主菜单"终局。
 				// HandlePlayerDeath 自带"还有活人就拒绝进终局"的守卫，这里安全地无条件转发。
+				// 仪式感第 1 条：先发"全队覆灭"大字 heading + 减饱和叠加层；
+				// HandlePlayerDeath 内部会把 PlayerDead=true，详情面板由 Presenter.Present 接力。
+				_deathPresenter?.PresentSequence(DeathSequenceKind.PartyWiped, null, null);
 				_handlePlayerDeath("party_wiped");
 				break;
 			case "party_member_lost":
-				// 队员倒下：弹个 Toast 让玩家立刻看到（日志由 LogModule 同步翻译）。
-				_showWarningToast(LocalizationService.T(
-					string.Equals(e.EffectType, "was_active", StringComparison.Ordinal)
-						? "log.party.member_lost.was_active"
-						: "log.party.member_lost",
-					("member", e.TargetActorName ?? "?")));
+				// 队员倒下：日志由 LogModule 同步翻译。
+				// 仪式感第 1 条：焦点角色倒下要给"X 倒下了"大字 heading + 减饱和；
+				// 紧随其后的 active_actor_switched / party_wiped 再做镜头缓动 / 全队 heading。
+				if (string.Equals(e.EffectType, "was_active", StringComparison.Ordinal))
+				{
+					_deathPresenter?.PresentSequence(
+						DeathSequenceKind.PartyMemberLost,
+						e.TargetActorName,
+						fromCell: null);
+				}
+				else
+				{
+					_showWarningToast(LocalizationService.T(
+						"log.party.member_lost",
+						("member", e.TargetActorName ?? "?")));
+				}
 				break;
 			case "active_actor_switched":
 				// PartyModule.ActiveId 已经被 ActiveActorDeathHandler 改完；
-				// FlushMap 内部的 SyncViewToActiveActor 会把相机和 PlayerX/Y/Z 同步到新焦点，
-				// 这里立刻 flush 一次让相机不要等到下一帧才切。
+				// FlushMap 内部的 SyncViewToActiveActor 会把相机和 PlayerX/Y/Z 同步到新焦点。
+				// 仪式感第 1 条：用倒下的旧焦点位置（PlayerX/Y/Z 此刻还是旧值）触发镜头缓动，
+				// 然后 FlushMap 同步到新焦点；缓动期间 _Process 每帧 FlushMap 让相机平滑插值。
 				_showInfoToast(LocalizationService.T(
 					"log.party.active_switched",
 					("member", e.TargetActorName ?? "?")));
+				_deathPresenter?.PresentSequence(
+					DeathSequenceKind.FocusSwept,
+					actorDisplayName: null,
+					fromCell: (_state.PlayerX, _state.PlayerY, _state.PlayerZ));
 				_flushMap();
 				break;
 			case "actor_revived":
@@ -159,8 +184,48 @@ internal sealed class GameEventPresentationRouter
 					"log.party.revived",
 					("member", e.TargetActorName ?? "?")));
 				break;
+			case "revival_failed":
+				// ReviveService 在材料不足 / 掷骰失败 / 永久死亡等分支统一发此事件（ActionName=reason）。
+				// UI 侧给一条警告 Toast，让玩家立刻知道"仪式失败"；日志复盘由 LogModule 翻译。
+				_showWarningToast(LocalizationService.TOrFallback(
+					"toast.revival_failed",
+					string.Equals(LocalizationService.CurrentLocale, "en", StringComparison.Ordinal)
+						? "Revival failed ({reason})"
+						: "复活失败（{reason}）",
+					("target", e.TargetActorName ?? e.TargetId ?? "?"),
+					("reason", e.ActionName ?? "unknown")));
+				break;
+			case "revival_soul_fragment_dropped":
+				// 愿景"死亡-复活"第 4 条"失败后果可见"：ReviveService 在 PermanentlyLost / SpellMisfire
+				// 时会在施法者脚下物化一块灵魂碎片物品，这里让玩家立刻看到提示；细节由 LogModule 翻译。
+				_ground.Invalidate();
+				_showWarningToast(LocalizationService.TOrFallback(
+					"toast.revival_soul_fragment_dropped",
+					string.Equals(LocalizationService.CurrentLocale, "en", StringComparison.Ordinal)
+						? "A {item} falls to the ground"
+						: "{item}掉落在地上",
+					("item", e.ItemName ?? (string.Equals(LocalizationService.CurrentLocale, "en", StringComparison.Ordinal) ? "soul fragment" : "灵魂碎片"))));
+				break;
 			case "interaction":
 				DispatchInteraction(e);
+				break;
+			case "conversation_opened":
+				if (e.TargetId != null)
+				{
+					_closeTradePanel();
+					_openConversationForNpc(e.TargetId);
+				}
+				break;
+			case "conversation_advanced":
+			case "conversation_chosen":
+			case "conversation_observer_joined":
+			case "conversation_takeover_requested":
+			case "conversation_takeover_approved":
+			case "conversation_takeover_denied":
+				_refreshConversation();
+				break;
+			case "conversation_closed":
+				_closeConversationPanel();
 				break;
 			case "rest_completed" when e.TargetId == _state.PlayerId:
 				_onPlayerRestCompleted();
@@ -177,21 +242,15 @@ internal sealed class GameEventPresentationRouter
 		{
 			case "trade":
 				if (e.TargetId != null && ActorModule.GetById(_state, e.TargetId) != null)
-					_closeDialogPanel();
+					_closeConversationPanel();
 				_ensureTradeUi().OpenTradeMenu(e);
 				break;
 			case "talk":
-				if (e.TargetId != null)
-				{
-					var talkTarget = ActorModule.GetById(_state, e.TargetId);
-					if (talkTarget != null)
-					{
-						_closeTradePanel();
-						_ensureDialogUi().OpenDialog(talkTarget);
-						break;
-					}
-				}
-				_log.Add(LocalizationService.T("dialog.fallback.line", ("target", e.TargetActorName)));
+				// 权威对话由 conversation_opened 事件打开（同时关掉 trade 面板）；
+				// 这里只在权威没真正建立会话时打一行兜底日志，不动任何面板。
+				if (e.TargetId != null
+					&& !_state.ActiveConversations.ContainsKey(e.TargetId))
+					_log.Add(LocalizationService.T("dialog.fallback.line", ("target", e.TargetActorName)));
 				break;
 			case "tame":
 				_log.Add(LocalizationService.T("log.interaction.tame_success", ("target", e.TargetActorName)));

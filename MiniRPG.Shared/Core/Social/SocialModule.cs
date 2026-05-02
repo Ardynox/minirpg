@@ -17,8 +17,8 @@ namespace MiniRPG.Core.Social;
 /// </summary>
 public static class SocialModule
 {
-	/// <summary>社交冷却回合数。</summary>
-	private const int SocialCooldownTurns = 10;
+	/// <summary>社交冷却回合数。20 turn ≈ 2 游戏内小时。（240 turn/day 校准；旧 120 turn/day 历法下为 10）</summary>
+	private const int SocialCooldownTurns = 20;
 
 	/// <summary>好感度上下限。</summary>
 	private const int MinOpinion = -100;

@@ -28,9 +28,9 @@ public class IncidentDef
 	[JsonPropertyName("minTurn")]
 	public int MinTurn { get; set; }
 
-	/// <summary>触发后的冷却回合数。</summary>
+	/// <summary>触发后的冷却回合数。100 turn = 10 游戏内小时。（240 turn/day 校准；旧默认 50）</summary>
 	[JsonPropertyName("cooldownTurns")]
-	public int CooldownTurns { get; set; } = 50;
+	public int CooldownTurns { get; set; } = 100;
 
 	/// <summary>最少需要多少队伍成员才能触发。</summary>
 	[JsonPropertyName("minPartySize")]

@@ -6,6 +6,7 @@ using MiniRPG.Core.Data;
 using MiniRPG.Core.Health;
 using MiniRPG.Core.Needs;
 using MiniRPG.Core.Revival;
+using MiniRPG.Core.World;
 using Xunit;
 
 namespace MiniRPG.Tests;
@@ -117,6 +118,39 @@ public class ReviveServiceTests
 	}
 
 	[Fact]
+	public void TryRevive_Misfire_ConsumesHalfMaterials_AndReturnsFailureEvent()
+	{
+		// 掷骰失败分支：BaseFailureChance=1 让 ComputeFailureChance 强制返回 1（clamped by MaxFailureChance=1）；
+		// NextDouble() 返回值永远 < 1，保证走 "spell_misfire" 路径。
+		var state = CreateState(overrideFailureChance: 1.0f, overrideMaxFailureChance: 1.0f);
+		var reviver = AddReviver(state, "reviver", x: 5, y: 5, withHerbs: 100, withWater: 100);
+		var corpse = SpawnCorpseFor(state, "victim");
+
+		var outcome = ReviveService.TryRevive(state, corpse, reviver, ReviveService.Methods.Magic, currentTurn: 10, rng: new Random(0));
+
+		Assert.False(outcome.Success);
+		Assert.Equal(ReviveService.FailureReasons.SpellMisfire, outcome.FailureReason);
+
+		// 失败路径不改 victim 状态：仍死、RevivalCount 不变。
+		Assert.True(CombatModule.IsDead(state.Actors["victim"]));
+		Assert.Equal(0, state.Actors["victim"].RevivalCount);
+
+		// 仪式感：失败也付代价——材料按 ceil(fullCost * 0.5f) 扣掉，和成功差一半。
+		// magic 默认 herb_root=5 / water=3，misfire 应扣 ceil(2.5)=3 / ceil(1.5)=2。
+		var herbsLeft = reviver.Inventory.Where(i => i.Id == "herb_root").Sum(i => i.SafeStackCount);
+		var waterLeft = reviver.Inventory.Where(i => i.Id == "water").Sum(i => i.SafeStackCount);
+		Assert.Equal(100 - 3, herbsLeft);
+		Assert.Equal(100 - 2, waterLeft);
+
+		// 事件可见：revival_failed + reason=spell_misfire。
+		Assert.Single(outcome.Events);
+		var ev = outcome.Events[0];
+		Assert.Equal("revival_failed", ev.Type);
+		Assert.Equal(ReviveService.Methods.Magic, ev.EffectType);
+		Assert.Equal(ReviveService.FailureReasons.SpellMisfire, ev.ActionName);
+	}
+
+	[Fact]
 	public void TryRevive_PermanentlyLostActor_RejectsWithFailureReason()
 	{
 		var state = CreateState();
@@ -144,7 +178,105 @@ public class ReviveServiceTests
 		Assert.True(CombatModule.IsDead(state.Actors["victim"]));
 	}
 
-	private static GameState CreateState()
+	/// <summary>
+	/// 愿景第 4 条"失败后果可见 + 可能的产出"：PermanentlyLost 时应在 reviver 脚下物化
+	/// 一块 soul_fragment + 发一条 revival_soul_fragment_dropped 事件，失败不再沉默。
+	/// </summary>
+	[Fact]
+	public void TryRevive_PermanentlyLost_WithWorld_DropsSoulFragmentAtReviverFeet()
+	{
+		var state = CreateStateWithWorld();
+		var reviver = AddReviver(state, "reviver", x: 5, y: 5, withHerbs: 1000, withWater: 1000);
+		var corpse = SpawnCorpseFor(state, "victim");
+		state.Actors["victim"].RevivalCount = 6;
+
+		var outcome = ReviveService.TryRevive(state, corpse, reviver, ReviveService.Methods.Magic, currentTurn: 10, rng: new Random(0));
+
+		Assert.False(outcome.Success);
+		Assert.Equal(ReviveService.FailureReasons.PermanentlyLost, outcome.FailureReason);
+		// 两条事件：revival_failed + revival_soul_fragment_dropped。
+		Assert.Equal(2, outcome.Events.Count);
+		Assert.Equal("revival_failed", outcome.Events[0].Type);
+		var drop = outcome.Events[1];
+		Assert.Equal("revival_soul_fragment_dropped", drop.Type);
+		Assert.Equal(ReviveService.FailureReasons.PermanentlyLost, drop.ActionName);
+		Assert.Equal(reviver.X, drop.TargetX);
+		Assert.Equal(reviver.Y, drop.TargetY);
+		Assert.Equal(reviver.Z, drop.TargetZ);
+
+		// 物品真的落到了世界上。
+		var ground = state.World!.GetEntitiesByType(reviver.X, reviver.Y, reviver.Z, CellEntityType.Item);
+		Assert.Contains(ground, entity => WorldMap.ResolveGroundItemTemplateId(entity) == ReviveService.SoulFragmentItemId);
+	}
+
+	/// <summary>
+	/// SpellMisfire 也应掉一块 soul_fragment——愿景要求"失败必须有产出"，
+	/// 让玩家在炸法后除了扣材料外还有一点"带出来的灵魂残片"可回收的手感。
+	/// </summary>
+	[Fact]
+	public void TryRevive_SpellMisfire_WithWorld_DropsSoulFragmentAndConsumesHalfMaterials()
+	{
+		var state = CreateStateWithWorld(overrideFailureChance: 1.0f, overrideMaxFailureChance: 1.0f);
+		var reviver = AddReviver(state, "reviver", x: 5, y: 5, withHerbs: 100, withWater: 100);
+		var corpse = SpawnCorpseFor(state, "victim");
+
+		var outcome = ReviveService.TryRevive(state, corpse, reviver, ReviveService.Methods.Magic, currentTurn: 10, rng: new Random(0));
+
+		Assert.False(outcome.Success);
+		Assert.Equal(ReviveService.FailureReasons.SpellMisfire, outcome.FailureReason);
+		Assert.Equal(2, outcome.Events.Count);
+		Assert.Equal("revival_failed", outcome.Events[0].Type);
+		Assert.Equal("revival_soul_fragment_dropped", outcome.Events[1].Type);
+
+		// 材料按 ceil(fullCost * 0.5) 扣：herb_root 5→扣 3 剩 97；water 3→扣 2 剩 98。
+		Assert.Equal(100 - 3, reviver.Inventory.Where(i => i.Id == "herb_root").Sum(i => i.SafeStackCount));
+		Assert.Equal(100 - 2, reviver.Inventory.Where(i => i.Id == "water").Sum(i => i.SafeStackCount));
+
+		var ground = state.World!.GetEntitiesByType(reviver.X, reviver.Y, reviver.Z, CellEntityType.Item);
+		Assert.Contains(ground, entity => WorldMap.ResolveGroundItemTemplateId(entity) == ReviveService.SoulFragmentItemId);
+	}
+
+	/// <summary>
+	/// InsufficientMaterials / NotACorpse 这类"前置检查"失败不该掉残魂——残魂代表"仪式残响",
+	/// 只有真正开始施法（进入 PermanentlyLost 守门或 misfire 掷骰）才有；不然玩家会 farming。
+	/// </summary>
+	[Fact]
+	public void TryRevive_InsufficientMaterials_DoesNotDropSoulFragment()
+	{
+		var state = CreateStateWithWorld();
+		var reviver = AddReviver(state, "reviver", x: 5, y: 5, withHerbs: 1, withWater: 0);
+		var corpse = SpawnCorpseFor(state, "victim");
+
+		var outcome = ReviveService.TryRevive(state, corpse, reviver, ReviveService.Methods.Magic, currentTurn: 10, rng: new Random(0));
+
+		Assert.False(outcome.Success);
+		Assert.Equal(ReviveService.FailureReasons.InsufficientMaterials, outcome.FailureReason);
+		Assert.Single(outcome.Events);
+		Assert.DoesNotContain(outcome.Events, e => e.Type == "revival_soul_fragment_dropped");
+
+		var ground = state.World!.GetEntitiesByType(reviver.X, reviver.Y, reviver.Z, CellEntityType.Item);
+		Assert.DoesNotContain(ground, entity => WorldMap.ResolveGroundItemTemplateId(entity) == ReviveService.SoulFragmentItemId);
+	}
+
+	private static GameState CreateStateWithWorld(float overrideFailureChance = 0.0f, float overrideMaxFailureChance = 0.5f)
+	{
+		var state = CreateState(overrideFailureChance, overrideMaxFailureChance);
+		state.World = new WorldMap(4242, new TestFlatFloorGenerator());
+		return state;
+	}
+
+	private sealed class TestFlatFloorGenerator : IMapGenerator
+	{
+		public string Id => "flat_floor";
+		public string Name => "Flat Floor";
+
+		public void GenerateChunk(ChunkData chunk, int worldSeed) =>
+			chunk.Fill(TerrainRegistry.GetId(Terrains.Floor));
+
+		public void PopulateChunk(ChunkData chunk, int worldSeed) { }
+	}
+
+	private static GameState CreateState(float overrideFailureChance = 0.0f, float overrideMaxFailureChance = 0.5f)
 	{
 		TestSupport.EnsureGameplayDataLoaded();
 		// 用最小配置覆盖 JSON：magic 只要 herb_root×5 + water×3，其它 method 留 1 件 dummy。
@@ -162,9 +294,9 @@ public class ReviveServiceTests
 						["water"] = 3,
 					},
 					PerAttemptMultiplier = 1.5f,
-					BaseFailureChance = 0.0f,
+					BaseFailureChance = overrideFailureChance,
 					FailureChancePerPriorRevival = 0.0f,
-					MaxFailureChance = 0.5f,
+					MaxFailureChance = overrideMaxFailureChance,
 				},
 			},
 			MoodScar = new RevivalMoodScarConfig

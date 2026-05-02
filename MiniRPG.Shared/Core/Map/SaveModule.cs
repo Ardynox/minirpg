@@ -24,8 +24,11 @@ namespace MiniRPG.Core.Map;
 /// </summary>
 public static class SaveModule
 {
-	public const int MinimumCompatibleVersion = 5;
-	public const int CurrentVersion = 7;
+	// v8: 网格背包重构（Tarkov 风 W×H 占格 + 容器嵌套 + 装备槽分离）。老存档（v5..v7）
+	// 的列表式 inventory 没有 GridInventories 索引，加载后 grid 全空 → UI 解读出错；
+	// 选择 hard break：MinimumCompatibleVersion 拉到 8 直接拒载，让玩家从新开局。
+	public const int MinimumCompatibleVersion = 8;
+	public const int CurrentVersion = 8;
 
 	private static readonly JsonSerializerOptions JsonOpts = new()
 	{
@@ -154,7 +157,7 @@ public static class SaveModule
 			PlayerY = state.PlayerY,
 			PlayerZ = state.PlayerZ,
 			PlayerId = state.PlayerId,
-			PlayerAppearanceId = state.PlayerAppearanceId,
+			PlayerFaceCustomization = state.PlayerFaceCustomization?.Clone(),
 			BumpAttack = false,
 			WatchMode = false,
 			KillCount = state.KillCount,
@@ -207,7 +210,7 @@ public static class SaveModule
 		state.PlayerY = payload.PlayerY;
 		state.PlayerZ = payload.PlayerZ;
 		state.PlayerId = payload.PlayerId;
-		state.PlayerAppearanceId = PlayerAppearanceCatalog.NormalizeId(payload.PlayerAppearanceId);
+		state.PlayerFaceCustomization = payload.PlayerFaceCustomization?.Clone();
 		state.KillCount = payload.KillCount;
 		state.GeneratorId = payload.GeneratorId;
 		state.ViewModeId = payload.ViewModeId;
@@ -803,6 +806,8 @@ public static class SaveModule
 		SearchTurnsRemaining = actor.SearchTurnsRemaining,
 		Gold = actor.Gold,
 		Inventory = MapList(actor.Inventory, BuildItemSnapshot),
+		GridInventories = BuildGridInventorySnapshots(actor),
+		FaceCustomization = actor.FaceCustomization?.Clone(),
 		ShopSlots = MapList(actor.ShopSlots, BuildShopSlotSnapshot),
 		Limbs = MapList(actor.Limbs, BuildLimbSnapshot),
 		Race = actor.Race != null ? BuildRaceSnapshot(actor.Race) : null,
@@ -898,6 +903,8 @@ public static class SaveModule
 			SearchTurnsRemaining = snapshot.SearchTurnsRemaining,
 			Gold = snapshot.Gold,
 			Inventory = MapList(snapshot.Inventory, CreateItem),
+			GridInventories = CreateGridInventoryDictionary(snapshot.GridInventories),
+			FaceCustomization = snapshot.FaceCustomization?.Clone(),
 			ShopSlots = MapList(snapshot.ShopSlots, CreateShopSlot),
 			Limbs = MapList(snapshot.Limbs, CreateLimb),
 			Race = snapshot.Race != null ? CreateRace(snapshot.Race) : null,
@@ -985,6 +992,60 @@ public static class SaveModule
 		Item = CreateItem(snapshot.Item),
 		Stock = snapshot.Stock,
 	};
+
+	private static List<GridInventorySnapshot> BuildGridInventorySnapshots(Actor actor)
+	{
+		// 主动 sync 一次让 placement 与 inventory 一致，避免快照漂移（spawn 后立刻存档时尤其要紧）。
+		InventoryModule.EnsureGridSynchronized(actor);
+		return MapList(
+			actor.GridInventories
+				.OrderBy(static kv => kv.Key, StringComparer.Ordinal)
+				.Select(static kv => kv.Value),
+			static grid => new GridInventorySnapshot
+			{
+				Id = grid.Id,
+				Width = grid.Width,
+				Height = grid.Height,
+				Kind = grid.Kind,
+				Placements = MapList(grid.Placements, static p => new GridPlacementSnapshot
+				{
+					ItemInstanceId = p.ItemInstanceId,
+					X = p.X,
+					Y = p.Y,
+					Width = p.Width,
+					Height = p.Height,
+					Rotated = p.Rotated,
+				}),
+			});
+	}
+
+	private static Dictionary<string, GridInventory> CreateGridInventoryDictionary(List<GridInventorySnapshot>? snapshots)
+	{
+		var result = new Dictionary<string, GridInventory>(StringComparer.Ordinal);
+		if (snapshots == null) return result;
+
+		foreach (var snapshot in snapshots)
+		{
+			if (string.IsNullOrEmpty(snapshot.Id)) continue;
+			result[snapshot.Id] = new GridInventory
+			{
+				Id = snapshot.Id,
+				Width = snapshot.Width,
+				Height = snapshot.Height,
+				Kind = snapshot.Kind,
+				Placements = MapList(snapshot.Placements, static p => new GridPlacement
+				{
+					ItemInstanceId = p.ItemInstanceId,
+					X = p.X,
+					Y = p.Y,
+					Width = p.Width,
+					Height = p.Height,
+					Rotated = p.Rotated,
+				}),
+			};
+		}
+		return result;
+	}
 
 	private static LimbSnapshot BuildLimbSnapshot(Limb limb) => new()
 	{

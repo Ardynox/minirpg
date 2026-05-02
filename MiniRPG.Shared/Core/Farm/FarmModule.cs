@@ -59,6 +59,7 @@ public static class FarmModule
 					TargetY = y,
 					TargetZ = z,
 					ItemName = def.Name,
+					ItemTypeId = cropDefId,
 				},
 			},
 		};
@@ -91,6 +92,7 @@ public static class FarmModule
 					TargetY = crop.Y,
 					TargetZ = crop.Z,
 					ItemName = def.Name,
+					ItemTypeId = crop.CropDefId,
 				});
 				continue;
 			}
@@ -106,6 +108,7 @@ public static class FarmModule
 					TargetY = crop.Y,
 					TargetZ = crop.Z,
 					ItemName = def.Name,
+					ItemTypeId = crop.CropDefId,
 				});
 			}
 		}
@@ -134,26 +137,21 @@ public static class FarmModule
 
 		var result = new FarmActionResult { Success = true };
 
-		// 产出物品
+		// 产出物品。走 PresetDB.CloneItem 而不是裸 new，让 Tags / Weight / Nutrition 等 preset 字段
+		// 一次性带过来；同时传 state.Turn，让食物自动登记 SpawnedAtTurn 用于保质期评估。
 		for (var i = 0; i < yield; i++)
 		{
-			if (!PresetDB.Items.TryGetValue(def.HarvestItemId, out var preset))
+			if (!PresetDB.Items.ContainsKey(def.HarvestItemId))
 				continue;
 
-			var item = new Item
-			{
-				Id = preset.Id,
-				Name = preset.Name,
-				Category = preset.Category,
-			};
+			var item = PresetDB.CloneItem(def.HarvestItemId, state.Turn);
 
 			if (harvester != null)
 			{
-				harvester.Inventory.Add(item);
+				InventoryModule.Add(harvester, item);
 			}
 			else
 			{
-				// 掉落到地面
 				state.World?.PlaceItem(x, y, z, item);
 			}
 		}

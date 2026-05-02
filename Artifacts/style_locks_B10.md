@@ -5,3 +5,5 @@
 **硬门槛**：必须在 B0 锚点与 campfire/chest/firewood 等风格锚完全锁死后再启动（见身份卡 §B10）。
 
 **磁盘**：玩家素体 1、怪物 13、异常 4、设施 10、固件 6、体素 tile 等 **已齐路径**（见 `Data/entity_render.json` / `voxel_tile_mapping.json`）；本节所指「重刷」= **审美换代**，非缺文件。正式开批前把「是否保留原 .import / 尺寸、8 向网格对齐方案」写本节「批复」段。
+
+**换血批跑**：`Tools/banana/b10_generated_driver.py`。默认 34 任务 = 玩家 + 怪 + 异常 + 设施 4 向 + 固件（**不含**体素；体素另加 `--include-voxel-tiles`）。8 向竖表与 `CharacterSpriteUtilities.BuildProjectedDirectionalSheet` 一致：**256×2048**；设施 **256×1024**；固件 **256×256**。体素可选 `--voxel-subset top|all`。

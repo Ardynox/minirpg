@@ -1,0 +1,10 @@
+[
+	{ "id": "clean_shaven",   "displayName": "净面",       "imagePath": null,                                          "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "light_stubble",  "displayName": "浅胡渣",     "imagePath": "res://Assets/Faces/Beard/light_stubble.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "short_trimmed",  "displayName": "短整修",     "imagePath": "res://Assets/Faces/Beard/short_trimmed.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "full_bushy",     "displayName": "浓密大胡",   "imagePath": "res://Assets/Faces/Beard/full_bushy.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "dwarf_braided",  "displayName": "矮人编须",   "imagePath": "res://Assets/Faces/Beard/dwarf_braided.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "goatee",         "displayName": "山羊胡",     "imagePath": "res://Assets/Faces/Beard/goatee.png",         "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "handlebar",      "displayName": "八字翘",     "imagePath": "res://Assets/Faces/Beard/handlebar.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "wizard_pointed", "displayName": "巫师尖",     "imagePath": "res://Assets/Faces/Beard/wizard_pointed.png", "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

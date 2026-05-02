@@ -46,10 +46,13 @@ public partial class Main
 		if (_playerCharacterVisual == null)
 			return;
 
-		var appearance = PlayerAppearanceCatalog.GetOrDefault(_state.PlayerAppearanceId);
-		_playerCharacterVisual.Configure(appearance.SheetDir, appearance.DefaultAnim);
+		// 玩家在地图上的 sprite 现在由 IsometricVoxelRenderer.TryResolveActorSpriteVisual 直接走
+		// MapSpriteRuntimeFactory（按 actor.FaceCustomization 运行时合成 8 方向 sheet），
+		// 不再走 entity_render.json + FantasyCharacterAnimatable.Configure 这条路径。
+		// _playerCharacterVisual 字段现在只剩 ResAccess 里的"动画播放回调"用途（Play/SetFacing）；
+		// sheet 装载本身留空即可——实际渲染从 ResAccess 注册的 animatable 上拿不到 texture，
+		// 只用它接动画事件（攻击 / 受伤等）。
 		_playerCharacterVisual.Visible = false;
-		_playerCharacterVisual.SetMovementDirection(1, 0);
 		ResAccess.RegisterAnimatable(Factions.Player, _playerCharacterVisual);
 		if (!string.IsNullOrWhiteSpace(_state.PlayerId))
 			ResAccess.RegisterAnimatable(_state.PlayerId, _playerCharacterVisual);

@@ -56,9 +56,10 @@ public static class GrassOverlayPass
 
 	/// <summary>
 	/// cover &gt; 0 时叠加层 alpha 的下限，避免极稀疏的草直接淡到看不见。
-	/// 0.55 与 atlas procedural overlay 的 base alpha 对齐，让稀疏草也有可见度但仍能感知到密度差。
+	/// 0.40 与 atlas procedural overlay v2 的 base alpha 对齐（低饱和写实风 v2 调优 2026-04-19），
+	/// 让稀疏草也能读出"绿意"，但仍透出一点底层 dirt 颜色保留"长在土里"的写实感。
 	/// </summary>
-	private const float MinCoverAlpha = 0.55f;
+	private const float MinCoverAlpha = 0.40f;
 
 	// TODO Wave 3.1: DebugModule.ShowGrassCover == true 时叠加密度色阶/数字 debug 可视化；
 	// Wave 2.2 仅做最小接入，不实现 debug 色阶。

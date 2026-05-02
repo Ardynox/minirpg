@@ -7,6 +7,10 @@ namespace MiniRPG.Module;
 public sealed class NeedsHudModule : ITooltipRegistrar
 {
 	private readonly PanelContainer _root;
+	private readonly TextureRect _hungerIcon;
+	private readonly TextureRect _thirstIcon;
+	private readonly TextureRect _restIcon;
+	private readonly TextureRect _moodIcon;
 	private readonly Label _hungerLabel;
 	private readonly Label _thirstLabel;
 	private readonly Label _restLabel;
@@ -75,6 +79,10 @@ public sealed class NeedsHudModule : ITooltipRegistrar
 	{
 		_root = root;
 		var vbox = _root.GetNode<VBoxContainer>("Margin/VBox");
+		_hungerIcon = vbox.GetNode<TextureRect>("HungerRow/Icon");
+		_thirstIcon = vbox.GetNode<TextureRect>("ThirstRow/Icon");
+		_restIcon = vbox.GetNode<TextureRect>("RestRow/Icon");
+		_moodIcon = vbox.GetNode<TextureRect>("MoodRow/Icon");
 		_hungerLabel = vbox.GetNode<Label>("HungerRow/Hunger");
 		_thirstLabel = vbox.GetNode<Label>("ThirstRow/Thirst");
 		_restLabel = vbox.GetNode<Label>("RestRow/Rest");
@@ -150,6 +158,17 @@ public sealed class NeedsHudModule : ITooltipRegistrar
 		};
 		row.AddThemeConstantOverride("separation", 8);
 
+		var icon = new TextureRect
+		{
+			Name = "Icon",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			CustomMinimumSize = new Vector2(24, 24),
+			StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+			Visible = false,
+		};
+		row.AddChild(icon);
+
 		var label = new Label
 		{
 			Name = name,
@@ -193,6 +212,11 @@ public sealed class NeedsHudModule : ITooltipRegistrar
 		ApplyNeedLabel(_restLabel, NeedIds.Rest, rest);
 		ApplyMoodLabel(_moodLabel, mood, NeedCatalog.GetProfileForActor(player).AllowMood);
 
+		ApplyNeedRowIcon(_hungerIcon, NeedIds.Hunger, hunger);
+		ApplyNeedRowIcon(_thirstIcon, NeedIds.Thirst, thirst);
+		ApplyNeedRowIcon(_restIcon, NeedIds.Rest, rest);
+		ApplyMoodRowIcon(_moodIcon, NeedCatalog.GetProfileForActor(player).AllowMood);
+
 		AnimateBar(_hungerBar, hunger, _prevHunger, ResolveNeedColor(NeedIds.Hunger, hunger));
 		AnimateBar(_thirstBar, thirst, _prevThirst, ResolveNeedColor(NeedIds.Thirst, thirst));
 		AnimateBar(_restBar, rest, _prevRest, ResolveNeedColor(NeedIds.Rest, rest));
@@ -235,6 +259,38 @@ public sealed class NeedsHudModule : ITooltipRegistrar
 		var name = NeedCatalog.GetNeedDisplayName(NeedIds.Mood);
 		label.Text = visible ? $"{name}: {moodValue:0}" : $"{name}: --";
 		label.AddThemeColorOverride("font_color", visible ? ResolveMoodColor(moodValue) : UIColors.TextDim);
+	}
+
+	private static void ApplyNeedRowIcon(TextureRect icon, string needId, float value)
+	{
+		var tex = PlaceholderUiIconCatalog.ResolveNeedRowIcon(needId, value);
+		if (tex != null)
+		{
+			icon.Texture = tex;
+			icon.Visible = true;
+			icon.Modulate = Colors.White;
+		}
+		else
+		{
+			icon.Texture = null;
+			icon.Visible = false;
+		}
+	}
+
+	private static void ApplyMoodRowIcon(TextureRect icon, bool moodAllowed)
+	{
+		var tex = PlaceholderUiIconCatalog.ResolveMoodRowIcon(moodAllowed);
+		if (tex != null)
+		{
+			icon.Texture = tex;
+			icon.Visible = true;
+			icon.Modulate = Colors.White;
+		}
+		else
+		{
+			icon.Texture = null;
+			icon.Visible = false;
+		}
 	}
 
 	private static void AnimateBar(ProgressBar bar, float targetValue, float prevValue, Color color)

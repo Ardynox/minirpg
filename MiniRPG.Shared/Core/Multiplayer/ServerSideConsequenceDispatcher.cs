@@ -31,6 +31,7 @@ public sealed class ServerSideConsequenceDispatcher
 		Memories = new ActorMemoryModule();
 		Rumors = new RumorBus();
 		KinshipLoss = new KinshipLossCapturer();
+		BystanderGrief = new BystanderGriefCapturer();
 
 		_router = new GameEventConsequenceRouter(errorSink);
 		_router.Register(Statistics);
@@ -38,6 +39,7 @@ public sealed class ServerSideConsequenceDispatcher
 		_router.Register(Memories);
 		_router.Register(Rumors);
 		_router.Register(KinshipLoss);
+		_router.Register(BystanderGrief);
 	}
 
 	public IncidentStatistics Statistics { get; }
@@ -45,6 +47,8 @@ public sealed class ServerSideConsequenceDispatcher
 	public ActorMemoryModule Memories { get; }
 	public RumorBus Rumors { get; }
 	public KinshipLossCapturer KinshipLoss { get; }
+	/// <summary>愿景仪式感第 3 条：给附近非亲属旁观者挂 witnessed_death / ally_died thought。</summary>
+	public BystanderGriefCapturer BystanderGrief { get; }
 
 	/// <summary>
 	/// Number of registered handlers; useful for tests / debug to confirm the

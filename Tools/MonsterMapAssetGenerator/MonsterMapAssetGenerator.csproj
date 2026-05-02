@@ -9,7 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\CharacterSpriteUtilities.cs" Link="CharacterSpriteUtilities.cs" />
     <Compile Include="..\MonsterMapAssetGenerator.cs" Link="MonsterMapAssetGenerator.cs" />
+    <Compile Include="..\BaseHumanSpriteGenerator.cs" Link="BaseHumanSpriteGenerator.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

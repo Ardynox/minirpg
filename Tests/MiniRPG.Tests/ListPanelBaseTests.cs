@@ -19,7 +19,6 @@ public sealed class ListPanelBaseTests
 	[Theory]
 	[InlineData("ChestPanelModule.cs")]
 	[InlineData("GroundPanelModule.cs")]
-	[InlineData("InventoryPanelModule.cs")]
 	[InlineData("TradePanelModule.cs")]
 	public void RowInputPanels_UseGuiInputHookInsteadOfCreateRowOverride(string fileName)
 	{

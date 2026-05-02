@@ -1,0 +1,10 @@
+[
+	{ "id": "almond",       "displayName": "杏眼",         "imagePath": "res://Assets/Faces/Eyes/almond.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "big_round",    "displayName": "大圆眼",       "imagePath": "res://Assets/Faces/Eyes/big_round.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "narrow_sharp", "displayName": "锐窄眼",       "imagePath": "res://Assets/Faces/Eyes/narrow_sharp.png", "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "droopy",       "displayName": "下垂眼",       "imagePath": "res://Assets/Faces/Eyes/droopy.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "upturned",     "displayName": "上扬猫眼",     "imagePath": "res://Assets/Faces/Eyes/upturned.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "sleepy",       "displayName": "半睁睡眼",     "imagePath": "res://Assets/Faces/Eyes/sleepy.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "scarred",      "displayName": "疤痕眼",       "imagePath": "res://Assets/Faces/Eyes/scarred.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "glowing",      "displayName": "魔法发光眼",   "imagePath": "res://Assets/Faces/Eyes/glowing.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

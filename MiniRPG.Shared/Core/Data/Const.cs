@@ -136,4 +136,9 @@ public static class ItemTags
 	public const string RestQuality = "\u4f11\u606f\u8d28\u91cf";
 	public const string Warmth = "\u4fdd\u6696";
 	public const string LegacyWarmth = "\u6dc7\u6fc7\u6ba9";
+	/// <summary>
+	/// 食物保质期 tag：从 spawn turn 起计算，超过这个回合数进入 Stale，2× 进入 Spoiled，3× 进入 Rotten。
+	/// 不配 / &lt;=0 视为永不过期（罐头 / 干粮 / 蜂蜜等）。
+	/// </summary>
+	public const string FreshnessTurns = "\u4fdd\u8d28\u56de\u5408";
 }

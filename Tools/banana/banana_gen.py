@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import re
@@ -491,29 +492,72 @@ def _run_openai_compat(args, prompt: str, api_key: str, base_url: str | None,
 
 
 def _openai_chat_completion(*, endpoint: str, api_key: str, model: str,
-                            user_text: str, timeout_seconds: int) -> dict:
+                            user_text: str, timeout_seconds: int,
+                            max_retries: int = 3,
+                            retry_backoff_base: float = 3.0) -> dict:
+    """走中转的 /v1/chat/completions；遇到瞬时断流自动重试。
+
+    触发重试的异常：
+      - ``http.client.IncompleteRead``：中转返回 4MB 图时常被上游代理切流
+      - ``urllib.error.URLError``（不含 HTTPError）：连接/超时/DNS 等
+      - ``TimeoutError``：socket 级超时
+    重试策略：指数退避 ``retry_backoff_base^attempt``，最多 ``max_retries`` 次
+    （总共尝试 max_retries+1 次）。``HTTPError`` 是服务端明确拒绝（403/400/...），
+    不重试，直接向上抛。
+    """
     body = {
         "model": model,
         "messages": [{"role": "user", "content": user_text}],
     }
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
-        endpoint,
-        data=data,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "User-Agent": "banana-cli/1.0",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout_seconds) as fh:
-            raw = fh.read()
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {exc.code} {exc.reason}: {body[:400]}") from exc
-    return json.loads(raw.decode("utf-8"))
+    last_err: Exception | None = None
+    for attempt in range(max_retries + 1):
+        req = urllib.request.Request(
+            endpoint,
+            data=data,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": "banana-cli/1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_seconds) as fh:
+                raw = fh.read()
+            return json.loads(raw.decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body_text = exc.read().decode("utf-8", errors="replace")
+            # 5xx（含 Cloudflare 520/521/522/524）= 上游瞬时故障，值得重试；
+            # 4xx 是客户端/模型权限问题，重试也没用，立刻抛。
+            if 500 <= exc.code < 600 and attempt < max_retries:
+                last_err = RuntimeError(f"HTTP {exc.code}: {body_text[:200]}")
+                wait = retry_backoff_base ** attempt
+                print(
+                    f"[banana] 上游 {exc.code} ({exc.reason})；"
+                    f"{wait:.1f}s 后重试 ({attempt + 1}/{max_retries})",
+                    flush=True,
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"HTTP {exc.code} {exc.reason}: {body_text[:400]}") from exc
+        except (http.client.IncompleteRead, urllib.error.URLError,
+                TimeoutError, ConnectionError) as exc:
+            last_err = exc
+            if attempt >= max_retries:
+                break
+            wait = retry_backoff_base ** attempt
+            name = type(exc).__name__
+            detail = str(exc)[:180]
+            print(
+                f"[banana] 瞬时失败 ({name}: {detail})；"
+                f"{wait:.1f}s 后重试 ({attempt + 1}/{max_retries})",
+                flush=True,
+            )
+            time.sleep(wait)
+    raise RuntimeError(
+        f"重试 {max_retries} 次仍失败：{type(last_err).__name__}: {last_err}"
+    ) from last_err
 
 
 def _save_openai_image(resp_json: dict, out_path: Path, total: int, idx: int) -> Path:

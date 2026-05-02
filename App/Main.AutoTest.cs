@@ -78,10 +78,11 @@ public partial class Main : IAutoTestHost
 
 	private AutoTestRuntimeSnapshot CaptureAutoTestSnapshot()
 	{
-		var player = ActorModule.GetPlayer(_state);
-		var groundItemCount = _state.World == null
+		// 抽样焦点角色而非队长——Tab 切换后断言应基于当前实际受玩家控制的那个 actor（H5 修复）。
+		var player = ActiveActorAccess.GetActive(_state);
+		var groundItemCount = _state.World == null || player == null
 			? 0
-			: _state.World.PeekGroundItems(_state.PlayerX, _state.PlayerY, _state.PlayerZ).Count;
+			: _state.World.PeekGroundItems(player.X, player.Y, player.Z).Count;
 		var viewport = IsInsideTree() ? GetViewport() : null;
 		var viewportSize = viewport?.GetVisibleRect().Size ?? Vector2.Zero;
 		var mapViewportSize = _mapRender?.MapViewportSize ?? Vector2I.Zero;
@@ -121,8 +122,8 @@ public partial class Main : IAutoTestHost
 			FocusedPanelId = _panels?.FocusedId,
 			InventoryOpen = InventoryOpen,
 			ChestOpen = ChestOpen,
-			DialogOpen = _dialogUI?.InDialog == true,
-			DialogOptionCount = _dialogPanel?.Visible == true ? _dialogPanel.OptionCount : 0,
+			ConversationOpen = _conversationUI?.InConversation == true,
+			ConversationOptionCount = _conversationPanel?.Visible == true ? _conversationPanel.OptionCount : 0,
 			TradeOpen = _tradeUI?.InTrade == true,
 			TradeCurrentTab = _tradePanel?.Visible == true
 				? _tradePanel.CurrentTab.ToString().ToLowerInvariant()

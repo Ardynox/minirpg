@@ -135,6 +135,22 @@ public sealed class ItemWorldRenderRegistryTests
 			.ToArray();
 
 		Assert.True(unsupported.Length == 0, "Unsupported item world kinds: " + string.Join(", ", unsupported));
+
+		Assert.NotNull(mappingRoot.Categories);
+		var badCategories = mappingRoot.Categories!
+			.Where(static pair => pair.Value.Kind is not ("tile" or "texture" or "catalog_texture"))
+			.Select(static pair => $"{pair.Key}: {pair.Value.Kind}")
+			.ToArray();
+		Assert.True(badCategories.Length == 0, "Unsupported category kinds: " + string.Join(", ", badCategories));
+	}
+
+	[Fact]
+	public void Load_FromProjectData_ReturnsRegistryWithCategories()
+	{
+		var reg = ItemWorldRenderRegistry.Load();
+		Assert.True(reg.TryResolve("nonexistent_item_id_xyz", "food", out var spec));
+		Assert.Equal(ItemWorldRenderKind.Texture, spec.Kind);
+		Assert.Contains("category_food", spec.Value, StringComparison.Ordinal);
 	}
 
 	private static string GetRepoPath(params string[] segments)

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using MiniRPG.Core.Combat;
+using MiniRPG.Core.Data;
 
 namespace MiniRPG.Module.Panel;
 
@@ -242,6 +244,22 @@ public sealed class LimbTargetPanelModule : ListPanelBase, ITooltipRegistrar
 	private void ApplyRowContent(Button row, int index)
 	{
 		var option = _options[index];
+		var limb = _request?.TargetActor?.Limbs.FirstOrDefault(l =>
+			string.Equals(l.Id, option.LimbId, StringComparison.Ordinal));
+		var iconTex = limb != null ? PlaceholderUiIconCatalog.ResolveLimbRowIcon(limb) : null;
+		if (iconTex != null)
+		{
+			row.Icon = iconTex;
+			row.AddThemeConstantOverride("icon_max_width", 22);
+			row.AddThemeConstantOverride("icon_max_height", 22);
+		}
+		else
+		{
+			row.Icon = null;
+			row.RemoveThemeConstantOverride("icon_max_width");
+			row.RemoveThemeConstantOverride("icon_max_height");
+		}
+
 		var vital = option.IsVital
 			? $" {LocalizationService.T("combat.target_limb.vital")}"
 			: string.Empty;

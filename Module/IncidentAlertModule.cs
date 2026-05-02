@@ -67,25 +67,43 @@ public sealed class IncidentAlertModule
 				"incident_wanderer" => $"👤 {evt.TargetActorName} 到访",
 				"incident_trader" => $"🏪 {evt.TargetActorName} 到访",
 				"crop_mature" => $"🌾 {evt.ItemName} 已成熟",
+				"crop_withered" => $"🥀 {evt.ItemName} 已枯萎",
 				"mental_break" => $"💢 {evt.InitiatorActorName} 精神崩溃",
 				_ => null,
 			};
 
 			if (text != null)
-				ShowAlert(text, ResolveCategoryColor(evt.Type));
+				ShowAlert(text, ResolveCategoryColor(evt.Type), TryResolveAlertPlaceholderIcon(evt));
+		}
+	}
+
+	private static Texture2D? TryResolveAlertPlaceholderIcon(GameEvent evt)
+	{
+		switch (evt.Type)
+		{
+			case "incident_alert" or "incident_spawn" or "incident_wanderer" or "incident_trader":
+				if (!string.IsNullOrEmpty(evt.InteractionDefId))
+					return PlaceholderUiIconCatalog.TryLoadTexture(
+						PlaceholderUiIconCatalog.PathForIncident(evt.InteractionDefId));
+				return null;
+			case "crop_mature" or "crop_withered":
+				if (!string.IsNullOrEmpty(evt.ItemTypeId))
+					return PlaceholderUiIconCatalog.TryLoadTexture(
+						PlaceholderUiIconCatalog.PathForCropStage(evt.ItemTypeId, 2));
+				return null;
+			default:
+				return null;
 		}
 	}
 
 	/// <summary>显示一条通知。</summary>
-	public void ShowAlert(string text, Color color)
+	public void ShowAlert(string text, Color color, Texture2D? icon = null)
 	{
 		// 超过上限时移除最旧的
 		while (_active.Count >= MaxAlerts)
-		{
 			RemoveEntry(_active[0]);
-		}
 
-		var entry = new AlertEntry(text, color, DisplayDuration);
+		var entry = new AlertEntry(text, color, icon);
 		_alertList.AddChild(entry.Panel);
 		_active.Add(entry);
 	}
@@ -127,6 +145,7 @@ public sealed class IncidentAlertModule
 		"incident_wanderer" => new Color(0.4f, 0.9f, 0.5f),
 		"incident_trader" => new Color(0.5f, 0.8f, 1f),
 		"crop_mature" => new Color(0.8f, 0.9f, 0.4f),
+		"crop_withered" => new Color(0.75f, 0.55f, 0.35f),
 		"mental_break" => new Color(1f, 0.3f, 0.5f),
 		_ => UIColors.TextNormal,
 	};
@@ -136,12 +155,12 @@ public sealed class IncidentAlertModule
 		public PanelContainer Panel { get; }
 		public float Elapsed { get; set; }
 
-		public AlertEntry(string text, Color color, float _)
+		public AlertEntry(string text, Color color, Texture2D? icon)
 		{
 			Panel = new PanelContainer
 			{
 				MouseFilter = Control.MouseFilterEnum.Ignore,
-				CustomMinimumSize = new Vector2(380, 32),
+				CustomMinimumSize = new Vector2(380, icon != null ? 40 : 32),
 			};
 
 			var style = new StyleBoxFlat
@@ -163,14 +182,35 @@ public sealed class IncidentAlertModule
 			};
 			Panel.AddThemeStyleboxOverride("panel", style);
 
+			var row = new HBoxContainer
+			{
+				MouseFilter = Control.MouseFilterEnum.Ignore,
+				Alignment = BoxContainer.AlignmentMode.Center,
+			};
+			Panel.AddChild(row);
+
+			if (icon != null)
+			{
+				var iconRect = new TextureRect
+				{
+					Texture = icon,
+					CustomMinimumSize = new Vector2(32, 32),
+					StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+					ExpandMode = TextureRect.ExpandModeEnum.FitWidthProportional,
+					MouseFilter = Control.MouseFilterEnum.Ignore,
+				};
+				row.AddChild(iconRect);
+			}
+
 			var label = new Label
 			{
 				Text = text,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				MouseFilter = Control.MouseFilterEnum.Ignore,
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
 			};
 			label.AddThemeColorOverride("font_color", color);
-			Panel.AddChild(label);
+			row.AddChild(label);
 		}
 	}
 }

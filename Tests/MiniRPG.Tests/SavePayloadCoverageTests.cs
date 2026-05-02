@@ -45,7 +45,7 @@ public sealed class SavePayloadCoverageTests
 		Add(nameof(GameState.PlayerY), nameof(SavePayload.PlayerY));
 		Add(nameof(GameState.PlayerZ), nameof(SavePayload.PlayerZ));
 		Add(nameof(GameState.PlayerId), nameof(SavePayload.PlayerId));
-		Add(nameof(GameState.PlayerAppearanceId), nameof(SavePayload.PlayerAppearanceId));
+		Add(nameof(GameState.PlayerFaceCustomization), nameof(SavePayload.PlayerFaceCustomization));
 		Add(nameof(GameState.Actors), nameof(SavePayload.Actors));
 		Add(nameof(GameState.Facilities), nameof(SavePayload.Facilities));
 		Add(nameof(GameState.StockpileZones), nameof(SavePayload.StockpileZones));

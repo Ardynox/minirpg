@@ -4,27 +4,13 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using static CharacterSpriteUtilities;
 
 public static class MonsterMapAssetGenerator
 {
-    private const int CanvasSize = 64;
-    private const int ExportScale = 4;
-    private const int ExportSize = CanvasSize * ExportScale;
+    // 共享的 8 方向投影 / 几何绘制管线见 CharacterSpriteUtilities.cs。
+    // 本文件只保留怪物专属几何（BuildGoblin / BuildOrc / ...）和 voxel tile / ore overlay 等不属于角色路径的代码。
     private const int FrameSize = 128;
-    private const int DirectionCount = 8;
-    private const double TargetAnchorCenterX = 31.5;
-    private const int TargetAnchorBottomY = 63;
-    private static readonly DirectionalTransform[] DirectionalTransforms =
-    [
-        new(0.74f, 1.06f, 0.00f, 1.10f, false),
-        new(0.88f, 1.02f, -0.16f, 1.05f, true),
-        new(1.00f, 1.00f, 0.00f, 1.00f, true),
-        new(0.88f, 0.96f, 0.16f, 0.94f, true),
-        new(0.74f, 0.98f, 0.00f, 0.80f, false),
-        new(0.88f, 0.96f, -0.16f, 0.94f, false),
-        new(1.00f, 1.00f, 0.00f, 1.00f, false),
-        new(0.88f, 1.02f, 0.16f, 1.05f, false),
-    ];
 
     public static void Generate(string rootPath)
     {
@@ -93,90 +79,6 @@ public static class MonsterMapAssetGenerator
                     ImageFormat.Png);
             }
         }
-    }
-
-    private static Bitmap BuildProjectedDirectionalSheet(Bitmap normalizedSource)
-    {
-        var sheet = new Bitmap(ExportSize, ExportSize * DirectionCount, PixelFormat.Format32bppArgb);
-        using var graphics = CreateGraphics(sheet);
-        for (var directionIndex = 0; directionIndex < DirectionalTransforms.Length; directionIndex++)
-        {
-            using var frame = ProjectDirectionalFrame(normalizedSource, DirectionalTransforms[directionIndex]);
-            using var export = Upscale(frame);
-            graphics.DrawImage(export, 0, directionIndex * ExportSize, ExportSize, ExportSize);
-        }
-
-        return sheet;
-    }
-
-    private static Bitmap BuildHumanoidDirectionalSheet(string rootPath, string sheetName, int maxWidth, int maxHeight)
-    {
-        var path = Path.Combine(
-            rootPath,
-            "Assets",
-            "Art",
-            "Tilesets",
-            "FantasyKingdom",
-            "FantasyKingdomTileset_Godot",
-            "Characters",
-            sheetName,
-            "Idle.png");
-
-        using var sourceSheet = new Bitmap(path);
-        var sheet = new Bitmap(ExportSize, ExportSize * DirectionCount, PixelFormat.Format32bppArgb);
-        using var graphics = CreateGraphics(sheet);
-        for (var directionRow = 0; directionRow < DirectionCount; directionRow++)
-        {
-            using var frame = LoadHumanoidFrame(sourceSheet, directionRow, 0);
-            using var cropped = CropToAlpha(frame);
-            using var canvas = NewCanvas();
-            using (var canvasGraphics = CreateGraphics(canvas))
-            {
-                DrawShadow(canvasGraphics, 32, 55, 20, 6, 72);
-
-                var scale = Math.Min((double)maxWidth / cropped.Width, (double)maxHeight / cropped.Height);
-                var width = Math.Max(1, (int)Math.Round(cropped.Width * scale));
-                var height = Math.Max(1, (int)Math.Round(cropped.Height * scale));
-                using var resized = ResizeNearest(cropped, width, height);
-                var x = (CanvasSize - resized.Width) / 2;
-                var y = 56 - resized.Height;
-                canvasGraphics.DrawImage(resized, x, y, resized.Width, resized.Height);
-            }
-
-            using var normalized = NormalizeAnchor(canvas);
-            using var export = Upscale(normalized);
-            graphics.DrawImage(export, 0, directionRow * ExportSize, ExportSize, ExportSize);
-        }
-
-        return sheet;
-    }
-
-    private static Bitmap ProjectDirectionalFrame(Bitmap normalizedSource, DirectionalTransform transform)
-    {
-        var frame = NewCanvas();
-        var signedScaleX = transform.Mirror ? -transform.ScaleX : transform.ScaleX;
-        for (var y = 0; y < CanvasSize; y++)
-        {
-            for (var x = 0; x < CanvasSize; x++)
-            {
-                var relX = x - TargetAnchorCenterX;
-                var relY = y - TargetAnchorBottomY;
-                var sourceRelY = relY / transform.ScaleY;
-                var sourceRelX = (relX - transform.ShearX * sourceRelY) / signedScaleX;
-                var sourceX = (int)Math.Round(TargetAnchorCenterX + sourceRelX);
-                var sourceY = (int)Math.Round(TargetAnchorBottomY + sourceRelY);
-                if (sourceX < 0 || sourceX >= normalizedSource.Width || sourceY < 0 || sourceY >= normalizedSource.Height)
-                    continue;
-
-                var color = normalizedSource.GetPixel(sourceX, sourceY);
-                if (color.A == 0)
-                    continue;
-
-                frame.SetPixel(x, y, ApplyBrightness(color, transform.Brightness));
-            }
-        }
-
-        return frame;
     }
 
     private static Bitmap BuildGoblin()
@@ -756,177 +658,6 @@ public static class MonsterMapAssetGenerator
         graphics.FillEllipse(glowBrush, Box(29, 21, 34, 26));
         return bitmap;
     }
-
-    private static Bitmap LoadHumanoidFrame(string rootPath, string sheetName, int row, int col)
-    {
-        var path = Path.Combine(
-            rootPath,
-            "Assets",
-            "Art",
-            "Tilesets",
-            "FantasyKingdom",
-            "FantasyKingdomTileset_Godot",
-            "Characters",
-            sheetName,
-            "Idle.png");
-
-        using var sheet = new Bitmap(path);
-        using var frame = LoadHumanoidFrame(sheet, row, col);
-        return CropToAlpha(frame);
-    }
-
-    private static Bitmap LoadHumanoidFrame(Bitmap sheet, int row, int col)
-    {
-        var region = new Rectangle(col * FrameSize, row * FrameSize, FrameSize, FrameSize);
-        return sheet.Clone(region, PixelFormat.Format32bppArgb);
-    }
-
-    private static Bitmap CropToAlpha(Bitmap bitmap)
-    {
-        var bounds = AlphaBounds(bitmap);
-        return bitmap.Clone(bounds, PixelFormat.Format32bppArgb);
-    }
-
-    private static Rectangle AlphaBounds(Bitmap bitmap)
-    {
-        var minX = bitmap.Width;
-        var minY = bitmap.Height;
-        var maxX = -1;
-        var maxY = -1;
-
-        for (var y = 0; y < bitmap.Height; y++)
-        {
-            for (var x = 0; x < bitmap.Width; x++)
-            {
-                if (bitmap.GetPixel(x, y).A == 0)
-                {
-                    continue;
-                }
-
-                minX = Math.Min(minX, x);
-                minY = Math.Min(minY, y);
-                maxX = Math.Max(maxX, x);
-                maxY = Math.Max(maxY, y);
-            }
-        }
-
-        if (maxX < minX || maxY < minY)
-        {
-            throw new InvalidOperationException("Encountered an empty humanoid frame.");
-        }
-
-        return Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
-    }
-
-    private static Bitmap Upscale(Bitmap source)
-    {
-        var bitmap = new Bitmap(ExportSize, ExportSize, PixelFormat.Format32bppArgb);
-        using var graphics = CreateGraphics(bitmap);
-        graphics.DrawImage(source, 0, 0, ExportSize, ExportSize);
-        return bitmap;
-    }
-
-    private static Bitmap ResizeNearest(Bitmap source, int width, int height)
-    {
-        var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-        using var graphics = CreateGraphics(bitmap);
-        graphics.DrawImage(source, 0, 0, width, height);
-        return bitmap;
-    }
-
-    private static Bitmap NormalizeAnchor(Bitmap source)
-    {
-        var bounds = AlphaBounds(source);
-        var centerX = (bounds.Left + bounds.Right - 1) / 2.0;
-        var bottomY = bounds.Bottom - 1;
-        var shiftX = (int)Math.Round(TargetAnchorCenterX - centerX);
-        var shiftY = TargetAnchorBottomY - bottomY;
-
-        var bitmap = NewCanvas();
-        using var graphics = CreateGraphics(bitmap);
-        graphics.DrawImage(source, shiftX, shiftY, source.Width, source.Height);
-        return bitmap;
-    }
-
-    private static Bitmap NewCanvas() => new Bitmap(CanvasSize, CanvasSize, PixelFormat.Format32bppArgb);
-
-    private static Graphics CreateGraphics(Image image)
-    {
-        var graphics = Graphics.FromImage(image);
-        graphics.CompositingMode = CompositingMode.SourceOver;
-        graphics.CompositingQuality = CompositingQuality.HighSpeed;
-        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-        graphics.PixelOffsetMode = PixelOffsetMode.Half;
-        graphics.SmoothingMode = SmoothingMode.None;
-        return graphics;
-    }
-
-    private static void DrawShadow(Graphics graphics, int centerX, int centerY, int width, int height, int alpha)
-    {
-        using var brush = new SolidBrush(Color.FromArgb(alpha, 0, 0, 0));
-        graphics.FillEllipse(brush, Box(centerX - width / 2, centerY - height / 2, centerX + width / 2, centerY + height / 2));
-    }
-
-    private static void FillEllipseOutline(Graphics graphics, Rectangle rectangle, Color fill, Color outline)
-    {
-        using var outlineBrush = new SolidBrush(outline);
-        using var fillBrush = new SolidBrush(fill);
-        graphics.FillEllipse(outlineBrush, Expand(rectangle, 1));
-        graphics.FillEllipse(fillBrush, rectangle);
-    }
-
-    private static void FillRectangleOutline(Graphics graphics, Rectangle rectangle, Color fill, Color outline)
-    {
-        using var outlineBrush = new SolidBrush(outline);
-        using var fillBrush = new SolidBrush(fill);
-        graphics.FillRectangle(outlineBrush, Expand(rectangle, 1));
-        graphics.FillRectangle(fillBrush, rectangle);
-    }
-
-    private static void FillPolygonOutline(Graphics graphics, Point[] points, Color fill, Color outline)
-    {
-        using var outlineBrush = new SolidBrush(outline);
-        using var fillBrush = new SolidBrush(fill);
-        graphics.FillPolygon(outlineBrush, Offset(points, -1, -1));
-        graphics.FillPolygon(fillBrush, points);
-    }
-
-    private static void FillPolygon(Graphics graphics, Point[] points, Color fill)
-    {
-        using var brush = new SolidBrush(fill);
-        graphics.FillPolygon(brush, points);
-    }
-
-    private static Rectangle Expand(Rectangle rectangle, int amount) =>
-        Rectangle.FromLTRB(rectangle.Left - amount, rectangle.Top - amount, rectangle.Right + amount, rectangle.Bottom + amount);
-
-    private static Rectangle Box(int left, int top, int right, int bottom) =>
-        Rectangle.FromLTRB(left, top, right, bottom);
-
-    private static Point[] Offset(Point[] points, int dx, int dy)
-    {
-        var shifted = new Point[points.Length];
-        for (var i = 0; i < points.Length; i++)
-        {
-            shifted[i] = new Point(points[i].X + dx, points[i].Y + dy);
-        }
-
-        return shifted;
-    }
-
-    private static Point P(int x, int y) => new Point(x, y);
-
-    private static Color ApplyBrightness(Color color, float brightness)
-    {
-        var r = ClampToByte(color.R * brightness);
-        var g = ClampToByte(color.G * brightness);
-        var b = ClampToByte(color.B * brightness);
-        return Color.FromArgb(color.A, r, g, b);
-    }
-
-    private static int ClampToByte(float value) => Math.Clamp((int)Math.Round(value), 0, 255);
-
-    private static Color Rgba(int r, int g, int b, int a = 255) => Color.FromArgb(a, r, g, b);
 
     public static string GenerateProceduralVoxelTiles(string rootPath)
     {
@@ -1547,10 +1278,6 @@ public static class MonsterMapAssetGenerator
             }
         }
     }
-
-    private readonly record struct HumanoidDirectionalSource(string Key, string SheetName, int MaxWidth, int MaxHeight);
-
-    private readonly record struct DirectionalTransform(float ScaleX, float ScaleY, float ShearX, float Brightness, bool Mirror);
 
     private readonly record struct TileConfig(
         string Name,

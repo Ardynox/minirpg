@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MiniRPG.Core.Combat;
 using MiniRPG.Core.Data;
 using MiniRPG.Core.Facility;
@@ -44,7 +45,6 @@ public sealed class SaveModuleTests
 		Assert.Equal(state.PlayerY, restoredState.PlayerY);
 		Assert.Equal(state.PlayerZ, restoredState.PlayerZ);
 		Assert.Equal(state.PlayerId, restoredState.PlayerId);
-		Assert.Equal(state.PlayerAppearanceId, restoredState.PlayerAppearanceId);
 		Assert.Equal(state.GeneratorId, restoredState.GeneratorId);
 		Assert.Equal(state.ViewModeId, restoredState.ViewModeId);
 		Assert.Equal(state.KillCount, restoredState.KillCount);
@@ -170,9 +170,10 @@ public sealed class SaveModuleTests
 		Assert.True(root.TryGetProperty("saveVersion", out var saveVersionProperty));
 		Assert.Equal(SaveModule.CurrentVersion, saveVersionProperty.GetInt32());
 
-		const string legacyWithoutSaveVersion = """
+		// "saveVersion 字段缺失"路径：用当前 minimum compatible version 喂进去，验证 SaveVersion 会兜底成 Version。
+		var legacyWithoutSaveVersion = """
 		{
-		  "version": 7,
+		  "version": __MIN__,
 		  "header": {
 		    "title": "legacy",
 		    "savedAtUtc": "2026-04-05T12:34:56+00:00",
@@ -199,11 +200,79 @@ public sealed class SaveModuleTests
 		    }
 		  }
 		}
-		""";
+		""".Replace("__MIN__", SaveModule.MinimumCompatibleVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
 		var legacyParsed = SaveModule.DeserializeSaveFile(legacyWithoutSaveVersion);
 		Assert.NotNull(legacyParsed);
 		Assert.Equal(legacyParsed!.Version, legacyParsed.SaveVersion);
+	}
+
+	[Theory]
+	[InlineData(7)]
+	[InlineData(6)]
+	[InlineData(5)]
+	public void DeserializeSaveFile_LegacyPreGridInventoryVersion_IsRejected(int legacyVersion)
+	{
+		var legacyJson = $$"""
+		{
+		  "version": {{legacyVersion}},
+		  "saveVersion": {{legacyVersion}},
+		  "header": {
+		    "title": "legacy",
+		    "savedAtUtc": "2026-04-05T12:34:56+00:00",
+		    "turn": 12,
+		    "playerZ": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer"
+		  },
+		  "payload": {
+		    "worldSeed": 1,
+		    "turn": 12,
+		    "playerX": 1,
+		    "playerY": 1,
+		    "playerZ": 0,
+		    "playerId": "player",
+		    "killCount": 0,
+		    "generatorId": "room_corridor",
+		    "viewModeId": "single_layer",
+		    "actors": [],
+		    "quests": [],
+		    "dirtyChunks": [],
+		    "timeline": { "actors": [] }
+		  }
+		}
+		""";
+
+		var parsed = SaveModule.DeserializeSaveFile(legacyJson);
+		Assert.Null(parsed);
+	}
+
+	[Fact]
+	public void BuildSnapshot_And_ApplySnapshot_RoundTripsGridInventoryPlacements()
+	{
+		ResetSaveCache();
+		var state = CreateSampleState();
+		var sourceActor = state.Actors.Values.First();
+
+		// EnsureGridSynchronized 把 inventory 里的物品挂到默认 pocket / 装备容器子网格，
+		// BuildGridInventorySnapshot 会保留这些 placement，ApplySnapshot 应能完整恢复。
+		InventoryModule.EnsureGridSynchronized(sourceActor);
+		var sourceGrids = sourceActor.GridInventories.ToDictionary(
+			kv => kv.Key,
+			kv => kv.Value.Placements.Count,
+			StringComparer.Ordinal);
+
+		var saveFile = SaveModule.BuildSnapshot(state);
+		var restoredState = new GameState();
+		SaveModule.ApplySnapshot(restoredState, saveFile);
+
+		var restoredActor = Assert.Single(restoredState.Actors.Values);
+		Assert.NotNull(restoredActor.GridInventories);
+		foreach (var (gridId, expectedCount) in sourceGrids)
+		{
+			Assert.True(restoredActor.GridInventories.ContainsKey(gridId), $"Missing grid {gridId} after roundtrip");
+			Assert.Equal(expectedCount, restoredActor.GridInventories[gridId].Placements.Count);
+		}
 	}
 
 	[Fact]
@@ -1256,7 +1325,6 @@ public sealed class SaveModuleTests
 			PlayerY = actor.Y,
 			PlayerZ = actor.Z,
 			PlayerId = actor.Id,
-			PlayerAppearanceId = "enemy2",
 			KillCount = 7,
 			GeneratorId = "room_corridor",
 			ViewModeId = "multi_layer",
@@ -1370,7 +1438,6 @@ public sealed class SaveModuleTests
 				PlayerY = 0,
 				PlayerZ = 0,
 				PlayerId = "player",
-				PlayerAppearanceId = null,
 				KillCount = 0,
 				GeneratorId = "room_corridor",
 				ViewModeId = "single_layer",
@@ -1383,82 +1450,6 @@ public sealed class SaveModuleTests
 				},
 			},
 		});
-	}
-
-	[Fact]
-	public void ApplySnapshot_FallsBackToDefaultAppearance_WhenMissingOrInvalid()
-	{
-		var missingState = new GameState();
-		SaveModule.ApplySnapshot(missingState, new SaveFile
-		{
-			Version = SaveModule.CurrentVersion,
-			Header = new SaveHeader
-			{
-				Title = "missing",
-				SavedAtUtc = DateTimeOffset.UtcNow,
-				Turn = 0,
-				PlayerZ = 0,
-				GeneratorId = "room_corridor",
-				ViewModeId = "single_layer",
-			},
-			Payload = new SavePayload
-			{
-				WorldSeed = 0,
-				Turn = 0,
-				PlayerX = 0,
-				PlayerY = 0,
-				PlayerZ = 0,
-				PlayerId = "player",
-				PlayerAppearanceId = null,
-				KillCount = 0,
-				GeneratorId = "room_corridor",
-				ViewModeId = "single_layer",
-				Actors = [],
-				Quests = [],
-				DirtyChunks = [],
-				Timeline = new TimelineSnapshot
-				{
-					Actors = [],
-				},
-			},
-		});
-		Assert.Equal(GameState.DefaultPlayerAppearanceId, missingState.PlayerAppearanceId);
-
-		var invalidState = new GameState();
-		SaveModule.ApplySnapshot(invalidState, new SaveFile
-		{
-			Version = SaveModule.CurrentVersion,
-			Header = new SaveHeader
-			{
-				Title = "invalid",
-				SavedAtUtc = DateTimeOffset.UtcNow,
-				Turn = 0,
-				PlayerZ = 0,
-				GeneratorId = "room_corridor",
-				ViewModeId = "single_layer",
-			},
-			Payload = new SavePayload
-			{
-				WorldSeed = 0,
-				Turn = 0,
-				PlayerX = 0,
-				PlayerY = 0,
-				PlayerZ = 0,
-				PlayerId = "player",
-				PlayerAppearanceId = "missing_appearance",
-				KillCount = 0,
-				GeneratorId = "room_corridor",
-				ViewModeId = "single_layer",
-				Actors = [],
-				Quests = [],
-				DirtyChunks = [],
-				Timeline = new TimelineSnapshot
-				{
-					Actors = [],
-				},
-			},
-		});
-		Assert.Equal(GameState.DefaultPlayerAppearanceId, invalidState.PlayerAppearanceId);
 	}
 
 	private static string CreateTempJsonPath() =>

@@ -94,8 +94,11 @@ public sealed class SavePayload
 	[JsonPropertyName("playerId")]
 	public required string PlayerId { get; set; }
 
-	[JsonPropertyName("playerAppearanceId")]
-	public string? PlayerAppearanceId { get; set; }
+	/// <summary>
+	/// 玩家捏脸数据。可空：未捏脸或老存档兼容时为 null，运行时按 default 渲染。
+	/// </summary>
+	[JsonPropertyName("playerFaceCustomization")]
+	public FaceCustomizationData? PlayerFaceCustomization { get; set; }
 
 	[JsonPropertyName("bumpAttack")]
 	public bool BumpAttack { get; set; }
@@ -520,6 +523,16 @@ public sealed class ActorSnapshot
 	[JsonPropertyName("inventory")]
 	public required List<ItemSnapshot> Inventory { get; set; }
 
+	[JsonPropertyName("gridInventories")]
+	public List<GridInventorySnapshot>? GridInventories { get; set; }
+
+	/// <summary>
+	/// 捏脸数据。可空：老存档 / 没有外观信息的 actor 在 SaveModule 反序列化时
+	/// 由 PlayerAppearanceId 等老字段派生回填（兼容路径见 SaveModule.CreateActor）。
+	/// </summary>
+	[JsonPropertyName("faceCustomization")]
+	public FaceCustomizationData? FaceCustomization { get; set; }
+
 	[JsonPropertyName("shopSlots")]
 	public required List<ShopSlotSnapshot> ShopSlots { get; set; }
 
@@ -838,6 +851,45 @@ public sealed class ShopSlotSnapshot
 
 	[JsonPropertyName("stock")]
 	public required int Stock { get; set; }
+}
+
+public sealed class GridInventorySnapshot
+{
+	[JsonPropertyName("id")]
+	public required string Id { get; set; }
+
+	[JsonPropertyName("width")]
+	public required int Width { get; set; }
+
+	[JsonPropertyName("height")]
+	public required int Height { get; set; }
+
+	[JsonPropertyName("kind")]
+	public required GridContainerKind Kind { get; set; }
+
+	[JsonPropertyName("placements")]
+	public required List<GridPlacementSnapshot> Placements { get; set; }
+}
+
+public sealed class GridPlacementSnapshot
+{
+	[JsonPropertyName("itemInstanceId")]
+	public required string ItemInstanceId { get; set; }
+
+	[JsonPropertyName("x")]
+	public required int X { get; set; }
+
+	[JsonPropertyName("y")]
+	public required int Y { get; set; }
+
+	[JsonPropertyName("width")]
+	public required int Width { get; set; }
+
+	[JsonPropertyName("height")]
+	public required int Height { get; set; }
+
+	[JsonPropertyName("rotated")]
+	public required bool Rotated { get; set; }
 }
 
 public sealed class LimbSnapshot

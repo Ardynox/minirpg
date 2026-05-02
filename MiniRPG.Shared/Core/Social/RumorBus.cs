@@ -117,8 +117,8 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 		_active.Clear();
 	}
 
-	/// <summary>Fraction of credibility lost per turn.</summary>
-	public const float DefaultDecayPerTurn = 0.04f;
+	/// <summary>Fraction of credibility lost per turn.（按 240 turn/day 校准；旧 120 turn/day 历法下为 0.04）</summary>
+	public const float DefaultDecayPerTurn = 0.02f;
 
 	/// <summary>Rumors whose credibility falls below this are dropped.</summary>
 	public const float DropThreshold = 0.05f;
@@ -156,6 +156,17 @@ public sealed class RumorBus : IGameEventConsequenceHandler
 				break;
 			case "actor_killed":
 				HandleActorKilled(ev);
+				break;
+			case "conversation_rumor":
+				if (string.IsNullOrWhiteSpace(ev.InitiatorId)
+					|| !Enum.TryParse<RumorKind>(ev.SkillId, true, out var rk))
+					break;
+				Emit(
+					subjectId: ev.InitiatorId!,
+					kind: rk,
+					sourceX: ev.TargetX,
+					sourceY: ev.TargetY,
+					sourceZ: ev.TargetZ);
 				break;
 		}
 	}

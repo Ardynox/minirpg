@@ -287,7 +287,7 @@ public sealed class FireConfig
 	public int MaxIntensity { get; set; } = 10;
 
 	[JsonPropertyName("fuel_decay_per_turn")]
-	public int FuelDecayPerTurn { get; set; } = 2;
+	public int FuelDecayPerTurn { get; set; } = 1; // 240 turn/day 校准；旧 120 turn/day 历法下默认 2
 
 	[JsonPropertyName("rain_decay_bonus")]
 	public int RainDecayBonus { get; set; } = 2;

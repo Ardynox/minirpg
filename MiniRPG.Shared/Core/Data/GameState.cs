@@ -21,7 +21,6 @@ namespace MiniRPG.Core.Data;
 public class GameState
 {
 	public const string DefaultPlayerId = "player";
-	public const string DefaultPlayerAppearanceId = "player1";
 	private int _worldSeed = 42;
 	private WorldMap? _world;
 
@@ -97,7 +96,13 @@ public class GameState
 	// ── 生物 ──
 	public Dictionary<string, Actor> Actors { get; set; } = new(StringComparer.Ordinal);
 	public string PlayerId { get; set; } = DefaultPlayerId;
-	public string PlayerAppearanceId { get; set; } = DefaultPlayerAppearanceId;
+
+	/// <summary>
+	/// 玩家捏脸数据。可空：未捏脸时按 <see cref="FaceCustomizationData.CreateDefault"/> 渲染。
+	/// 写入路径：① 新开局时由 <c>PlayerCreationOptions.ResolveFaceCustomization()</c> 设置；
+	/// ② 读档时由 SaveModule 反序列化。
+	/// </summary>
+	public FaceCustomizationData? PlayerFaceCustomization { get; set; }
 	public Dictionary<string, FacilityInstance> Facilities { get; set; } = new(StringComparer.Ordinal);
 	public List<StockpileZone> StockpileZones { get; set; } = [];
 	public Dictionary<string, EconomicDomain> EconomicDomains { get; set; } = new(StringComparer.Ordinal);
@@ -154,6 +159,13 @@ public class GameState
 		EnsureDefaultEconomicDomains();
 	}
 
+	/// <summary>
+	/// 解析出非空玩家捏脸数据：优先 <see cref="PlayerFaceCustomization"/>，
+	/// 缺失时返回新 default。
+	/// </summary>
+	public FaceCustomizationData ResolvePlayerFaceCustomization() =>
+		PlayerFaceCustomization ?? FaceCustomizationData.CreateDefault();
+
 	public void Reset()
 	{
 		Turn = 0;
@@ -162,7 +174,7 @@ public class GameState
 		PlayerY = 0;
 		PlayerZ = 0;
 		PlayerId = DefaultPlayerId;
-		PlayerAppearanceId = DefaultPlayerAppearanceId;
+		PlayerFaceCustomization = null;
 		// 用全新的 ordinal 字典实例兜底：哪怕外部把 Actors 替换为非 ordinal dict
 		// （历史上发生过），下一个会话也保证 actor id 用 ordinal 比较。
 		Actors = new Dictionary<string, Actor>(StringComparer.Ordinal);

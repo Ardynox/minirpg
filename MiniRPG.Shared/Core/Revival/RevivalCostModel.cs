@@ -229,9 +229,10 @@ public sealed class RevivalCostsConfig
 			BaseOffset = -4f,
 			PerAttemptOffset = -4f,
 			MaxOffset = -20f,
-			BaseDurationTurns = 360,
-			PerAttemptDurationTurns = 360,
-			MaxDurationTurns = 1800,
+			// 240 turn/day 校准；旧 120 turn/day 历法下分别是 360 / 360 / 1800。
+			BaseDurationTurns = 720,
+			PerAttemptDurationTurns = 720,
+			MaxDurationTurns = 3600,
 		},
 		CapacityPenalty = new RevivalCapacityPenaltyConfig
 		{
@@ -244,8 +245,9 @@ public sealed class RevivalCostsConfig
 
 public sealed class RevivalMethodConfig
 {
+	/// <summary>施法/克隆通道时长。12 turn ≈ 72 游戏内分钟。（240 turn/day 校准；旧默认 6）</summary>
 	[JsonPropertyName("channelTurns")]
-	public int ChannelTurns { get; set; } = 6;
+	public int ChannelTurns { get; set; } = 12;
 
 	[JsonPropertyName("baseMaterials")]
 	public Dictionary<string, int> BaseMaterials { get; set; } = new(StringComparer.Ordinal);
@@ -283,14 +285,15 @@ public sealed class RevivalMoodScarConfig
 	[JsonPropertyName("maxOffset")]
 	public float MaxOffset { get; set; } = -20f;
 
+	// 以下三项为时长（DurationTurns），按 240 turn/day 校准；旧 120 turn/day 默认值见行尾注释。
 	[JsonPropertyName("baseDurationTurns")]
-	public int BaseDurationTurns { get; set; } = 360;
+	public int BaseDurationTurns { get; set; } = 720; // 旧 360
 
 	[JsonPropertyName("perAttemptDurationTurns")]
-	public int PerAttemptDurationTurns { get; set; } = 360;
+	public int PerAttemptDurationTurns { get; set; } = 720; // 旧 360
 
 	[JsonPropertyName("maxDurationTurns")]
-	public int MaxDurationTurns { get; set; } = 1800;
+	public int MaxDurationTurns { get; set; } = 3600; // 旧 1800
 }
 
 public sealed class RevivalCapacityPenaltyConfig

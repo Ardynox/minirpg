@@ -47,6 +47,12 @@ public static class ProtocolErrorCodeExtensions
 		ErrorCode.UseSkillRejected => "use_skill_rejected",
 		ErrorCode.PvpDisabled => "pvp_disabled",
 		ErrorCode.FriendlyFireDisabled => "friendly_fire_disabled",
+		ErrorCode.GiftRejected => "gift_rejected",
+		ErrorCode.GridNotFound => "grid_not_found",
+		ErrorCode.GridFull => "grid_full",
+		ErrorCode.GridOverlapsExisting => "grid_overlaps_existing",
+		ErrorCode.GridOutOfBounds => "grid_out_of_bounds",
+		ErrorCode.GridRotationDisallowed => "grid_rotation_disallowed",
 		_ => "unknown_error",
 	};
 
@@ -98,6 +104,12 @@ public static class ProtocolErrorCodeExtensions
 			"use_skill_rejected" => ErrorCode.UseSkillRejected,
 			"pvp_disabled" => ErrorCode.PvpDisabled,
 			"friendly_fire_disabled" => ErrorCode.FriendlyFireDisabled,
+			"gift_rejected" => ErrorCode.GiftRejected,
+			"grid_not_found" => ErrorCode.GridNotFound,
+			"grid_full" => ErrorCode.GridFull,
+			"grid_overlaps_existing" => ErrorCode.GridOverlapsExisting,
+			"grid_out_of_bounds" => ErrorCode.GridOutOfBounds,
+			"grid_rotation_disallowed" => ErrorCode.GridRotationDisallowed,
 			_ => ErrorCode.None,
 		};
 	}

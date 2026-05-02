@@ -2448,5 +2448,21 @@
     "sharpDamage": 0,
     "bluntDamage": 0,
     "grantedSkills": []
+  },
+  {
+    "id": "soul_fragment",
+    "name": "灵魂碎片",
+    "price": 0,
+    "tags": { "灵魂": 1, "珍稀": 1 },
+    "category": "misc",
+    "weight": 0.1,
+    "bodyPart": "",
+    "layer": "Skin",
+    "coveredParts": [],
+    "sharpArmor": 0,
+    "bluntArmor": 0,
+    "sharpDamage": 0,
+    "bluntDamage": 0,
+    "grantedSkills": []
   }
 ]

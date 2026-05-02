@@ -1,0 +1,21 @@
+{
+  "id": "generic_traveler",
+  "triggers": { "priority": 1 },
+  "entryNode": "road",
+  "nodes": [
+    {
+      "id": "road",
+      "speaker": "npc",
+      "lines": ["同路啊，前面驿站能补水。"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "谢谢。",
+          "effects": [{ "type": "rumor", "rumorKind": "CasualtyReported", "key": "road_tip" }]
+        }
+      ]
+    }
+  ]
+}

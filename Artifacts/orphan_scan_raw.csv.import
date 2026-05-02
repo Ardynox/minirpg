@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bp6pljoibsty8"
+
+[deps]
+
+files=["res://Artifacts/orphan_scan_raw.Kind.translation", "res://Artifacts/orphan_scan_raw.Refs.translation", "res://Artifacts/orphan_scan_raw.DefFiles.translation", "res://Artifacts/orphan_scan_raw.FirstFile.translation", "res://Artifacts/orphan_scan_raw.FirstLine.translation", "res://Artifacts/orphan_scan_raw.AnyPartial.translation"]
+
+source_file="res://Artifacts/orphan_scan_raw.csv"
+dest_files=["res://Artifacts/orphan_scan_raw.Kind.translation", "res://Artifacts/orphan_scan_raw.Refs.translation", "res://Artifacts/orphan_scan_raw.DefFiles.translation", "res://Artifacts/orphan_scan_raw.FirstFile.translation", "res://Artifacts/orphan_scan_raw.FirstLine.translation", "res://Artifacts/orphan_scan_raw.AnyPartial.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

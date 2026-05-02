@@ -18,6 +18,13 @@ internal sealed class RuntimeCameraController
 	private int _panCameraY;
 	private int _panCameraZ;
 
+	// 死亡 / 焦点切换演出用的"镜头缓动"覆盖：在 FollowActor 模式下，BuildSnapshot 会把
+	// 摄像头中心在 from→当前 active actor 之间按 ease-out cubic 插值。仅 0.4~1.5s 短期使用，
+	// 由 Main._Process 调 Tick(delta) 推进，结束自动复位。不影响 LayerPan 路径。
+	private (int X, int Y, int Z)? _cinematicFromCell;
+	private double _cinematicElapsedSec;
+	private double _cinematicDurationSec;
+
 	public RuntimeCameraController(GameState state)
 	{
 		_state = state;
@@ -28,11 +35,27 @@ internal sealed class RuntimeCameraController
 
 	public bool IsPanDragActive => _panDragActive;
 
+	public bool IsCinematicSweepActive => _cinematicFromCell != null;
+
 	public RuntimeCameraSnapshot BuildSnapshot()
 	{
 		if (Mode == RuntimeCameraMode.FollowActor)
 		{
 			var (x, y, z) = ResolveActiveActorPosition();
+			if (_cinematicFromCell is { } from && _cinematicDurationSec > 0)
+			{
+				var raw = (float)Math.Clamp(_cinematicElapsedSec / _cinematicDurationSec, 0.0, 1.0);
+				var eased = 1f - Mathf.Pow(1f - raw, 3f);
+				var lerpX = Mathf.Lerp((float)from.X, (float)x, eased);
+				var lerpY = Mathf.Lerp((float)from.Y, (float)y, eased);
+				var lerpZ = Mathf.Lerp((float)from.Z, (float)z, eased);
+				return RuntimeCameraSnapshot.Create(
+					RuntimeCameraMode.FollowActor,
+					Mathf.RoundToInt(lerpX),
+					Mathf.RoundToInt(lerpY),
+					Mathf.RoundToInt(lerpZ),
+					IsoCoordUtil.WorldToScreen(lerpX, lerpY, lerpZ));
+			}
 			return RuntimeCameraSnapshot.Create(RuntimeCameraMode.FollowActor, x, y, z);
 		}
 
@@ -45,10 +68,37 @@ internal sealed class RuntimeCameraController
 			IsoCoordUtil.WorldToScreen(_panCameraFloatX, _panCameraFloatY, _panCameraZ));
 	}
 
+	/// <summary>
+	/// 给"焦点切换 / 死亡"演出用：把摄像头从 (fromX,fromY,fromZ) 在 durationSec 秒内
+	/// ease-out 缓动回到当前 active actor 位置。重复调用会重置为新一段缓动。
+	/// </summary>
+	public void BeginCinematicSweep(int fromX, int fromY, int fromZ, double durationSec)
+	{
+		_cinematicFromCell = (fromX, fromY, fromZ);
+		_cinematicElapsedSec = 0;
+		_cinematicDurationSec = Math.Max(0.05, durationSec);
+	}
+
+	public void TickCinematicSweep(double delta)
+	{
+		if (_cinematicFromCell == null) return;
+		_cinematicElapsedSec += delta;
+		if (_cinematicElapsedSec >= _cinematicDurationSec)
+			CancelCinematicSweep();
+	}
+
+	public void CancelCinematicSweep()
+	{
+		_cinematicFromCell = null;
+		_cinematicElapsedSec = 0;
+		_cinematicDurationSec = 0;
+	}
+
 	public void ResetForSession()
 	{
 		Mode = RuntimeCameraMode.FollowActor;
 		_panDragActive = false;
+		CancelCinematicSweep();
 		CenterOnActiveActor();
 	}
 

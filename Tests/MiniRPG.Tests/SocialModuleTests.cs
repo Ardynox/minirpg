@@ -122,13 +122,13 @@ public class SocialModuleTests
 		state.Turn = 10;
 		SocialModule.TryInteract(state, "player", "npc1");
 
-		// 冷却中
-		state.Turn = 15;
+		// 冷却中（按 240 turn/day 校准后 SocialCooldownTurns = 20，旧历法下为 10）
+		state.Turn = 25;
 		var events = SocialModule.TryInteract(state, "player", "npc1");
 		Assert.Empty(events);
 
 		// 冷却结束
-		state.Turn = 25;
+		state.Turn = 40;
 		events = SocialModule.TryInteract(state, "player", "npc1");
 		Assert.NotEmpty(events);
 	}

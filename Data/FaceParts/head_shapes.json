@@ -1,0 +1,10 @@
+[
+	{ "id": "round",    "displayName": "圆",   "imagePath": "res://Assets/Faces/HeadShape/round.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "oval",     "displayName": "椭圆", "imagePath": "res://Assets/Faces/HeadShape/oval.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "square",   "displayName": "方",   "imagePath": "res://Assets/Faces/HeadShape/square.png",   "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "long",     "displayName": "长",   "imagePath": "res://Assets/Faces/HeadShape/long.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "heart",    "displayName": "心形", "imagePath": "res://Assets/Faces/HeadShape/heart.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "diamond",  "displayName": "菱形", "imagePath": "res://Assets/Faces/HeadShape/diamond.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "triangle", "displayName": "三角", "imagePath": "res://Assets/Faces/HeadShape/triangle.png", "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "wide",     "displayName": "宽",   "imagePath": "res://Assets/Faces/HeadShape/wide.png",     "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

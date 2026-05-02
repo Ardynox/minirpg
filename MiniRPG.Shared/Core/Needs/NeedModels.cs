@@ -9,6 +9,7 @@ public static class NeedIds
 	public const string Thirst = "thirst";
 	public const string Rest = "rest";
 	public const string Mood = "mood";
+	public const string BabyFood = "baby_food";
 }
 
 public static class NeedThoughtSources
@@ -21,6 +22,7 @@ public static class NeedThoughtSources
 	public const string Sleep = "sleep";
 	public const string Social = "social";
 	public const string Combat = "combat";
+	public const string System = "system";
 }
 
 public sealed class NeedState
@@ -108,7 +110,7 @@ public sealed class NeedProfileDef
 	public Dictionary<string, float> DecayPerTurn { get; set; } = new(System.StringComparer.Ordinal);
 
 	[JsonPropertyName("restGainPerTurn")]
-	public float RestGainPerTurn { get; set; } = 18f;
+	public float RestGainPerTurn { get; set; } = 9f; // 240 turn/day 校准；旧 120 turn/day 历法下默认 18
 
 	[JsonPropertyName("satisfiedThreshold")]
 	public float SatisfiedThreshold { get; set; } = 85f;

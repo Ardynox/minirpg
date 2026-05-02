@@ -1,4 +1,12 @@
+using System.Collections.Generic;
+
 namespace MiniRPG.Core.Data;
+
+public sealed class KinGriefTarget
+{
+	public string SurvivorId { get; set; } = "";
+	public string Relation { get; set; } = "";
+}
 
 /// <summary>
 /// 游戏事件：逻辑层产出，副作用层（渲染/日志/音效）消费。
@@ -42,6 +50,17 @@ public class GameEvent
 	public int TargetZ { get; set; }
 	public string? WeatherTypeId { get; set; }
 	public string? WeatherIntensityId { get; set; }
+
+	/// <summary>Trust delta for <see cref="Type"/> = relationship_adjust (Initiator→Target).</summary>
+	public float RelationshipTrustDelta { get; set; }
+
+	// ── 对话（节点图）────────────────────────────────────
+	public string? ConversationDefId { get; set; }
+	public string? ConversationNodeId { get; set; }
+	public int ConversationBranchIndex { get; set; } = -1;
+	public string? ConversationPayload { get; set; }
+
+	public List<KinGriefTarget>? KinGriefTargets { get; set; }
 
 	public GameEvent(string type)
 	{

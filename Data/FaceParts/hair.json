@@ -1,0 +1,10 @@
+[
+	{ "id": "short_messy",   "displayName": "短乱发", "imagePath": "res://Assets/Faces/Hair/short_messy.png",   "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "long_flowing",  "displayName": "长直发", "imagePath": "res://Assets/Faces/Hair/long_flowing.png",  "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "ponytail",      "displayName": "马尾",   "imagePath": "res://Assets/Faces/Hair/ponytail.png",      "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "braided",       "displayName": "单辫",   "imagePath": "res://Assets/Faces/Hair/braided.png",       "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "bald",          "displayName": "光头",   "imagePath": null,                                        "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "mohawk",        "displayName": "莫西干", "imagePath": "res://Assets/Faces/Hair/mohawk.png",        "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "curly_afro",    "displayName": "卷发",   "imagePath": "res://Assets/Faces/Hair/curly_afro.png",    "anchorOffsetX": 0, "anchorOffsetY": 0 },
+	{ "id": "hooded",        "displayName": "兜帽",   "imagePath": "res://Assets/Faces/Hair/hooded.png",        "anchorOffsetX": 0, "anchorOffsetY": 0 }
+]

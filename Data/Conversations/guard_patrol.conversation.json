@@ -1,0 +1,50 @@
+{
+  "id": "guard_patrol",
+  "triggers": { "professionId": "guard", "priority": 8 },
+  "entryNode": "halt",
+  "nodes": [
+    {
+      "id": "halt",
+      "speaker": "npc",
+      "lines": ["站住。这片区我盯着。"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "只是路过。",
+          "next": "wave"
+        },
+        {
+          "kind": "check",
+          "speaker": "player:active",
+          "text": "（恐吓）让开。",
+          "check": { "ability": "cha", "skill": "intimidation", "dc": 12 },
+          "onPass": "stand_down",
+          "onFail": "tighten"
+        }
+      ]
+    },
+    {
+      "id": "wave",
+      "speaker": "npc",
+      "lines": ["行，别惹事。"],
+      "onEnter": [],
+      "branches": []
+    },
+    {
+      "id": "stand_down",
+      "speaker": "npc",
+      "lines": ["……行。你过去。"],
+      "onEnter": [{ "type": "affinity", "value": -1 }],
+      "branches": []
+    },
+    {
+      "id": "tighten",
+      "speaker": "npc",
+      "lines": ["少来这套。"],
+      "onEnter": [],
+      "branches": []
+    }
+  ]
+}

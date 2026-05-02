@@ -71,8 +71,20 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "ui.character_creation.race"
 
-[node name="RaceOption" type="OptionButton" parent="Margin/VBox/Body/Form/RaceRow"]
+[node name="RacePickerRow" type="HBoxContainer" parent="Margin/VBox/Body/Form/RaceRow"]
 layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RaceIcon" type="TextureRect" parent="Margin/VBox/Body/Form/RaceRow/RacePickerRow"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+stretch_mode = 5
+expand_mode = 1
+
+[node name="RaceOption" type="OptionButton" parent="Margin/VBox/Body/Form/RaceRow/RacePickerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ProfessionRow" type="VBoxContainer" parent="Margin/VBox/Body/Form"]
 layout_mode = 2
@@ -82,19 +94,65 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "ui.character_creation.profession"
 
-[node name="ProfessionOption" type="OptionButton" parent="Margin/VBox/Body/Form/ProfessionRow"]
+[node name="ProfessionPickerRow" type="HBoxContainer" parent="Margin/VBox/Body/Form/ProfessionRow"]
 layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="AppearanceRow" type="VBoxContainer" parent="Margin/VBox/Body/Form"]
+[node name="ProfessionIcon" type="TextureRect" parent="Margin/VBox/Body/Form/ProfessionRow/ProfessionPickerRow"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+stretch_mode = 5
+expand_mode = 1
+
+[node name="ProfessionOption" type="OptionButton" parent="Margin/VBox/Body/Form/ProfessionRow/ProfessionPickerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CustomizeRow" type="VBoxContainer" parent="Margin/VBox/Body/Form"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="AppearanceLabel" type="Label" parent="Margin/VBox/Body/Form/AppearanceRow"]
+[node name="CustomizeLabel" type="Label" parent="Margin/VBox/Body/Form/CustomizeRow"]
 layout_mode = 2
 text = "ui.character_creation.appearance"
 
-[node name="AppearanceOption" type="OptionButton" parent="Margin/VBox/Body/Form/AppearanceRow"]
+[node name="CustomizeBtn" type="Button" parent="Margin/VBox/Body/Form/CustomizeRow"]
 layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.character_creation.open_face_editor"
+
+[node name="StarterKitRow" type="VBoxContainer" parent="Margin/VBox/Body/Form"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="StarterKitLabel" type="Label" parent="Margin/VBox/Body/Form/StarterKitRow"]
+layout_mode = 2
+text = "ui.character_creation.starter_kit.title"
+
+[node name="StarterKitToolbar" type="HBoxContainer" parent="Margin/VBox/Body/Form/StarterKitRow"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResetToProfessionBtn" type="Button" parent="Margin/VBox/Body/Form/StarterKitRow/StarterKitToolbar"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.character_creation.starter_kit.reset_to_profession"
+
+[node name="DebugUnlockCheck" type="CheckBox" parent="Margin/VBox/Body/Form/StarterKitRow/StarterKitToolbar"]
+layout_mode = 2
+text = "ui.character_creation.starter_kit.debug_unlock"
+
+[node name="StarterKitScroll" type="ScrollContainer" parent="Margin/VBox/Body/Form/StarterKitRow"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="StarterKitList" type="VBoxContainer" parent="Margin/VBox/Body/Form/StarterKitRow/StarterKitScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="Validation" type="Label" parent="Margin/VBox/Body/Form"]
 visible = false

@@ -20,6 +20,19 @@
 
 ## 已完成（最近）
 
+- cursor-opus-banana-b10-catchup-2026-04-21 | **链式补跑已结束**（见终端 `31060.txt`）：设施 **9/10** ok（首轮 `loom` TLS 失败）；`void_hound` **ok**；怪 **bear、goblin、orc_shaman** **ok**，**goblin_miner** 仍 FAIL。`exit_code:2`。**乌龙**：误用 `--fixture-files`（只作用于 `fixtures/`）去筛 **`facilities/`**，又触发 10 设施全跑（`482099`，正在跑/可等到跑完）；已修复脚本并新增 **`--facility-files`**。`b4`/`b11` 的 `_log` 已加控制台 Unicode 防护。
+
+- cursor-opus-banana-b10-wave1 | 2026-04-21 备注。**首轮** `--skip-existing` 对 28 条全部 skip（磁盘旧图已齐）。**次轮** 已启动无 skip、`--size 2K` 全量换血（后台跑；日志见本机 Cursor 终端）。进程中途可见：player、部分 monster **ok**，bear/goblin/goblin_miner 等因中转 **TLS/超时** **FAIL**（旧文件仍保留）。**脚本**：`b10_generated_driver.py` 增 `--monster-files`；`--max-gen-retries` 默认 **5**；`banana_gen` 超时仍为 1500s。决策标尺 0：**Y/N 混**（成功项推进换血；失败依赖网络重试）。完成后可：整批再跑 `--skip-existing` 只对缺图无效——应对 **FAIL 项**用  
+  `python Tools/banana/b10_generated_driver.py --only monster --monster-files monster_bear_8dir.png,monster_goblin_8dir.png,monster_goblin_miner_8dir.png --size 2K`
+
+- cursor-opus-banana-b10-fixtures-run2 | 2026-04-21 完成。首轮 6 固件全量重跑 **ok=3 fail=3**（中转 `TimeoutError` / TLS / `IncompleteRead`）。**改进**：`b10_generated_driver.py` 增加 `--fixture-files`、`banana_gen` 子进程超时 **1500s**。重跑 `campfire.png、nest.png、stair_down.png` 后 **ok=3/3**，固件 6 张均为 Banana 批次产物；`validate_art_res_paths` OK。决策标尺 0：**Y**（地图固件贴图一致换血）。
+
+- cursor-opus-banana-smoke | 2026-04-21 完成。`python Tools/validate_art_res_paths.py --catalog --combat-audit` **OK**；`dotnet build mini-rpg.sln` 0 错 0 警；`b10_generated_driver.py --only fixture --limit 1 --size 1K` **ok=1**（首张 `banana_gen` 失败自动重试后成功，`Assets/Art/Generated/fixtures/campfire.png` 已换血）。决策标尺 0：**Y**（固件贴图直接进渲染管线）。
+
+- cursor-opus-b4-b10-drivers | 2026-04-21 完成。新增 `Tools/banana/b4_faces_driver.py`（62×：`banana_gen` 1:1 → rembg → `crop_square_resize` 256；`--category`/`--only`/`--limit`）；`Tools/banana/b10_generated_driver.py`（默认 34 任务：玩家/怪/异常/设施 4 向/固件；8 向 **256×2048** `1:8`；设施 `1:4`→1024 高；固件 256²；体素可选 `--include-voxel-tiles` + `top|all`）；更新 `Tools/banana/README.md`、`Artifacts/style_locks_{B4,B10}.md`、`style_locks_registry.md`。决策标尺 0：**N**（脚本与约定就位，真图需本机 API 与费用）。
+
+- cursor-opus-b11-banana-driver | 2026-04-21 完成。新增 `Tools/banana/b11_facility_blueprint_driver.py`：`banana_gen`（1:4、`--size` 1K/2K）→ `rembg` → PIL 缩至 **256×1024** → `facilities_blueprint/facility_*_blueprint.png`；`--only` / `--skip-existing` / 日志 `.cache/b11_blueprint_driver.log`。更新 `Tools/banana/README.md` §2.5、`Artifacts/style_locks_B11.md`、`Artifacts/style_locks_registry.md`。真图需在填好 `Tools/banana/.env` 后本机执行。决策标尺 0：**N**（管线就位，不代替占位 PNG 提交；有 API 后再跑换血直接改善地图蓝图观感）。
+
 - cursor-opus-b12-detail-mp | 2026-04-21 完成。身份卡 **B12**：新增 `Tools/banana/b12_detail_mp_fill_local.py`，落盘 `Placeholders/detail/` **20** 张 + `mp/` **8** 张占位；更新 `Artifacts/style_locks_B12.md`、`style_locks_B10.md`（标明 B10 为审美重刷）、`Artifacts/style_locks_registry.md`、`Artifacts/素材身份卡_运行时映射补充_2026-04-21.md`。决策标尺 0：**N**（资源就位、未接游戏逻辑；减少后续接线返工）。
 
 - cursor-opus-b9-equipment-overlays | 2026-04-21 完成。**B9**：新增 `EquipmentOverlayPaths`（8 向路径 + `HasFull*Set`）；`MapSpriteRuntimeFactory` 在投影放大后按向叠 PNG，缺套则回退程序几何；`Clear()` 释放 overlay 图缓存。`Tools/banana/b9_equipment_overlay_fill_local.py` 写入 **88** 张 `Generated/equipment_overlays/` 占位（256²）。补全 `Artifacts/style_locks_B1.md`…`B12.md`（初版/登记）并刷新 `Artifacts/style_locks_registry.md`。`Assets/Art/README.md` 接入表补一行。`dotnet build MiniRPG.csproj` 0 错 0 警；`dotnet test` 在 xunit 进程末尾仍可能因 Godot `PortraitComposer` 非宿主环境偶发 **AccessViolation**（与本轮改动无关的已知限制）。决策标尺 0：**Y**（地图上装备三类在齐套 PNG 时走贴图管线，占位可换正式图）。

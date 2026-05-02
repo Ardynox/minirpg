@@ -1,0 +1,193 @@
+[gd_scene format=3]
+
+[node name="CharacterCustomizationPanel" type="PanelContainer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "HeaderLabel"
+text = "ui.face_edit.title"
+horizontal_alignment = 1
+
+[node name="Body" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="CategoryColumn" type="VBoxContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CategoryLabel" type="Label" parent="Margin/VBox/Body/CategoryColumn"]
+layout_mode = 2
+text = "ui.face_edit.category_header"
+
+[node name="CategoryList" type="VBoxContainer" parent="Margin/VBox/Body/CategoryColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="PreviewColumn" type="VBoxContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="PreviewLabel" type="Label" parent="Margin/VBox/Body/PreviewColumn"]
+layout_mode = 2
+text = "ui.face_edit.preview_header"
+horizontal_alignment = 1
+
+[node name="PreviewFrame" type="PanelContainer" parent="Margin/VBox/Body/PreviewColumn"]
+custom_minimum_size = Vector2(0, 360)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PreviewViewport" type="SubViewportContainer" parent="Margin/VBox/Body/PreviewColumn/PreviewFrame"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="PreviewViewport" type="SubViewport" parent="Margin/VBox/Body/PreviewColumn/PreviewFrame/PreviewViewport"]
+handle_input_locally = false
+render_target_update_mode = 4
+
+[node name="PreviewRoot" type="Node2D" parent="Margin/VBox/Body/PreviewColumn/PreviewFrame/PreviewViewport/PreviewViewport"]
+
+[node name="EntriesColumn" type="VBoxContainer" parent="Margin/VBox/Body"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="EntriesLabel" type="Label" parent="Margin/VBox/Body/EntriesColumn"]
+layout_mode = 2
+text = "ui.face_edit.entries_header"
+
+[node name="EntriesScroll" type="ScrollContainer" parent="Margin/VBox/Body/EntriesColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="EntriesList" type="VBoxContainer" parent="Margin/VBox/Body/EntriesColumn/EntriesScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ColorsPanel" type="VBoxContainer" parent="Margin/VBox/Body/EntriesColumn"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="SkinRow" type="HBoxContainer" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SkinLabel" type="Label" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/SkinRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.face_edit.color.skin"
+
+[node name="SkinPicker" type="ColorPickerButton" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/SkinRow"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+edit_alpha = false
+
+[node name="HairRow" type="HBoxContainer" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HairLabel" type="Label" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/HairRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.face_edit.color.hair"
+
+[node name="HairPicker" type="ColorPickerButton" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/HairRow"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+edit_alpha = false
+
+[node name="EyeRow" type="HBoxContainer" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EyeLabel" type="Label" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/EyeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.face_edit.color.eye"
+
+[node name="EyePicker" type="ColorPickerButton" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/EyeRow"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+edit_alpha = false
+
+[node name="ClothesRow" type="HBoxContainer" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ClothesLabel" type="Label" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/ClothesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ui.face_edit.color.clothes"
+
+[node name="ClothesPicker" type="ColorPickerButton" parent="Margin/VBox/Body/EntriesColumn/ColorsPanel/ClothesRow"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+edit_alpha = false
+
+[node name="Actions" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+alignment = 2
+theme_override_constants/separation = 12
+
+[node name="RandomizeBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.face_edit.randomize"
+
+[node name="ResetBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.face_edit.reset"
+
+[node name="CancelBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.face_edit.cancel"
+
+[node name="ApplyBtn" type="Button" parent="Margin/VBox/Actions"]
+layout_mode = 2
+theme_type_variation = "ActionButton"
+text = "ui.face_edit.apply"

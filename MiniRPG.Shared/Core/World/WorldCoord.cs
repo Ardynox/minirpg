@@ -5,6 +5,9 @@ namespace MiniRPG.Core.World;
 /// <summary>
 /// 世界坐标：格子级别的三维整数坐标。
 /// X/Y 为水平面，Z 为深度（0=地表，正数=地下）。
+///
+/// 度量衡口径（详见 <c>Docs/开发约定.md</c>「度量衡口径」节）：
+///   1 cell = <b>1.5 m × 1.5 m × 1.5 m</b> 的真实空间立方体；人占 1 cell。
 /// </summary>
 public readonly record struct WorldCoord(int X, int Y, int Z)
 {
@@ -23,6 +26,7 @@ public readonly record struct WorldCoord(int X, int Y, int Z)
 /// <summary>
 /// Chunk 坐标：chunk 级别的三维索引。
 /// 每个 chunk 覆盖 ChunkSize x ChunkSize 的水平区域，Z 方向每层一个 chunk。
+/// 按 1 cell = 1.5 m 口径，1 chunk = 32 × 32 cell = <b>48 m × 48 m</b> 的水平地块。
 /// </summary>
 public readonly record struct ChunkCoord(int Cx, int Cy, int Cz)
 {

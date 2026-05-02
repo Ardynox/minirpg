@@ -10,6 +10,7 @@
 - 画布：与 `MapSpriteRuntimeFactory.ExportSize` 一致（当前 **256×256**）；若磁盘为 128 等，运行时会最近邻放大到 256 再叠。
 - **凑齐某类 8 张**才启用该类 PNG；否则该类仍走程序几何（`MapSpriteRuntimeFactory.DrawEquipment*`）。
 - 占位生成：`python Tools/banana/b9_equipment_overlay_fill_local.py`。
+- **Banana 换血**：`python Tools/banana/b9_equipment_overlay_driver.py`（**88** 张，覆盖同目录）。
 
 ## 风格咨询清单 — 待 Gemini（正式美术）
 

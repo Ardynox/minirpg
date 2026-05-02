@@ -3,7 +3,7 @@
 `Data/` root keeps authored content presets and resource mappings that define gameplay data and rendering registration.
 
 Files that stay in `Data/` root:
-- Content presets such as `actors.json`, `items.json`, `terrains.json`, and `dialogs.json`
+- Content presets such as `actors.json`, `items.json`, `terrains.json`, and `Conversations/*.conversation.json`
 - Resource mapping files such as `tile_mapping.json` and `entity_render.json`
 - Any schema-shaped data that is part of the game's authored content library
 

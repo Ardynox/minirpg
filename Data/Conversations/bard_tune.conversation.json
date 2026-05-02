@@ -1,0 +1,43 @@
+{
+  "id": "bard_tune",
+  "triggers": { "actorTags": ["prof:bard"], "priority": 12 },
+  "entryNode": "song",
+  "nodes": [
+    {
+      "id": "song",
+      "speaker": "npc",
+      "lines": ["哦？同行？要切磋一段吗？"],
+      "onEnter": [],
+      "branches": [
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "[作为吟游诗人] 来一小段即兴。",
+          "visibility": { "requiresTags": ["prof:bard"] },
+          "next": "jam",
+          "effects": [{ "type": "affinity", "value": 3 }]
+        },
+        {
+          "kind": "choice",
+          "speaker": "player:active",
+          "text": "下次吧。",
+          "next": "nod"
+        }
+      ]
+    },
+    {
+      "id": "jam",
+      "speaker": "npc",
+      "lines": ["哈！有点意思。"],
+      "onEnter": [],
+      "branches": []
+    },
+    {
+      "id": "nod",
+      "speaker": "npc",
+      "lines": ["行，路上见。"],
+      "onEnter": [],
+      "branches": []
+    }
+  ]
+}

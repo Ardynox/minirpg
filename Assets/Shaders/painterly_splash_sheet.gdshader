@@ -118,12 +118,23 @@ void vertex() {
 
 	if (mode == 0) {
 		// --- Crown sheet ---
-		// REAL crown geometry is mostly cylindrical with a slight outward
-		// tilt at the top, NOT a goblet flare. Previous version had ×1.5
-		// flare which read as "lampshade"; ×1.1 reads as "wall with a
-		// slight lean".
-		float radius = radius_base + radius_growth * age;
-		float r_at_v = radius * (1.0 + v * 0.10);
+		// Two improvements over the previous "10% wider at top" cylinder:
+		//
+		// 1) Time-varying outward LEAN. Real crowns aren't fixed-angle —
+		//    the rim tilts further outward as the sheet rises (centripetal
+		//    momentum carries the rim outward), then pulls back inward as
+		//    it collapses. Mid-life lean ≈ 45%, falling to ~5% on collapse.
+		//
+		// 2) Late-life COLLAPSE. After t≈0.7 the rim's outward growth
+		//    reverses (surface tension + gravity overpower the radial
+		//    momentum). We negate radius_growth in that band so the crown
+		//    visually pulls back inward — that radial inrush is exactly
+		//    what causes the Worthington jet to fire on schedule.
+		float collapse = smoothstep(0.7, 1.0, t);
+		float r_growth_eff = mix(radius_growth, -radius_growth * 0.55, collapse);
+		float radius = max(0.0, radius_base + r_growth_eff * age);
+		float lean = mix(0.10, 0.45, smoothstep(0.0, 0.5, t)) * (1.0 - collapse * 0.85);
+		float r_at_v = radius * (1.0 + v * lean);
 		float height_env = sin(t * 3.1415926);
 		float height = height_max * height_env;
 
